@@ -1,0 +1,72 @@
+\hypertarget{union__IEC60958__CHANNEL__STATUS}{\section{\-\_\-\-I\-E\-C60958\-\_\-\-C\-H\-A\-N\-N\-E\-L\-\_\-\-S\-T\-A\-T\-U\-S Union Reference}
+\label{union__IEC60958__CHANNEL__STATUS}\index{\-\_\-\-I\-E\-C60958\-\_\-\-C\-H\-A\-N\-N\-E\-L\-\_\-\-S\-T\-A\-T\-U\-S@{\-\_\-\-I\-E\-C60958\-\_\-\-C\-H\-A\-N\-N\-E\-L\-\_\-\-S\-T\-A\-T\-U\-S}}
+}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{union__IEC60958__CHANNEL__STATUS_a10fc722b565ef25f54b247a88b032bef}{B\-Y\-T\-E {\bfseries aby\-Data} \mbox{[}24\mbox{]}}\label{union__IEC60958__CHANNEL__STATUS_a10fc722b565ef25f54b247a88b032bef}
+
+\item 
+\hypertarget{union__IEC60958__CHANNEL__STATUS_a252775826f62f70a0f4ab8e62709f3fb}{W\-O\-R\-D {\bfseries aw\-Data} \mbox{[}12\mbox{]}}\label{union__IEC60958__CHANNEL__STATUS_a252775826f62f70a0f4ab8e62709f3fb}
+
+\item 
+\hypertarget{union__IEC60958__CHANNEL__STATUS_a10e8e90fc0b03b9214a91aa96b6415a6}{D\-W\-O\-R\-D {\bfseries adw\-Data} \mbox{[}6\mbox{]}}\label{union__IEC60958__CHANNEL__STATUS_a10e8e90fc0b03b9214a91aa96b6415a6}
+
+\item 
+\hypertarget{union__IEC60958__CHANNEL__STATUS_a763064ec8f1e977a15d207c89031f3c8}{\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+struct \{\\
+\>BYTE {\bfseries byProfessional}: 1\\
+\>BYTE {\bfseries byNotLPCM}: 1\\
+\>BYTE {\bfseries byEncodedAudioSignalEmphasis}: 3\\
+\>BYTE {\bfseries bySourceSamplingFreqUnlocked}: 1\\
+\>BYTE {\bfseries byEncodedSamplingFreq}: 2\\
+\>BYTE {\bfseries byEncodedChannelMode}: 4\\
+\>BYTE {\bfseries byEncodedUserBitsManagement}: 4\\
+\>BYTE {\bfseries byZero}: 1\\
+\>BYTE {\bfseries bySingleCoordinationSignal}: 1\\
+\>BYTE {\bfseries byWordLength}: 4\\
+\>BYTE {\bfseries byAlignmentLevel}: 2\\
+\>BYTE {\bfseries byChannelNumberOrMultiChannelMode}: 7\\
+\>BYTE {\bfseries byDefinedMultiChannelMode}: 1\\
+\>BYTE {\bfseries byReferenceSignal}: 2\\
+\>BYTE {\bfseries byReserved1}: 1\\
+\>BYTE {\bfseries bySamplingFreq}: 4\\
+\>BYTE {\bfseries bySamplingFreqScaling}: 1\\
+\>BYTE {\bfseries byReserved2}\\
+\>BYTE {\bfseries achChannelOrigin} \mbox{[}4\mbox{]}\\
+\>BYTE {\bfseries achChannelDestination} \mbox{[}4\mbox{]}\\
+\>DWORD {\bfseries dwLocalSampleAddress}\\
+\>DWORD {\bfseries dwTimeOfDaySampleAddress}\\
+\>BYTE {\bfseries byReliabilityFlags}\\
+\>BYTE {\bfseries byCRC}\\
+\} {\bfseries Professional}}\label{union__IEC60958__CHANNEL__STATUS_a763064ec8f1e977a15d207c89031f3c8}
+\\
+
+\end{tabbing}\item 
+\hypertarget{union__IEC60958__CHANNEL__STATUS_a62d4fd22b25ceec4107138258eff7ee7}{\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+struct \{\\
+\>BYTE {\bfseries byProfessional}: 1\\
+\>BYTE {\bfseries byNotLPCM}: 1\\
+\>BYTE {\bfseries byNoCopyright}: 1\\
+\>BYTE {\bfseries byAdditionalFormatInfo}: 3\\
+\>BYTE {\bfseries byMode}: 2\\
+\>BYTE {\bfseries byCategoryCode}\\
+\>BYTE {\bfseries bySourceNumber}: 4\\
+\>BYTE {\bfseries byChannelNumber}: 4\\
+\>BYTE {\bfseries bySamplingFreq}: 4\\
+\>BYTE {\bfseries byClockAccuracy}: 2\\
+\>BYTE {\bfseries byReserved1}: 2\\
+\>BYTE {\bfseries byWordLength}: 4\\
+\>BYTE {\bfseries byOrigSamplingFreq}: 4\\
+\>BYTE {\bfseries byCGMS\_A}\\
+\} {\bfseries Consumer}}\label{union__IEC60958__CHANNEL__STATUS_a62d4fd22b25ceec4107138258eff7ee7}
+\\
+
+\end{tabbing}\end{DoxyCompactItemize}
+
+
+The documentation for this union was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+M\-W\-I\-E\-C60958.\-h\end{DoxyCompactItemize}
