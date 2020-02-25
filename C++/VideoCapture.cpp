@@ -140,6 +140,7 @@ static void stop_recording(int pid, char start_str[256]) {
 	char newname[256] = {0};
 	sprintf(oldname, "../Videos/%s_.mkv", start_str);
 	sprintf(newname, "../Videos/%s_%s.mkv", start_str, stop_str);
+	printf("%s: Saving video %s\n", stop_str, newname);
 	int x = 0;
 	x = rename(oldname, newname);
 	usleep(1500000); // Allow time for ffmpeg to stop
@@ -150,6 +151,9 @@ pid_t start_recording(int cx, int cy, char starttime[256]){
 
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
+	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate 60 -video_size %ix%i \n" 
+				   "\t -i /dev/video0 ../Videos/%s_.mkv \n", starttime, cx, cy, starttime);
+	
 
 	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate 60 -video_size %ix%i " 
 				   "-i /dev/video0 ../Videos/%s_.mkv ", cx, cy, starttime);
@@ -158,7 +162,7 @@ pid_t start_recording(int cx, int cy, char starttime[256]){
 	int pid = 0;
 	pid = system2(ffmpg,0,0);
 
-	printf(ffmpg);	
+	//printf(ffmpg);	
 
 	return pid;
 	
@@ -177,7 +181,8 @@ int main(int argc, char* argv[])
 	int prev_cx = 0;
 	int prev_cy = 0;
 	int ffmpeg_pid = 0;
-	char start_str[256] = {0};	
+	char start_str[256] = {0};
+	char stop_str[256] = {0};	
 	int nMov = 0;	
 
 	MW_RESULT mr = MW_SUCCEEDED;	
@@ -196,9 +201,10 @@ int main(int argc, char* argv[])
 		if (nCount <= 0){
             //printf("ERROR: Can't find channels!\n");
 			if ( recording > 0 ){
+				get_time_str(stop_str);
 				stop_recording(ffmpeg_pid, start_str);
 				recording = 0;
-				printf("stopped recoding b/c no channels!\n");
+				printf("%s: stopped recoding b/c no channels!\n", stop_str);
 				nMov++;
 			}
 			continue;	
@@ -236,24 +242,25 @@ int main(int argc, char* argv[])
 		cx = thisInfo.cx;
 		cy = thisInfo.cy;
 
-		printf("----------------------------------------\nvalue of cx : %d\n", cx);
-		printf("value of cy : %d\n", cy);
-		printf("value of prev cx : %d\n", prev_cx);
-		printf("value of prev cy : %d\n", prev_cy);
-		printf("Value of recording : %d\n", recording);
+		//printf("----------------------------------------\nvalue of cx : %d\n", cx);
+		//printf("value of cy : %d\n", cy);
+		//printf("value of prev cx : %d\n", prev_cx);
+		//printf("value of prev cy : %d\n", prev_cy);
+		//printf("Value of recording : %d\n", recording);
 
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
 				ffmpeg_pid = start_recording(cx, cy, start_str);
 				recording = 1;
-				printf("\nstarted recording\n");
+				printf("%s: started recording\n", start_str);
 				usleep(5000000);
 			}
 			
 			else {
 				if (( cx != prev_cx) || (cy != prev_cy)) {
-					printf("stopped recording because resolution changed.\n");
+					get_time_str(stop_str);
+					printf("%s: stopped recording because resolution changed.\n", stop_str);
 					stop_recording(ffmpeg_pid, start_str);
 					nMov++;
 					recording = 0;
@@ -263,7 +270,8 @@ int main(int argc, char* argv[])
 		else {
 			
 			if (recording == 1) {
-				printf("Whack resolution: stopped recording.\n");
+				get_time_str(stop_str);
+				printf("%s: Whack resolution: stopped recording.\n", stop_str);
 				stop_recording(ffmpeg_pid, start_str);
 				nMov++;
 				recording = 0;
@@ -274,7 +282,7 @@ int main(int argc, char* argv[])
 		prev_cx = cx;	
 		prev_cy = cy;
 
-		printf("value of nMov : %d\n", nMov);
+		//printf("value of nMov : %d\n", nMov);
 
     if (hChannel != NULL) {
         MWCloseChannel(hChannel);
