@@ -133,7 +133,7 @@ static void stop_recording(int pid, char start_str[256]) {
 	get_time_str(stop_str);
 	
 	char killCmd[256] = {0}; 
-	sprintf(killCmd, "kill %d", pid);
+	sprintf(killCmd, "kill -INT %d", pid);
 	system(killCmd);
 
 	char oldname[256] = {0};
