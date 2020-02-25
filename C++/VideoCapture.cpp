@@ -1,5 +1,5 @@
 ﻿/************************************************************************************************/
-// VideoDetect.cpp : Detects if device connected or changes state, if video input available,
+// VideoCapture.cpp : Detects if device connected or changes state, if video input available,
 // then it also reports the resolution, frame rate, and any changes there of.
 //
 // This code is adapted and modified from the Magewell example code cited below. All licensing
@@ -138,8 +138,8 @@ static void stop_recording(int pid, char start_str[256]) {
 
 	char oldname[256] = {0};
 	char newname[256] = {0};
-	sprintf(oldname, "%s_.mkv", start_str);
-	sprintf(newname, "%s_%s.mkv", start_str, stop_str);
+	sprintf(oldname, "../Videos/%s_.mkv", start_str);
+	sprintf(newname, "../Videos/%s_%s.mkv", start_str, stop_str);
 	int x = 0;
 	x = rename(oldname, newname);
 	usleep(1500000); // Allow time for ffmpeg to stop
@@ -152,7 +152,7 @@ pid_t start_recording(int cx, int cy, char starttime[256]){
 	char ffmpg[1024] = {0};
 
 	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate 60 -video_size %ix%i " 
-				   "-i /dev/video0 %s_.mkv ", cx, cy, starttime);
+				   "-i /dev/video0 ../Videos/%s_.mkv ", cx, cy, starttime);
 	
 	// Call ffmpeg
 	int pid = 0;
