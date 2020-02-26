@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctime>
+#include <cmath>
 
 #include "LibMWCapture/MWCapture.h"
 #include "LibMWCapture/MWUSBCapture.h"
@@ -175,11 +176,41 @@ int main(int argc, char* argv[])
 {
 
 	
-	int cx = 0;
+	MWCAP_VIDEO_SIGNAL_STATE state;
+	int x = 0;
+	int y = 0;	
+	int cx = 0;	
 	int cy = 0;
-	int recording = 0;
-	int prev_cx = 0;
+	int cxTotal = 0;
+	int cyTotal = 0;
+	BOOLEAN bInterlaced;
+	DWORD dwFrameDuration;
+	int nAspectX = 0;
+	int nAspectY = 0;
+	BOOLEAN bSegmentedFrame;
+	MWCAP_VIDEO_FRAME_TYPE frameType;
+	MWCAP_VIDEO_COLOR_FORMAT colorFormat;
+	MWCAP_VIDEO_QUANTIZATION_RANGE quantRange;
+	MWCAP_VIDEO_SATURATION_RANGE satRange;
+
+	MWCAP_VIDEO_SIGNAL_STATE prev_state;
+	int prev_x = 0;
+	int prev_y = 0;	
+	int prev_cx = 0;	
 	int prev_cy = 0;
+	int prev_cxTotal = 0;
+	int prev_cyTotal = 0;
+	BOOLEAN prev_bInterlaced;
+	DWORD prev_dwFrameDuration;
+	int prev_nAspectX = 0;
+	int prev_nAspectY = 0;
+	BOOLEAN prev_bSegmentedFrame;
+	MWCAP_VIDEO_FRAME_TYPE prev_frameType;
+	MWCAP_VIDEO_COLOR_FORMAT prev_colorFormat;
+	MWCAP_VIDEO_QUANTIZATION_RANGE prev_quantRange;
+	MWCAP_VIDEO_SATURATION_RANGE prev_satRange;
+
+	int recording = 0;
 	int ffmpeg_pid = 0;
 	char start_str[256] = {0};
 	char stop_str[256] = {0};	
@@ -237,10 +268,28 @@ int main(int argc, char* argv[])
 
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
 		MWGetVideoSignalStatus(hChannel, &thisInfo);
-		
 
-		cx = thisInfo.cx;
+		state = thisInfo.state;
+		x = thisInfo.x;
+		y = thisInfo.y;	
+		cx = thisInfo.cx;	
 		cy = thisInfo.cy;
+		cxTotal = thisInfo.cxTotal;
+		cyTotal = thisInfo.cyTotal;
+		bInterlaced = thisInfo.bInterlaced;
+		dwFrameDuration = thisInfo.dwFrameDuration;
+		nAspectX = thisInfo.nAspectX;
+		nAspectY = thisInfo.nAspectY;
+		bSegmentedFrame = thisInfo.bSegmentedFrame;
+		frameType = thisInfo.frameType;
+		colorFormat = thisInfo.colorFormat;
+		quantRange = thisInfo.quantRange;
+		satRange = thisInfo.satRange;
+
+
+
+
+	    printf("%d %.0f \n", thisInfo.bInterlaced, round( 10000000./thisInfo.dwFrameDuration));	
 
 		//printf("----------------------------------------\nvalue of cx : %d\n", cx);
 		//printf("value of cy : %d\n", cy);
@@ -249,38 +298,70 @@ int main(int argc, char* argv[])
 		//printf("Value of recording : %d\n", recording);
 
 
-		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
-			if (recording == 0) {
+		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) 
+		{
+			if (recording == 0) 
+			{
 				ffmpeg_pid = start_recording(cx, cy, start_str);
 				recording = 1;
 				printf("%s: started recording\n", start_str);
 				usleep(5000000);
 			}
 			
-			else {
-				if (( cx != prev_cx) || (cy != prev_cy)) {
+			else 
+			{
+				if 	(	( state != prev_state ) ||
+						( x != prev_x ) || 
+						( y != prev_y ) ||
+						( cx != prev_cx ) || (cy != prev_cy) ||
+						( cxTotal != prev_cxTotal ) || 
+						( cyTotal != prev_cyTotal ) ||
+						( bInterlaced != prev_bInterlaced ) || 
+						( dwFrameDuration != prev_dwFrameDuration ) ||
+						( nAspectX != prev_nAspectX ) || 
+						( nAspectY != prev_nAspectY ) ||
+						( bSegmentedFrame != prev_bSegmentedFrame ) || 
+						( frameType != prev_frameType ) ||
+						( colorFormat != prev_colorFormat ) || 
+						( quantRange != prev_quantRange ) ||
+						( satRange != prev_satRange )  
+					) 
+					{
 					get_time_str(stop_str);
-					printf("%s: stopped recording because resolution changed.\n", stop_str);
+					printf("%s: stopped recording because something changed.\n", stop_str);
 					stop_recording(ffmpeg_pid, start_str);
 					nMov++;
 					recording = 0;
-				}	
+					}	
 			}
 		}
 		else {
 			
 			if (recording == 1) {
 				get_time_str(stop_str);
-				printf("%s: Whack resolution: stopped recording.\n", stop_str);
+				printf("%s: Whack resolution: stopped recording.%i x %i \n", stop_str, cx, cy);
 				stop_recording(ffmpeg_pid, start_str);
 				nMov++;
 				recording = 0;
 			}
 		}
 		
-		
+		prev_state = state;
+		prev_x = x;
+		prev_y = y;	
 		prev_cx = cx;	
 		prev_cy = cy;
+		prev_cxTotal = cxTotal;
+		prev_cyTotal = cyTotal;
+		prev_bInterlaced = bInterlaced;
+		prev_dwFrameDuration = dwFrameDuration;
+		prev_nAspectX = nAspectX;
+		prev_nAspectY = nAspectY;
+		prev_bSegmentedFrame = bSegmentedFrame;
+		prev_frameType = frameType;
+		prev_colorFormat = colorFormat;
+		prev_quantRange = quantRange;
+		prev_satRange = satRange;
 
 		//printf("value of nMov : %d\n", nMov);
 
