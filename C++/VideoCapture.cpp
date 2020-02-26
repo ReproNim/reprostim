@@ -1,6 +1,7 @@
 ﻿/************************************************************************************************/
 // VideoCapture.cpp : Detects if device connected or changes state, if video input available,
-// then it also reports the resolution, frame rate, and any changes there of.
+// then it calls ffmpeg to start recording video. If it changes state while recording it stops 
+// recording and begins a new recording if possible.
 //
 // This code is adapted and modified from the Magewell example code cited below. All licensing
 // and legal matters pertaining thereunto are stipulated in the text below which has been preserved 
@@ -147,17 +148,17 @@ static void stop_recording(int pid, char start_str[256]) {
 	usleep(1500000); // Allow time for ffmpeg to stop
 }
 
-pid_t start_recording(int cx, int cy, char starttime[256]){
+pid_t start_recording(int cx, int cy, char fr[256], char starttime[256]){
 
 
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
-	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate 60 -video_size %ix%i \n" 
-				   "\t -i /dev/video0 ../Videos/%s_.mkv \n", starttime, cx, cy, starttime);
+	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i \n" 
+				   "\t -i /dev/video0 ../Videos/%s_.mkv \n", starttime, fr, cx, cy, starttime);
 	
 
-	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate 60 -video_size %ix%i " 
-				   "-i /dev/video0 ../Videos/%s_.mkv ", cx, cy, starttime);
+	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i " 
+				   "-i /dev/video0 ../Videos/%s_.mkv ", fr, cx, cy, starttime);
 	
 	// Call ffmpeg
 	int pid = 0;
@@ -215,6 +216,8 @@ int main(int argc, char* argv[])
 	char start_str[256] = {0};
 	char stop_str[256] = {0};	
 	int nMov = 0;	
+	char frameRate[256] = {0};
+
 
 	MW_RESULT mr = MW_SUCCEEDED;	
 
@@ -230,7 +233,7 @@ int main(int argc, char* argv[])
 
         int nCount = MWGetChannelCount();
 		if (nCount <= 0){
-            //printf("ERROR: Can't find channels!\n");
+            printf("ERROR: Can't find channels!\n");
 			if ( recording > 0 ){
 				get_time_str(stop_str);
 				stop_recording(ffmpeg_pid, start_str);
@@ -249,6 +252,8 @@ int main(int argc, char* argv[])
         for (int i = 0; i < nCount; i++){
             MWCAP_CHANNEL_INFO info;
             mr = MWGetChannelInfoByIndex(i, &info);
+			//printf("MR: %i\n", mr);
+			//printf("SZFamName : %s\n", info.szFamilyName);
             if (strcmp(info.szFamilyName, "USB Capture") == 0) {
                 nUsbDevice[nUsbCount] = i;
                 nUsbCount ++;
@@ -259,12 +264,12 @@ int main(int argc, char* argv[])
         
 
 		char wPath[256] = {0};
-		//printf("nUsbDevice : %d\n", nUsbDevice[0]);
+		// printf("nUsbDevice : %d\n", nUsbDevice[0]);
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
 		hChannel = MWOpenChannelByPath(wPath);
 
-		//printf("Device Path : %s\n", wPath);
-		//printf("argc : %d\n", argc);
+		// printf("Device Path : %s\n", wPath);
+		// printf("argc : %d\n", argc);
 
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
 		MWGetVideoSignalStatus(hChannel, &thisInfo);
@@ -287,12 +292,10 @@ int main(int argc, char* argv[])
 		satRange = thisInfo.satRange;
 
 
+	    sprintf(frameRate, "%.0f", round( 10000000./dwFrameDuration));	
 
-
-	    printf("%d %.0f \n", thisInfo.bInterlaced, round( 10000000./thisInfo.dwFrameDuration));	
-
-		//printf("----------------------------------------\nvalue of cx : %d\n", cx);
-		//printf("value of cy : %d\n", cy);
+		// printf("----------------------------------------\nvalue of cx : %d\n", thisInfo.cx);
+		// printf("value of cx : %d\n", cx);
 		//printf("value of prev cx : %d\n", prev_cx);
 		//printf("value of prev cy : %d\n", prev_cy);
 		//printf("Value of recording : %d\n", recording);
@@ -302,7 +305,7 @@ int main(int argc, char* argv[])
 		{
 			if (recording == 0) 
 			{
-				ffmpeg_pid = start_recording(cx, cy, start_str);
+				ffmpeg_pid = start_recording(cx, cy, frameRate, start_str);
 				recording = 1;
 				printf("%s: started recording\n", start_str);
 				usleep(5000000);
@@ -311,8 +314,6 @@ int main(int argc, char* argv[])
 			else 
 			{
 				if 	(	( state != prev_state ) ||
-						( x != prev_x ) || 
-						( y != prev_y ) ||
 						( cx != prev_cx ) || (cy != prev_cy) ||
 						( cxTotal != prev_cxTotal ) || 
 						( cyTotal != prev_cyTotal ) ||
@@ -324,7 +325,8 @@ int main(int argc, char* argv[])
 						( frameType != prev_frameType ) ||
 						( colorFormat != prev_colorFormat ) || 
 						( quantRange != prev_quantRange ) ||
-						( satRange != prev_satRange )  
+						( satRange != prev_satRange )
+						  
 					) 
 					{
 					get_time_str(stop_str);
@@ -345,7 +347,24 @@ int main(int argc, char* argv[])
 				recording = 0;
 			}
 		}
-		
+
+/*	
+		if 	( state != prev_state ) { printf("state\n"); }
+		if	( cx != prev_cx ) { printf("sprev_cx\n"); }
+		if  (cy != prev_cy ) { printf("cy\n"); }
+		if	( cxTotal != prev_cxTotal )  { printf("cxTot\n"); }
+		if	( cyTotal != prev_cyTotal ) { printf("cyTot\n"); }
+		if	( bInterlaced != prev_bInterlaced )  { printf("bInt\n"); }
+		if	( dwFrameDuration != prev_dwFrameDuration ) { printf("dwFdur\n"); }
+		if	( nAspectX != prev_nAspectX )  { printf("nAsx\n"); }
+		if	( nAspectY != prev_nAspectY ) { printf("nAsy\n"); }
+		if	( bSegmentedFrame != prev_bSegmentedFrame )  { printf("bSegFr\n"); }
+		if	( frameType != prev_frameType ) { printf("frtyp\n"); }
+		if	( colorFormat != prev_colorFormat )  { printf("coloF\n"); }
+		if	( quantRange != prev_quantRange ) { printf("quantR\n"); }
+		if	( satRange != prev_satRange )  { printf("satR\n"); }
+*/					
+	
 		prev_state = state;
 		prev_x = x;
 		prev_y = y;	
@@ -363,7 +382,7 @@ int main(int argc, char* argv[])
 		prev_quantRange = quantRange;
 		prev_satRange = satRange;
 
-		//printf("value of nMov : %d\n", nMov);
+		// printf("value of nMov : %d\n", nMov);
 
     if (hChannel != NULL) {
         MWCloseChannel(hChannel);
