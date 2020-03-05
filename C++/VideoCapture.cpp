@@ -152,14 +152,15 @@ void get_time_str(char mov[256]){
 
 static void stop_recording(int pid, char start_str[256]) {
 
-    std::string ffmpid;
-    ffmpid = exec("pidof ffmpeg");
+    	std::string ffmpid;
+    	ffmpid = exec("pidof ffmpeg");
 	printf("%s\n", ffmpid.c_str());
+	
 	char stop_str[256] = {0};
 	get_time_str(stop_str);
 	
 	char killCmd[256] = {0}; 
-	sprintf(killCmd, "kill -INT %d", pid);
+	sprintf(killCmd, "kill -INT %s", ffmpid.c_str());
 	system(killCmd);
 
 	char oldname[256] = {0};
