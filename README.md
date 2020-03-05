@@ -8,7 +8,7 @@ Describe what it is for
 
 On Debian
 
-    apt-get install libudev-dev libasound-dev libv4l-dev
+    apt-get install ffmpeg libudev-dev libasound-dev libv4l-dev
 
 ## Build
 
