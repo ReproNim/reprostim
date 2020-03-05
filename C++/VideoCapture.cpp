@@ -142,7 +142,7 @@ static void stop_recording(int pid, char start_str[256]) {
 	char newname[256] = {0};
 	sprintf(oldname, "../Videos/%s_.mkv", start_str);
 	sprintf(newname, "../Videos/%s_%s.mkv", start_str, stop_str);
-	printf("%s: Saving video %s\n", stop_str, newname);
+	printf("%s:killing %i Saving video %s\n", stop_str, pid, newname);
 	int x = 0;
 	x = rename(oldname, newname);
 	usleep(1500000); // Allow time for ffmpeg to stop
