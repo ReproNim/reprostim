@@ -54,6 +54,26 @@
 #include "LibMWCapture/MWUSBCapture.h"
 
 
+
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+
+std::string exec(const char* cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+
 pid_t system2(const char * command, int * infp, int * outfp)
 {
 	//std::fstream fs;
@@ -131,18 +151,23 @@ void get_time_str(char mov[256]){
 }
 
 static void stop_recording(int pid, char start_str[256]) {
+
+    	std::string ffmpid;
+    	ffmpid = exec("pidof ffmpeg");
+	printf("%s\n", ffmpid.c_str());
+	
 	char stop_str[256] = {0};
 	get_time_str(stop_str);
 	
 	char killCmd[256] = {0}; 
-	sprintf(killCmd, "kill -INT %d", pid);
+	sprintf(killCmd, "kill -INT %s", ffmpid.c_str());
 	system(killCmd);
 
 	char oldname[256] = {0};
 	char newname[256] = {0};
 	sprintf(oldname, "../Videos/%s_.mkv", start_str);
 	sprintf(newname, "../Videos/%s_%s.mkv", start_str, stop_str);
-	printf("%s: Saving video %s\n", stop_str, newname);
+	printf("%s:killing %i Saving video %s\n", stop_str, pid, newname);
 	int x = 0;
 	x = rename(oldname, newname);
 	usleep(1500000); // Allow time for ffmpeg to stop
