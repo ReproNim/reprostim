@@ -268,8 +268,8 @@ int main(int argc, char* argv[])
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
 		hChannel = MWOpenChannelByPath(wPath);
 
-		// printf("Device Path : %s\n", wPath);
-		// printf("argc : %d\n", argc);
+		printf("Device Path : %c\n", wPath);
+		printf("argc : %d\n", argc);
 
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
 		MWGetVideoSignalStatus(hChannel, &thisInfo);
@@ -391,7 +391,7 @@ int main(int argc, char* argv[])
 
 		MWCaptureExitInstance();
 
-		} while ( nMov < 5); 
+		} while ( true ); 
 	stop_recording(ffmpeg_pid, start_str);
 
 
