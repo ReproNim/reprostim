@@ -11,30 +11,27 @@
 // date of bastardization inception: 01/15/2020
 //
 // Original header begins after this line.
-
 // USBDeviceDetect.cpp : Defines the entry point for the console application.
-
 // MAGEWELL PROPRIETARY INFORMATION
-
 // The following license only applies to head files and library within Magewell’s SDK 
 // and not to Magewell’s SDK as a whole. 
-
+//
 // Copyrights © Nanjing Magewell Electronics Co., Ltd. (“Magewell”) All rights reserved.
-
+//
 // Magewell grands to any person who obtains the copy of Magewell’s head files and library 
 // the rights,including without limitation, to use, modify, publish, sublicense, distribute
 // the Software on the conditions that all the following terms are met:
 // - The above copyright notice shall be retained in any circumstances.
 // -The following disclaimer shall be included in the software and documentation and/or 
 // other materials provided for the purpose of publish, distribution or sublicense.
-
+//
 // THE SOFTWARE IS PROVIDED BY MAGEWELL “AS IS” AND ANY EXPRESS, INCLUDING BUT NOT LIMITED TO,
 // THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
 // IN NO EVENT SHALL MAGEWELL BE LIABLE 
-
+//
 // FOR ANY CLAIM, DIRECT OR INDIRECT DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT,
 // TORT OR OTHERWISE, ARISING IN ANY WAY OF USING THE SOFTWARE.
-
+//
 // CONTACT INFORMATION:
 // SDK@magewell.net
 // http://www.magewell.com/
@@ -49,97 +46,89 @@
 #include <fcntl.h>
 #include <ctime>
 #include <cmath>
-
 #include "LibMWCapture/MWCapture.h"
 #include "LibMWCapture/MWUSBCapture.h"
-
-
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <array>
 
-
 std::string exec(const char* cmd) {
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
+	std::array<char, 128> buffer;
+	std::string result;
+	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+	if (!pipe) {
+		throw std::runtime_error("popen() failed!");
+	}
+	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+		result += buffer.data();
+	}
+	return result;
 }
 
-pid_t system2(const char * command, int * infp, int * outfp)
-{
-	//std::fstream fs;
-    int p_stdin[2];
-    int p_stdout[2];
-    pid_t pid;
+pid_t system2(const char * command, int * infp, int * outfp) {
+	int p_stdin[2];
+	int p_stdout[2];
+	pid_t pid;
 
-    if (pipe(p_stdin) == -1)
-        return -1;
+	if (pipe(p_stdin) == -1)
+        	return -1;
 
-    if (pipe(p_stdout) == -1) {
-        close(p_stdin[0]);
-        close(p_stdin[1]);
-        return -1;
-    }
+	if (pipe(p_stdout) == -1) {
+        	close(p_stdin[0]);
+        	close(p_stdin[1]);
+        	return -1;
+    	}
 
-    pid = fork();
+	pid = fork();
 
-    if (pid < 0) {
-        close(p_stdin[0]);
-        close(p_stdin[1]);
-        close(p_stdout[0]);
-        close(p_stdout[1]);
-        return pid;
-    } else if (pid == 0) {
-        close(p_stdin[1]);
-        dup2(p_stdin[0], 0);
-        close(p_stdout[0]);
-        dup2(p_stdout[1], 1);
-        dup2(open("/dev/null", O_RDONLY), 2);
-        /// Close all other descriptors for the safety sake.
-        for (int i = 3; i < 4096; ++i)
-            close(i);
+	if (pid < 0) {
+		close(p_stdin[0]);
+		close(p_stdin[1]);
+		close(p_stdout[0]);
+		close(p_stdout[1]);
+		return pid;
+	} 
+	else if (pid == 0) {
+		close(p_stdin[1]);
+		dup2(p_stdin[0], 0);
+		close(p_stdout[0]);
+		dup2(p_stdout[1], 1);
+		dup2(open("/dev/null", O_RDONLY), 2);
+		/// Close all other descriptors for the safety sake.
+		for (int i = 3; i < 4096; ++i)
+			close(i);
+		setsid();
+        	execl("/bin/sh", "sh", "-c", command, NULL);
+        	_exit(1);
+	}
 
-        setsid();
-        execl("/bin/sh", "sh", "-c", command, NULL);
-        _exit(1);
-    }
+	close(p_stdin[0]);
+	close(p_stdout[1]);
 
-    close(p_stdin[0]);
-    close(p_stdout[1]);
+	if (infp == NULL) {
+		close(p_stdin[1]);
+	} 
+	else {
+		*infp = p_stdin[1];
+	}
 
-    if (infp == NULL) {
-        close(p_stdin[1]);
-    } else {
-        *infp = p_stdin[1];
-    }
-
-    if (outfp == NULL) {
-        close(p_stdout[0]);
-    } else {
-        *outfp = p_stdout[0];
-    }
-
-
-    return pid;
+	if (outfp == NULL) {
+		close(p_stdout[0]);
+	} 
+	else {
+		*outfp = p_stdout[0];
+	}
+	return pid;
 }
 
 
 
 
 void get_time_str(char mov[256]){
-	
 	time_t now = time(0);
 	tm *ltm = localtime(&now);
-	
 	int yr = 1900 + ltm->tm_year;
 	int mo = 1 + ltm->tm_mon;
 	int da = ltm->tm_mday;
@@ -151,18 +140,14 @@ void get_time_str(char mov[256]){
 }
 
 static void stop_recording(int pid, char start_str[256], char vpath[256]) {
-
-    std::string ffmpid;
-    ffmpid = exec("pidof ffmpeg");
+	std::string ffmpid;
+	ffmpid = exec("pidof ffmpeg");
 	printf("%s\n", ffmpid.c_str());
-	
 	char stop_str[256] = {0};
 	get_time_str(stop_str);
-	
 	char killCmd[256] = {0}; 
 	sprintf(killCmd, "kill -INT %s", ffmpid.c_str());
 	system(killCmd);
-
 	char oldname[256] = {0};
 	char newname[256] = {0};
 	sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
@@ -174,63 +159,45 @@ static void stop_recording(int pid, char start_str[256], char vpath[256]) {
 }
 
 pid_t start_recording(int cx, int cy, char fr[256], char starttime[256], 
-					  char capdev[256], char vpath[256])
-{
-
-
+	char capdev[256], char vpath[256]){
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
 	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i \n" 
 				   "\t -i %s %s/%s_.mkv \n", starttime, fr, cx, cy, capdev, vpath, starttime);
-	
-
 	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i " 
 				   "-i %s %s/%s_.mkv ", fr, cx, cy, capdev, vpath, starttime);
-	
-	// Call ffmpeg
 	int pid = 0;
 	pid = system2(ffmpg,0,0);
-
-	//printf(ffmpg);	
-
 	return pid;
-	
 }
 
-
-
-
-int main(int argc, char* argv[])
-{
-
+int main(int argc, char* argv[]){
 	const char* helpstr="usage: ./VideoCapture -o <path> [-d <path> | -h ]\n"
-						"\t-o <path>\tOutput directory where to save recordings (not optional)\n"
-						"\t-d <path>\tPath to capture device (default = '/dev/video0', opt)\n"
-						"\t-h\t\tPrint this help string\n";
+		"\t-o <path>\tOutput directory where to save recordings (not optional)\n"
+		"\t-d <path>\tPath to capture device (default = '/dev/video0', opt)\n"
+		"\t-h\t\tPrint this help string\n";
 	char* vpath = NULL ;	
 	char* capdev = NULL;
 	capdev = "/dev/video0";
-    int c ;
+	int c ;
 	if (argc == 1){ 
 		printf(helpstr);
 		return 55;
 	}
-
-    while( ( c = getopt (argc, argv, "o:d:h") ) != -1 ) 
-    {
-        switch(c)
-        {
-            case 'o':
-                if(optarg) vpath = optarg;
-                break;
-			case 'd':
-				if(optarg) capdev = optarg;
-				break;
-            case 'h':
-                printf(helpstr) ;
-                return 55;
-        }
-    }
+    
+	while( ( c = getopt (argc, argv, "o:d:h") ) != -1 ){
+		switch(c){
+		case 'o':
+			if(optarg) vpath = optarg;
+			break;
+		case 'd':
+			if(optarg) capdev = optarg;
+			break;
+		case 'h':
+		    	printf(helpstr) ;
+		    	return 55;
+	    	}
+    	}
 	
 	// Puke if vpath not specified
 	if ( ! vpath ){
@@ -279,22 +246,17 @@ int main(int argc, char* argv[])
 	int nMov = 0;	
 	char frameRate[256] = {0};
 
-
 	MW_RESULT mr = MW_SUCCEEDED;	
 
 	do {
-		
 		usleep(1000000);
 		MWCaptureInitInstance();
-
 		HCHANNEL hChannel = NULL;
-    	//MW_RESULT mr = MW_SUCCEEDED;
-        MWRefreshDevice();
+        	MWRefreshDevice();
+        	int nCount = MWGetChannelCount();
 
-
-        int nCount = MWGetChannelCount();
 		if (nCount <= 0){
-            printf("ERROR: Can't find channels!\n");
+            		printf("ERROR: Can't find channels!\n");
 			if ( recording > 0 ){
 				get_time_str(stop_str);
 				stop_recording(ffmpeg_pid, start_str, vpath);
@@ -303,26 +265,20 @@ int main(int argc, char* argv[])
 				nMov++;
 			}
 			continue;	
-        }
+        	}
 		
-		
-
-        //printf("Log: Find %d channels!\n",nCount);
-        int nUsbCount = 0;
-        int nUsbDevice[16] = {-1};
-        for (int i = 0; i < nCount; i++){
-            MWCAP_CHANNEL_INFO info;
-            mr = MWGetChannelInfoByIndex(i, &info);
+        	int nUsbCount = 0;
+        	int nUsbDevice[16] = {-1};
+        	for (int i = 0; i < nCount; i++){
+            		MWCAP_CHANNEL_INFO info;
+            		mr = MWGetChannelInfoByIndex(i, &info);
 			//printf("MR: %i\n", mr);
 			//printf("SZFamName : %s\n", info.szFamilyName);
-            if (strcmp(info.szFamilyName, "USB Capture") == 0) {
-                nUsbDevice[nUsbCount] = i;
-                nUsbCount ++;
-            }
-        }
-        //MW_RESULT mr = MW_SUCCEEDED;
-
-        
+            		if (strcmp(info.szFamilyName, "USB Capture") == 0) {
+                		nUsbDevice[nUsbCount] = i;
+                		nUsbCount ++;
+            		}
+        	}
 
 		char wPath[256] = {0};
 		// printf("nUsbDevice : %d\n", nUsbDevice[0]);
@@ -352,54 +308,38 @@ int main(int argc, char* argv[])
 		quantRange = thisInfo.quantRange;
 		satRange = thisInfo.satRange;
 
+	    	sprintf(frameRate, "%.0f", round( 10000000./dwFrameDuration));	
 
-	    sprintf(frameRate, "%.0f", round( 10000000./dwFrameDuration));	
-
-		// printf("----------------------------------------\nvalue of cx : %d\n", thisInfo.cx);
-		// printf("value of cx : %d\n", cx);
-		//printf("value of prev cx : %d\n", prev_cx);
-		//printf("value of prev cy : %d\n", prev_cy);
-		//printf("Value of recording : %d\n", recording);
-
-
-		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) 
-		{
-			if (recording == 0) 
-			{
+		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
+			if (recording == 0) {
 				ffmpeg_pid = start_recording(cx, cy, frameRate, start_str, capdev, vpath);
 				recording = 1;
 				printf("%s: started recording\n", start_str);
 				usleep(5000000);
 			}
-			
-			else 
-			{
-				if 	(	( state != prev_state ) ||
-						( cx != prev_cx ) || (cy != prev_cy) ||
-						( cxTotal != prev_cxTotal ) || 
-						( cyTotal != prev_cyTotal ) ||
-						( bInterlaced != prev_bInterlaced ) || 
-						( dwFrameDuration != prev_dwFrameDuration ) ||
-						( nAspectX != prev_nAspectX ) || 
-						( nAspectY != prev_nAspectY ) ||
-						( bSegmentedFrame != prev_bSegmentedFrame ) || 
-						( frameType != prev_frameType ) ||
-						( colorFormat != prev_colorFormat ) || 
-						( quantRange != prev_quantRange ) ||
-						( satRange != prev_satRange )
-						  
-					) 
-					{
+			else {
+				if (( state != prev_state ) ||
+					( cx != prev_cx ) || (cy != prev_cy) ||
+					( cxTotal != prev_cxTotal ) || 
+					( cyTotal != prev_cyTotal ) ||
+					( bInterlaced != prev_bInterlaced ) || 
+					( dwFrameDuration != prev_dwFrameDuration ) ||
+					( nAspectX != prev_nAspectX ) || 
+					( nAspectY != prev_nAspectY ) ||
+					( bSegmentedFrame != prev_bSegmentedFrame ) || 
+					( frameType != prev_frameType ) ||
+					( colorFormat != prev_colorFormat ) || 
+					( quantRange != prev_quantRange ) ||
+					( satRange != prev_satRange )) {
 					get_time_str(stop_str);
 					printf("%s: stopped recording because something changed.\n", stop_str);
 					stop_recording(ffmpeg_pid, start_str, vpath);
 					nMov++;
 					recording = 0;
-					}	
+				}	
 			}
 		}
 		else {
-			
 			if (recording == 1) {
 				get_time_str(stop_str);
 				printf("%s: Whack resolution: stopped recording.%i x %i \n", stop_str, cx, cy);
@@ -409,23 +349,6 @@ int main(int argc, char* argv[])
 			}
 		}
 
-/*	
-		if 	( state != prev_state ) { printf("state\n"); }
-		if	( cx != prev_cx ) { printf("sprev_cx\n"); }
-		if  (cy != prev_cy ) { printf("cy\n"); }
-		if	( cxTotal != prev_cxTotal )  { printf("cxTot\n"); }
-		if	( cyTotal != prev_cyTotal ) { printf("cyTot\n"); }
-		if	( bInterlaced != prev_bInterlaced )  { printf("bInt\n"); }
-		if	( dwFrameDuration != prev_dwFrameDuration ) { printf("dwFdur\n"); }
-		if	( nAspectX != prev_nAspectX )  { printf("nAsx\n"); }
-		if	( nAspectY != prev_nAspectY ) { printf("nAsy\n"); }
-		if	( bSegmentedFrame != prev_bSegmentedFrame )  { printf("bSegFr\n"); }
-		if	( frameType != prev_frameType ) { printf("frtyp\n"); }
-		if	( colorFormat != prev_colorFormat )  { printf("coloF\n"); }
-		if	( quantRange != prev_quantRange ) { printf("quantR\n"); }
-		if	( satRange != prev_satRange )  { printf("satR\n"); }
-*/					
-	
 		prev_state = state;
 		prev_x = x;
 		prev_y = y;	
@@ -443,19 +366,16 @@ int main(int argc, char* argv[])
 		prev_quantRange = quantRange;
 		prev_satRange = satRange;
 
-		// printf("value of nMov : %d\n", nMov);
-
-    if (hChannel != NULL) {
-        MWCloseChannel(hChannel);
-        hChannel = NULL;
-    }
+    		if (hChannel != NULL) {
+        		MWCloseChannel(hChannel);
+        		hChannel = NULL;
+    		}
 
 		MWCaptureExitInstance();
 
-		} while ( true ); 
+	} while ( true ); 
+	
 	stop_recording(ffmpeg_pid, start_str, vpath);
-
-
-    return 0;
+    	return 0;
 }
 
