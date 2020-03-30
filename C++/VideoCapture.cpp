@@ -54,12 +54,12 @@
 #include "LibMWCapture/MWUSBCapture.h"
 
 
-
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <array>
+
 
 std::string exec(const char* cmd) {
     std::array<char, 128> buffer;
@@ -150,10 +150,10 @@ void get_time_str(char mov[256]){
 	
 }
 
-static void stop_recording(int pid, char start_str[256]) {
+static void stop_recording(int pid, char start_str[256], char vpath[256]) {
 
-    	std::string ffmpid;
-    	ffmpid = exec("pidof ffmpeg");
+    std::string ffmpid;
+    ffmpid = exec("pidof ffmpeg");
 	printf("%s\n", ffmpid.c_str());
 	
 	char stop_str[256] = {0};
@@ -165,25 +165,27 @@ static void stop_recording(int pid, char start_str[256]) {
 
 	char oldname[256] = {0};
 	char newname[256] = {0};
-	sprintf(oldname, "../Videos/%s_.mkv", start_str);
-	sprintf(newname, "../Videos/%s_%s.mkv", start_str, stop_str);
+	sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
+	sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
 	printf("%s:killing %i Saving video %s\n", stop_str, pid, newname);
 	int x = 0;
 	x = rename(oldname, newname);
 	usleep(1500000); // Allow time for ffmpeg to stop
 }
 
-pid_t start_recording(int cx, int cy, char fr[256], char starttime[256]){
+pid_t start_recording(int cx, int cy, char fr[256], char starttime[256], 
+					  char capdev[256], char vpath[256])
+{
 
 
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
 	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i \n" 
-				   "\t -i /dev/video0 ../Videos/%s_.mkv \n", starttime, fr, cx, cy, starttime);
+				   "\t -i %s %s/%s_.mkv \n", starttime, fr, cx, cy, capdev, vpath, starttime);
 	
 
 	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i " 
-				   "-i /dev/video0 ../Videos/%s_.mkv ", fr, cx, cy, starttime);
+				   "-i %s %s/%s_.mkv ", fr, cx, cy, capdev, vpath, starttime);
 	
 	// Call ffmpeg
 	int pid = 0;
@@ -201,7 +203,41 @@ pid_t start_recording(int cx, int cy, char fr[256], char starttime[256]){
 int main(int argc, char* argv[])
 {
 
+	const char* helpstr="usage: ./VideoCapture -o <path> [-d <path> | -h ]\n"
+						"\t-o <path>\tOutput directory where to save recordings (not optional)\n"
+						"\t-d <path>\tPath to capture device (default = '/dev/video0', opt)\n"
+						"\t-h\t\tPrint this help string\n";
+	char* vpath = NULL ;	
+	char* capdev = NULL;
+	capdev = "/dev/video0";
+    int c ;
+	if (argc == 1){ 
+		printf(helpstr);
+		return 55;
+	}
+
+    while( ( c = getopt (argc, argv, "o:d:h") ) != -1 ) 
+    {
+        switch(c)
+        {
+            case 'o':
+                if(optarg) vpath = optarg;
+                break;
+			case 'd':
+				if(optarg) capdev = optarg;
+				break;
+            case 'h':
+                printf(helpstr) ;
+                return 55;
+        }
+    }
 	
+	// Puke if vpath not specified
+	if ( ! vpath ){
+		printf(helpstr);
+		return 55;
+	}
+
 	MWCAP_VIDEO_SIGNAL_STATE state;
 	int x = 0;
 	int y = 0;	
@@ -261,7 +297,7 @@ int main(int argc, char* argv[])
             printf("ERROR: Can't find channels!\n");
 			if ( recording > 0 ){
 				get_time_str(stop_str);
-				stop_recording(ffmpeg_pid, start_str);
+				stop_recording(ffmpeg_pid, start_str, vpath);
 				recording = 0;
 				printf("%s: stopped recoding b/c no channels!\n", stop_str);
 				nMov++;
@@ -293,7 +329,7 @@ int main(int argc, char* argv[])
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
 		hChannel = MWOpenChannelByPath(wPath);
 
-		printf("Device Path : %c\n", wPath);
+		printf("Device Path : %s\n", wPath);
 		printf("argc : %d\n", argc);
 
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
@@ -330,7 +366,7 @@ int main(int argc, char* argv[])
 		{
 			if (recording == 0) 
 			{
-				ffmpeg_pid = start_recording(cx, cy, frameRate, start_str);
+				ffmpeg_pid = start_recording(cx, cy, frameRate, start_str, capdev, vpath);
 				recording = 1;
 				printf("%s: started recording\n", start_str);
 				usleep(5000000);
@@ -356,7 +392,7 @@ int main(int argc, char* argv[])
 					{
 					get_time_str(stop_str);
 					printf("%s: stopped recording because something changed.\n", stop_str);
-					stop_recording(ffmpeg_pid, start_str);
+					stop_recording(ffmpeg_pid, start_str, vpath);
 					nMov++;
 					recording = 0;
 					}	
@@ -367,7 +403,7 @@ int main(int argc, char* argv[])
 			if (recording == 1) {
 				get_time_str(stop_str);
 				printf("%s: Whack resolution: stopped recording.%i x %i \n", stop_str, cx, cy);
-				stop_recording(ffmpeg_pid, start_str);
+				stop_recording(ffmpeg_pid, start_str, vpath);
 				nMov++;
 				recording = 0;
 			}
@@ -417,7 +453,7 @@ int main(int argc, char* argv[])
 		MWCaptureExitInstance();
 
 		} while ( true ); 
-	stop_recording(ffmpeg_pid, start_str);
+	stop_recording(ffmpeg_pid, start_str, vpath);
 
 
     return 0;
