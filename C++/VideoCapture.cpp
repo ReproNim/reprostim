@@ -73,13 +73,13 @@ pid_t system2(const char * command, int * infp, int * outfp) {
 	pid_t pid;
 
 	if (pipe(p_stdin) == -1)
-        	return -1;
+		return -1;
 
 	if (pipe(p_stdout) == -1) {
-        	close(p_stdin[0]);
-        	close(p_stdin[1]);
-        	return -1;
-    	}
+		close(p_stdin[0]);
+		close(p_stdin[1]);
+		return -1;
+	}	
 
 	pid = fork();
 
@@ -98,10 +98,10 @@ pid_t system2(const char * command, int * infp, int * outfp) {
 		dup2(open("/dev/null", O_RDONLY), 2);
 		/// Close all other descriptors for the safety sake.
 		for (int i = 3; i < 4096; ++i)
-			close(i);
+		close(i);
 		setsid();
-        	execl("/bin/sh", "sh", "-c", command, NULL);
-        	_exit(1);
+		execl("/bin/sh", "sh", "-c", command, NULL);
+		_exit(1);
 	}
 
 	close(p_stdin[0]);
@@ -123,9 +123,6 @@ pid_t system2(const char * command, int * infp, int * outfp) {
 	return pid;
 }
 
-
-
-
 void get_time_str(char mov[256]){
 	time_t now = time(0);
 	tm *ltm = localtime(&now);
@@ -136,7 +133,6 @@ void get_time_str(char mov[256]){
 	int mn = ltm->tm_min;
 	int sc = ltm->tm_sec;
 	sprintf(mov, "%d.%02d.%02d.%02d.%02d.%02d", yr, mo, da, hr, mn, sc);
-	
 }
 
 static void stop_recording(int pid, char start_str[256], char vpath[256]) {
@@ -159,13 +155,13 @@ static void stop_recording(int pid, char start_str[256], char vpath[256]) {
 }
 
 pid_t start_recording(int cx, int cy, char fr[256], char starttime[256], 
-	char capdev[256], char vpath[256]){
+		char capdev[256], char vpath[256]){
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
 	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i \n" 
-				   "\t -i %s %s/%s_.mkv \n", starttime, fr, cx, cy, capdev, vpath, starttime);
+	"\t -i %s %s/%s_.mkv \n", starttime, fr, cx, cy, capdev, vpath, starttime);
 	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i " 
-				   "-i %s %s/%s_.mkv ", fr, cx, cy, capdev, vpath, starttime);
+	"-i %s %s/%s_.mkv ", fr, cx, cy, capdev, vpath, starttime);
 	int pid = 0;
 	pid = system2(ffmpg,0,0);
 	return pid;
@@ -184,7 +180,7 @@ int main(int argc, char* argv[]){
 		printf(helpstr);
 		return 55;
 	}
-    
+
 	while( ( c = getopt (argc, argv, "o:d:h") ) != -1 ){
 		switch(c){
 		case 'o':
@@ -194,11 +190,11 @@ int main(int argc, char* argv[]){
 			if(optarg) capdev = optarg;
 			break;
 		case 'h':
-		    	printf(helpstr) ;
-		    	return 55;
-	    	}
-    	}
-	
+			printf(helpstr) ;
+			return 55;
+		}
+	}
+
 	// Puke if vpath not specified
 	if ( ! vpath ){
 		printf(helpstr);
@@ -252,11 +248,11 @@ int main(int argc, char* argv[]){
 		usleep(1000000);
 		MWCaptureInitInstance();
 		HCHANNEL hChannel = NULL;
-        	MWRefreshDevice();
-        	int nCount = MWGetChannelCount();
+		MWRefreshDevice();
+		int nCount = MWGetChannelCount();
 
 		if (nCount <= 0){
-            		printf("ERROR: Can't find channels!\n");
+			printf("ERROR: Can't find channels!\n");
 			if ( recording > 0 ){
 				get_time_str(stop_str);
 				stop_recording(ffmpeg_pid, start_str, vpath);
@@ -265,20 +261,20 @@ int main(int argc, char* argv[]){
 				nMov++;
 			}
 			continue;	
-        	}
-		
-        	int nUsbCount = 0;
-        	int nUsbDevice[16] = {-1};
-        	for (int i = 0; i < nCount; i++){
-            		MWCAP_CHANNEL_INFO info;
-            		mr = MWGetChannelInfoByIndex(i, &info);
+		}
+
+		int nUsbCount = 0;
+		int nUsbDevice[16] = {-1};
+		for (int i = 0; i < nCount; i++){
+			MWCAP_CHANNEL_INFO info;
+			mr = MWGetChannelInfoByIndex(i, &info);
 			//printf("MR: %i\n", mr);
 			//printf("SZFamName : %s\n", info.szFamilyName);
-            		if (strcmp(info.szFamilyName, "USB Capture") == 0) {
-                		nUsbDevice[nUsbCount] = i;
-                		nUsbCount ++;
-            		}
-        	}
+			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
+				nUsbDevice[nUsbCount] = i;
+				nUsbCount ++;
+			}
+		}
 
 		char wPath[256] = {0};
 		// printf("nUsbDevice : %d\n", nUsbDevice[0]);
@@ -308,29 +304,29 @@ int main(int argc, char* argv[]){
 		quantRange = thisInfo.quantRange;
 		satRange = thisInfo.satRange;
 
-	    	sprintf(frameRate, "%.0f", round( 10000000./dwFrameDuration));	
+		sprintf(frameRate, "%.0f", round( 10000000./dwFrameDuration));	
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
 				ffmpeg_pid = start_recording(cx, cy, frameRate, start_str, capdev, vpath);
-				recording = 1;
-				printf("%s: started recording\n", start_str);
-				usleep(5000000);
+			recording = 1;
+			printf("%s: started recording\n", start_str);
+			usleep(5000000);
 			}
 			else {
 				if (( state != prev_state ) ||
-					( cx != prev_cx ) || (cy != prev_cy) ||
-					( cxTotal != prev_cxTotal ) || 
-					( cyTotal != prev_cyTotal ) ||
-					( bInterlaced != prev_bInterlaced ) || 
-					( dwFrameDuration != prev_dwFrameDuration ) ||
-					( nAspectX != prev_nAspectX ) || 
-					( nAspectY != prev_nAspectY ) ||
-					( bSegmentedFrame != prev_bSegmentedFrame ) || 
-					( frameType != prev_frameType ) ||
-					( colorFormat != prev_colorFormat ) || 
-					( quantRange != prev_quantRange ) ||
-					( satRange != prev_satRange )) {
+				( cx != prev_cx ) || (cy != prev_cy) ||
+				( cxTotal != prev_cxTotal ) || 
+				( cyTotal != prev_cyTotal ) ||
+				( bInterlaced != prev_bInterlaced ) || 
+				( dwFrameDuration != prev_dwFrameDuration ) ||
+				( nAspectX != prev_nAspectX ) || 
+				( nAspectY != prev_nAspectY ) ||
+				( bSegmentedFrame != prev_bSegmentedFrame ) || 
+				( frameType != prev_frameType ) ||
+				( colorFormat != prev_colorFormat ) || 
+				( quantRange != prev_quantRange ) ||
+				( satRange != prev_satRange )) {
 					get_time_str(stop_str);
 					printf("%s: stopped recording because something changed.\n", stop_str);
 					stop_recording(ffmpeg_pid, start_str, vpath);
@@ -348,7 +344,6 @@ int main(int argc, char* argv[]){
 				recording = 0;
 			}
 		}
-
 		prev_state = state;
 		prev_x = x;
 		prev_y = y;	
@@ -366,16 +361,14 @@ int main(int argc, char* argv[]){
 		prev_quantRange = quantRange;
 		prev_satRange = satRange;
 
-    		if (hChannel != NULL) {
-        		MWCloseChannel(hChannel);
-        		hChannel = NULL;
-    		}
+		if (hChannel != NULL) {
+			MWCloseChannel(hChannel);
+			hChannel = NULL;
+		}
 
 		MWCaptureExitInstance();
-
 	} while ( true ); 
-	
-	stop_recording(ffmpeg_pid, start_str, vpath);
-    	return 0;
-}
 
+	stop_recording(ffmpeg_pid, start_str, vpath);
+	return 0;
+}
