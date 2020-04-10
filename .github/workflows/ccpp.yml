@@ -13,8 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: make
-      run: make -f ./C++/Makefile
+#    - name: make
+#      run: make -f ./C++/Makefile
 #    - name: make check
 #      run: make check
 #    - name: make distcheck
