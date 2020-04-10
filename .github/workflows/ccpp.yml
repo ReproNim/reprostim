@@ -12,15 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: ./C++/Makefile
+    - uses: actions/checkout@v2
     - name: make
       run: make
-
-#    - uses: actions/checkout@v2
-#    - name: configure
-#      run: ./configure
-#    - name: make
-#      run: make
 #    - name: make check
 #      run: make check
 #    - name: make distcheck
