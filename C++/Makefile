@@ -15,8 +15,8 @@ CFLAGS += -O0 \
           -Wno-unused-but-set-variable \
           -Wno-missing-field-initializers  \
           -fPIC \
-		  -std=c++11 \
-          $(LOCAL_CFLAGS) \
+	  -std=c++11 \
+	  $(LOCAL_CFLAGS) \
 	  
 
 ARCH:=$(shell uname -m)

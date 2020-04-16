@@ -53,6 +53,9 @@
 #include <stdexcept>
 #include <string>
 #include <array>
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
+using namespace std;
 
 std::string exec(const char* cmd) {
 	std::array<char, 128> buffer;
@@ -145,7 +148,7 @@ static void stop_recording(int pid, char start_str[256], char vpath[256]) {
 	sprintf(killCmd, "kill -INT %s", ffmpid.c_str());
 	system(killCmd);
 	char oldname[256] = {0};
-	char newname[256] = {0};
+	char newname[512] = {0};
 	sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
 	sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
 	printf("%s:killing %i Saving video %s\n", stop_str, pid, newname);
@@ -173,8 +176,7 @@ int main(int argc, char* argv[]){
 		"\t-d <path>\tPath to capture device (default = '/dev/video0', opt)\n"
 		"\t-h\t\tPrint this help string\n";
 	char* vpath = NULL ;	
-	char* capdev = NULL;
-	capdev = "/dev/video0";
+	char* capdev = "/dev/video0";
 	int c ;
 	if (argc == 1){ 
 		printf(helpstr);
@@ -185,6 +187,7 @@ int main(int argc, char* argv[]){
 		switch(c){
 		case 'o':
 			if(optarg) vpath = optarg;
+			cout<<typeid(optarg).name()<<endl;
 			break;
 		case 'd':
 			if(optarg) capdev = optarg;
@@ -200,6 +203,13 @@ int main(int argc, char* argv[]){
 		printf(helpstr);
 		return 55;
 	}
+
+	//if ( ! capdev ){ 
+	//	capdev = defcapdev;
+	//}
+
+	//printf("--- > %s\n", vpath);
+	printf("=== > %s\n", capdev);
 
 	MWCAP_VIDEO_SIGNAL_STATE state;
 	int x = 0;
@@ -281,8 +291,8 @@ int main(int argc, char* argv[]){
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
 		hChannel = MWOpenChannelByPath(wPath);
 
-		printf("Device Path : %s\n", wPath);
-		printf("argc : %d\n", argc);
+		//printf("Device Path : %s\n", wPath);
+		//printf("argc : %d\n", argc);
 
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
 		MWGetVideoSignalStatus(hChannel, &thisInfo);
