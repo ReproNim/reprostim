@@ -1,6 +1,27 @@
-# TITLE
+# ReproStim
 
-Describe what it is for
+ReproStim is a video capture and recording suite for neuroimaging and psychology
+experiments.  Its goal is to provide experimenters with a complete record of
+audio and visual stimulation for every data collection session, by making
+it possible to easily collect high fidelity copies of the actual stimuli shown to
+each subject in the form of video files stored that can accompany behavioral or
+neuroimaging data in public repositories. 
+
+There are several benefits to using ReproStim, including ease of use, enhanced
+experimental reproducibility, and a safeguard against data loss in cases of
+data-collection irregularites. Once it is setup as the default mode within a
+behavioral lab or neuroimaging center, investigators can reap the benefits of
+ReproStim without any additional effort on the part of invidiual experimenters.
+When successfully set up, ReproStim runs in the background, silently collecting,
+cataloging, and storing all audio and visual stimulation delivered to
+experimental subjects. Because ReproStim provides an exact record of the actual
+stimuli delivered during any given experimental session, it makes it possible to
+precisely reproduce experimental sessions, even if the original trial sets were
+randomized or precise trial details not recorded. In cases of experimental
+irregularities, such as aborted fMRI runs, unexpected glitches in trial timing,
+or programming errors that cause records of trial conditions to be lost,
+valuable data (especially costly in cases of fMRI of ECog, for example) can be
+recoded and recovered using the audio-visual record provided by ReproStim.   
 
 # Development
 
