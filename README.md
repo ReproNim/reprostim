@@ -78,32 +78,32 @@
     the DBIC MRI suite is a projector that projects through the wall of the
     shielded scan room to a rear-projection screen located at the back of the
     MRI scanner bore; and the EPDa (audio) comprises MRI-safe headphones worn on
-    the subjects' head. 
+    the subject's head. 
 
     The A/V out connections from SC can be any standard as long as you have the
     appropriate adapters, dongles, etc. However, if your Video out does not
-    support embedded audio, then you will need a separate audio out set of
-    splitters and cables. The Magewell device has standard audio ports to
+    support embedded audio (e.g. VGA), then you will need a separate audio out
+    set of splitters and cables. The Magewell device has standard audio ports to
     accomodate this eventuality.
 
-    Missing from Schematics A and B, is any connection back to SC that records
-    subject response information. That's because ReproStim is not interested in
-    how the subject responds. If you like, imagine arrows pointing from EPD to a
-    "subject" node, and then more arrows pointing from the subject node to some
-    response input device (RID?) and back to SC for recording... ReproStim will
-    not interfere.
+    Note: Missing from Schematics A and B, is any connection back to SC that
+    records subject response information. That's because ReproStim is not
+    interested in how the subject responds. If you like, imagine arrows pointing
+    from EPD to a "subject" node, and then more arrows pointing from the subject
+    node to some response input device (RID?) and back to SC for recording...
+    ReproStim will not interfere.
 
 #### Magewell USB Capture Plus Family device
 
     The current version of ReproStim has only been developed and tested for the
     Magewell USB Capture DVI Plus device (MWC) . However, we anticipate that it
     will be relatively painless to support at least all devices in the USB
-    Capture Plus Family. Information about these devices and supporting softare
+    Capture Plus Family. Information about these devices and supporting software
     can all be found at www.magewell.com
 
 #### Video Capture computer (VC), AKA ReproStim Server
 
-    The video capture computer (VC) does most of the work in for ReproStim. The
+    The video capture computer (VC) does most of the work for ReproStim. The
     software running on this computer runs as a service that is always on as
     long as the computer is running, which is all the time. Therefore I will
     refer to VC also as the ReproStim server. In a nutshell, the server software
@@ -116,9 +116,9 @@
     and should be relatively painless to configure. 
 
     The current DBIC computer is a small-profile desktop that resides in the
-    control of the scan suite.
+    control of the scan suite, quietly recording all video presented to all
+    subjects.
     
-
 ## Dependencies
 
 On Debian
