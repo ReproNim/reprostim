@@ -1,4 +1,4 @@
-# ReproStim
+# ReproStim Introduction
 
     ReproStim is a video capture and recording suite for neuroimaging and
     psychology experiments.  Its goal is to provide experimenters with a
@@ -88,7 +88,7 @@
 
     Note: Missing from Schematics A and B, is any connection back to SC that
     records subject response information. That's because ReproStim is not
-    interested in how the subject responds. If you like, imagine arrows pointing
+    interested in how the subject responds (ATM, maybe someday). If you like, imagine arrows pointing
     from EPD to a "subject" node, and then more arrows pointing from the subject
     node to some response input device (RID?) and back to SC for recording...
     ReproStim will not interfere.
@@ -117,7 +117,8 @@
 
     The current DBIC computer is a small-profile desktop that resides in the
     control of the scan suite, quietly recording all video presented to all
-    subjects.
+    subjects. This machine is running Debian 10.3 (Buster), which uses the
+    **systemd** Linux service manager.
     
 ## Dependencies
 
