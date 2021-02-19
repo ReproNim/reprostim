@@ -70,30 +70,6 @@ would be something like:
                              
 ### Original set up without ReproStim
 
-<<<<<<< HEAD
-    Most experimental setups include something like Schematic A, with a stimulus
-    control computer (SC) that sends A/V information to the experimental
-    subject. For example, in the Dartmouth Brain Imging Center (DBIC),
-    experimenters can use their own laptop or a dedicated computer in the scan
-    control room for SC. The External Presentation Device for video (EPDv) in
-    the DBIC MRI suite is a projector that projects through the wall of the
-    shielded scan room to a rear-projection screen located at the back of the
-    MRI scanner bore; and the EPDa (audio) comprises MRI-safe headphones worn on
-    the subject's head. 
-
-    The A/V out connections from SC can be any standard as long as you have the
-    appropriate adapters, dongles, etc. However, if your Video out does not
-    support embedded audio (e.g. VGA), then you will need a separate audio out
-    set of splitters and cables. The Magewell device has standard audio ports to
-    accomodate this eventuality.
-
-    Note: Missing from Schematics A and B, is any connection back to SC that
-    records subject response information. That's because ReproStim is not
-    interested in how the subject responds (ATM, maybe someday). If you like, imagine arrows pointing
-    from EPD to a "subject" node, and then more arrows pointing from the subject
-    node to some response input device (RID?) and back to SC for recording...
-    ReproStim will not interfere.
-=======
 Most experimental setups include something like Schematic A, with a stimulus
 control computer (SC) that sends A/V information to the experimental
 subject. For example, in the Dartmouth Brain Imging Center (DBIC),
@@ -116,7 +92,6 @@ interested in how the subject responds. If you like, imagine arrows pointing
 from EPD to a "subject" node, and then more arrows pointing from the subject
 node to some response input device (RID?) and back to SC for recording...
 ReproStim will not interfere.
->>>>>>> f768f68e5aa73ad6efcb8c574da8c8c02b82a593
 
 #### Magewell USB Capture Plus Family device
 
@@ -128,25 +103,6 @@ can all be found at www.magewell.com
 
 #### Video Capture computer (VC), AKA ReproStim Server
 
-<<<<<<< HEAD
-    The video capture computer (VC) does most of the work for ReproStim. The
-    software running on this computer runs as a service that is always on as
-    long as the computer is running, which is all the time. Therefore I will
-    refer to VC also as the ReproStim server. In a nutshell, the server software
-    monitors the video signal coming from SC into MWC. If there is any video
-    coming over the connection, it gets recorded for posterity.
-
-    Current development of ReproStim, including our working setup at the DBIC,
-    uses a Linux box running Debian Linux. We anticipate that any Nix/Mac setup
-    running on a modern desktop will be amply sufficient as a ReproStim Server,
-    and should be relatively painless to configure. 
-
-    The current DBIC computer is a small-profile desktop that resides in the
-    control of the scan suite, quietly recording all video presented to all
-    subjects. This machine is running Debian 10.3 (Buster), which uses the
-    **systemd** Linux service manager.
-    
-=======
 The video capture computer (VC) does most of the work for ReproStim. The
 software running on this computer runs as a service that is always on as
 long as the computer is running, which is all the time. Therefore I will
@@ -163,7 +119,6 @@ The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
 subjects.
 
->>>>>>> f768f68e5aa73ad6efcb8c574da8c8c02b82a593
 ## Dependencies
 
 On Debian
