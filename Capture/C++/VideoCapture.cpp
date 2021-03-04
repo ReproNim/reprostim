@@ -141,7 +141,8 @@ void get_time_str(char mov[256]){
 static void stop_recording(int pid, char start_str[256], char vpath[256]) {
 	std::string ffmpid;
 	ffmpid = exec("pidof ffmpeg");
-	printf("%s\n", ffmpid.c_str());
+	//printf("%s\n", ffmpid.c_str());
+	cout << "<> PID of ffmpeg\t===> " << ffmpid.c_str() << endl;
 	char stop_str[256] = {0};
 	get_time_str(stop_str);
 	char killCmd[256] = {0}; 
@@ -149,9 +150,11 @@ static void stop_recording(int pid, char start_str[256], char vpath[256]) {
 	system(killCmd);
 	char oldname[256] = {0};
 	char newname[512] = {0};
-	sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
-	sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
-	printf("%s:killing %i Saving video %s\n", stop_str, pid, newname);
+	sprintf(oldname, "%s/%s_.mp4", vpath, start_str);
+	sprintf(newname, "%s/%s_%s.mp4", vpath, start_str, stop_str);
+	//printf("%s:killing %i Saving video %s\n", stop_str, pid, newname);
+	cout << stop_str << ":\tKilling " << pid << ". Saving video ";
+	cout << newname << endl;
 	int x = 0;
 	x = rename(oldname, newname);
 	usleep(1500000); // Allow time for ffmpeg to stop
@@ -161,10 +164,12 @@ pid_t start_recording(int cx, int cy, char fr[256], char starttime[256],
 		char capdev[256], char vpath[256]){
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
-	printf("%s: <SYSTEMCALL> ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i \n" 
-	"\t -i %s %s/%s_.mkv \n", starttime, fr, cx, cy, capdev, vpath, starttime);
-	sprintf(ffmpg, "ffmpeg -y -f v4l2 -framerate %s -video_size %ix%i " 
-	"-i %s %s/%s_.mkv ", fr, cx, cy, capdev, vpath, starttime);
+	cout << starttime;	
+	cout << ": <SYSTEMCALL> ffmpeg -f alsa -i hw:1,1 -framerate ";
+	cout << fr << " -video_size " << cx << "x" << cy << endl;
+        cout << "\t -i " << capdev << " " << vpath << "/" << starttime << "_.mp4" <<endl;	
+	sprintf(ffmpg, "ffmpeg -f alsa -i hw:1,1 -framerate %s -video_size %ix%i " 
+		"-i %s %s/%s_.mp4 ", fr, cx, cy, capdev, vpath, starttime);
 	int pid = 0;
 	pid = system2(ffmpg,0,0);
 	return pid;
@@ -179,7 +184,7 @@ int main(int argc, char* argv[]){
 	char* capdev = "/dev/video0";
 	int c ;
 	if (argc == 1){ 
-		printf(helpstr);
+		cout << helpstr << endl;
 		return 55;
 	}
 
@@ -187,29 +192,23 @@ int main(int argc, char* argv[]){
 		switch(c){
 		case 'o':
 			if(optarg) vpath = optarg;
-			cout<<typeid(optarg).name()<<endl;
+			//cout<<typeid(optarg).name()<<endl;
 			break;
 		case 'd':
 			if(optarg) capdev = optarg;
 			break;
 		case 'h':
-			printf(helpstr) ;
+			cout << helpstr << endl;
 			return 55;
 		}
 	}
 
 	// Puke if vpath not specified
 	if ( ! vpath ){
-		printf(helpstr);
+		cout << helpstr << endl;
 		return 55;
 	}
 
-	//if ( ! capdev ){ 
-	//	capdev = defcapdev;
-	//}
-
-	//printf("--- > %s\n", vpath);
-	printf("=== > %s\n", capdev);
 
 	MWCAP_VIDEO_SIGNAL_STATE state;
 	int x = 0;
@@ -247,12 +246,21 @@ int main(int argc, char* argv[]){
 
 	int recording = 0;
 	int ffmpeg_pid = 0;
+	char init_time[256] = {0};
 	char start_str[256] = {0};
 	char stop_str[256] = {0};	
 	int nMov = 0;	
 	char frameRate[256] = {0};
 
-	MW_RESULT mr = MW_SUCCEEDED;	
+	MW_RESULT mr = MW_SUCCEEDED;
+
+	get_time_str(init_time);
+	cout << init_time;
+	cout << ": <><><> Starting VideoCapture <><><>" << endl;	
+	
+	cout << "\t<> Saving Videos to\t\t===> " << vpath << endl;;
+	cout << "\t<> Recording from Video Device\t===> " << capdev << endl;
+
 
 	do {
 		usleep(1000000);
@@ -262,12 +270,14 @@ int main(int argc, char* argv[]){
 		int nCount = MWGetChannelCount();
 
 		if (nCount <= 0){
-			printf("ERROR: Can't find channels!\n");
+			//printf("ERROR: Can't find channels!\n");
+			cout << "Error: Can't find channels!" << endl;
 			if ( recording > 0 ){
 				get_time_str(stop_str);
 				stop_recording(ffmpeg_pid, start_str, vpath);
 				recording = 0;
-				printf("%s: stopped recoding b/c no channels!\n", stop_str);
+				cout << stop_str << ":\tStopped recording. No channels!"<<endl;
+				//printf("%s: stopped recoding b/c no channels!\n", stop_str);
 				nMov++;
 			}
 			continue;	
@@ -320,7 +330,8 @@ int main(int argc, char* argv[]){
 			if (recording == 0) {
 				ffmpeg_pid = start_recording(cx, cy, frameRate, start_str, capdev, vpath);
 			recording = 1;
-			printf("%s: started recording\n", start_str);
+			cout << start_str << ":\tStarted Recording" << endl;
+			//printf("%s: started recording\n", start_str);
 			usleep(5000000);
 			}
 			else {
@@ -338,7 +349,9 @@ int main(int argc, char* argv[]){
 				( quantRange != prev_quantRange ) ||
 				( satRange != prev_satRange )) {
 					get_time_str(stop_str);
-					printf("%s: stopped recording because something changed.\n", stop_str);
+					cout << stop_str;
+					cout << ":\tStopped recording because something changed."<<endl;
+					//printf("%s: stopped recording because something changed.\n", stop_str);
 					stop_recording(ffmpeg_pid, start_str, vpath);
 					nMov++;
 					recording = 0;
@@ -348,7 +361,10 @@ int main(int argc, char* argv[]){
 		else {
 			if (recording == 1) {
 				get_time_str(stop_str);
-				printf("%s: Whack resolution: stopped recording.%i x %i \n", stop_str, cx, cy);
+				cout << stop_str;
+				cout << ":\tWhack resolution: " << cx << "x" << cy;
+				cout << ". Stopped recording" << endl;
+				//printf("%s: Whack resolution: stopped recording.%i x %i \n", stop_str, cx, cy);
 				stop_recording(ffmpeg_pid, start_str, vpath);
 				nMov++;
 				recording = 0;

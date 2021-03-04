@@ -1,3 +1,5 @@
 C++/VideoCapture.o
 C++/VideoCapture
 Videos/
+*.o
+Capture/C++/VideoCapture
