@@ -143,7 +143,6 @@ int main(int argc, char* argv[]){
 		switch(c){
 		case 'o':
 			if(optarg) vpath = optarg;
-			//cout<<typeid(optarg).name()<<endl;
 			break;
 		case 'd':
 			if(optarg) capdev = optarg;
@@ -214,21 +213,18 @@ int main(int argc, char* argv[]){
 
 	do {
 		usleep(1000000);
-		cout << "done sleeping" << endl;
 		MWCaptureInitInstance();
 		HCHANNEL hChannel = NULL;
 		MWRefreshDevice();
 		int nCount = MWGetChannelCount();
 
 		if (nCount <= 0){
-			//printf("ERROR: Can't find channels!\n");
 			cout << "Error: Can't find channels!" << endl;
 			if ( recording > 0 ){
 				get_time_str(stop_str);
 				stop_recording(start_str, vpath);
 				recording = 0;
 				cout << stop_str << ":\tStopped recording. No channels!"<<endl;
-				//printf("%s: stopped recoding b/c no channels!\n", stop_str);
 				nMov++;
 			}
 			continue;	
@@ -239,8 +235,6 @@ int main(int argc, char* argv[]){
 		for (int i = 0; i < nCount; i++){
 			MWCAP_CHANNEL_INFO info;
 			mr = MWGetChannelInfoByIndex(i, &info);
-			//printf("MR: %i\n", mr);
-			//printf("SZFamName : %s\n", info.szFamilyName);
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
 				nUsbDevice[nUsbCount] = i;
 				nUsbCount ++;
@@ -248,12 +242,9 @@ int main(int argc, char* argv[]){
 		}
 
 		char wPath[256] = {0};
-		// printf("nUsbDevice : %d\n", nUsbDevice[0]);
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
 		hChannel = MWOpenChannelByPath(wPath);
 
-		//printf("Device Path : %s\n", wPath);
-		//printf("argc : %d\n", argc);
 
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
 		MWGetVideoSignalStatus(hChannel, &thisInfo);
@@ -282,7 +273,6 @@ int main(int argc, char* argv[]){
 				start_recording(cx, cy, frameRate, start_str, capdev, vpath);
 			recording = 1;
 			cout << start_str << ":\tStarted Recording" << endl;
-			//printf("%s: started recording\n", start_str);
 			usleep(5000000);
 			}
 			else {
@@ -299,13 +289,12 @@ int main(int argc, char* argv[]){
 				( colorFormat != prev_colorFormat ) || 
 				( quantRange != prev_quantRange ) ||
 				( satRange != prev_satRange )) {
-					get_time_str(stop_str);
-					cout << stop_str;
-					cout << ":\tStopped recording because something changed."<<endl;
-					//printf("%s: stopped recording because something changed.\n", stop_str);
-					stop_recording(start_str, vpath);
-					nMov++;
-					recording = 0;
+				get_time_str(stop_str);
+				cout << stop_str;
+				cout << ":\tStopped recording because something changed."<<endl;
+				stop_recording(start_str, vpath);
+				nMov++;
+				recording = 0;
 				}	
 			}
 		}
@@ -315,7 +304,6 @@ int main(int argc, char* argv[]){
 				cout << stop_str;
 				cout << ":\tWhack resolution: " << cx << "x" << cy;
 				cout << ". Stopped recording" << endl;
-				//printf("%s: Whack resolution: stopped recording.%i x %i \n", stop_str, cx, cy);
 				stop_recording(start_str, vpath);
 				nMov++;
 				recording = 0;
