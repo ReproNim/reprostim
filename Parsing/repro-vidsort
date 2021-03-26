@@ -6,14 +6,15 @@ orphans=${vidsroot}/orphans
 dcms=/inbox/DICOM
 dflt_owner=root
 dflt_bids=bids
-accStem="A00"
+
+#accStem="A00" # Trying without this
 
 process_video () {
 
 	v=$1
 
 	# If this is a stub exit
-	isstub=`grep -q '_.mkv' <<< $v && echo $? || echo $?`
+	isstub=`grep -q '_.mp4' <<< $v && echo $? || echo $?`
 	if [[ $isstub == 0 ]]
 	then
 		rm $inbox/$v
@@ -38,6 +39,10 @@ process_video () {
 
 
 	# Check Day
+    # check_day function checks to see that beginning and end times are on the
+    # same day, and if they are not, ( which should only regularly happen when
+    # the video begins before midnight and ends after ), it changes the add24h
+    # variable from 0 to 1224 
 	add24h=0
 
 	check_day () {
@@ -59,7 +64,7 @@ process_video () {
 
 	if [ "$da" != "$db" ];  then check_day $da $db $v; fi
 
-	# get running time in secs
+	# get running time in minutes
 	# video time: $vt1 $vt2
 	vt1=`echo $a | awk -F . '{ print $4 * 60 + $5  }'`
 	vt2=`echo $b | awk -F . '{ print $4 * 60 + $5 }'`
@@ -69,13 +74,20 @@ process_video () {
 	viddir=${vidsroot}/${ya}/${ma}/${da}/
 
 	dcmdir=${dcms}/${ya}/${ma}/${da}
-	acqs=`ls -d $dcmdir/${accStem}* 2>/dev/null`
+
+    # This uses an acquisistion stem of "A00" which is almost definitely
+    # specific to Dartmouth. Its use is meant to reject possible test or quality
+    # assurance acquisitions from getting assigned an videos. I will try to
+    # avoid this. and revert back if it fails.
+	#acqs=`ls -d $dcmdir/${accStem}* 2>/dev/null`
+    acqs=`ls -d $dcmdir/* 2>/dev/null`
+
 
 	echo $acqs
 
 	if [ ${#acqs} == 0 ]
 		then
-		echo "Moving to Orphans"
+		echo `date` :"\t"$v "--> Moving to Orphans"
 		mkdir -p $orphans
 		mv $inbox/$v $orphans
 		return 0
@@ -109,10 +121,10 @@ process_video () {
 
 	if [ $(( "$nmatches" )) -gt 0 ]
 	then
-		echo "Found $nmatches "
+		echo `date` "Found $nmatches "
 		for m in $matches
 		do
-			echo "	$m"
+			echo "\t ---> $m"
 		done
 	else
 		
