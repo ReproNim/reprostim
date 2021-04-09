@@ -102,8 +102,8 @@ static void stop_recording(char start_str[256], char vpath[256]) {
 		system(killCmd);
 		char oldname[256] = {0};
 		char newname[512] = {0};
-		sprintf(oldname, "%s/%s_.mp4", vpath, start_str);
-		sprintf(newname, "%s/%s_%s.mp4", vpath, start_str, stop_str);
+		sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
+		sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
 		cout << stop_str << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
 		cout << newname << endl;
 		int x = 0;
@@ -118,11 +118,16 @@ void start_recording(int cx, int cy, char fr[256], char starttime[256],
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
 	cout << starttime;	
-	cout << ": <SYSTEMCALL> ffmpeg -f alsa -i hw:1,1 -framerate ";
-	cout << fr << " -video_size " << cx << "x" << cy << endl;
-        cout << "\t -i " << capdev << " " << vpath << "/" << starttime << "_.mp4" <<endl;	
-	sprintf(ffmpg, "ffmpeg -f alsa -i hw:1,1 -framerate %s -video_size %ix%i " 
-		"-i %s %s/%s_.mp4 > /dev/null 2>&1 &", fr, cx, cy, capdev, vpath, starttime);
+	cout << ": <SYSTEMCALL> ffmpeg -f alsa -i hw:1,1  -framerate ";
+	cout << fr << " -video_size " << cx << "x" << cy << "-i " << capdev << endl;
+        cout << "\t " << vpath << "/" << starttime << "_.mkv" <<endl;	
+	sprintf(ffmpg, "ffmpeg -f alsa -i hw:1,1 -framerate %s -video_size %ix%i "
+			"-i %s %s/%s_.mkv > /dev/null 2>> /data/log &", 
+			fr, cx, cy, capdev, vpath, starttime);
+	
+	//sprintf(ffmpg, "ffmpeg -f alsa -i hw:1,1 -i %s -framerate %s -video_size %ix%i " 
+	//	"%s/%s_.mp4 > /dev/null 2>> /data/log &", capdev, fr, cx, cy, vpath, starttime);
+	
 	system(ffmpg);
 }
 
@@ -272,7 +277,9 @@ int main(int argc, char* argv[]){
 			if (recording == 0) {
 				start_recording(cx, cy, frameRate, start_str, capdev, vpath);
 			recording = 1;
-			cout << start_str << ":\tStarted Recording" << endl;
+			cout << start_str << ":\tStarted Recording: " << endl;
+			cout << "Apct Rat: " << cx << "x" << cy << endl;
+			cout << "FR: " << frameRate << endl;
 			usleep(5000000);
 			}
 			else {
