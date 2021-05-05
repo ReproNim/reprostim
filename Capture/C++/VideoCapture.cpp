@@ -57,6 +57,7 @@
 #include <stdexcept>
 #include <string>
 #include <array>
+#include "yaml-cpp/yaml.h"
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 using namespace std;
@@ -113,44 +114,66 @@ static void stop_recording(char start_str[256], char vpath[256]) {
 	}
 }
 
-void start_recording(int cx, int cy, char fr[256], char starttime[256], 
-		char capdev[256], char vpath[256]){
+void start_recording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime[256], 
+		char vpath[256]){
 	get_time_str(starttime);
 	char ffmpg[1024] = {0};
+	string a_fmt = cfg["a_fmt"].as<string>();
+	string a_nchan = cfg["a_nchan"].as<string>();
+	string a_opt = cfg["a_opt"].as<string>();
+	string a_dev = cfg["a_dev"].as<string>();
+	string v_fmt = cfg["v_fmt"].as<string>();
+	string v_opt = cfg["v_opt"].as<string>();
+	string v_dev = cfg["v_dev"].as<string>();
+	string v_enc = cfg["v_enc"].as<string>();
+	string pix_fmt = cfg["pix_fmt"].as<string>();
+	string n_threads = cfg["n_threads"].as<string>();
+	string a_enc = cfg["a_enc"].as<string>();
+	string out_fmt = cfg["out_fmt"].as<string>();
+
+	sprintf(ffmpg, "ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
+			"%s %s %s %s %s/%s_.%s > /dev/null 2>&1 &", 
+		a_fmt.c_str(),
+		a_nchan.c_str(),
+		a_opt.c_str(),
+		a_dev.c_str(),
+		v_fmt.c_str(),
+		fr, 
+		cx, 
+		cy, 
+		v_opt.c_str(),
+		v_dev.c_str(),
+		v_enc.c_str(),
+		pix_fmt.c_str(),
+		n_threads.c_str(),
+		a_enc.c_str(),
+		vpath, 
+		starttime,
+		out_fmt.c_str());
+
 	cout << starttime;	
-	cout << ": <SYSTEMCALL> ffmpeg -f alsa -i hw:1,1  -framerate ";
-	cout << fr << " -video_size " << cx << "x" << cy << "-i " << capdev << endl;
-        cout << "\t " << vpath << "/" << starttime << "_.mkv" <<endl;	
-	sprintf(ffmpg, "ffmpeg -f alsa -i hw:1,1 -framerate %s -video_size %ix%i "
-			"-i %s %s/%s_.mkv > /dev/null 2>> /data/log &", 
-			fr, cx, cy, capdev, vpath, starttime);
-	
-	//sprintf(ffmpg, "ffmpeg -f alsa -i hw:1,1 -i %s -framerate %s -video_size %ix%i " 
-	//	"%s/%s_.mp4 > /dev/null 2>> /data/log &", capdev, fr, cx, cy, vpath, starttime);
-	
+	cout << ": <SYSTEMCALL> " << ffmpg << endl;
 	system(ffmpg);
 }
 
 int main(int argc, char* argv[]){
+	
+	YAML::Node config = YAML::LoadFile("/home/andy/reprostim/Capture/C++/config.yaml");
+
 	const char* helpstr="usage: ./VideoCapture -o <path> [-d <path> | -h ]\n"
 		"\t-o <path>\tOutput directory where to save recordings (not optional)\n"
-		"\t-d <path>\tPath to capture device (default = '/dev/video0', opt)\n"
 		"\t-h\t\tPrint this help string\n";
 	char* vpath = NULL ;	
-	char* capdev = "/dev/video0";
 	int c ;
 	if (argc == 1){ 
 		cout << helpstr << endl;
 		return 55;
 	}
 
-	while( ( c = getopt (argc, argv, "o:d:h") ) != -1 ){
+	while( ( c = getopt (argc, argv, "o:h") ) != -1 ){
 		switch(c){
 		case 'o':
 			if(optarg) vpath = optarg;
-			break;
-		case 'd':
-			if(optarg) capdev = optarg;
 			break;
 		case 'h':
 			cout << helpstr << endl;
@@ -213,7 +236,8 @@ int main(int argc, char* argv[]){
 	cout << ": <><><> Starting VideoCapture <><><>" << endl;	
 	
 	cout << "\t<> Saving Videos to\t\t===> " << vpath << endl;;
-	cout << "\t<> Recording from Video Device\t===> " << capdev << endl;
+	cout << "\t<> Recording from Video Device\t===> ";
+     	cout << config["ffm_opts"]["v_dev"] << endl;
 
 
 	do {
@@ -275,7 +299,8 @@ int main(int argc, char* argv[]){
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
-				start_recording(cx, cy, frameRate, start_str, capdev, vpath);
+				start_recording(config["ffm_opts"], cx, cy, 
+						frameRate, start_str, vpath);
 			recording = 1;
 			cout << start_str << ":\tStarted Recording: " << endl;
 			cout << "Apct Rat: " << cx << "x" << cy << endl;

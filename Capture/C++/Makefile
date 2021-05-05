@@ -39,7 +39,7 @@ override ARCH = arm64
 endif
 
 
-CLIB =  -lpthread -ldl -ludev -lasound -lv4l2
+CLIB =  -lpthread -ldl -ludev -lasound -lv4l2 -lyaml-cpp
 MWCAPTURE_LIBA = ../Lib/$(ARCH)/libMWCapture.a
 
 all: $(TARGET_VIDEOCAPTURE)
