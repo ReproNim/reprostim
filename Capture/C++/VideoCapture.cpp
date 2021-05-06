@@ -158,22 +158,32 @@ void start_recording(YAML::Node cfg, int cx, int cy, char fr[256], char starttim
 
 int main(int argc, char* argv[]){
 	
-	YAML::Node config = YAML::LoadFile("/home/andy/reprostim/Capture/C++/config.yaml");
-
-	const char* helpstr="usage: ./VideoCapture -o <path> [-d <path> | -h ]\n"
-		"\t-o <path>\tOutput directory where to save recordings (not optional)\n"
+	const char* helpstr="usage: ./VideoCapture -d <path> [-o <path> | -h ]\n"
+		"\t-d <path>\tREPROSTIM_HOME directory (not optional)\n"
+		"\t-o <path>\tOutput directory where to save recordings (optional)\n"
+		"\t\tDefaults to $REPROSTIM_HOME/Videos\n"
+		"\t-c </path/to/config.yaml>\tPath to configuration file (optional)\n"
+		"\t\tDefaults to $REPROSTIM_HOME/config.yaml\n"
 		"\t-h\t\tPrint this help string\n";
-	char* vpath = NULL ;	
+	char* vpath = NULL;
+	char* cfg_fn = NULL;	
+	char* rep_hm = NULL;
 	int c ;
 	if (argc == 1){ 
 		cout << helpstr << endl;
 		return 55;
 	}
 
-	while( ( c = getopt (argc, argv, "o:h") ) != -1 ){
+	while( ( c = getopt (argc, argv, "d:o:c:h") ) != -1 ){
 		switch(c){
 		case 'o':
 			if(optarg) vpath = optarg;
+			break;
+		case 'c':
+			if(optarg) cfg_fn = optarg;
+			break;
+		case 'd':
+			if(optarg) rep_hm = optarg;
 			break;
 		case 'h':
 			cout << helpstr << endl;
@@ -182,10 +192,28 @@ int main(int argc, char* argv[]){
 	}
 
 	// Puke if vpath not specified
-	if ( ! vpath ){
+	if ( ! rep_hm ){
 		cout << helpstr << endl;
 		return 55;
 	}
+
+	// Set config filename if not specified on input
+	if ( ! cfg_fn ){
+		char c_fn[256]; 
+		sprintf(c_fn, "%s/config.yaml", rep_hm);
+		cfg_fn = c_fn;
+	}
+
+	// Set output directory if not specified on input
+	if ( ! vpath ){
+		char vp[256];
+		sprintf(vp, "%s/Videos", rep_hm);	
+		vpath = vp;
+	}	
+
+
+	YAML::Node config = YAML::LoadFile(cfg_fn);
+
 
 
 	MWCAP_VIDEO_SIGNAL_STATE state;

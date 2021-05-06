@@ -1,0 +1,14 @@
+---
+ffm_opts:
+  a_fmt: "-f alsa" 
+  a_nchan: "-ac 2" 
+  a_dev: "-i hw:1,1"
+  a_opt: "-thread_queue_size 4096"
+  v_fmt: "-f v4l2" 
+  v_opt: "-thread_queue_size 4096" 
+  v_dev: "/dev/video0"
+  v_enc: "-vcodec libx264"
+  pix_fmt: "-pix_fmt yuv420p"
+  n_threads: "-threads 0"
+  a_enc: "-acodec aac"
+  out_fmt: "mkv"
