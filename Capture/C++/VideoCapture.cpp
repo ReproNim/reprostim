@@ -165,9 +165,10 @@ int main(int argc, char* argv[]){
 		"\t-c </path/to/config.yaml>\tPath to configuration file (optional)\n"
 		"\t\tDefaults to $REPROSTIM_HOME/config.yaml\n"
 		"\t-h\t\tPrint this help string\n";
-	char* vpath = NULL;
-	char* cfg_fn = NULL;	
-	char* rep_hm = NULL;
+	char * vpath = NULL;
+	char * cfg_fn = NULL;	
+	char * rep_hm = NULL;
+
 	int c ;
 	if (argc == 1){ 
 		cout << helpstr << endl;
@@ -203,7 +204,8 @@ int main(int argc, char* argv[]){
 		sprintf(c_fn, "%s/config.yaml", rep_hm);
 		cfg_fn = c_fn;
 	}
-
+	YAML::Node config = YAML::LoadFile(cfg_fn);
+	
 	// Set output directory if not specified on input
 	if ( ! vpath ){
 		char vp[256];
@@ -212,7 +214,7 @@ int main(int argc, char* argv[]){
 	}	
 
 
-	YAML::Node config = YAML::LoadFile(cfg_fn);
+
 
 
 
