@@ -57,6 +57,7 @@
 #include <stdexcept>
 #include <string>
 #include <array>
+#include <cstring>
 #include "yaml-cpp/yaml.h"
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
@@ -132,7 +133,7 @@ void start_recording(YAML::Node cfg, int cx, int cy, char fr[256], char starttim
 	string out_fmt = cfg["out_fmt"].as<string>();
 
 	sprintf(ffmpg, "ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
-			"%s %s %s %s %s/%s_.%s > /dev/null 2>&1 &", 
+			"%s %s %s %s %s/%s_.%s > /dev/null &", 
 		a_fmt.c_str(),
 		a_nchan.c_str(),
 		a_opt.c_str(),
@@ -168,6 +169,7 @@ int main(int argc, char* argv[]){
 	char * vpath = NULL;
 	char * cfg_fn = NULL;	
 	char * rep_hm = NULL;
+	char video_path[256] = "";
 
 	int c ;
 	if (argc == 1){ 
@@ -192,7 +194,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	// Puke if vpath not specified
+	// Puke if Repro Home not specified
 	if ( ! rep_hm ){
 		cout << helpstr << endl;
 		return 55;
@@ -208,27 +210,24 @@ int main(int argc, char* argv[]){
 	
 	// Set output directory if not specified on input
 	if ( ! vpath ){
-		char vp[256];
-		sprintf(vp, "%s/Videos", rep_hm);	
-		vpath = vp;
+		char sufx[] = "/Videos";
+		strcat(video_path, rep_hm);
+		strcat(video_path, sufx);
+		vpath = video_path;
 	}	
 
 
 
 
-
-
 	MWCAP_VIDEO_SIGNAL_STATE state;
-	int x = 0;
-	int y = 0;	
-	int cx = 0;	
-	int cy = 0;
-	int cxTotal = 0;
-	int cyTotal = 0;
+	int cx;	
+	int cy;
+	int cxTotal;
+	int cyTotal;
 	BOOLEAN bInterlaced;
 	DWORD dwFrameDuration;
-	int nAspectX = 0;
-	int nAspectY = 0;
+	int nAspectX;
+	int nAspectY;
 	BOOLEAN bSegmentedFrame;
 	MWCAP_VIDEO_FRAME_TYPE frameType;
 	MWCAP_VIDEO_COLOR_FORMAT colorFormat;
@@ -236,16 +235,14 @@ int main(int argc, char* argv[]){
 	MWCAP_VIDEO_SATURATION_RANGE satRange;
 
 	MWCAP_VIDEO_SIGNAL_STATE prev_state;
-	int prev_x = 0;
-	int prev_y = 0;	
-	int prev_cx = 0;	
-	int prev_cy = 0;
-	int prev_cxTotal = 0;
-	int prev_cyTotal = 0;
+	int prev_cx;	
+	int prev_cy;
+	int prev_cxTotal;
+	int prev_cyTotal;
 	BOOLEAN prev_bInterlaced;
 	DWORD prev_dwFrameDuration;
-	int prev_nAspectX = 0;
-	int prev_nAspectY = 0;
+	int prev_nAspectX;
+	int prev_nAspectY;
 	BOOLEAN prev_bSegmentedFrame;
 	MWCAP_VIDEO_FRAME_TYPE prev_frameType;
 	MWCAP_VIDEO_COLOR_FORMAT prev_colorFormat;
@@ -269,7 +266,6 @@ int main(int argc, char* argv[]){
 	cout << "\t<> Recording from Video Device\t===> ";
      	cout << config["ffm_opts"]["v_dev"] << endl;
 
-
 	do {
 		usleep(1000000);
 		MWCaptureInitInstance();
@@ -288,29 +284,28 @@ int main(int argc, char* argv[]){
 			}
 			continue;	
 		}
-
+	
 		int nUsbCount = 0;
 		int nUsbDevice[16] = {-1};
+	
 		for (int i = 0; i < nCount; i++){
+			
 			MWCAP_CHANNEL_INFO info;
 			mr = MWGetChannelInfoByIndex(i, &info);
+	
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
 				nUsbDevice[nUsbCount] = i;
 				nUsbCount ++;
 			}
+	
 		}
-
+	
 		char wPath[256] = {0};
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
 		hChannel = MWOpenChannelByPath(wPath);
-
-
 		MWCAP_VIDEO_SIGNAL_STATUS thisInfo;
 		MWGetVideoSignalStatus(hChannel, &thisInfo);
-
 		state = thisInfo.state;
-		x = thisInfo.x;
-		y = thisInfo.y;	
 		cx = thisInfo.cx;	
 		cy = thisInfo.cy;
 		cxTotal = thisInfo.cxTotal;
@@ -326,6 +321,7 @@ int main(int argc, char* argv[]){
 		satRange = thisInfo.satRange;
 
 		sprintf(frameRate, "%.0f", round( 10000000./dwFrameDuration));	
+		
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
@@ -371,9 +367,10 @@ int main(int argc, char* argv[]){
 				recording = 0;
 			}
 		}
+	
 		prev_state = state;
-		prev_x = x;
-		prev_y = y;	
+	
+
 		prev_cx = cx;	
 		prev_cy = cy;
 		prev_cxTotal = cxTotal;
@@ -387,12 +384,12 @@ int main(int argc, char* argv[]){
 		prev_colorFormat = colorFormat;
 		prev_quantRange = quantRange;
 		prev_satRange = satRange;
-
+	
 		if (hChannel != NULL) {
 			MWCloseChannel(hChannel);
 			hChannel = NULL;
 		}
-
+		
 		MWCaptureExitInstance();
 	} while ( true ); 
 
