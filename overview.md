@@ -1,6 +1,6 @@
 The RepoStim project provides a data solution for archiving and cataloging stimulus presentation records for fMRI experiments.
 A “record” in this context refers to a digital media file that contains the audio and visual stimulation presented to a subject while undergoing fMRI scanning for a particular session. 
-The goal is to provide one record for every functional acquisition collected at an fMRI research center. 
+The goal is to provide one record for every acquisition collected at an fMRI research center where audio/visual stimulation was presented. 
 The merits of collecting such records, if not obvious, are numerous and will be considered in a separate section. 
 While the scope of the project is limited to the special circumstances of collecting data at an fMRI research center, we anticipate that future modifications driven by interest and necessity may expand the set of use-cases to include other behavioral and neuroimaging paradigms. 
 Within its current scope, ReproStim is meant to serve as a center-wide resource for a brain imaging center. 
