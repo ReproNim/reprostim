@@ -1,10 +1,10 @@
 The RepoStim project provides a data solution for archiving and cataloging stimulus presentation records for fMRI experiments.
 A “record” in this context refers to a digital media file that contains the audio and visual stimulation presented to a subject while undergoing fMRI scanning for a particular session. 
 The goal is to provide one record for every acquisition collected at an fMRI research center where audio/visual stimulation was presented. 
-The merits of collecting such records, if not obvious, are numerous and will be considered in a separate section. 
-While the scope of the project is limited to the special circumstances of collecting data at an fMRI research center, we anticipate that future modifications driven by interest and necessity may expand the set of use-cases to include other behavioral and neuroimaging paradigms. 
+The ultimate goal of the project is to incorporate ReproStim within the ReproIn/heudiconv data conversion pipeline and to have all stimulus records stored within respective BIDS datasets (see also: https://github.com/bids-standard/bids-specification/issues/751).  While the development of the ReproStim project targets data collection for fRMI research, such a system may also be employed for purely behavioral experiments, which are supported by BIDS as well.
 Within its current scope, ReproStim is meant to serve as a center-wide resource for a brain imaging center. 
 Thus, the setup and maintenance of ReproStim is expected to fall under the purview of an authorized IT specialist charged with center operations and data archiving. 
+The goal of this project is to make establishing such a setup very easy and turnkey as much as possible.
 End users, including researchers who collect and analyze data at the center, ideally need not interact with ReproStim in any way except to benefit from having access to stimulus records associated with their fMRI data as procured by the center. 
 Given this general overview of the scope and purpose of the ReproStim project, there are four major components to the project that must be considered. 
 These include hardware requirements and setup, server software configuration, tools for record procurement, and documentation. 
