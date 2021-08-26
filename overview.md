@@ -8,19 +8,20 @@ Thus, the setup and maintenance of ReproStim is expected to fall under the purvi
 End users, including researchers who collect and analyze data at the center, ideally need not interact with ReproStim in any way except to benefit from having access to stimulus records associated with their fMRI data as procured by the center. 
 Given this general overview of the scope and purpose of the ReproStim project, there are four major components to the project that must be considered. 
 These include hardware requirements and setup, server software configuration, tools for record procurement, and documentation. 
-Details and desiderata for these four components are discussed in turn below.
 
 Setting up ReproStim requires an initial investment in hardware, including a video capture device, a computer that runs the ReproStim capture server software, 
 a USB “sniffer” device to capture scanner trigger pulses for use by the capture service, 
 and necessary cables and connectors including audio and video splitter cables. 
 [These details will be filled in later, and there is a reasonable sketch of the hardware set up already in the README.md file.]
 
-The server software runs continuously on a dedicated computer that is properly connected to the stimulus presentation system (SPS) at the fMRI scanner suite. 
+The server software runs continuously on a dedicated computer that is connected to audio/video capturing device interjected between the stimulus presentation system (SPS) at the fMRI scanner suite. 
 The software monitors the audio and video streams that are sent over the SPS so that whenever there is a video feed to the projector in the scanner, 
 all content is recorded and time-stamped. 
+Any change in the parameter of captured video (connect/disconnect, change of resolution) triggers creation of a new captured content file.
 These recordings are not yet considered “records” in that they are not matched to specific fMRI scans. 
 The server simply monitors the SPS for content and records everything. 
 These raw recordings will often contain long periods of screen capture that show the content of the display on experimenter’s stimulus presentation computer (often a lab laptop).  
+**Warning: as a result, captured video could contain sensitive data if it was displayed.**
 Therefore, it is necessary to take some precautions to store these files securely to protect experimenters information and privacy in case some personal information is exposed, such as an email inbox. 
 Consideration should be taken as to how long these raw recordings are kept, when they should be deleted, and where they will be stored. 
 For example, operators will need to provide sufficient hard drive space for this data and implement some policies about how long to keep the original raw data, after “records” parsed and procured to the fMRI archive. 
