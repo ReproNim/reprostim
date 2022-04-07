@@ -72,7 +72,7 @@ would be something like:
 
 Most experimental setups include something like Schematic A, with a stimulus
 control computer (SC) that sends A/V information to the experimental
-subject. For example, in the Dartmouth Brain Imging Center (DBIC),
+subject. For example, in the Dartmouth Brain Imaging Center (DBIC),
 experimenters can use their own laptop or a dedicated computer in the scan
 control room for SC. The External Presentation Device for video (EPDv) in
 the DBIC MRI suite is a projector that projects through the wall of the
