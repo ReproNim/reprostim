@@ -1,5 +1,10 @@
+security-key.txt
+Examples/exp-alpha/data*
+keys_for_slack
 C++/VideoCapture.o
 C++/VideoCapture
 Videos/
 *.o
+*.pyc
 Capture/C++/VideoCapture
+
