@@ -21,6 +21,13 @@ f = open(logfn,"w")
 f.write("{}\tStart Experiment\n".format(time()))
 f.close()
 
+def log(messg):
+    f = open(logfn,"a")
+    f.write("{}\t{}\n".format(time(),messg))
+    f.close()
+
+
+
 win = visual.Window(fullscr=True,screen=0)
 win.mouseVisible = False # hides the mouse pointer 
 
@@ -50,14 +57,14 @@ c = dbic.waitTrigger(win, runNum, acqNum)
 fixation.draw()  # Change properties of existing stim
 win.flip()
 
-spd = 1.000 # Stimulus Presentation Duration
+spd = 0.500 # Stimulus Presentation Duration
 soa = 6.000 # Stimulus Onset Asynchrony
-ntrials = ([27, 39, 48])[runNum-1]
-iwt = ([16.5,16.,12.])[runNum-1] # Initial Wait Time between scanner trigger and first stimulus
+ntrials = 30
+iwt = 5 # Initial Wait Time between scanner trigger and first stimulus
 
 stim_list = glob.glob("../stim/tarantula/*")
-#stim_list = stim_list + glob.glob("../stim/scorpion/*")
-#np.random.shuffle(stim_list)
+stim_list = stim_list + glob.glob("../stim/scorpion/*")
+np.random.shuffle(stim_list)
 
 stim_images = []
 stim_names = []
@@ -83,7 +90,7 @@ while c.getTime() < iwt:
 stim_images = stim_images[0:(ntrials)]
 
 for i in range(len(stim_images)):
-    open(logfn,"a").write("{0:.3f}\t{1}\n".format(np.round(c.getTime(),decimals=3), 
+    log("{0:.3f}\t{1}\n".format(np.round(c.getTime(),decimals=3), 
         stim_names[i]))
     resp = []
     event.clearEvents()
@@ -94,13 +101,13 @@ for i in range(len(stim_images)):
         resp = event.getKeys(keyList=['q','p'],timeStamped=c)
         if len(resp) > 0:
             print(resp)
-            open(logfn,"a").write("{0:.3f}\t{1}\n".format(np.round(resp[0][1],decimals=3),resp[0][0]))
+            log("{0:.3f}\t{1}\n".format(np.round(resp[0][1],decimals=3),resp[0][0]))
             break
 
     while (c.getTime() - iwt) < (soa*tnum - (soa-spd)):
         pass
     
-    open(logfn,"a").write("{0:.3f}\t{1}\toff\n".format(np.round(c.getTime(),decimals=3), stim_names[i]))    
+    log("{0:.3f}\t{1}\toff\n".format(np.round(c.getTime(),decimals=3), stim_names[i]))    
     win.flip()
 
     if i < ntrials-1:
@@ -112,16 +119,18 @@ for i in range(len(stim_images)):
             resp = event.getKeys(keyList=['q','p'],timeStamped=c)
             if len(resp) > 0:
                 print(resp)
-                open(logfn,"a").write("{0:.3f}\t{1}\n".format(np.round(resp[0][1],decimals=3),resp[0][0]))
+                log("{0:.3f}\t{1}\n".format(np.round(resp[0][1],decimals=3),resp[0][0]))
                 
                 break
 
-    
+    resp = event.getKeys(timeStamped=True)
+    log(str(resp))
+
     while (c.getTime() - iwt) < soa*tnum:
         pass
     tnum += 1
 
-
+log("END EXPERIMENT")
 
 """
 open(logfn,"a").write("{0:.3f}\t{1}\n".format(np.round(c.getTime(), decimals=3),
