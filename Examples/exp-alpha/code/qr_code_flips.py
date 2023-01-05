@@ -24,6 +24,7 @@ def get_times():
 def mkrec(**kwargs):
     t, tstr = get_times()
     kwargs.update({
+        "logfn": logfn,
         "time": t,
         "time_formatted": tstr,
     })
@@ -72,23 +73,29 @@ for acqNum in range(ntrials):
         acqNum=acqNum
     )
 
-    print("Waiting for trigger pulse ... or key stroke '5'")
+    print("Waiting for an event")
     keys = event.waitKeys(maxWait=120) # keyList=['5'])
     rec['keys'] = keys
+    tkeys, tkeys_str = get_times()
+    rec["keys_time"] = tkeys
+    rec["keys_time_str"] = tkeys_str
     qr = visual.ImageStim(win,
                           qrcode.make(json.dumps(rec)),
                           pos=(0, 0)
                           )
-    qr.size = qr.size * 3
+    qr.size = qr.size *1 
     qr.draw()
     win.flip()
     tflip, tflip_str = get_times()
     rec['time_flip'] = tflip
     rec['time_flip_formatted'] = tflip_str
     log(rec)
-
-    win.flip()
+    core.wait(0.5)
     fixation.draw()
+    win.flip()
+    toff, toff_str = get_times()
+    rec['prior_time_off'] = toff
+    rec['prior_time_off_str'] = toff_str
     if 'q' in keys:
         break
 
