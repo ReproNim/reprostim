@@ -4,8 +4,10 @@ vidsroot=/inbox/VIDS
 inbox=${vidsroot}/incoming
 orphans=${vidsroot}/orphans
 dcms=/inbox/DICOM
-dflt_owner=root
-dflt_bids=bids
+dflt_owner=zhark
+dflt_bids=DBIC-bids
+
+umask 027 
 
 #accStem="A00" # Trying without this
 
@@ -53,7 +55,7 @@ process_video () {
 			add24h=$(( 24 * 60 ))
 		elif [ $(( 31 - "$1" )) -lt 4 ] && [ "$2" = "01" ]
 		then
-			add24h=$(( 24 * 60 ))
+			add24h=$(( 24 * 3600 ))
 		else
 			# exists whenever there is more than a whole day
 			d=`date`
@@ -66,8 +68,8 @@ process_video () {
 
 	# get running time in minutes
 	# video time: $vt1 $vt2
-	vt1=`echo $a | awk -F . '{ print $4 * 60 + $5  }'`
-	vt2=`echo $b | awk -F . '{ print $4 * 60 + $5 }'`
+	vt1=`echo $a | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }'`
+	vt2=`echo $b | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }'`
 	vt2=$(( $vt2 + $add24h ))
 
 
@@ -87,9 +89,11 @@ process_video () {
 
 	if [ ${#acqs} == 0 ]
 		then
-		echo `date` :"\t"$v "--> Moving to Orphans"
+		echo "  $v NACCS is ZERO --> Moving to Orphans"
+        echo "-----------------------------------------------"
 		mkdir -p $orphans
 		mv $inbox/$v $orphans
+		chown ${dflt_owner}:${dflt_bids} $orphans/$v
 		return 0
 	fi
 
@@ -99,9 +103,18 @@ process_video () {
 	nmatches=0
 	for ac in $acqs
 	do
+		#test1=`ls -l $ac`; echo $test1
+		acbeg=`ls -lTU $ac | grep -v total | head -n 1| awk '{print $8}' | awk -F : '{t=$1*3600+$2*60+$3; print t}'`
+		acbeg_day=`ls -lTU $ac | grep -v total | head -n 1| awk '{print $7}'`
 
-		acbeg=`ls -l $ac | grep func | head -n 1| awk '{print $8}' | awk -F : '{t=$1*60+$2; print t}'`
-		acend=`ls -l $ac | grep func | tail -n 1| awk '{print $8}' | awk -F : '{t=$1*60+$2; print t}'`
+		acend=`ls -l $ac | tail -n 1| awk '{print $8}' | awk -F : '{t=$1*3600+$2*60+$3; print t}'`
+		acend_day=`ls -l $ac | tail -n 1| awk '{print $7}'`
+
+		if [ $acend_day != $acbeg_day ]
+		then
+			acend=$(( $acend + 24*3600 ))
+		fi
+		echo TIME: "$acbeg --- $acend"
 
 		if [ $(( "$vt1" )) -gt $(( "$acend" )) ]
 		then
@@ -121,14 +134,16 @@ process_video () {
 
 	if [ $(( "$nmatches" )) -gt 0 ]
 	then
-		echo `date` "Found $nmatches "
+		echo "Found $nmatches "
 		for m in $matches
 		do
 			echo "\t ---> $m"
 		done
 	else
-		
+        echo "[NO MATCH] $v : --> Moving to orphans"
+        echo "--------------------------------------------------"
 		mv $inbox/$v $orphans
+		chown ${dflt_owner}:${dflt_bids} $orphans/$v
 		return 0
 	fi
 
@@ -136,11 +151,7 @@ process_video () {
 	then
 		
 		ac=`echo ${matches} | awk -F / '{print $7}'`		
-		mkdir -p ${viddir}$ac
 		ownr=`ls -ld ${matches} | awk '{print $4}'`
-		chown ${dftl_owner}:${ownr} ${viddir}$ac
-		mv $inbox/$v ${viddir}$ac
-		chown -R ${dftl_owner}:${ownr} ${viddir}$ac
 		
 		echo "-------------------------------------------------------------------"
 	else
@@ -162,30 +173,32 @@ process_video () {
 			own=`ls -ld ${match} | awk '{print $4}'`
 			if [ ${own} != ${ownr} ]
 			then
-				d=`date`
-				mkdir -p ${viddir}unassigned
-				mv $inbox/$v ${viddir}unassigned
-				echo "$d	$inbox/$v --> ${viddir}unassigned"
-				chown -R ${dftl_owner}:${dflt_bids} ${viddir}unassigned
-				echo "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-				exit 0
-			else
-				x=3 # pass/continue
+				ownr=${dflt_bids}
 			fi
 		done
-
-		mkdir -p ${viddir}${acs}
-		mv $inbox/$v ${viddir}${acs}
-		chown -R ${dflt_owner}:${ownr} ${viddir}${acs}
+		ac=$acs
 
 	fi
 
+	mkdir -p ${viddir}${ac}
+	chmod g+s ${viddir}${ac}
+	mv $inbox/$v ${viddir}${ac}
+	chown -R ${dflt_owner}:${dflt_bids} ${viddir}${ac}
+	
 
 }
 
 
-vids=`ls $inbox`
+vids=`ls $inbox | grep [0123456789].mkv`
 for vid in $vids
-do
+do 
+	echo $vid
 	process_video $vid
 done
+
+_vids=`ls $inbox | grep _.mkv`
+for _v in $_vids
+do
+	rm ${inbox}/${_v}
+done
+
