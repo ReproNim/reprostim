@@ -1,15 +1,15 @@
 connector pin,color,wiring
-30,Brown,
-32,Red,
-34,Orange,
-36,Yellow,
-35,Green,
+16,,6kΩ to 18
+18,,6kΩ to 16
+7,Black,
 22,Blue+,
 24,Red-,
 26,Gray,
 28,White,
-33,Green+,
 29,Red+,
-7,Black,
-16,,6kΩ to 18
-18,,6kΩ to 16
+30,Brown,
+32,Red,
+33,Green+,
+34,Orange,
+35,Green,
+36,Yellow,
