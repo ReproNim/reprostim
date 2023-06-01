@@ -70,15 +70,15 @@ def _install(firmware_path,
 		installed_file = shutil.copy(firmware_path, destination_dir)
 		return installed_file
 	else:
-		print(f"❌{destination_dir} does not exist.
-			Firmware installation requires the device to be connected in mass storage mode.
-			You can accomplish this by:
-         		1. disconnecting the device
-         		2. holding down the “BOOT” button
-         		3. re-connecting the device, and
-         		4. only releasing the button after it is connected.
-			After you do that, just re-run this script
-		")
+		print(f"❌{destination_dir} does not exist."\
+			"Firmware installation requires the device to be connected in mass storage mode."
+			"You can accomplish this by:"
+         		"1. disconnecting the device"
+         		"2. holding down the “BOOT” button"
+         		"3. re-connecting the device, and"
+         		"4. only releasing the button after it is connected."
+			"After you do that, just re-run this script"
+		)
 		raise ValueError
 
 if __name__ == "__main__":
