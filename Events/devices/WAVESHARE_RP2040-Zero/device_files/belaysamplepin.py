@@ -21,6 +21,7 @@ def sample():
     i = 0
     priort = None
     priort_ = None
+    priorv = None
     while True: 
         i += 1
         t = utime.ticks_us()
@@ -32,17 +33,23 @@ def sample():
             priort = t
             priori = i
         value = mypin.value()
+        report_reason = None
         if t - priort >= 1000000:
-            ipersec = (i - priori) / (float(t-priort) / 1000000)
+            report_reason = 'timeout'
+        if value != priorv:
+            report_reason = 'change'
+        if report_reason:
+            ipersec = (i - priori) / (float(t-priort) / 1000000) if t!=priort else None
             #print(json.dumps({"ms": t, "persec": ipersec, "value": value}))
-            yield {"us": t, "persec": ipersec, "value": value}
+            yield {"us": t, "persec": ipersec, "value": value, "reason": report_reason}
             priori = i
             priort = t
+            priorv = value
 
 
 dts = []
 dtbase = None
-ntrials = 10
+ntrials = 0
 for s in sample():
     t = time()
     us = s['us']/1e6
