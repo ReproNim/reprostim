@@ -19,7 +19,7 @@ popd
 	umount ${myboard}
 	sleep 2
 	while ! $(mpremote fs ls &> /dev/null); do
-		echo "The device has not auto-connected, please press the “RESET”button on the device once to continue."
+		echo "The device has not auto-connected, please press the “RESET” button on the device once to continue."
 		sleep 5
 	done
 	mpremote fs cp device_files/* :
