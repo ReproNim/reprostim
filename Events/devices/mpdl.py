@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 URL_FORMAT="https://micropython.org/download/{device}/"
 EXTENSION="uf2"
-DESTINATION=f"/run/media/{getpass.getuser()}/RPI-RP2"
+DESTINATION=f"{os.environ.get('MEDIA_PATH', '/run/media')}/{getpass.getuser()}/RPI-RP2"
 
 def _get_firmware_link(device,
 	extension=EXTENSION,
