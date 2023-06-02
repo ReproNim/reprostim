@@ -1,3 +1,4 @@
+#!/bin/bash
 myboard="/run/media/$(whoami)/RPI-RP2"
 
 if [ ! -d "$myboard" ]; then
