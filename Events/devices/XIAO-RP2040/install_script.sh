@@ -1,5 +1,5 @@
 #!/bin/bash
-myboard="/run/media/$(whoami)/RPI-RP2"
+myboard="${MEDIA_PATH:-/run/media}/$(whoami)/RPI-RP2"
 
 if [ ! -d "$myboard" ]; then
 	echo "❌$myboard does not exist."
