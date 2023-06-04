@@ -22,7 +22,7 @@ def sample():
     priort = None
     priort_ = None
     priorv = None
-    while True: 
+    while True:
         i += 1
         t = utime.ticks_us()
         # just for paranoid check to see if clock goes forward
