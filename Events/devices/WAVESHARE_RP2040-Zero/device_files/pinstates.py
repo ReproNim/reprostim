@@ -34,9 +34,8 @@ def report():
             report_reason = 'change'
         if report_reason:
             ipersec = (i - priori) / (float(t-priort) / 1000000) if t!=priort else None
-            #yield {"us": t, "persec": ipersec, "value": value, "reason": report_reason}
+            # Caveman-style because this is its own interpreter:
             print(repr({"us": t, "persec": ipersec, "value": value, "reason": report_reason}))
-            #print(repr(value))
             priori = i
             priort = t
             priorv = value
