@@ -45,7 +45,7 @@ def timed_events():
 		message["time"] = t
 		meandt = sum(dts) / len(dts)
 		maxdt = max(abs(dt - meandt) for dt in dts)
-		print(message, f"max(dt)={maxdt}")
+		print(message, f"— with max(dt)={maxdt}")
 		if ntrials:
 			if len(dts) >= ntrials:
 				break
