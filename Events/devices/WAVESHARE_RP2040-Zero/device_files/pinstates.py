@@ -2,40 +2,56 @@ from time import time
 import utime
 import machine
 
-def report():
+def report(timeout=1000):
     """
     Monitor state changes on selected pins.
+
+    Parameters
+    ----------
+    timeout: int, optional
+        After how many microseconds to record a timeout.
+        This can be used to generate precision warnings, e.g:
+            - `timeout=1000` will log a warning if the current polling timestamp is more than 1ms after the prior one.
+            - `timeout=100` will log a warning if the current polling timestamp is more than 100μs after the prior one.
 
     Notes
     -----
     * As extant devices commonly have megahertz-range clock bounds, we use microsecond timings.
+    * Preciossion is controlled via the `timeout` parameter and is by default 1ms.
     """
 
+    # Pull-down pin will be 0 unless under voltage.
     mypin = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_DOWN)
+    prior_value = 0
+
+    prior_t = utime.ticks_us()
     i = 0
-    priort = None
-    priort_ = None
-    priorv = None
     while True:
-        i += 1
-        t = utime.ticks_us()
-        # Paranoid check to see if clock goes forward:
-        if priort_:
-            assert t > priort_
-        priort_ = t
-        if not priort:
-            priort = t
-            priori = i
         value = mypin.value()
-        report_reason = None
-        if t - priort >= 1000000:
-            report_reason = 'timeout'
-        if value != priorv:
-            report_reason = 'change'
-        if report_reason:
-            ipersec = (i - priori) / (float(t-priort) / 1000000) if t!=priort else None
+        t = utime.ticks_us()
+        # Has time stopped?
+        assert t > prior_t
+
+        # Generate report:
+        timeout =  False
+        change = False
+        dt = t - prior_t
+        if dt >= timeout:
+            timeout = True
+        if value != prior_value:
+            change = True
+        if change or timeout:
+            cycle_period = 1 / (dt / 1e6)
             # Caveman-style because this is its own interpreter:
-            print(repr({"us": t, "persec": ipersec, "value": value, "reason": report_reason}))
-            priori = i
-            priort = t
-            priorv = value
+            notification={
+                "us": t,
+                "cycle_frequency": cycle_frequency,
+                "cycle": i,
+                "pin_value": value,
+                "change": change,
+                "timeout": timeout,
+                }
+            print(repr(notification))
+        prior_t = t
+        prior_value = value
+        i += 1
