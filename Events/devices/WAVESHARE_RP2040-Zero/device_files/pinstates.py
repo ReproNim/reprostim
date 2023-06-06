@@ -2,14 +2,14 @@ from time import time
 import utime
 import machine
 
-def report(precision=1e3):
+def report(precision=1e3, pins=[0]):
     """
     Monitor state changes on selected pins.
 
     Parameters
     ----------
     precision: int, optional
-        After how many microseconds to record a precision.
+        Upper bound of cycle duration above which to issue a warning — in μs.
         This can be used to generate precision warnings, e.g:
             - `precision=1e6` will log a warning if the current polling timestamp is more than 1s after the prior one.
             - `precision=1e2` will log a warning if the current polling timestamp is more than 100μs after the prior one.
