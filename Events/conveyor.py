@@ -43,7 +43,7 @@ def timed_events():
 			print(f"Base dt={dt}")
 			dt = 0
 		else:
-			dt = dt-dtbase
+            dt = dt-dtbase
 		dts.append(dt)
 		meandt = sum(dts) / len(dts)
 		print(message, f"— with dt={dt} and mean(dt)={meandt}")
