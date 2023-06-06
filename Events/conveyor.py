@@ -35,17 +35,18 @@ def timed_events():
 	dtbase = None
 	ntrials = 0
 	for message in monitor('import pinstates; pinstates.report()'):
-		t = time()
-		us = message['us']/1e6
-		dt = t - us
+		message['client_time'] = time()
+		message['server_time'] = message.pop('us')/1e6
+		dt = message['client_time'] - message['server_time']
 		if dtbase is None:
 			dtbase = dt
 			print(f"Base dt={dt}")
+			dt = 0
+		else:
+			dt = dt-dtbase
 		dts.append(dt)
-		message["time"] = t
 		meandt = sum(dts) / len(dts)
-		maxdt = max(abs(dt - meandt) for dt in dts)
-		print(message, f"— with max(dt)={maxdt}")
+		print(message, f"— with dt={dt} and mean(dt)={meandt}")
 		if ntrials:
 			if len(dts) >= ntrials:
 				break
