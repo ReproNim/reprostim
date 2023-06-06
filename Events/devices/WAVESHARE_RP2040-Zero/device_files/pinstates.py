@@ -2,12 +2,16 @@ from time import time
 import utime
 import machine
 
-def report(precision=1e3, pins=[0]):
+def report(pins=[0,1],
+    precision=1e3,
+    ):
     """
     Monitor state changes on selected pins.
 
     Parameters
     ----------
+    pins: list of int, optional
+        Numerical values of pins for which the state will be reported.
     precision: int, optional
         Upper bound of cycle duration above which to issue a warning — in μs.
         This can be used to generate precision warnings, e.g:
@@ -21,13 +25,13 @@ def report(precision=1e3, pins=[0]):
     """
 
     # Pull-down pin will be 0 unless under voltage.
-    mypin = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_DOWN)
-    prior_value = 0
+    pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
+    prior_values = values = [ipin.value() for ipin in pins]
 
     prior_t = utime.ticks_us()
     i = 0
     while True:
-        value = mypin.value()
+        values = [ipin.value() for ipin in pins]
         t = utime.ticks_us()
         # Has time stopped?
         assert t > prior_t
@@ -35,19 +39,21 @@ def report(precision=1e3, pins=[0]):
         # Generate report:
         dt = t - prior_t
         timeout = dt > precision
-        change = value != prior_value
+        changes = [i != j for i,j in zip(values, prior_values)]
+        change = any(changes)
         if change or timeout:
             cycle_frequency = 1 / (dt / 1e6)
             message={
                 "us": t,
+                "mydt": dt,
                 "cycle_frequency": cycle_frequency,
                 "cycle": i,
-                "pin_value": value,
+                "pin_values": values,
                 "change": change,
                 "timeout": timeout,
                 }
             # Caveman-style because this is its own interpreter:
             print(repr(message))
         prior_t = t
-        prior_value = value
+        prior_values = values
         i += 1
