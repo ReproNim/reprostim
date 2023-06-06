@@ -41,9 +41,8 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
         timeout = dt > precision
         # Move a and b around to see what segments of the code take the most time
         a = utime.ticks_us()
-        changes = [i != j for i,j in zip(values, prior_values)]
+        change = not any(i == j for i,j in zip(values, prior_values))
         b = utime.ticks_us()
-        change = any(changes)
         if change or timeout:
             cycle_frequency = 1 / (dt / 1e6)
             message={
