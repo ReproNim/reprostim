@@ -2,17 +2,17 @@ from time import time
 import utime
 import machine
 
-def report(timeout=1000):
+def report(precision=1e3):
     """
     Monitor state changes on selected pins.
 
     Parameters
     ----------
-    timeout: int, optional
-        After how many microseconds to record a timeout.
+    precision: int, optional
+        After how many microseconds to record a precision.
         This can be used to generate precision warnings, e.g:
-            - `timeout=1000` will log a warning if the current polling timestamp is more than 1ms after the prior one.
-            - `timeout=100` will log a warning if the current polling timestamp is more than 100μs after the prior one.
+            - `precision=1e6` will log a warning if the current polling timestamp is more than 1s after the prior one.
+            - `precision=1e2` will log a warning if the current polling timestamp is more than 100μs after the prior one.
 
     Notes
     -----
@@ -33,17 +33,12 @@ def report(timeout=1000):
         assert t > prior_t
 
         # Generate report:
-        timeout =  False
-        change = False
         dt = t - prior_t
-        if dt >= timeout:
-            timeout = True
-        if value != prior_value:
-            change = True
+        timeout = dt > precision
+        change = value != prior_value
         if change or timeout:
-            cycle_period = 1 / (dt / 1e6)
-            # Caveman-style because this is its own interpreter:
-            notification={
+            cycle_frequency = 1 / (dt / 1e6)
+            message={
                 "us": t,
                 "cycle_frequency": cycle_frequency,
                 "cycle": i,
@@ -51,7 +46,8 @@ def report(timeout=1000):
                 "change": change,
                 "timeout": timeout,
                 }
-            print(repr(notification))
+            # Caveman-style because this is its own interpreter:
+            print(repr(message))
         prior_t = t
         prior_value = value
         i += 1
