@@ -35,8 +35,6 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
 
     # Pull-down pin will be 0 unless under voltage.
     pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
-    pins_len = len(pins)
-    pins_range = range(pins_len)
     prior_values = values = [ipin.value() for ipin in pins]
 
     prior_t = utime.ticks_us()
