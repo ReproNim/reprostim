@@ -3,11 +3,8 @@ import utime
 import machine
 import gc
 
-# Manually collect garbage to increase cycle duration consistency
-gc.disable()
-
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
-    precision=2000,
+    precision=5000,
     ):
     """
     Monitor state changes on selected pins.
@@ -25,7 +22,15 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
     Notes
     -----
     * As extant devices commonly have megahertz-range clock bounds, we use microsecond timings.
-    * Preciossion is controlled via the `timeout` parameter and is by default 1ms.
+    * Precision is controlled via the `timeout` parameter and is by default 1ms.
+    * This function uses explicit garbage collection.
+        By default garbage is collected when memory is full, which increases the duration of specific loops.
+        This makes incremental development work with respect to precision more difficult.
+        By explicitly triggering it once per loop cycle, the time penalty is uniformly incurred.
+    * The highest reliable precision of this function is 5400μs. Time expenditures are as follows:
+        - value read-in: ~250μs
+        - dictionary construction, repr, and print: ~800μs
+        - garbage collection: ~3900μs
     """
 
     # Pull-down pin will be 0 unless under voltage.
@@ -35,12 +40,14 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
     prior_values = values = [ipin.value() for ipin in pins]
 
     prior_t = utime.ticks_us()
-    a=0
+
+    gc.disable()
+
     while True:
-        values = []
-        for ipin in pins:
-            values.append(ipin.value())
-        #values = [ipin.value() for ipin in pins]
+        # Move a and b around to see what segments of the code take the most time
+        a = utime.ticks_us()
+        values = [ipin.value() for ipin in pins]
+        b = utime.ticks_us()
         t = utime.ticks_us()
         # Has time stopped?
         assert t > prior_t
@@ -48,17 +55,7 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
         # Generate report:
         dt = t - prior_t
         timeout = dt > precision
-        # Move a and b around to see what segments of the code take the most time
-        #change = not all(i == j for i,j in zip(values, prior_values))
-        change = values != prior_values
-        #change = False
-        #for i in range(pins_len):
-        #    if values[i] != prior_values[i]:
-        #        change = True
-        #        prior_values = values
-        #        break
-        #change = str(values) != str(prior_values)
-        b = utime.ticks_us()
+        change = not all(i == j for i,j in zip(values, prior_values))
         if change or timeout:
             message={
                 "ab": b-a,
@@ -70,7 +67,6 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
                 }
             # Caveman-style because this is its own interpreter:
             print(repr(message))
-        a = utime.ticks_us()
         prior_t = t
         prior_values = values
         gc.collect()
