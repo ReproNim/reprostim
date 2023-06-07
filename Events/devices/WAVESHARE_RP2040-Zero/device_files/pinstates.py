@@ -3,7 +3,7 @@ import utime
 import machine
 
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
-    precision=1e3,
+    precision=1000,
     ):
     """
     Monitor state changes on selected pins.
@@ -26,10 +26,10 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
 
     # Pull-down pin will be 0 unless under voltage.
     pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
+    pins_len = len(pins)
     prior_values = values = [ipin.value() for ipin in pins]
 
     prior_t = utime.ticks_us()
-    i = 0
     while True:
         values = [ipin.value() for ipin in pins]
         t = utime.ticks_us()
@@ -40,17 +40,21 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
         dt = t - prior_t
         timeout = dt > precision
         # Move a and b around to see what segments of the code take the most time
-        a = utime.ticks_us()
-        change = not all(i == j for i,j in zip(values, prior_values))
-        b = utime.ticks_us()
+        #a = utime.ticks_us()
+        #change = not all(i == j for i,j in zip(values, prior_values))
+        change = False
+        for i in range(pins_len):
+            if values[i] != prior_values[i]:
+                change = True
+                prior_values = values
+                break
+        #change = str(values) != str(prior_values)
+        #b = utime.ticks_us()
         if change or timeout:
-            cycle_frequency = 1 / (dt / 1e6)
             message={
-                "ab": b-a,
+                #"ab": b-a,
                 "us": t,
-                "mydt": dt,
-                "cycle_frequency": cycle_frequency,
-                "cycle": i,
+                "cycle_us": dt,
                 "pin_values": values,
                 "change": change,
                 "timeout": timeout,
@@ -58,5 +62,3 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
             # Caveman-style because this is its own interpreter:
             print(repr(message))
         prior_t = t
-        prior_values = values
-        i += 1

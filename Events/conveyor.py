@@ -35,6 +35,7 @@ def timed_events():
 	dtbase = None
 	ntrials = 0
 	for message in monitor('import pinstates; pinstates.report()'):
+		message['cycle_frequency'] = 1 / (message['cycle_us'] / 1e6)
 		message['client_time'] = time()
 		message['server_time'] = message.pop('us')/1e6
 		dt = message['client_time'] - message['server_time']
