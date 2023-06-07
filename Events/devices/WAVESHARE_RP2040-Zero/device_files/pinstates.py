@@ -7,7 +7,7 @@ import gc
 gc.disable()
 
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
-    precision=6000,
+    precision=2000,
     ):
     """
     Monitor state changes on selected pins.
@@ -35,13 +35,12 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
     prior_values = values = [ipin.value() for ipin in pins]
 
     prior_t = utime.ticks_us()
+    a=0
     while True:
-        a = utime.ticks_us()
         values = []
         for ipin in pins:
             values.append(ipin.value())
         #values = [ipin.value() for ipin in pins]
-        b = utime.ticks_us()
         t = utime.ticks_us()
         # Has time stopped?
         assert t > prior_t
@@ -59,6 +58,7 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
         #        prior_values = values
         #        break
         #change = str(values) != str(prior_values)
+        b = utime.ticks_us()
         if change or timeout:
             message={
                 "ab": b-a,
@@ -70,6 +70,7 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
                 }
             # Caveman-style because this is its own interpreter:
             print(repr(message))
+        a = utime.ticks_us()
         prior_t = t
         prior_values = values
         gc.collect()
