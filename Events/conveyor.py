@@ -2,7 +2,7 @@ import select
 from mpremote import pyboard
 from time import time
 
-def monitor(command,
+def listen(command,
 	port="/dev/ttyACM0",
 	):
 	"""
@@ -34,7 +34,7 @@ def timed_events():
 	dts = []
 	dtbase = None
 	ntrials = 0
-	for message in monitor('import pinstates; pinstates.report()'):
+	for message in listen('import pinstates; pinstates.report()'):
 		message['cycle_frequency'] = 1 / (message['cycle_us'] / 1e6)
 		message['client_time'] = time()
 		message['server_time'] = message.pop('us')/1e6
