@@ -1,7 +1,6 @@
 from time import time
 import utime
 import machine
-import gc
 
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
     precision=5000,
