@@ -1,7 +1,22 @@
 from time import time
 import utime
 import machine
-import gc
+from machine import Pin
+import json
+
+
+def callback(p):
+    t = utime.ticks_us()
+    pin_str = str(p)
+    pin_num = pin_str[8:len(pin_str) - 26]
+    pin_int = int(pin_num)
+    message={
+        "callback_time": utime.ticks_us() - t,
+        "us": t,
+        "pin": pin_int,
+        "state": p.value()}
+    print(json.dumps(message))
+
 
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
     precision=5000,
@@ -35,36 +50,40 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
 
     # Pull-down pin will be 0 unless under voltage.
     pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
-    prior_values = values = [ipin.value() for ipin in pins]
-
-    prior_t = utime.ticks_us()
-
-    gc.disable()
+    [ipin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=callback) for ipin in pins]
 
     while True:
-        # Move a and b around to see what segments of the code take the most time
-        a = utime.ticks_us()
-        values = [ipin.value() for ipin in pins]
-        b = utime.ticks_us()
-        t = utime.ticks_us()
-        # Has time stopped?
-        assert t > prior_t
+        pass
+    #prior_values = values = [ipin.value() for ipin in pins]
 
-        # Generate report:
-        dt = t - prior_t
-        timeout = dt > precision
-        change = not all(i == j for i,j in zip(values, prior_values))
-        if change or timeout:
-            message={
-                "ab": b-a,
-                "us": t,
-                "cycle_us": dt,
-                "pin_values": values,
-                "change": change,
-                "timeout": timeout,
-                }
-            # Caveman-style because this is its own interpreter:
-            print(repr(message))
-        prior_t = t
-        prior_values = values
-        gc.collect()
+    #prior_t = utime.ticks_us()
+
+    #gc.disable()
+
+    #while True:
+    #    # Move a and b around to see what segments of the code take the most time
+    #    a = utime.ticks_us()
+    #    values = [ipin.value() for ipin in pins]
+    #    b = utime.ticks_us()
+    #    t = utime.ticks_us()
+    #    # Has time stopped?
+    #    assert t > prior_t
+
+    #    # Generate report:
+    #    dt = t - prior_t
+    #    timeout = dt > precision
+    #    change = not all(i == j for i,j in zip(values, prior_values))
+    #    if change or timeout:
+    #        message={
+    #            "ab": b-a,
+    #            "us": t,
+    #            "cycle_us": dt,
+    #            "pin_values": values,
+    #            "change": change,
+    #            "timeout": timeout,
+    #            }
+    #        # Caveman-style because this is its own interpreter:
+    #        print(repr(message))
+    #    prior_t = t
+    #    prior_values = values
+    #    gc.collect()
