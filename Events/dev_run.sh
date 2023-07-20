@@ -39,4 +39,8 @@ then
         exit 1
 fi
 
-mpremote fs cp "devices/${DEVICE_MODEL}/device_files/pinstates.py" :pinstates.py && python conveyor.py
+pinstates_file="devices/${DEVICE_MODEL}/device_files/pinstates.py"
+
+echo "Running \`mpremote fs cp \"${pinstates_file}\" :pinstates.py && python conveyor.py\`."
+
+mpremote fs cp "${pinstates_file}" :pinstates.py && python conveyor.py
