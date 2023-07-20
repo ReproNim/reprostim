@@ -20,18 +20,23 @@ def callback(p):
     1. Callback functions only support one parameter, which is a Pin object, we cannot pass other arguments via the callback interface.
     2. We do manual garbage collection, to ensure homogeneous callback durations, this may not be needed.
     """
-    t = utime.ticks_us()
+    t_s0 = utime.ticks_us()
     pin_str = str(p)
     pin_num = pin_str[8:len(pin_str) - 26]
     pin_int = int(pin_num)
+    t_s1 = utime.ticks_us()
     message={
-        "callback_duration_us": utime.ticks_us() - t,
-        "us": t,
+        "callback_duration_us": t_s1 - t_s0,
+        "us": t_s1,
         "pin": pin_int,
         "state": p.value()}
     print(json.dumps(message))
     gc.collect()
 
+
+def findDelay():
+    t_s2 = utime.ticks_us()
+    return t_s2
 
 
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
