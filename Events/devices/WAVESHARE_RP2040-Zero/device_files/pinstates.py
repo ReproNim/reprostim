@@ -35,7 +35,6 @@ def callback(p):
 
 
 def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
-    precision=5000,
     ):
     """
     Monitor state changes on selected pins.
@@ -44,24 +43,10 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
     ----------
     pins: list of int, optional
         Numerical values of pins for which the state will be reported.
-    precision: int, optional
-        Upper bound of cycle duration above which to issue a warning — in μs.
-        This can be used to generate precision warnings, e.g:
-            - `precision=1e6` will log a warning if the current polling timestamp is more than 1s after the prior one.
-            - `precision=1e2` will log a warning if the current polling timestamp is more than 100μs after the prior one.
 
     Notes
     -----
     * As extant devices commonly have megahertz-range clock bounds, we use microsecond timings.
-    * Precision is controlled via the `timeout` parameter and is by default 1ms.
-    * This function uses explicit garbage collection.
-        By default garbage is collected when memory is full, which increases the duration of specific loops.
-        This makes incremental development work with respect to precision more difficult.
-        By explicitly triggering it once per loop cycle, the time penalty is uniformly incurred.
-    * The highest reliable precision of this function is 5400μs. Time expenditures are as follows:
-        - value read-in: ~250μs
-        - dictionary construction, repr, and print: ~800μs
-        - garbage collection: ~3900μs
     """
 
     # Pull-down pin will be 0 unless under voltage.
