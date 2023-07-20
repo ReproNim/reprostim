@@ -3,19 +3,34 @@ import utime
 import machine
 from machine import Pin
 import json
+import gc
 
 
 def callback(p):
+    """
+    Report pin state change, while checking the current value.
+
+    Parameters
+    ----------
+    p: machine.Pin
+        A `machine.Pin` object.
+
+    Notes
+    -----
+    1. Callback functions only support one parameter, which is a Pin object, we cannot pass other arguments via the callback interface.
+    2. We do manual garbage collection, to ensure homogeneous callback durations, this may not be needed.
+    """
     t = utime.ticks_us()
     pin_str = str(p)
     pin_num = pin_str[8:len(pin_str) - 26]
     pin_int = int(pin_num)
     message={
-        "callback_time": utime.ticks_us() - t,
+        "callback_duration_us": utime.ticks_us() - t,
         "us": t,
         "pin": pin_int,
         "state": p.value()}
     print(json.dumps(message))
+    gc.collect()
 
 
 
