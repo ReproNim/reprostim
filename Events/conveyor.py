@@ -92,4 +92,12 @@ def timed_events(check_delay=True):
 				print(":(")
 				break
 
+def test_delay():
+	t0 = time()
+	pyb.enter_raw_repl()
+	pyb.exec_raw_no_follow('import delay_test; delay_test.send_signal()')
+	t1 = time()
+	print(str((t1 - t0) * 1000) + " ms")
+
+
 timed_events()
