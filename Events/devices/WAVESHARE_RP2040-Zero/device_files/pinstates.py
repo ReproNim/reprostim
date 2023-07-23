@@ -33,13 +33,10 @@ def callback(p):
     print(json.dumps(message))
     gc.collect()
 
+def dry_test():
+    return None
 
-def findDelay():
-    t_s2 = utime.ticks_us()
-    return t_s2
-
-
-def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
+def report(pins=[0,1,2,3,4,5,6,7,8,9,10,29],
     ):
     """
     Monitor state changes on selected pins.
