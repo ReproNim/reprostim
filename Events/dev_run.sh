@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+DEBUG=0
+
 DEVICE_MODELS=$(cd devices > /dev/null; ls -d */ | xargs | sed 's/\///g')
 
 USAGE="Usage:\n\
@@ -10,9 +12,12 @@ USAGE="Usage:\n\
                         Acceptable values are: $DEVICE_MODELS"
 
 # reads options:
-while getopts "h" flag
+while getopts "hd" flag
 do
         case "$flag" in
+                d)
+                        DEBUG=1
+                        ;;
                 h)
                         echo -e "$USAGE"
                         exit 0
@@ -40,7 +45,9 @@ then
 fi
 
 pinstates_file="devices/${DEVICE_MODEL}/device_files/pinstates.py"
+delay_test_file="devices/${DEVICE_MODEL}/device_files/main.py"
+#echo "Running \`mpremote fs cp \"${pinstates_file}\" :pinstates.py && python conveyor.py\`."
+mpremote a1 fs cp "${delay_test_file}" :main.py
+mpremote a0 fs cp "${pinstates_file}" :pinstates.py
+python conveyor.py
 
-echo "Running \`mpremote fs cp \"${pinstates_file}\" :pinstates.py && python conveyor.py\`."
-
-mpremote fs cp "${pinstates_file}" :pinstates.py && python conveyor.py
