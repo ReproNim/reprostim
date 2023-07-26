@@ -72,5 +72,5 @@ def test_delay_dry():
 	t1 = time()
 	print(f'Single board delay is {t1 - t0}.')
 
-
+test_delay_dry()
 timed_events()
