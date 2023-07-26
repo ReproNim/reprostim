@@ -1,7 +1,9 @@
 import machine
-power = machine.Pin(11,machine.Pin.OUT)
-power.value(1)
+import time
+power = machine.Pin(7, machine.Pin.OUT)
+power.value(0)
 
-import led
-
-led.cycle()
+def send_debug_signal():
+	power.value(1)
+	time.sleep(1)
+	power.value(0)
