@@ -46,10 +46,10 @@ def timed_events(check_delay=CHECK_DELAY):
 	dtbase = None
 	ntrials = 0
 	for message in listen('import pinstates; pinstates.report()'):
-		if message['pin'] == 29:
+		if message['pin'] == 7:
 			t_c1 = time()
 			if not check_delay:
-				print('WARNING: pin 29 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
+				print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
 			if message['state'] == 0:
 				continue
 			roundtrip_delay = t_c1 - t_c0
