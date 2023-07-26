@@ -77,7 +77,7 @@ def test_delay_dry():
 	pyb.enter_raw_repl()
 	pyb.exec_raw_no_follow('import pinstates; pinstates.dry_test()')
 	t1 = time()
-	print(f'Single board delay is {t1 - t0}.')
+	print(f'Single board delay is {t1 - t0} seconds.')
 
 test_delay_dry()
 timed_events()
