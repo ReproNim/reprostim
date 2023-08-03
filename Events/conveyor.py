@@ -1,15 +1,17 @@
 import select
+import os
 from mpremote import pyboard
 from time import time
 
+CHECK_DELAY = int(os.environ.get('REPROSTIM_CHECK_DELAY'))
 pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
 try:
 	pyb_debug = pyboard.Pyboard("/dev/ttyACM1", 115200)
 except pyboard.PyboardError:
-	print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
-	CHECK_DELAY = False
-else:
-	CHECK_DELAY = True
+	if CHECK_DELAY:
+		print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
+		CHECK_DELAY = False
+
 
 
 def listen(command):
@@ -40,6 +42,12 @@ def listen(command):
 def no_listen(command):
 	pyb_debug.enter_raw_repl()
 	result = pyb_debug.exec_raw_no_follow(command)
+
+def predefined_events():
+	mytime = "2023-08-02T20:20:20"
+	pin = 1
+	myduration = 1
+	no_listen(f'import main; main.send_predefined_event(mytime={mytime},mypin={mypin},myduration={myduration})')
 
 def timed_events(check_delay=CHECK_DELAY):
 	dts = []
