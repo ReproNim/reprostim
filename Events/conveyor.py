@@ -1,52 +1,33 @@
 import select
+import os
 from mpremote import pyboard
 from time import time
+from .listeners import listen
 
+# This should pobably be here
 pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
-try:
-	pyb_debug = pyboard.Pyboard("/dev/ttyACM1", 115200)
-except pyboard.PyboardError:
-	print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
-	CHECK_DELAY = False
-else:
-	CHECK_DELAY = True
 
 
-def listen(command):
-	"""
-	Listen to reports from device.
-
-	Notes
-	-----
-	* This could be set up as a global listener, though that might be overkill just for conveying stimulus events.
-	* Using `-1` polling to disable timouts, we could use ipoll instead:
-		https://docs.micropython.org/en/latest/library/select.html?highlight=poll#select.poll.ipoll
-	"""
-	poll = select.poll()
-	poll.register(pyb.serial, select.POLLIN)
-
-	pyb.enter_raw_repl()
-	pyb.exec_raw_no_follow(command)
-	while True:
-		events = poll.poll(-1)
-		for file in events:
-			line = pyb.serial.readline()
-			try:
-				yield eval(line)
-			except SyntaxError:
-				pass
+CHECK_DELAY = True #temporary line for debugging
 
 
-def no_listen(command):
-	pyb_debug.enter_raw_repl()
-	result = pyb_debug.exec_raw_no_follow(command)
-
-def timed_events(check_delay=CHECK_DELAY):
+def timed_events(check_delay):
+	print(check_delay)
+	if check_delay:
+		try:
+			from .listeners import no_listen
+		except pyboard.PyboardError:
+			print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
+			check_delay = False
+			print(check_delay)
 	dts = []
 	dtbase = None
 	ntrials = 0
-	for message in listen('import pinstates; pinstates.report()'):
+	print("FFFFF")
+	for message in listen('import pinstates; pinstates.report()', pyb):
+		print("AAAAAAA")
 		if message['pin'] == 7:
+			print("BBBBBBB")
 			t_c1 = time()
 			if not check_delay:
 				print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
@@ -55,6 +36,7 @@ def timed_events(check_delay=CHECK_DELAY):
 			roundtrip_delay = t_c1 - t_c0
 			print(f'DEBUG: Roundtrip delay is {roundtrip_delay}.')
 		else:
+			print("CCCCCCC")
 			message['callback_duration'] = message['callback_duration_us']/1e6
 			message['client_time'] = time()
 			message['server_time'] = message.pop('us')/1e6
@@ -79,5 +61,7 @@ def test_delay_dry():
 	t1 = time()
 	print(f'Single board delay is {t1 - t0} seconds.')
 
-test_delay_dry()
-timed_events()
+
+def main(CHECK_DELAY):
+	test_delay_dry()
+	timed_events(CHECK_DELAY)
