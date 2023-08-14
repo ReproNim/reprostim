@@ -58,11 +58,18 @@ mpremote a0 fs cp "${pinstates_file}" :pinstates.py
 mpremote a1 fs cp "${delay_test_file}" :main.py || \
         echo "You have connected only one device, meaning that the files for live roundtrip delay testing were not installed, and will not be usable."
 pushd ..
-python -c "from Events import conveyor; conveyor.main($DEBUG)"
 
-
-#if [$PREDEFINED_EVENTS] # only run predefined events if there are two boards connected
-#then
-#        python -c "from Events import predefined_events; predefined_events.send_events()"
-#fi
+if [ "$PREDEFINED_EVENTS" = true ] # only run predefined events if there are two boards connected
+then
+        python -c "from Events import conveyor; conveyor.main($DEBUG)" &
+        pid=$!
+        cleanup () {
+                echo killing $pid
+                kill -9 $pid
+        }
+        trap cleanup EXIT
+        python -c "from Events import predefined_events; predefined_events.send_events()"
+else
+        python -c "from Events import conveyor; conveyor.main($DEBUG)" 
+fi
 popd
