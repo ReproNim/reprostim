@@ -2,58 +2,28 @@ import select
 import os
 from mpremote import pyboard
 from time import time
+from .listeners import listen
 
-CHECK_DELAY = int(os.environ.get('REPROSTIM_CHECK_DELAY'))
+# This should pobably be here
 pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
-try:
-	pyb_debug = pyboard.Pyboard("/dev/ttyACM1", 115200)
-except pyboard.PyboardError:
-	if CHECK_DELAY:
-		print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
-		CHECK_DELAY = False
 
 
-
-def listen(command):
-	"""
-	Listen to reports from device.
-
-	Notes
-	-----
-	* This could be set up as a global listener, though that might be overkill just for conveying stimulus events.
-	* Using `-1` polling to disable timouts, we could use ipoll instead:
-		https://docs.micropython.org/en/latest/library/select.html?highlight=poll#select.poll.ipoll
-	"""
-	poll = select.poll()
-	poll.register(pyb.serial, select.POLLIN)
-
-	pyb.enter_raw_repl()
-	pyb.exec_raw_no_follow(command)
-	while True:
-		events = poll.poll(-1)
-		for file in events:
-			line = pyb.serial.readline()
-			try:
-				yield eval(line)
-			except SyntaxError:
-				pass
+CHECK_DELAY = True #temporary line for debugging
 
 
-def no_listen(command):
-	pyb_debug.enter_raw_repl()
-	result = pyb_debug.exec_raw_no_follow(command)
-
-def predefined_events():
-	mytime = "2023-08-02T20:20:20"
-	pin = 1
-	myduration = 1
-	no_listen(f'import main; main.send_predefined_event(mytime={mytime},mypin={mypin},myduration={myduration})')
-
-def timed_events(check_delay=CHECK_DELAY):
+def timed_events(check_delay):
+	print(check_delay)
+	if check_delay:
+		try:
+			from .listeners import no_listen
+		except pyboard.PyboardError:
+			print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
+			check_delay = False
+			print(check_delay)
 	dts = []
 	dtbase = None
 	ntrials = 0
-	for message in listen('import pinstates; pinstates.report()'):
+	for message in listen('import pinstates; pinstates.report()', pyb):
 		if message['pin'] == 7:
 			t_c1 = time()
 			if not check_delay:
@@ -87,5 +57,7 @@ def test_delay_dry():
 	t1 = time()
 	print(f'Single board delay is {t1 - t0} seconds.')
 
-test_delay_dry()
-timed_events()
+
+def main(CHECK_DELAY):
+	test_delay_dry()
+	timed_events(CHECK_DELAY)

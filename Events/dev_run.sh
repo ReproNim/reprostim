@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-DEBUG=0
+DEBUG=False #capitalized for python interpretation
+
+PREDEFINED_EVENTS=false
 
 DEVICE_MODELS=$(cd devices > /dev/null; ls -d */ | xargs | sed 's/\///g')
 
@@ -12,11 +14,14 @@ USAGE="Usage:\n\
                         Acceptable values are: $DEVICE_MODELS"
 
 # reads options:
-while getopts "hd" flag
+while getopts "hdp" flag
 do
         case "$flag" in
                 d)
-                        DEBUG=1
+                        DEBUG=True
+                        ;;
+                p)
+                        PREDEFINED_EVENTS=true
                         ;;
                 h)
                         echo -e "$USAGE"
@@ -42,6 +47,8 @@ then
         echo "$(basename "$0"): no device model specified."
         echo -e "$USAGE"
         exit 1
+else
+        echo "$DEVICE_MODEL"
 fi
 
 pinstates_file="devices/${DEVICE_MODEL}/device_files/pinstates.py"
@@ -50,5 +57,12 @@ delay_test_file="devices/${DEVICE_MODEL}/device_files/main.py"
 mpremote a0 fs cp "${pinstates_file}" :pinstates.py
 mpremote a1 fs cp "${delay_test_file}" :main.py || \
         echo "You have connected only one device, meaning that the files for live roundtrip delay testing were not installed, and will not be usable."
-python conveyor.py
+pushd ..
+python -c "from Events import conveyor; conveyor.main($DEBUG)"
 
+
+#if [$PREDEFINED_EVENTS] # only run predefined events if there are two boards connected
+#then
+#        python -c "from Events import predefined_events; predefined_events.send_events()"
+#fi
+popd
