@@ -68,7 +68,7 @@ then
                 kill -9 $pid
         }
         trap cleanup EXIT
-        python -c "from Events import predefined_events; predefined_events.send_events()"
+        python -c "from Events import predefined_events; predefined_events.send_events()" &> /dev/null
 else
         python -c "from Events import conveyor; conveyor.main($DEBUG)" 
 fi

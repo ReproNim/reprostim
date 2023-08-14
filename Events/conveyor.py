@@ -23,8 +23,11 @@ def timed_events(check_delay):
 	dts = []
 	dtbase = None
 	ntrials = 0
+	print("FFFFF")
 	for message in listen('import pinstates; pinstates.report()', pyb):
+		print("AAAAAAA")
 		if message['pin'] == 7:
+			print("BBBBBBB")
 			t_c1 = time()
 			if not check_delay:
 				print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
@@ -33,6 +36,7 @@ def timed_events(check_delay):
 			roundtrip_delay = t_c1 - t_c0
 			print(f'DEBUG: Roundtrip delay is {roundtrip_delay}.')
 		else:
+			print("CCCCCCC")
 			message['callback_duration'] = message['callback_duration_us']/1e6
 			message['client_time'] = time()
 			message['server_time'] = message.pop('us')/1e6
