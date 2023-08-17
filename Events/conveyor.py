@@ -79,6 +79,7 @@ def handle_message(my_message, f,
 		writer = csv.DictWriter(f, my_message.keys())
 		writer.writeheader()
 	writer.writerow(my_message)
+	f.flush()
 	return writer
 
 def test_delay_dry():
