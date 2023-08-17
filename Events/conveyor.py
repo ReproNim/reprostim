@@ -7,11 +7,9 @@ from .listeners import listen
 # This should pobably be here
 pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
 
-
-CHECK_DELAY = True #temporary line for debugging
-
-
-def timed_events(check_delay):
+def timed_events(
+	check_delay=False,
+	):
 	print(check_delay)
 	if check_delay:
 		try:
@@ -23,11 +21,9 @@ def timed_events(check_delay):
 	dts = []
 	dtbase = None
 	ntrials = 0
-	print("FFFFF")
+	print("Starting to listen for events...")
 	for message in listen('import pinstates; pinstates.report()', pyb):
-		print("AAAAAAA")
 		if message['pin'] == 7:
-			print("BBBBBBB")
 			t_c1 = time()
 			if not check_delay:
 				print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
@@ -36,9 +32,7 @@ def timed_events(check_delay):
 			roundtrip_delay = t_c1 - t_c0
 			print(f'DEBUG: Roundtrip delay is {roundtrip_delay}.')
 		else:
-			print("CCCCCCC")
 			message['callback_duration'] = message['callback_duration_us']/1e6
-			message['client_time'] = time()
 			message['server_time'] = message.pop('us')/1e6
 			dt = message['client_time'] - message['server_time']
 			if dtbase is None:
@@ -62,6 +56,6 @@ def test_delay_dry():
 	print(f'Single board delay is {t1 - t0} seconds.')
 
 
-def main(CHECK_DELAY):
+def convey(check_delay=False):
 	test_delay_dry()
-	timed_events(CHECK_DELAY)
+	timed_events(check_delay=check_delay)

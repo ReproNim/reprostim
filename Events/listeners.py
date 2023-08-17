@@ -24,10 +24,23 @@ def listen(command, pyb):
 		events = poll.poll(-1)
 		for file in events:
 			line = pyb.serial.readline()
+			mytime = time()
+			#try:
+			#	rec = eval(line)
+			#except SyntaxError:
+			#	pass
+			#else:
+			#	rec["client_time"] = mytime
+			#	yield rec
 			try:
-				yield eval(line)
+				rec = eval(line)
 			except SyntaxError:
+				print("AAAAAAAAAAAAAAAAAAAA")
 				pass
+			else:
+				rec["client_time"] = mytime
+				yield rec
+
 
 
 def no_listen(command):

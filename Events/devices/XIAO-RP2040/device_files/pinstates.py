@@ -36,15 +36,17 @@ def callback(p):
 def dry_test():
     return None
 
-def report(pins=[0,1,2,3,4,6,7,26,27,28,29],
+def report(
+    input_pins=[0,1,2,3,4,6,26,27,28,29],
+    debug_pin=7,
     ):
     """
-    Monitor state changes on selected pins.
+    Monitor state changes on selected input_pins.
 
     Parameters
     ----------
-    pins: list of int, optional
-        Numerical values of pins for which the state will be reported.
+    input_pins: list of int, optional
+        Numerical values of input_pins for which the state will be reported.
 
     Notes
     -----
@@ -52,8 +54,11 @@ def report(pins=[0,1,2,3,4,6,7,26,27,28,29],
     """
 
     # Pull-down pin will be 0 unless under voltage.
-    pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
-    [ipin.irq(trigger=Pin.IRQ_RISING, handler=callback) for ipin in pins]
+    debug_pin = machine.Pin(debug_pin, machine.Pin.IN, machine.Pin.PULL_DOWN)
+    debug_pin.irq(trigger=Pin.IRQ_RISING, handler=callback)
+
+    input_pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in input_pins]
+    [ipin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=callback) for ipin in input_pins]
 
     while True:
         pass
