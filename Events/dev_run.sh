@@ -73,6 +73,6 @@ then
         trap cleanup EXIT
         python -c "from Events import predefined_events; predefined_events.send_events()" &> /dev/null
 else
-        python -c "from Events import conveyor; conveyor.convey(check_delay=${DEBUG}, log_file=${LOG_FILE})"
+        python -c "from Events import conveyor; conveyor.convey(check_delay=${DEBUG}, log_file=\"${LOG_FILE}\")"
 fi
 popd
