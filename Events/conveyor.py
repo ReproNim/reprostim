@@ -1,3 +1,4 @@
+import csv
 import select
 import os
 from mpremote import pyboard
@@ -9,44 +10,75 @@ pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
 
 def timed_events(
 	check_delay=False,
+	report=True,
 	):
-	print(check_delay)
 	if check_delay:
 		try:
 			from .listeners import no_listen
 		except pyboard.PyboardError:
-			print("Only one board is connected, live roundtrip delay testing will be disabled by default.")
+			print("❌ Only one board is connected, live roundtrip delay testing will be disabled by default.")
 			check_delay = False
-			print(check_delay)
-	dts = []
-	dtbase = None
-	ntrials = 0
-	print("Starting to listen for events...")
-	for message in listen('import pinstates; pinstates.report()', pyb):
-		if message['pin'] == 7:
-			t_c1 = time()
-			if not check_delay:
-				print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
-			if message['state'] == 0:
-				continue
-			roundtrip_delay = t_c1 - t_c0
-			print(f'DEBUG: Roundtrip delay is {roundtrip_delay}.')
 		else:
-			message['callback_duration'] = message['callback_duration_us']/1e6
-			message['server_time'] = message.pop('us')/1e6
-			dt = message['client_time'] - message['server_time']
-			if dtbase is None:
-				dtbase = dt
-				print(f"Base dt={dt}")
-				dt = 0
+			print("Live roundtrip delay is enabled.")
+	else:
+		print("Live roundtrip delay is disabled.")
+
+	dts = []
+	messages = []
+	base_dt = None
+	print("Starting to listen for events...")
+	msg_id = 0
+	pending_message = False
+	with open('/tmp/conveyor.csv','w') as csv_file:
+		writer = None
+		for message in listen('import pinstates; pinstates.report()', pyb):
+			if message['pin'] == 7:
+				if not check_delay:
+					print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
+				# Failsafe, the device function should not report drop debug events.
+				#if message['state'] == 0:
+				#	continue
+				messages[-1]["roundtrip_delay"] = message["client_time"] - t_c0
+				writer = handle_message(messages[-1], csv_file, writer=writer, report=report)
+				pending_message = False
+			elif pending_message:
+				writer = handle_message(pending_message, csv_file, writer=writer, report=report)
+				pending_message = False
 			else:
-				dt = dt-dtbase
-			dts.append(dt)
-			meandt = sum(dts) / len(dts)
-			print(message, f"— with dt={dt} and mean(dt)={meandt}")
-			if check_delay:
-				t_c0 = time()
-				no_listen('import main; main.send_debug_signal()')
+				message['callback_duration'] = message['callback_duration_us']/1e6
+				message['server_time'] = message.pop('us')/1e6
+				dt = message['client_time'] - message['server_time']
+				if base_dt is None:
+					base_dt = dt
+					dt = 0
+				else:
+					dt = dt-base_dt
+				dts.append(dt)
+				message["base_dt"] = base_dt
+				message["relative_dt"] = dt
+				message["roundtrip_delay"] = None
+				msg_id += 1
+				message["id"] = msg_id
+				message["mean relative dt"]= sum(dts) / len(dts)
+				messages.append(message)
+				if check_delay:
+					t_c0 = time()
+					no_listen('import main; main.send_debug_signal()')
+					pending_message = message
+				else:
+					writer = handle_message(message, csv_file, writer=writer, report=report)
+
+def handle_message(my_message, csv_file,
+	writer=None,
+	report=False,
+	):
+	if report:
+		print(my_message)
+	if not writer:
+		writer = csv.DictWriter(csv_file, my_message.keys())
+		writer.writeheader()
+	writer.writerow(my_message)
+	return writer
 
 def test_delay_dry():
 	t0 = time()
