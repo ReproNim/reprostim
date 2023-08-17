@@ -9,6 +9,7 @@ from .listeners import listen
 pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
 
 def timed_events(
+	log_file="/tmp/conveyor.csv",
 	check_delay=False,
 	report=True,
 	):
@@ -29,7 +30,7 @@ def timed_events(
 	print("Starting to listen for events...")
 	msg_id = 0
 	pending_message = False
-	with open('/tmp/conveyor.csv','w') as csv_file:
+	with open(log_file,'w') as f:
 		writer = None
 		for message in listen('import pinstates; pinstates.report()', pyb):
 			if message['pin'] == 7:
@@ -39,10 +40,10 @@ def timed_events(
 				#if message['state'] == 0:
 				#	continue
 				messages[-1]["roundtrip_delay"] = message["client_time"] - t_c0
-				writer = handle_message(messages[-1], csv_file, writer=writer, report=report)
+				writer = handle_message(messages[-1], f, writer=writer, report=report)
 				pending_message = False
 			elif pending_message:
-				writer = handle_message(pending_message, csv_file, writer=writer, report=report)
+				writer = handle_message(pending_message, f, writer=writer, report=report)
 				pending_message = False
 			else:
 				message['callback_duration'] = message['callback_duration_us']/1e6
@@ -66,16 +67,16 @@ def timed_events(
 					no_listen('import main; main.send_debug_signal()')
 					pending_message = message
 				else:
-					writer = handle_message(message, csv_file, writer=writer, report=report)
+					writer = handle_message(message, f, writer=writer, report=report)
 
-def handle_message(my_message, csv_file,
+def handle_message(my_message, f,
 	writer=None,
 	report=False,
 	):
 	if report:
 		print(my_message)
 	if not writer:
-		writer = csv.DictWriter(csv_file, my_message.keys())
+		writer = csv.DictWriter(f, my_message.keys())
 		writer.writeheader()
 	writer.writerow(my_message)
 	return writer
@@ -88,6 +89,6 @@ def test_delay_dry():
 	print(f'Single board delay is {t1 - t0} seconds.')
 
 
-def convey(check_delay=False):
+def convey(log_file="/tmp/conveyor.csv", check_delay=False):
 	test_delay_dry()
-	timed_events(check_delay=check_delay)
+	timed_events(log_file=log_file, check_delay=check_delay)
