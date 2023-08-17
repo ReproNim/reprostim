@@ -14,7 +14,7 @@ USAGE="Usage:\n\
                         Acceptable values are: $DEVICE_MODELS"
 
 # reads options:
-while getopts "hdp" flag
+while getopts "hdpl:" flag
 do
         case "$flag" in
                 d)
@@ -22,6 +22,9 @@ do
                         ;;
                 p)
                         PREDEFINED_EVENTS=true
+                        ;;
+                l)
+                        LOG_FILE=$OPTARG
                         ;;
                 h)
                         echo -e "$USAGE"
@@ -70,6 +73,6 @@ then
         trap cleanup EXIT
         python -c "from Events import predefined_events; predefined_events.send_events()" &> /dev/null
 else
-        python -c "from Events import conveyor; conveyor.convey(check_delay=$DEBUG)"
+        python -c "from Events import conveyor; conveyor.convey(check_delay=${DEBUG}, log_file=${LOG_FILE})"
 fi
 popd
