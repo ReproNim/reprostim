@@ -60,7 +60,8 @@ delay_test_file="devices/${DEVICE_MODEL}/device_files/main.py"
 mpremote a0 fs cp "${pinstates_file}" :pinstates.py
 mpremote a1 fs cp "${delay_test_file}" :main.py || \
         echo "You have connected only one device, meaning that the files for live roundtrip delay testing were not installed, and will not be usable."
-pushd ..
+
+export PYTHONPATH=$PWD/..
 
 if [ "$PREDEFINED_EVENTS" = true ] # only run predefined events if there are two boards connected
 then
