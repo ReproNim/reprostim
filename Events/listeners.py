@@ -35,7 +35,7 @@ def listen(command, pyb):
 			try:
 				rec = eval(line)
 			except SyntaxError:
-				print("AAAAAAAAAAAAAAAAAAAA")
+				print(f"Got a syntax error in the line: {line}")
 				pass
 			else:
 				rec["client_time"] = mytime
