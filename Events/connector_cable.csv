@@ -1,15 +1,15 @@
-connector pin,color,wiring,DB-25P,buttons_2x2
-16,,6kΩ to 18,,
-18,,6kΩ to 16,,
-7,Black,,GND,
-24,Red-,,D6,
-22,Blue+,,D5,
-26,Gray,,D7,
-28,White,,+BUSY,
-29,Red+,,-ACK,
-30,Brown,,D0,1
-32,Red,,D1,2
-33,Green+,,+PAPER,
-34,Orange,,D2,3
-35,Green,,D4,
-36,Yellow,,D3,4
+connector pin,color,coaxial,wiring,DB-25P,buttons_2x2,pinin XIAO-RP2040
+16,,,6kΩ to 18,,,
+18,,,6kΩ to 16,,,
+7,Black,False,,GND,,GND
+24,Red-,core,,D6,,
+22,Blue+,shiled,,D5,,
+26,Gray,False,,D7,,
+28,White,False,,+BUSY,,
+29,Red+,shield,,-ACK,trigger,7
+30,Brown,False,,D0,1,1
+32,Red,False,,D1,2,2
+33,Green+,shield,,+PAPER,,
+34,Orange,False,,D2,3,3
+35,Green,False,,D4,,
+36,Yellow,False,,D3,4,4
