@@ -1,12 +1,14 @@
 import csv
 import select
 import os
+from datetime import datetime
 from mpremote import pyboard
 from time import time
 from .listeners import listen
 
 # This should pobably be here
 pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
+tz = datetime.now().astimezone().tzinfo
 
 def timed_events(
 	log_file="/tmp/conveyor.csv",
@@ -33,6 +35,8 @@ def timed_events(
 	with open(log_file,'w') as f:
 		writer = None
 		for message in listen('import pinstates; pinstates.report()', pyb):
+			client_time = datetime.fromtimestamp(message['client_time'])
+			message['client_time_iso'] = client_time.replace(tzinfo=tz).isoformat()
 			if message['pin'] == 7:
 				if not check_delay:
 					print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
