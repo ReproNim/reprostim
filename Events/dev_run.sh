@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -eu -o pipefail
+
 DEBUG=False #capitalized for python interpretation
 
 PREDEFINED_EVENTS=false
