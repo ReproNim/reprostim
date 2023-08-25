@@ -3,6 +3,8 @@
 set -eu 
 cd $(dirname $0)
 
+source venvs/dev3/bin/activate
+
 while true; do 
 	ts=$(date --iso-8601=seconds)
 	echo "$ts starting" >> log
