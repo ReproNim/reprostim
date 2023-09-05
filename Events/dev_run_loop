@@ -1,9 +1,9 @@
 #!/bin/bash
 
-set -eu 
+set -u 
 cd $(dirname $0)
 
-source venvs/dev3/bin/activate
+source venvs/dev3/bin/activate || { echo "Failed to start venv"; exit 1; }
 
 while true; do 
 	ts=$(date --iso-8601=seconds)
