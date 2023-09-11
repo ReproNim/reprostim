@@ -16,6 +16,7 @@ CFLAGS += -O0 \
           -Wno-missing-field-initializers  \
           -fPIC \
 	  -std=c++11 \
+	  -g \
 	  $(LOCAL_CFLAGS) \
 	  
 
