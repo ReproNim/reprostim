@@ -19,7 +19,11 @@ jobs:
 
     - name: Install build dependencies
       run: sudo apt install -y libyaml-cpp-dev libasound2-dev libv4l-dev libudev-dev make g++
-    
+
     - name: Build
-      run: make 
+      run: make
+      working-directory: Capture/C++
+
+    - name: Dry run of -h
+      run: ./VideoCapture -h
       working-directory: Capture/C++
