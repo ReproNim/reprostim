@@ -7,7 +7,6 @@ LOG_FILE= #setting it to empty so that check doesn't fail on account of set -eu
 MAIN_BOARD=false
 RT_BOARD=false
 
-mpremote exec 'import machine; import ubinascii as ub; a = ub.hexlify(machine.unique_id()).decode("utf-8"); print(a)'
 
 
 PREDEFINED_EVENTS=false
@@ -21,7 +20,7 @@ USAGE="Usage:\n\
                 <device_model>: which device model code to use.\n\
                         Acceptable values are: $DEVICE_MODELS"
 
-# reads options:
+# Read options:
 while getopts "hdpl:" flag
 do
         case "$flag" in
@@ -49,7 +48,7 @@ do
         esac
 done
 
-# shifts pointer to read mandatory device model specification
+# Shift pointer to read mandatory device model specification.
 shift $((OPTIND - 1))
 DEVICE_MODEL=${1:-}
 
@@ -72,7 +71,10 @@ fi
 pinstates_file="devices/${DEVICE_MODEL}/device_files/pinstates.py"
 delay_test_file="devices/${DEVICE_MODEL}/device_files/main.py"
 
+
+# Required to import from parent Python module:
 export PYTHONPATH=$PWD/..
+
 
 # Figure out which board is the main board and which is used for debugging
 mpremote a0 cp "devices/${DEVICE_MODEL}/device_files/roundtripper.py" :roundtripper.py
@@ -93,6 +95,7 @@ else
                 echo "You have connected only one device, meaning that the files for live roundtrip delay testing were not installed, and will not be usable."
 fi
 
+
 # Report detection results, and set debugging (i.e. roundtripping) to false if a roundtripping board cannot be located.
 echo "Your main (pin state query) board is located at $MAIN_BOARD"
 if [ "$RT_BOARD" = false ]; then
@@ -102,6 +105,9 @@ if [ "$RT_BOARD" = false ]; then
 else
         echo "Your debugging (roundtrip) board is located at $RT_BOARD"
 fi
+# In this section, we could also report the unique device ID (might have potential debugging relevance 🤔).
+# This is queried via:
+# mpremote exec 'import machine; import ubinascii as ub; a = ub.hexlify(machine.unique_id()).decode("utf-8"); print(a)'
 
 
 # Execute Python signal conveyor code.
