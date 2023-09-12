@@ -3,6 +3,7 @@
 set -eu -o pipefail
 
 DEBUG=False #capitalized for python interpretation
+LOG_FILE= #setting it to empty so that check doesn't fail on account of set -eu
 
 PREDEFINED_EVENTS=false
 
@@ -26,7 +27,7 @@ do
                         PREDEFINED_EVENTS=true
                         ;;
                 l)
-                        LOG_FILE=$OPTARG
+                        LOG_FILE=${OPTARG}
                         ;;
                 h)
                         echo -e "$USAGE"
@@ -54,6 +55,13 @@ then
         exit 1
 else
         echo "$DEVICE_MODEL"
+fi
+
+if [ -z "$LOG_FILE" ]
+then
+        echo "$(basename "$0"): no log file specified, using default:"
+        LOG_FILE="/tmp/conveyor_log-$(whoami)-$(date)"
+        echo "${LOG_FILE}"
 fi
 
 pinstates_file="devices/${DEVICE_MODEL}/device_files/pinstates.py"
