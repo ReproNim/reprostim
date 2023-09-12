@@ -45,7 +45,7 @@ done
 
 # shifts pointer to read mandatory device model specification
 shift $((OPTIND - 1))
-DEVICE_MODEL=${1}
+DEVICE_MODEL=${1:-}
 
 if [ -z "$DEVICE_MODEL" ]
 then
