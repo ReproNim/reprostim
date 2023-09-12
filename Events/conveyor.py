@@ -6,15 +6,16 @@ from mpremote import pyboard
 from time import time
 from .listeners import listen
 
-# This should pobably be here
-pyb = pyboard.Pyboard("/dev/ttyACM0", 115200)
 tz = datetime.now().astimezone().tzinfo
 
 def timed_events(
 	log_file="/tmp/conveyor.csv",
 	check_delay=False,
+	devicenode="/dev/ttyACM0",
+	rt_devicenode="/dev/ttyACM1",
 	report=True,
 	):
+	pyb = pyboard.Pyboard(devicenode, 115200)
 	if check_delay:
 		try:
 			from .listeners import no_listen
@@ -68,7 +69,7 @@ def timed_events(
 				messages.append(message)
 				if check_delay:
 					t_c0 = time()
-					no_listen('import main; main.send_debug_signal()')
+					no_listen('import main; main.send_debug_signal()', rt_devicenode=rt_devicenode)
 					pending_message = message
 				else:
 					writer = handle_message(message, f, writer=writer, report=report)
@@ -86,7 +87,8 @@ def handle_message(my_message, f,
 	f.flush()
 	return writer
 
-def test_delay_dry():
+def test_delay_dry(devicenode="/dev/ttyACM0"):
+	pyb = pyboard.Pyboard(devicenode, 115200)
 	t0 = time()
 	pyb.enter_raw_repl()
 	pyb.exec_raw_no_follow('import pinstates; pinstates.dry_test()')
@@ -94,6 +96,16 @@ def test_delay_dry():
 	print(f'Single board delay is {t1 - t0} seconds.')
 
 
-def convey(log_file="/tmp/conveyor.csv", check_delay=False):
+def convey(
+		devicenode="/dev/ttyACM0",
+		rt_devicenode="/dev/ttyACM1",
+		log_file="/tmp/conveyor.csv",
+		check_delay=False,
+		):
 	test_delay_dry()
-	timed_events(log_file=log_file, check_delay=check_delay)
+	timed_events(
+			devicenode=devicenode,
+			rt_devicenode=rt_devicenode,
+			log_file=log_file,
+			check_delay=check_delay,
+			)
