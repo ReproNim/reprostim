@@ -53,7 +53,7 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10,29],
 
     # Pull-down pin will be 0 unless under voltage.
     pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
-    [ipin.irq(trigger=Pin.IRQ_RISING, handler=callback) for ipin in pins]
+    [ipin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=callback) for ipin in pins]
 
     while True:
         pass
