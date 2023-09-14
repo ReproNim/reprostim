@@ -44,9 +44,10 @@ def timed_events(
 				# Failsafe, the device function should not report drop debug events.
 				#if message['state'] == 0:
 				#	continue
-				messages[-1]["roundtrip_delay"] = message["client_time"] - t_c0
-				writer = handle_message(messages[-1], f, writer=writer, report=report)
-				pending_message = False
+				else:
+					messages[-1]["roundtrip_delay"] = message["client_time"] - t_c0
+					writer = handle_message(messages[-1], f, writer=writer, report=report)
+					pending_message = False
 			elif pending_message:
 				writer = handle_message(pending_message, f, writer=writer, report=report)
 				pending_message = False
