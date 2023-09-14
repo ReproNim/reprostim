@@ -20,7 +20,8 @@ def listen(command, pyb):
 
 	pyb.enter_raw_repl()
 	pyb.exec_raw_no_follow(command)
-	while True:
+	run_listener = True
+	while run_listener:
 		events = poll.poll(-1)
 		for file in events:
 			line = pyb.serial.readline()
@@ -38,13 +39,20 @@ def listen(command, pyb):
 				print(f"Got a syntax error in the line: {line}")
 				pass
 			else:
-				rec["client_time"] = mytime
-				yield rec
+				try:
+					rec["client_time"] = mytime
+				except TypeError:
+					if rec == "KILLLISTENER":
+						run_listener = False
+					else:
+						yield rec
+				else:
+					yield rec
 
 
 
-def no_listen(command):
-	pyb_debug = pyboard.Pyboard("/dev/ttyACM1", 115200)
+def no_listen(command, rt_devicenode="/dev/ttyACM1"):
+	pyb_debug = pyboard.Pyboard(rt_devicenode, 115200)
 	pyb_debug.enter_raw_repl()
 	result = pyb_debug.exec_raw_no_follow(command)
 

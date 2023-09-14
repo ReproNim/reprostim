@@ -190,7 +190,7 @@ int main(int argc, char* argv[]){
 			break;
 		case 'h':
 			cout << helpstr << endl;
-			return 55;
+			return 0;
 		}
 	}
 
