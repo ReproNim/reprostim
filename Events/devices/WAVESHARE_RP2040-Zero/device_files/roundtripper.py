@@ -16,8 +16,8 @@ def send_predefined_event(mypin=0, myduration=1):
 	event_pin.value(0)
 
 def selfreport():
-	pin_send = Pin(1, Pin.OUT)
-	pin_receive = Pin(2, Pin.IN)
+	pin_send = Pin(0, Pin.OUT)
+	pin_receive = Pin(1, Pin.IN)
 	is_roundtripper = True
 	pin_send.value(0)
 	if pin_receive.value() != 0:
