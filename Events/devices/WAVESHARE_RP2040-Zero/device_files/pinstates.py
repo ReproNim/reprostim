@@ -43,7 +43,8 @@ def callback(p):
 def dry_test():
     return None
 
-def report(pins=[0,1,2,3,4,5,6,7,8,9,10,29],
+def report(pins=[0,1,2,3,4,5,6,7,8,9,10],
+    debug_pin=29,
     ):
     """
     Monitor state changes on selected pins.
@@ -57,6 +58,10 @@ def report(pins=[0,1,2,3,4,5,6,7,8,9,10,29],
     -----
     * As extant devices commonly have megahertz-range clock bounds, we use microsecond timings.
     """
+
+    # Pull-down pin will be 0 unless under voltage.
+    debug_pin = machine.Pin(debug_pin, machine.Pin.IN, machine.Pin.PULL_DOWN)
+    debug_pin.irq(trigger=Pin.IRQ_RISING, handler=callback)
 
     # Pull-down pin will be 0 unless under voltage.
     pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
