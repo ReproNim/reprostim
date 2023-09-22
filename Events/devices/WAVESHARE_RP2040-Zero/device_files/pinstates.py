@@ -24,9 +24,7 @@ def callback(p):
     cur_value = p.value()
     # Software debouncer, might not be needed:
     bounce = False
-    passes = 0
-    while utime.ticks_us() - t_s0 < 50000:
-        passes =+ 1
+    while utime.ticks_us() - t_s0 < 200 and not bounce:
         if p.value() != cur_value:
             bounce = True
     if not bounce:
@@ -37,7 +35,6 @@ def callback(p):
         message={
             "callback_duration_us": t_s1 - t_s0,
             "us": t_s1,
-            "passes": passes,
             "pin": pin_int,
             "state": cur_value}
         print(json.dumps(message))
