@@ -2,7 +2,7 @@
 
 set -eu
 
-f=$(ls `dirname $0`/data/* -t | head -n 1); 
+f=$(ls `readlink -f "$0" | xargs dirname`/data/* -t | head -n 1); 
 
 PS4='\n> '
 set -x
