@@ -21,17 +21,26 @@ def callback(p):
     2. We do manual garbage collection, to ensure homogeneous callback durations, this may not be needed.
     """
     t_s0 = utime.ticks_us()
-    pin_str = str(p)
-    pin_num = pin_str[8:len(pin_str) - 26]
-    pin_int = int(pin_num)
-    t_s1 = utime.ticks_us()
-    message={
-        "callback_duration_us": t_s1 - t_s0,
-        "us": t_s1,
-        "pin": pin_int,
-        "state": p.value()}
-    print(json.dumps(message))
-    gc.collect()
+    cur_value = p.value()
+    bounce = False
+    o = 0
+    while utime.ticks_us() - t_s0 < 10000:
+        o += 1
+        if p.value() != cur_value:
+            bounce = True
+    if not bounce:
+        pin_str = str(p)
+        pin_num = pin_str[8:len(pin_str) - 26]
+        pin_int = int(pin_num)
+        t_s1 = utime.ticks_us()
+        message={
+            "callback_duration_us": t_s1 - t_s0,
+            "o": o,
+            "us": t_s1,
+            "pin": pin_int,
+            "state": p.value()}
+        print(json.dumps(message))
+        gc.collect()
 
 def dry_test():
     return None
