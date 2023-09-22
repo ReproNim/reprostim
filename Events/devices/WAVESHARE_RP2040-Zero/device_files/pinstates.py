@@ -22,10 +22,11 @@ def callback(p):
     """
     t_s0 = utime.ticks_us()
     cur_value = p.value()
+    # Software debouncer, might not be needed:
     bounce = False
-    o = 0
-    while utime.ticks_us() - t_s0 < 10000:
-        o += 1
+    passes = 0
+    while utime.ticks_us() - t_s0 < 50000:
+        passes =+ 1
         if p.value() != cur_value:
             bounce = True
     if not bounce:
@@ -35,10 +36,10 @@ def callback(p):
         t_s1 = utime.ticks_us()
         message={
             "callback_duration_us": t_s1 - t_s0,
-            "o": o,
             "us": t_s1,
+            "passes": passes,
             "pin": pin_int,
-            "state": p.value()}
+            "state": cur_value}
         print(json.dumps(message))
         gc.collect()
 
