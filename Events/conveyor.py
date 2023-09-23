@@ -38,9 +38,10 @@ def timed_events(
 		for message in listen('import pinstates; pinstates.report()', pyb):
 			client_time = datetime.fromtimestamp(message['client_time'])
 			message['client_time_iso'] = client_time.replace(tzinfo=tz).isoformat()
-			if message['pin'] == 7:
+			# Currently 7 is the debugging pin on the XIAO, and 29 on the WAVESHARE, hence the following will give false positives.
+			if message['pin'] in [7, 29]:
 				if not check_delay:
-					print('WARNING: pin 7 is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
+					print(f'WARNING: pin {message["pin"]} is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
 				# Failsafe, the device function should not report drop debug events.
 				#if message['state'] == 0:
 				#	continue
