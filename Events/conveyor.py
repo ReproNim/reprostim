@@ -23,9 +23,9 @@ def load_pin_assignment(
 	outputs = [i[output_mode] for i in pin_dict]
 
 	pin_assignment = dict(zip(board_pins, outputs))
-	print(pin_assignment)
 
 	return pin_assignment
+
 
 def pin_parse(pin_str):
 	import re
