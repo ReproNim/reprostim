@@ -8,12 +8,40 @@ from .listeners import listen
 
 tz = datetime.now().astimezone().tzinfo
 
+def load_pin_assignment(
+	in_file='pin_assignments.csv',
+	device_model='XIAO-RP2040',
+	output_mode='DB-25P',
+	):
+	import csv
+
+	with open(in_file, 'r') as f:
+		reader = csv.DictReader(f)
+		pin_dict = list(reader)
+
+	board_pins = [i[device_model] for i in pin_dict]
+	outputs = [i[output_mode] for i in pin_dict]
+
+	pin_assignment = dict(zip(board_pins, outputs))
+	print(pin_assignment)
+
+	return pin_assignment
+
+def pin_parse(pin_str):
+	import re
+
+	pin_str = pin_str[8:10]
+	numbers_only = re.compile(r'[^\d.]+')
+	pin = numbers_only.sub('', pin_str)
+	return pin
+
 def timed_events(
 	log_file="/tmp/conveyor.csv",
 	check_delay=False,
 	devicenode="/dev/ttyACM0",
 	rt_devicenode="/dev/ttyACM1",
 	report=True,
+	pin_assignment=None,
 	):
 	pyb = pyboard.Pyboard(devicenode, 115200)
 	if check_delay:
@@ -38,13 +66,10 @@ def timed_events(
 		for message in listen('import pinstates; pinstates.report()', pyb):
 			client_time = datetime.fromtimestamp(message['client_time'])
 			message['client_time_iso'] = client_time.replace(tzinfo=tz).isoformat()
-			# Currently 7 is the debugging pin on the XIAO, and 29 on the WAVESHARE, hence the following will give false positives.
-			if message['pin'] in [7, 29]:
+			message['pin'] = pin_parse(message['pin_str'])
+			if pin_assignment[message['pin']] == 'DEBUG':
 				if not check_delay:
 					print(f'WARNING: pin {message["pin"]} is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
-				# Failsafe, the device function should not report drop debug events.
-				#if message['state'] == 0:
-				#	continue
 				else:
 					messages[-1]["roundtrip_delay"] = message["client_time"] - t_c0
 					writer = handle_message(messages[-1], f, writer=writer, report=report)
@@ -62,6 +87,8 @@ def timed_events(
 				else:
 					dt = dt-base_dt
 				dts.append(dt)
+				message.pop('pin_str', None)
+				message["action"] = pin_assignment[message['pin']]
 				message["base_dt"] = base_dt
 				message["relative_dt"] = dt
 				message["roundtrip_delay"] = None
@@ -103,11 +130,18 @@ def convey(
 		rt_devicenode="/dev/ttyACM1",
 		log_file="/tmp/conveyor.csv",
 		check_delay=False,
+		device_model='XIAO-RP2040',
+		output_mode='DB-25P',
 		):
 	test_delay_dry()
+	pin_assignment = load_pin_assignment(
+			device_model=device_model,
+			output_mode=output_mode,
+			)
 	timed_events(
 			devicenode=devicenode,
 			rt_devicenode=rt_devicenode,
 			log_file=log_file,
 			check_delay=check_delay,
+			pin_assignment=pin_assignment,
 			)
