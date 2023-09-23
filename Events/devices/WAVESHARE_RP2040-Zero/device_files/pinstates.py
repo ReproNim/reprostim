@@ -28,14 +28,11 @@ def callback(p):
         if p.value() != cur_value:
             bounce = True
     if not bounce:
-        pin_str = str(p)
-        pin_num = pin_str[8:len(pin_str) - 26]
-        pin_int = int(pin_num)
         t_s1 = utime.ticks_us()
         message={
             "callback_duration_us": t_s1 - t_s0,
             "us": t_s1,
-            "pin": pin_int,
+            "pin_str": str(p),
             "state": cur_value}
         print(json.dumps(message))
         gc.collect()
