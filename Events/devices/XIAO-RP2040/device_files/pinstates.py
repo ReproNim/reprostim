@@ -21,32 +21,39 @@ def callback(p):
     2. We do manual garbage collection, to ensure homogeneous callback durations, this may not be needed.
     """
     t_s0 = utime.ticks_us()
-    pin_str = str(p)
-    pin_num = pin_str[8:len(pin_str) - 26]
-    pin_int = int(pin_num)
-    t_s1 = utime.ticks_us()
-    message={
-        "callback_duration_us": t_s1 - t_s0,
-        "us": t_s1,
-        "pin": pin_int,
-        "state": p.value()}
-    print(json.dumps(message))
-    gc.collect()
+    cur_value = p.value()
+    # Software debouncer, might not be needed:
+    bounce = False
+    while utime.ticks_us() - t_s0 < 200 and not bounce:
+        if p.value() != cur_value:
+            bounce = True
+    if not bounce:
+        pin_str = str(p)
+        pin_num = pin_str[8:len(pin_str) - 26]
+        pin_int = int(pin_num)
+        t_s1 = utime.ticks_us()
+        message={
+            "callback_duration_us": t_s1 - t_s0,
+            "us": t_s1,
+            "pin": pin_int,
+            "state": cur_value}
+        print(json.dumps(message))
+        gc.collect()
 
 def dry_test():
     return None
 
 def report(
-    input_pins=[0,1,2,3,4,6,26,27,28,29],
+    pins=[0,1,2,3,4,6,26,27,28,29],
     debug_pin=7,
     ):
     """
-    Monitor state changes on selected input_pins.
+    Monitor state changes on selected pins.
 
     Parameters
     ----------
-    input_pins: list of int, optional
-        Numerical values of input_pins for which the state will be reported.
+    pins: list of int, optional
+        Numerical values of pins for which the state will be reported.
 
     Notes
     -----
@@ -57,8 +64,8 @@ def report(
     debug_pin = machine.Pin(debug_pin, machine.Pin.IN, machine.Pin.PULL_DOWN)
     debug_pin.irq(trigger=Pin.IRQ_RISING, handler=callback)
 
-    input_pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in input_pins]
-    [ipin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=callback) for ipin in input_pins]
+    pins = [machine.Pin(i, machine.Pin.IN, machine.Pin.PULL_DOWN) for i in pins]
+    [ipin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=callback) for ipin in pins]
 
     while True:
         pass
