@@ -67,9 +67,14 @@ def timed_events(
 			client_time = datetime.fromtimestamp(message['client_time'])
 			message['client_time_iso'] = client_time.replace(tzinfo=tz).isoformat()
 			message['pin'] = pin_parse(message['pin_str'])
-			if pin_assignment[message['pin']] == 'DEBUG':
+			try:
+				action = pin_assignment[message['pin']]
+			except KeyError:
+				print(f'ERROR: a ramp event (with current state {message["state"]}) has been detected on pin {message["pin"]}, but this pin is not connected to any input as per the assignments map. This is likely a false positive, potentially due to issues with grounding.')
+				continue
+			if action == 'DEBUG':
 				if not check_delay:
-					print(f'WARNING: pin {message["pin"]} is a debugging pin used to check delays, but you are not in debugging mode. What happened?')
+					print(f'WARNING: a ramp event (with current state {message["state"]}) has been detected on pin {message["pin"]}, which is a debugging pin used to check delays. However, you are not in debugging mode. What happened?')
 				else:
 					messages[-1]["roundtrip_delay"] = message["client_time"] - t_c0
 					writer = handle_message(messages[-1], f, writer=writer, report=report)
