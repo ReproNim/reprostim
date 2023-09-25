@@ -7,10 +7,10 @@ connector pin,color,coaxial,wiring,DB-25P,buttons_2x2,XIAO-RP2040,WAVESHARE_RP20
 26,Gray,False,,D7,,,
 28,White,False,,+BUSY,,,
 29,Red+,shield,,-ACK,trigger,6,6
-30,Brown,False,,D0,1,1,1
-32,Red,False,,D1,2,2,2
+30,Brown,False,,D1,1,1,1
+32,Red,False,,D2,2,2,2
 33,Green+,shield,,+PAPER,,,
-34,Orange,False,,D2,3,3,3
-35,Green,False,,D4,,0,5
-36,Yellow,False,,D3,4,4,4
+34,Orange,False,,D3,3,3,3
+35,Green,False,,D5,,0,5
+36,Yellow,False,,D4,4,4,4
 ,,,,DEBUG,,7,29
