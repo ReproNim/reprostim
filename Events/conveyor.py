@@ -55,9 +55,7 @@ def timed_events(
 	else:
 		print("Live roundtrip delay is disabled.")
 
-	dts = []
 	messages = []
-	base_dt = None
 	print("Starting to listen for events...")
 	msg_id = 0
 	pending_message = False
@@ -84,22 +82,14 @@ def timed_events(
 				pending_message = False
 			else:
 				message['callback_duration'] = message['callback_duration_us']/1e6
+				# Server time as recorded on the board is not meaningful in absolute terms, as it wraps:
+				# https://docs.micropython.org/en/v1.6/pyboard/library/time.html#time.ticks_ms
 				message['server_time'] = message.pop('us')/1e6
-				dt = message['client_time'] - message['server_time']
-				if base_dt is None:
-					base_dt = dt
-					dt = 0
-				else:
-					dt = dt-base_dt
-				dts.append(dt)
 				message.pop('pin_str', None)
 				message["action"] = pin_assignment[message['pin']]
-				message["base_dt"] = base_dt
-				message["relative_dt"] = dt
 				message["roundtrip_delay"] = None
 				msg_id += 1
 				message["id"] = msg_id
-				message["mean_relative_dt"]= sum(dts) / len(dts)
 				messages.append(message)
 				if check_delay:
 					t_c0 = time()
