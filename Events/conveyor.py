@@ -99,7 +99,7 @@ def timed_events(
 				message["roundtrip_delay"] = None
 				msg_id += 1
 				message["id"] = msg_id
-				message["mean relative dt"]= sum(dts) / len(dts)
+				message["mean_relative_dt"]= sum(dts) / len(dts)
 				messages.append(message)
 				if check_delay:
 					t_c0 = time()
