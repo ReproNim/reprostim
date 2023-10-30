@@ -123,7 +123,7 @@ subjects.
 
 On Debian
 
-    apt-get install ffmpeg libudev-dev libasound-dev libv4l-dev
+    apt-get install ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev
 
 ## Build
 
@@ -150,3 +150,16 @@ videos that are demarcated by embedded QR codes marking the beginning and
 end of experimental runs. There are also helper tools for identifying
 experimental runs and matching them to the parent experimental paradigm and
 neuroimaging data acquisitions. 
+
+# Installation and configuration
+
+TODO
+
+- Build (per above) and install in the PATH
+- TODO: cron job
+- TODO: add user/group
+- TODO: Add `udev.d` to provide proper ownership to the device file
+- ...
+- [Parsing/repro-vidsort](./Parsing/repro-vidsort) script (has hardcoded paths) sorts from `incoming/` to
+  folders per DICOM accession
+- 
