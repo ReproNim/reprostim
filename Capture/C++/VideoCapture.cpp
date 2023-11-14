@@ -165,11 +165,11 @@ int main(int argc, char* argv[]){
 		"\t         \tDefaults to $REPROSTIM_HOME/Videos\n"
 		"\t-c <path>\tPath to configuration config.yaml file (optional)\n"
 		"\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
-        "\t-v       \tVerbose, provides detailed information to stdout\n"
+		"\t-v       \tVerbose, provides detailed information to stdout\n"
 		"\t-h       \tPrint this help string\n";
-    bool verbose = false;
+	bool verbose = false;
 	char * vpath = NULL;
-	char * cfg_fn = NULL;	
+	char * cfg_fn = NULL;
 	char * rep_hm = NULL;
 	char video_path[256] = "";
 
@@ -193,9 +193,9 @@ int main(int argc, char* argv[]){
 		case 'h':
 			cout << helpstr << endl;
 			return 0;
-        case 'v':
-            verbose = true;
-            break;
+		case 'v':
+			verbose = true;
+			break;
 		}
 	}
 
@@ -211,7 +211,7 @@ int main(int argc, char* argv[]){
 		sprintf(c_fn, "%s/config.yaml", rep_hm);
 		cfg_fn = c_fn;
 	}
-    cout << "Config file: " << cfg_fn << endl;
+	cout << "Config file: " << cfg_fn << endl;
 	YAML::Node config = YAML::LoadFile(cfg_fn);
 	
 	// Set output directory if not specified on input
@@ -222,9 +222,9 @@ int main(int argc, char* argv[]){
 		vpath = video_path;
 	}	
 
-    if ( verbose ) {
-        cout << "Output path: " << vpath << endl;
-    }
+	if ( verbose ) {
+		cout << "Output path: " << vpath << endl;
+	}
 
 	MWCAP_VIDEO_SIGNAL_STATE state;
 	int cx = 0;
@@ -271,21 +271,21 @@ int main(int argc, char* argv[]){
 	
 	cout << "\t<> Saving Videos to\t\t===> " << vpath << endl;;
 	cout << "\t<> Recording from Video Device\t===> ";
-     	cout << config["ffm_opts"]["v_dev"] << endl;
+	cout << config["ffm_opts"]["v_dev"] << endl;
 
 	do {
 		usleep(1000000);
-        BOOL fInit = MWCaptureInitInstance();
-        if( !fInit )
-            cerr << "ERROR[005]: Failed MWCaptureInitInstance" << endl;
+		BOOL fInit = MWCaptureInitInstance();
+		if( !fInit )
+			cerr << "ERROR[005]: Failed MWCaptureInitInstance" << endl;
 		HCHANNEL hChannel = NULL;
-        MW_RESULT mwRes = MWRefreshDevice();
-        if( mwRes!=MW_SUCCEEDED )
-            cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
+		MW_RESULT mwRes = MWRefreshDevice();
+		if( mwRes!=MW_SUCCEEDED )
+			cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
 		int nCount = MWGetChannelCount();
 
-        if( verbose )
-            cout << "Channel count: " << nCount << endl;
+		if( verbose )
+			cout << "Channel count: " << nCount << endl;
 
 		if (nCount <= 0) {
 			cout << "ERROR[001]: Can't find channels!" << endl;
@@ -307,50 +307,50 @@ int main(int argc, char* argv[]){
 			MWCAP_CHANNEL_INFO info;
 			mr = MWGetChannelInfoByIndex(i, &info);
 
-            if( verbose ) {
-                cout << "Found device on channel " << i;
-                cout << ". MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
-                cout << ", productID=" << info.wProductID;
-                cout << ", hardwareVersion=" << info.chHardwareVersion;
-                cout << ", firmwareID=" << static_cast<uint>(info.byFirmwareID);
-                cout << ", firmwareVersion=" << info.dwFirmwareVersion;
-                cout << ", familyName=" << info.szFamilyName;
-                cout << ", productName=" << info.szProductName;
-                cout << ", firmwareName=" << info.szFirmwareName;
-                cout << ", boardSerialNo=" << info.szBoardSerialNo;
-                cout << ", boardIndex=" << static_cast<uint>(info.byBoardIndex);
-                cout << ", channelIndex=" << static_cast<uint>(info.byChannelIndex) << endl;
-            }
+			if( verbose ) {
+				cout << "Found device on channel " << i;
+				cout << ". MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
+				cout << ", productID=" << info.wProductID;
+				cout << ", hardwareVersion=" << info.chHardwareVersion;
+				cout << ", firmwareID=" << static_cast<uint>(info.byFirmwareID);
+				cout << ", firmwareVersion=" << info.dwFirmwareVersion;
+				cout << ", familyName=" << info.szFamilyName;
+				cout << ", productName=" << info.szProductName;
+				cout << ", firmwareName=" << info.szFirmwareName;
+				cout << ", boardSerialNo=" << info.szBoardSerialNo;
+				cout << ", boardIndex=" << static_cast<uint>(info.byBoardIndex);
+				cout << ", channelIndex=" << static_cast<uint>(info.byChannelIndex) << endl;
+			}
 
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
-                if( verbose ) {
-                    cout << "Found USB Capture device, index=" << i << endl;
-                }
+				if( verbose ) {
+					cout << "Found USB Capture device, index=" << i << endl;
+				}
 				nUsbDevice[nUsbCount] = i;
 				nUsbCount ++;
 			} else {
-                if (info.wProductID == 0 && info.wFamilyID == 0) {
-                    cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
-                    if (recording > 0) {
-                        get_time_str(stop_str);
-                        stop_recording(start_str, vpath);
-                        recording = 0;
-                        cout << stop_str << ":\tStopped recording. No channels!" << endl;
-                        nMov++;
-                    }
-                    return -56; // TODO: break or continue execution?
-                } else {
-                    if( verbose ) {
-                        cout << "Unknown USB device, skip it, index=" << i << endl;
-                    }
-                }
-            }
+				if (info.wProductID == 0 && info.wFamilyID == 0) {
+					cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
+					if (recording > 0) {
+						get_time_str(stop_str);
+						stop_recording(start_str, vpath);
+						recording = 0;
+						cout << stop_str << ":\tStopped recording. No channels!" << endl;
+						nMov++;
+					}
+					return -56; // TODO: break or continue execution?
+				} else {
+					if( verbose ) {
+						cout << "Unknown USB device, skip it, index=" << i << endl;
+					}
+				}
+			}
 		}
 	
 		char wPath[256] = {0};
 		mr = MWGetDevicePath(nUsbDevice[0], wPath);
-        if( verbose )
-            cout << "device path: " << wPath << endl;
+		if( verbose )
+			cout << "device path: " << wPath << endl;
 		hChannel = MWOpenChannelByPath(wPath);
 		MWCAP_VIDEO_SIGNAL_STATUS vsStatus;
 		MWGetVideoSignalStatus(hChannel, &vsStatus);
@@ -371,26 +371,26 @@ int main(int argc, char* argv[]){
 
 		sprintf(frameRate, "%.0f", round( 10000000./(dwFrameDuration==0?-1:dwFrameDuration)));
 
-        if( verbose ) {
-            cout << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
-            cout << ", x=" << vsStatus.x;
-            cout << ", y=" << vsStatus.y;
-            cout << ", cx=" << vsStatus.cx;
-            cout << ", cy=" << vsStatus.cy;
-            cout << ", cxTotal=" << vsStatus.cxTotal;
-            cout << ", cyTotal=" << vsStatus.cyTotal;
-            cout << ", bInterlaced=" << static_cast<bool>(vsStatus.bInterlaced);
-            cout << ", dwFrameDuration=" << vsStatus.dwFrameDuration;
-            cout << ", nAspectX=" << vsStatus.nAspectX;
-            cout << ", nAspectY=" << vsStatus.nAspectY;
-            cout << ", bSegmentedFrame=" << static_cast<bool>(vsStatus.bSegmentedFrame);
-            cout << ", frameType=" << vsStatus.frameType;
-            cout << ", colorFormat=" << vsStatus.colorFormat;
-            cout << ", quantRange=" << vsStatus.quantRange;
-            cout << ", satRange=" << vsStatus.satRange;
-            cout << ". frameRate=" << frameRate;
-            cout << endl;
-        }
+		if( verbose ) {
+			cout << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
+			cout << ", x=" << vsStatus.x;
+			cout << ", y=" << vsStatus.y;
+			cout << ", cx=" << vsStatus.cx;
+			cout << ", cy=" << vsStatus.cy;
+			cout << ", cxTotal=" << vsStatus.cxTotal;
+			cout << ", cyTotal=" << vsStatus.cyTotal;
+			cout << ", bInterlaced=" << static_cast<bool>(vsStatus.bInterlaced);
+			cout << ", dwFrameDuration=" << vsStatus.dwFrameDuration;
+			cout << ", nAspectX=" << vsStatus.nAspectX;
+			cout << ", nAspectY=" << vsStatus.nAspectY;
+			cout << ", bSegmentedFrame=" << static_cast<bool>(vsStatus.bSegmentedFrame);
+			cout << ", frameType=" << vsStatus.frameType;
+			cout << ", colorFormat=" << vsStatus.colorFormat;
+			cout << ", quantRange=" << vsStatus.quantRange;
+			cout << ", satRange=" << vsStatus.satRange;
+			cout << ". frameRate=" << frameRate;
+			cout << endl;
+		}
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
@@ -426,9 +426,9 @@ int main(int argc, char* argv[]){
 			}
 		}
 		else {
-            if( verbose ) {
-                cout << "No valid video signal detected from target device" << endl;
-            }
+			if( verbose ) {
+				cout << "No valid video signal detected from target device" << endl;
+			}
 
 			if (recording == 1) {
 				get_time_str(stop_str);
