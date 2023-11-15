@@ -163,10 +163,10 @@ purposes:
 
     ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.
 
-For more information from Magewell refer to item #14 from FAQ  
-https://www.magewell.com/kb/detail/010020005/All :  
+For more information refer to item #14 from Magewell FAQ on https://www.magewell.com/kb/detail/010020005/All :  
 
-    Can the example codes associated with USB Capture (Plus) devices in SDKv3 work without root authority (sudo) on Linux?
+    14. Can the example codes associated with USB Capture (Plus) devices in SDKv3 work 
+        without root authority (sudo) on Linux?
 
     Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
     move it to the directory "/etc/udev/rules.d", and then restart your computer.
@@ -195,6 +195,11 @@ step 1) from lsusb utility.
 
 Also sample udev rules configuration added to project under 
 "Capture/etc/udev/189-reprostim.rules" location.
+
+Note: make sure the file has owner "root", group "root" and 644 permissions:
+
+    ls -l /etc/udev/rules.d/189*
+    -rw-r--r-- 1 root root 72 ... /etc/udev/rules.d/189-reprostim.rules
 
 ### 3) Add user to "plugdev" group
 Make sure the user running VideoCapture utility is a member of the 
