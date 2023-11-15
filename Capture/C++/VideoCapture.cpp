@@ -11,12 +11,12 @@
 // Code bastardizer: Andy Connolly : andrew.c.connolly@dartmouth.edu date of
 // bastardization inception: 01/15/2020
 //
-// <Original header begins after this line.>  
+// <Original header begins after this line.>
 //
 // USBDeviceDetect.cpp : Defines the
 // entry point for the console application.  MAGEWELL PROPRIETARY INFORMATION
 // The following license only applies to head files and library within
-// Magewell’s SDK and not to Magewell’s SDK as a whole. 
+// Magewell’s SDK and not to Magewell’s SDK as a whole.
 //
 // Copyrights © Nanjing Magewell Electronics Co., Ltd. (“Magewell”) All rights
 // reserved.
@@ -31,7 +31,7 @@
 //
 // THE SOFTWARE IS PROVIDED BY MAGEWELL “AS IS” AND ANY EXPRESS, INCLUDING BUT
 // NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-// PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL MAGEWELL BE LIABLE 
+// PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL MAGEWELL BE LIABLE
 //
 // FOR ANY CLAIM, DIRECT OR INDIRECT DAMAGES OR OTHER LIABILITY, WHETHER IN
 // CONTRACT, TORT OR OTHERWISE, ARISING IN ANY WAY OF USING THE SOFTWARE.
@@ -175,11 +175,12 @@ int main(int argc, char* argv[]){
 
 	int c = 0;
 	if (argc == 1){
+		cerr << "ERROR[006]: Please provide valid options" << endl;
 		cout << helpstr << endl;
 		return 55;
 	}
 
-	while( ( c = getopt (argc, argv, "d:o:c:h:v") ) != -1 ){
+	while( ( c = getopt (argc, argv, "d:o:c:hv") ) != -1 ){
 		switch(c){
 			case 'o':
 				if(optarg) vpath = optarg;
@@ -201,6 +202,7 @@ int main(int argc, char* argv[]){
 
 	// Puke if Repro Home not specified
 	if ( ! rep_hm ){
+		cerr << "ERROR[007]: REPROSTIM_HOME not specified, see -d" << endl;
 		cout << helpstr << endl;
 		return 55;
 	}
