@@ -151,14 +151,75 @@ end of experimental runs. There are also helper tools for identifying
 experimental runs and matching them to the parent experimental paradigm and
 neuroimaging data acquisitions. 
 
-# Installation and configuration
+# Installation and Configuration
 
-TODO
+## Setup USB device with "udev" access
+
+VideoCapture utility internally uses Magewell Capture SDK and to make it working
+properly should be executed under "root" account or in case of other account - special 
+"udev" rules should be applied there. Program will produce following error when 
+executed in environment without proper ownership and permissions for informational
+purposes:
+
+    ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.
+
+For more information refer to item #14 from Magewell FAQ on https://www.magewell.com/kb/detail/010020005/All :  
+
+    14. Can the example codes associated with USB Capture (Plus) devices in SDKv3 work 
+        without root authority (sudo) on Linux?
+
+    Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
+    move it to the directory "/etc/udev/rules.d", and then restart your computer.
+
+### 1) Identify the USB Device:
+
+This is optional step, only for information purposes:
+
+    lsusb
+
+And locate line with device, e.g.:
+
+    Bus 004 Device 012: ID 2935:0008 Magewell USB Capture DVI+
+
+In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
+
+
+### 2) Create "udev" rules
+Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
+content listed below:
+
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2935", TAG+="uaccess"
+
+Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in 
+step 1) from lsusb utility.
+
+Also sample udev rules configuration added to project under 
+"Capture/etc/udev/189-reprostim.rules" location.
+
+Note: make sure the file has owner "root", group "root" and 644 permissions:
+
+    ls -l /etc/udev/rules.d/189*
+    -rw-r--r-- 1 root root 72 ... /etc/udev/rules.d/189-reprostim.rules
+
+### 3) Add user to "plugdev" group
+Make sure the user running VideoCapture utility is a member of the 
+"plugdev" group, e.g.:
+
+    sudo usermod -aG plugdev TODO_user
+
+### 4) Restart computer
+Restart computer to make changes effect.
+
+Note: we tested "sudo udevadm control --reload-rules" command without OS 
+restart, but somehow it didn't help, and complete restart was necessary
+anyway.
+
+
+## TODO:
 
 - Build (per above) and install in the PATH
 - TODO: cron job
 - TODO: add user/group
-- TODO: Add `udev.d` to provide proper ownership to the device file
 - ...
 - [Parsing/repro-vidsort](./Parsing/repro-vidsort) script (has hardcoded paths) sorts from `incoming/` to
   folders per DICOM accession
