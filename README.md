@@ -127,7 +127,7 @@ On Debian
 
 ## Build
 
-    cd Capture/C++
+    cd Capture/videocapture
     make
 
 ## Subdirectories Structure
