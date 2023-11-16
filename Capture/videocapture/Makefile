@@ -1,6 +1,6 @@
 TARGET_VIDEOCAPTURE := VideoCapture
 
-LOCAL_CFLAGS += -I../Include
+LOCAL_CFLAGS += -I../sdks/MWCapture_SDK_Linux-3_3_1_0/Include
 
 CC = gcc
 CXX = g++
@@ -41,7 +41,7 @@ endif
 
 
 CLIB =  -lpthread -ldl -ludev -lasound -lv4l2 -lyaml-cpp
-MWCAPTURE_LIBA = ../Lib/$(ARCH)/libMWCapture.a
+MWCAPTURE_LIBA = ../sdks/MWCapture_SDK_Linux-3_3_1_0/Lib/$(ARCH)/libMWCapture.a
 
 all: $(TARGET_VIDEOCAPTURE)
 
