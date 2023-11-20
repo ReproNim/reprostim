@@ -172,6 +172,8 @@ int main(int argc, char* argv[]){
 	char * cfg_fn = NULL;
 	char * rep_hm = NULL;
 	char video_path[256] = "";
+	bool fDevSerialSpecified = false;
+	std::string devSerial;
 
 	int c = 0;
 	if (argc == 1){
@@ -215,6 +217,13 @@ int main(int argc, char* argv[]){
 	}
 	cout << "Config file: " << cfg_fn << endl;
 	YAML::Node config = YAML::LoadFile(cfg_fn);
+
+	if( config["device_serial_number"] ) {
+		devSerial = config["device_serial_number"].as<std::string>();
+		fDevSerialSpecified = !devSerial.empty() && devSerial!="auto";
+	} else {
+		fDevSerialSpecified = false;
+	}
 
 	// Set output directory if not specified on input
 	if ( ! vpath ){
@@ -273,13 +282,23 @@ int main(int argc, char* argv[]){
 
 	cout << "\t<> Saving Videos to\t\t===> " << vpath << endl;;
 	cout << "\t<> Recording from Video Device\t===> ";
-	cout << config["ffm_opts"]["v_dev"] << endl;
+	cout << config["ffm_opts"]["v_dev"];
+	cout << ", S/N=" << (fDevSerialSpecified?devSerial:"auto");
+	cout << endl;
+
+	if( verbose ) {
+		if( fDevSerialSpecified )
+			cout << "Use device with specified S/N: " << devSerial << endl;
+		else
+			cout << "Use any first available Magewell USB Capture device" << endl;
+	}
+
+	BOOL fInit = MWCaptureInitInstance();
+	if( !fInit )
+		cerr << "ERROR[005]: Failed MWCaptureInitInstance" << endl;
 
 	do {
 		usleep(1000000);
-		BOOL fInit = MWCaptureInitInstance();
-		if( !fInit )
-			cerr << "ERROR[005]: Failed MWCaptureInitInstance" << endl;
 		HCHANNEL hChannel = NULL;
 		MW_RESULT mwRes = MWRefreshDevice();
 		if( mwRes!=MW_SUCCEEDED )
@@ -325,11 +344,27 @@ int main(int argc, char* argv[]){
 			}
 
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
-				if( verbose ) {
-					cout << "Found USB Capture device, index=" << i << endl;
+				if( fDevSerialSpecified ) {
+					if( devSerial==info.szBoardSerialNo ) {
+						if( verbose ) {
+							cout << "Found USB Capture device with S/N="
+								 << info.szBoardSerialNo << " , index=" << i << endl;
+						}
+						nUsbDevice[nUsbCount] = i;
+						nUsbCount ++;
+					} else {
+						if( verbose ) {
+							cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
+								 << ", skip it, index=" << i << endl;
+						}
+					}
+				} else {
+					if (verbose) {
+						cout << "Found USB Capture device, index=" << i << endl;
+					}
+					nUsbDevice[nUsbCount] = i;
+					nUsbCount++;
 				}
-				nUsbDevice[nUsbCount] = i;
-				nUsbCount ++;
 			} else {
 				if (info.wProductID == 0 && info.wFamilyID == 0) {
 					cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
@@ -347,6 +382,11 @@ int main(int argc, char* argv[]){
 					}
 				}
 			}
+		}
+
+		if( nUsbCount<=0 ) {
+			if( verbose ) cout << "Wait, no valid USB devices found" << endl;
+			continue;
 		}
 
 		char wPath[256] = {0};
@@ -464,10 +504,11 @@ int main(int argc, char* argv[]){
 			MWCloseChannel(hChannel);
 			hChannel = NULL;
 		}
-
-		MWCaptureExitInstance();
 	} while ( true );
 
 	stop_recording(start_str, vpath);
+
+	if( fInit )
+		MWCaptureExitInstance();
 	return 0;
 }
