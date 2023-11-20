@@ -360,8 +360,8 @@ int main(int argc, char* argv[]) {
 	cout << init_time;
 	cout << ": <><><> Starting VideoCapture <><><>" << endl;
 
-	cout << "\t<> Saving Videos to\t\t===> " << vpath << endl;;
-	cout << "\t<> Recording from Video Device\t===> ";
+	cout << "    <> Saving Videos to            ===> " << vpath << endl;;
+	cout << "    <> Recording from Video Device ===> ";
 	cout << config["ffm_opts"]["v_dev"];
 	cout << ", S/N=" << (fDevSerialSpecified?devSerial:"auto");
 	cout << endl;
