@@ -4,6 +4,10 @@
 #device_serial_number: "B208000000000"
 device_serial_number: "auto"
 
+# Specify basic pattern for possible video device path locations,
+# syntax is the same as pattern parameter in glob Linux API.
+video_device_path_pattern: "/dev/video*"
+
 ffm_opts:
   a_fmt: "-f alsa"
   a_nchan: "-ac 2"
@@ -11,9 +15,12 @@ ffm_opts:
   a_opt: "-thread_queue_size 4096"
   v_fmt: "-f v4l2 -input_format yuyv422"
   v_opt: "-thread_queue_size 4096"
-  # optional, specify v_dev explicitly to override value
-  # calculated from "device_serial_number" value
-  v_dev: "/dev/video0"
+  # Optional, specify "v_dev" explicitly to override value
+  # calculated from "device_serial_number" value or specify
+  # "auto" value, to calculate v_dev automatically based on
+  # device_serial_number value
+  #v_dev: "/dev/video4"
+  v_dev: "auto"
   v_enc: "-c:v copy"
   pix_fmt: ""
   n_threads: ""

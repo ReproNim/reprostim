@@ -46,6 +46,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <glob.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctime>
@@ -56,30 +57,105 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <regex>
 #include <array>
 #include <cstring>
+#include <sys/ioctl.h>
+#include <linux/videodev2.h>
 #include "yaml-cpp/yaml.h"
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 using namespace std;
 
-std::string exec(const char* cmd) {
+/* ######################### begin common ############################# */
+
+std::string exec(bool verbose, const char* cmd) {
 	std::array<char, 128> buffer;
 	std::string result;
 	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
 	if (!pipe) {
+		cerr << "popen() failed for cmd: " << cmd << endl;
 		throw std::runtime_error("popen() failed!");
 	}
 	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 		result += buffer.data();
 	}
-	cout << "exec says:  " << result << endl;
+	if( verbose ) cout << "exec -> :  " << result << endl;
 	return result;
 }
 
+std::vector<std::string> getVideoDevicePaths(const std::string& pattern) {
+	glob_t glob_result;
+	memset(&glob_result, 0, sizeof(glob_result));
 
+	int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+	if(return_value != 0) {
+		globfree(&glob_result);
+		stringstream ss;
+		ss << "glob() failed with return_value " << return_value << endl;
+		throw std::runtime_error(ss.str());
+	}
 
-void get_time_str(char mov[256]){
+	vector<string> filenames;
+	for(size_t i = 0; i < glob_result.gl_pathc; ++i) {
+		filenames.push_back(string(glob_result.gl_pathv[i]));
+	}
+
+	globfree(&glob_result);
+	return filenames;
+}
+
+std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
+	std::string serialNumber;
+	char cmd[1024] = {0};
+	sprintf(cmd, "v4l2-ctl -d %s --info", devPath.c_str());
+
+	//std::string res = exec_cmd(verbose, cmd);
+	std::string res = exec(verbose, cmd);
+	//cout << "Result: " << res << endl;
+	std::regex reVideoCapture("Video Capture");
+
+	// Find "Device Caps" section
+	std::size_t pos1 = res.find("Device Caps");
+	if( pos1!=string::npos ) {
+		res = res.substr(pos1);
+
+		// Find "Video Capture" line in remaining text
+		std::size_t pos2 = res.find("Video Capture");
+		if( pos2!=string::npos ) {
+			res = res.substr(pos2);
+
+			// Find and parse "Serial : XXX" line in remaining text
+			std::regex reSerial("Serial\\s+:\\s+(\\w+)");
+			std::smatch mSerial;
+			if (std::regex_search(res, mSerial, reSerial)) {
+				// The serial number is in the first capture group (index 1)
+				serialNumber = mSerial[1].str();
+				std::cout << "Found Serial Number: " << serialNumber << std::endl;
+			}
+		}
+	}
+	return serialNumber;
+}
+
+std::string getDevPathBySerial(bool verbose, const std::string& pattern, const std::string& serial) {
+	std::string res;
+	// NOTE: ?? should we use "v4l2-ctl --list-devices | grep /dev" to determine possible devices
+	std::vector<std::string> v1 = getVideoDevicePaths(pattern);
+
+	for (const auto& path : v1) {
+		if( verbose ) cout << path << endl;
+		std::string sn = getVideoDeviceSerial(verbose, path);
+		if( !sn.empty() && sn==serial ) {
+			if( verbose ) cout << "Found video device path: " << path << ", S/N=" << serial << endl;
+			res = path;
+			break;
+		}
+	}
+	return res;
+}
+
+void getTimeStr(char mov[256]) {
 	time_t now = time(0);
 	tm *ltm = localtime(&now);
 	int yr = 1900 + ltm->tm_year;
@@ -91,33 +167,11 @@ void get_time_str(char mov[256]){
 	sprintf(mov, "%d.%02d.%02d.%02d.%02d.%02d", yr, mo, da, hr, mn, sc);
 }
 
-static void stop_recording(char start_str[256], char vpath[256]) {
-	std::string ffmpid;
-	ffmpid = exec("pidof ffmpeg");
-	cout << "stop record says: " << ffmpid.c_str() << endl;
-	while ( ffmpid.length() > 0 ) {
-		cout << "<> PID of ffmpeg\t===> " << ffmpid.c_str() << endl;
-		char stop_str[256] = {0};
-		get_time_str(stop_str);
-		char killCmd[256] = {0};
-		sprintf(killCmd, "kill -9 %s", ffmpid.c_str());
-		system(killCmd);
-		char oldname[256] = {0};
-		char newname[512] = {0};
-		sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
-		sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
-		cout << stop_str << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
-		cout << newname << endl;
-		int x = 0;
-		x = rename(oldname, newname);
-		usleep(1500000); // Allow time for ffmpeg to stop
-		ffmpid = exec("pidof ffmpeg");
-	}
-}
+/* ########################## end common ############################## */
 
-void start_recording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime[256],
-					 char vpath[256]){
-	get_time_str(starttime);
+void startRecording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime[256],
+					char vpath[256]){
+	getTimeStr(starttime);
 	char ffmpg[1024] = {0};
 	string a_fmt = cfg["a_fmt"].as<string>();
 	string a_nchan = cfg["a_nchan"].as<string>();
@@ -157,8 +211,32 @@ void start_recording(YAML::Node cfg, int cx, int cy, char fr[256], char starttim
 	system(ffmpg);
 }
 
-int main(int argc, char* argv[]){
+static void stopRecording(char start_str[256], char vpath[256]) {
+	std::string ffmpid;
+	ffmpid = exec(true, "pidof ffmpeg");
+	cout << "stop record says: " << ffmpid.c_str() << endl;
+	while ( ffmpid.length() > 0 ) {
+		cout << "<> PID of ffmpeg\t===> " << ffmpid.c_str() << endl;
+		char stop_str[256] = {0};
+		getTimeStr(stop_str);
+		char killCmd[256] = {0};
+		sprintf(killCmd, "kill -9 %s", ffmpid.c_str());
+		system(killCmd);
+		char oldname[256] = {0};
+		char newname[512] = {0};
+		sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
+		sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
+		cout << stop_str << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
+		cout << newname << endl;
+		int x = 0;
+		x = rename(oldname, newname);
+		usleep(1500000); // Allow time for ffmpeg to stop
+		ffmpid = exec(true, "pidof ffmpeg");
+	}
+}
 
+// Entry point
+int main(int argc, char* argv[]) {
 	const char* helpstr="Usage: VideoCapture -d <path> [-o <path> | -h | -v ]\n\n"
 						"\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
 						"\t-o <path>\tOutput directory where to save recordings (optional)\n"
@@ -202,7 +280,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	// Puke if Repro Home not specified
+	// Terminate when REPROSTIM_HOME not specified
 	if ( ! rep_hm ){
 		cerr << "ERROR[007]: REPROSTIM_HOME not specified, see -d" << endl;
 		cout << helpstr << endl;
@@ -276,7 +354,7 @@ int main(int argc, char* argv[]){
 
 	MW_RESULT mr = MW_SUCCEEDED;
 
-	get_time_str(init_time);
+	getTimeStr(init_time);
 	cout << init_time;
 	cout << ": <><><> Starting VideoCapture <><><>" << endl;
 
@@ -311,8 +389,8 @@ int main(int argc, char* argv[]){
 		if (nCount <= 0) {
 			cout << "ERROR[001]: Can't find channels!" << endl;
 			if ( recording > 0 ){
-				get_time_str(stop_str);
-				stop_recording(start_str, vpath);
+				getTimeStr(stop_str);
+				stopRecording(start_str, vpath);
 				recording = 0;
 				cout << stop_str << ":\tStopped recording. No channels!"<<endl;
 				nMov++;
@@ -369,8 +447,8 @@ int main(int argc, char* argv[]){
 				if (info.wProductID == 0 && info.wFamilyID == 0) {
 					cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
 					if (recording > 0) {
-						get_time_str(stop_str);
-						stop_recording(start_str, vpath);
+						getTimeStr(stop_str);
+						stopRecording(start_str, vpath);
 						recording = 0;
 						cout << stop_str << ":\tStopped recording. No channels!" << endl;
 						nMov++;
@@ -436,8 +514,8 @@ int main(int argc, char* argv[]){
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
-				start_recording(config["ffm_opts"], cx, cy,
-								frameRate, start_str, vpath);
+				startRecording(config["ffm_opts"], cx, cy,
+							   frameRate, start_str, vpath);
 				recording = 1;
 				cout << start_str << ":\tStarted Recording: " << endl;
 				cout << "Apct Rat: " << cx << "x" << cy << endl;
@@ -458,10 +536,10 @@ int main(int argc, char* argv[]){
 					( colorFormat != prev_colorFormat ) ||
 					( quantRange != prev_quantRange ) ||
 					( satRange != prev_satRange )) {
-					get_time_str(stop_str);
+					getTimeStr(stop_str);
 					cout << stop_str;
 					cout << ":\tStopped recording because something changed."<<endl;
-					stop_recording(start_str, vpath);
+					stopRecording(start_str, vpath);
 					nMov++;
 					recording = 0;
 				}
@@ -473,11 +551,11 @@ int main(int argc, char* argv[]){
 			}
 
 			if (recording == 1) {
-				get_time_str(stop_str);
+				getTimeStr(stop_str);
 				cout << stop_str;
 				cout << ":\tWhack resolution: " << cx << "x" << cy;
 				cout << ". Stopped recording" << endl;
-				stop_recording(start_str, vpath);
+				stopRecording(start_str, vpath);
 				nMov++;
 				recording = 0;
 			}
@@ -506,7 +584,7 @@ int main(int argc, char* argv[]){
 		}
 	} while ( true );
 
-	stop_recording(start_str, vpath);
+	stopRecording(start_str, vpath);
 
 	if( fInit )
 		MWCaptureExitInstance();
