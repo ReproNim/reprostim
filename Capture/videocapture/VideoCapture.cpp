@@ -252,6 +252,8 @@ int main(int argc, char* argv[]) {
 	char video_path[256] = "";
 	bool fDevSerialSpecified = false;
 	std::string devSerial;
+	std::string targetDevSerial;
+	int targetChannelIndex = -1;
 
 	int c = 0;
 	if (argc == 1){
@@ -398,9 +400,6 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 
-		int nUsbCount = 0;
-		int nUsbDevice[16] = {-1};
-
 		for (int i = 0; i < nCount; i++){
 
 			MWCAP_CHANNEL_INFO info;
@@ -428,8 +427,9 @@ int main(int argc, char* argv[]) {
 							cout << "Found USB Capture device with S/N="
 								 << info.szBoardSerialNo << " , index=" << i << endl;
 						}
-						nUsbDevice[nUsbCount] = i;
-						nUsbCount ++;
+						targetDevSerial = info.szBoardSerialNo;
+						targetChannelIndex = i;
+						break;
 					} else {
 						if( verbose ) {
 							cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
@@ -440,8 +440,9 @@ int main(int argc, char* argv[]) {
 					if (verbose) {
 						cout << "Found USB Capture device, index=" << i << endl;
 					}
-					nUsbDevice[nUsbCount] = i;
-					nUsbCount++;
+					targetDevSerial = info.szBoardSerialNo;
+					targetChannelIndex = i;
+					break;
 				}
 			} else {
 				if (info.wProductID == 0 && info.wFamilyID == 0) {
@@ -453,7 +454,7 @@ int main(int argc, char* argv[]) {
 						cout << stop_str << ":\tStopped recording. No channels!" << endl;
 						nMov++;
 					}
-					//return -56; // TODO: break or continue execution?
+					//return -56; // NOTE: break or continue execution?
 				} else {
 					if( verbose ) {
 						cout << "Unknown USB device, skip it, index=" << i << endl;
@@ -462,15 +463,15 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		if( nUsbCount<=0 ) {
+		if( targetChannelIndex<0 ) {
 			if( verbose ) cout << "Wait, no valid USB devices found" << endl;
 			continue;
 		}
 
 		char wPath[256] = {0};
-		mr = MWGetDevicePath(nUsbDevice[0], wPath);
+		mr = MWGetDevicePath(targetChannelIndex, wPath);
 		if( verbose )
-			cout << "device path: " << wPath << endl;
+			cout << "Device path: " << wPath << endl;
 		hChannel = MWOpenChannelByPath(wPath);
 		MWCAP_VIDEO_SIGNAL_STATUS vsStatus;
 		MWGetVideoSignalStatus(hChannel, &vsStatus);
