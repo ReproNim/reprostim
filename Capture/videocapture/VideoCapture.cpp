@@ -192,11 +192,18 @@ struct FfmpegOpts {
 // App configuration loaded from config.yaml, for
 // historical reasons keep names in Python style
 struct AppConfig {
-	bool        verbose = false;
 	std::string device_serial_number;
 	bool        has_device_serial_number = false;
 	std::string video_device_path_pattern;
 	FfmpegOpts  ffm_opts;
+};
+
+// App command-line options and args
+struct AppOpts {
+	std::string configPath;
+	std::string homePath;
+	std::string outPath;
+	bool        verbose = false;
 };
 
 void loadConfig(AppConfig& cfg, const std::string& pathConfig) {
@@ -232,11 +239,72 @@ void loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		opts.out_fmt = node["out_fmt"].as<std::string>();
 	}
 }
+
+int parseOpts(AppOpts& opts, int argc, char* argv[]) {
+	const char* HELP_STR = "Usage: VideoCapture -d <path> [-o <path> | -h | -v ]\n\n"
+						   "\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
+						   "\t-o <path>\tOutput directory where to save recordings (optional)\n"
+						   "\t         \tDefaults to $REPROSTIM_HOME/Videos\n"
+						   "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
+						   "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
+						   "\t-v       \tVerbose, provides detailed information to stdout\n"
+						   "\t-h       \tPrint this help string\n";
+
+	int c = 0;
+	if (argc == 1) {
+		cerr << "ERROR[006]: Please provide valid options" << endl;
+		cout << HELP_STR << endl;
+		return 55;
+	}
+
+	while( ( c = getopt (argc, argv, "d:o:c:hv") ) != -1 ) {
+		switch(c) {
+			case 'o':
+				if(optarg) opts.outPath = optarg;
+				break;
+			case 'c':
+				if(optarg) opts.configPath = optarg;
+				break;
+			case 'd':
+				if(optarg) opts.homePath = optarg;
+				break;
+			case 'h':
+				cout << HELP_STR << endl;
+				return 1;
+			case 'v':
+				opts.verbose = true;
+				break;
+		}
+	}
+
+	// Terminate when REPROSTIM_HOME not specified
+	if ( opts.homePath.empty() ){
+		cerr << "ERROR[007]: REPROSTIM_HOME not specified, see -d" << endl;
+		cout << HELP_STR << endl;
+		return 55;
+	}
+
+	// Set config filename if not specified on input
+	if ( opts.configPath.empty() ){
+		char c_fn[256];
+		sprintf(c_fn, "%s/config.yaml", opts.homePath.c_str());
+		opts.configPath = c_fn;
+	}
+
+	// Set output directory if not specified on input
+	if( opts.outPath.empty() ) {
+		opts.outPath = opts.homePath + "/Videos";
+	}
+	return 0;
+}
+
 /* ###################### end options/config ########################## */
 
 
 void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
-					char starttime[256], char vpath[256], const std::string& v_dev) {
+					char starttime[256],
+					const std::string& outPath,
+					const std::string& v_dev) {
 	getTimeStr(starttime);
 	char ffmpg[1024] = {0};
 	const FfmpegOpts& opts = cfg.ffm_opts;
@@ -256,7 +324,7 @@ void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 			opts.pix_fmt.c_str(),
 			opts.n_threads.c_str(),
 			opts.a_enc.c_str(),
-			vpath,
+			outPath.c_str(),
 			starttime,
 			opts.out_fmt.c_str());
 
@@ -265,7 +333,7 @@ void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 	system(ffmpg);
 }
 
-static void stopRecording(char start_str[256], char vpath[256]) {
+static void stopRecording(char start_str[256], const std::string& vpath) {
 	std::string ffmpid;
 	ffmpid = exec(true, "pidof ffmpeg");
 	cout << "stop record says: " << ffmpid.c_str() << endl;
@@ -278,8 +346,8 @@ static void stopRecording(char start_str[256], char vpath[256]) {
 		system(killCmd);
 		char oldname[256] = {0};
 		char newname[512] = {0};
-		sprintf(oldname, "%s/%s_.mkv", vpath, start_str);
-		sprintf(newname, "%s/%s_%s.mkv", vpath, start_str, stop_str);
+		sprintf(oldname, "%s/%s_.mkv", vpath.c_str(), start_str);
+		sprintf(newname, "%s/%s_%s.mkv", vpath.c_str(), start_str, stop_str);
 		cout << stop_str << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
 		cout << newname << endl;
 		int x = 0;
@@ -291,80 +359,29 @@ static void stopRecording(char start_str[256], char vpath[256]) {
 
 // Entry point
 int main(int argc, char* argv[]) {
+	AppOpts   opts;
 	AppConfig cfg;
-	const char* helpstr="Usage: VideoCapture -d <path> [-o <path> | -h | -v ]\n\n"
-						"\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
-						"\t-o <path>\tOutput directory where to save recordings (optional)\n"
-						"\t         \tDefaults to $REPROSTIM_HOME/Videos\n"
-						"\t-c <path>\tPath to configuration config.yaml file (optional)\n"
-						"\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
-						"\t-v       \tVerbose, provides detailed information to stdout\n"
-						"\t-h       \tPrint this help string\n";
-	char * vpath = NULL;
-	char * cfg_fn = NULL;
-	char * rep_hm = NULL;
-	char video_path[256] = "";
+
+	const int nOpts = parseOpts(opts, argc, argv);
+
+	if( nOpts==1 ) return 0; // help message
+	if( nOpts!=0 ) return nOpts;
+
+	if( opts.verbose ) {
+		cout << "Config file: " << opts.configPath << endl;
+	}
+
+	loadConfig(cfg, opts.configPath);
+
+	if ( opts.verbose ) {
+		cout << "Output path: " << opts.outPath << endl;
+	}
+
 	// calculated options
 	std::string targetDevName;
 	std::string targetDevSerial;
 	std::string targetVideoDevPath;
-	int targetChannelIndex = -1;
-
-	int c = 0;
-	if (argc == 1){
-		cerr << "ERROR[006]: Please provide valid options" << endl;
-		cout << helpstr << endl;
-		return 55;
-	}
-
-	while( ( c = getopt (argc, argv, "d:o:c:hv") ) != -1 ){
-		switch(c){
-			case 'o':
-				if(optarg) vpath = optarg;
-				break;
-			case 'c':
-				if(optarg) cfg_fn = optarg;
-				break;
-			case 'd':
-				if(optarg) rep_hm = optarg;
-				break;
-			case 'h':
-				cout << helpstr << endl;
-				return 0;
-			case 'v':
-				cfg.verbose = true;
-				break;
-		}
-	}
-
-	// Terminate when REPROSTIM_HOME not specified
-	if ( ! rep_hm ){
-		cerr << "ERROR[007]: REPROSTIM_HOME not specified, see -d" << endl;
-		cout << helpstr << endl;
-		return 55;
-	}
-
-	// Read config
-	// Set config filename if not specified on input
-	if ( ! cfg_fn ){
-		char c_fn[256];
-		sprintf(c_fn, "%s/config.yaml", rep_hm);
-		cfg_fn = c_fn;
-	}
-	cout << "Config file: " << cfg_fn << endl;
-	loadConfig(cfg, cfg_fn);
-
-	// Set output directory if not specified on input
-	if ( ! vpath ){
-		char sufx[] = "/Videos";
-		strcat(video_path, rep_hm);
-		strcat(video_path, sufx);
-		vpath = video_path;
-	}
-
-	if ( cfg.verbose ) {
-		cout << "Output path: " << vpath << endl;
-	}
+	int         targetChannelIndex = -1;
 
 	MWCAP_VIDEO_SIGNAL_STATE state;
 	int cx = 0;
@@ -409,13 +426,13 @@ int main(int argc, char* argv[]) {
 	cout << init_time;
 	cout << ": <><><> Starting VideoCapture <><><>" << endl;
 
-	cout << "    <> Saving Videos to            ===> " << vpath << endl;;
+	cout << "    <> Saving Videos to            ===> " << opts.outPath << endl;;
 	cout << "    <> Recording from Video Device ===> ";
 	cout << cfg.ffm_opts.v_dev;
 	cout << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto");
 	cout << endl;
 
-	if( cfg.verbose ) {
+	if( opts.verbose ) {
 		if( cfg.has_device_serial_number )
 			cout << "Use device with specified S/N: " << cfg.device_serial_number << endl;
 		else
@@ -434,14 +451,14 @@ int main(int argc, char* argv[]) {
 			cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
 		int nCount = MWGetChannelCount();
 
-		if( cfg.verbose )
+		if( opts.verbose )
 			cout << "Channel count: " << nCount << endl;
 
 		if (nCount <= 0) {
 			cout << "ERROR[001]: Can't find channels!" << endl;
 			if ( recording > 0 ){
 				getTimeStr(stop_str);
-				stopRecording(start_str, vpath);
+				stopRecording(start_str, opts.outPath);
 				recording = 0;
 				cout << stop_str << ":\tStopped recording. No channels!"<<endl;
 				nMov++;
@@ -454,7 +471,7 @@ int main(int argc, char* argv[]) {
 			MWCAP_CHANNEL_INFO info;
 			mr = MWGetChannelInfoByIndex(i, &info);
 
-			if( cfg.verbose ) {
+			if( opts.verbose ) {
 				cout << "Found device on channel " << i;
 				cout << ". MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
 				cout << ", productID=" << info.wProductID;
@@ -472,7 +489,7 @@ int main(int argc, char* argv[]) {
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
 				if( cfg.has_device_serial_number ) {
 					if( cfg.device_serial_number==info.szBoardSerialNo ) {
-						if( cfg.verbose ) {
+						if( opts.verbose ) {
 							cout << "Found USB Capture device with S/N="
 								 << info.szBoardSerialNo << " , index=" << i << endl;
 						}
@@ -481,13 +498,13 @@ int main(int argc, char* argv[]) {
 						targetChannelIndex = i;
 						break;
 					} else {
-						if( cfg.verbose ) {
+						if( opts.verbose ) {
 							cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
 								 << ", skip it, index=" << i << endl;
 						}
 					}
 				} else {
-					if( cfg.verbose ) {
+					if( opts.verbose ) {
 						cout << "Found USB Capture device, index=" << i << endl;
 					}
 					targetDevSerial = info.szBoardSerialNo;
@@ -500,14 +517,14 @@ int main(int argc, char* argv[]) {
 					cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
 					if (recording > 0) {
 						getTimeStr(stop_str);
-						stopRecording(start_str, vpath);
+						stopRecording(start_str, opts.outPath);
 						recording = 0;
 						cout << stop_str << ":\tStopped recording. No channels!" << endl;
 						nMov++;
 					}
 					//return -56; // NOTE: break or continue execution?
 				} else {
-					if( cfg.verbose ) {
+					if( opts.verbose ) {
 						cout << "Unknown USB device, skip it, index=" << i << endl;
 					}
 				}
@@ -515,13 +532,13 @@ int main(int argc, char* argv[]) {
 		}
 
 		if( targetChannelIndex<0 ) {
-			if( cfg.verbose ) cout << "Wait, no valid USB devices found" << endl;
+			if( opts.verbose ) cout << "Wait, no valid USB devices found" << endl;
 			continue;
 		}
 
 		char wPath[256] = {0};
 		mr = MWGetDevicePath(targetChannelIndex, wPath);
-		if( cfg.verbose )
+		if( opts.verbose )
 			cout << "Device path: " << wPath << endl;
 
 		hChannel = MWOpenChannelByPath(wPath);
@@ -544,7 +561,7 @@ int main(int argc, char* argv[]) {
 
 		sprintf(frameRate, "%.0f", round( 10000000./(dwFrameDuration==0?-1:dwFrameDuration)));
 
-		if( cfg.verbose ) {
+		if( opts.verbose ) {
 			cout << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
 			cout << ", x=" << vsStatus.x;
 			cout << ", y=" << vsStatus.y;
@@ -571,7 +588,7 @@ int main(int argc, char* argv[]) {
 				if( cfg.ffm_opts.has_v_dev ) {
 					targetVideoDevPath = cfg.ffm_opts.v_dev;
 				} else {
-					targetVideoDevPath = getVideoDevicePathBySerial(cfg.verbose,
+					targetVideoDevPath = getVideoDevicePathBySerial(opts.verbose,
 																	cfg.video_device_path_pattern,
 																	targetDevSerial);
 					if( targetVideoDevPath.empty() ) {
@@ -587,8 +604,8 @@ int main(int argc, char* argv[]) {
 						 << ", " << targetDevName << endl;
 				}
 
-				startRecording(cfg, cx, cy,
-							   frameRate, start_str, vpath, targetVideoDevPath);
+				startRecording(cfg, cx, cy, frameRate, start_str,
+							   opts.outPath, targetVideoDevPath);
 				recording = 1;
 				cout << start_str << ":\tStarted Recording: " << endl;
 				cout << "Apct Rat: " << cx << "x" << cy << endl;
@@ -612,14 +629,14 @@ int main(int argc, char* argv[]) {
 					getTimeStr(stop_str);
 					cout << stop_str;
 					cout << ":\tStopped recording because something changed."<<endl;
-					stopRecording(start_str, vpath);
+					stopRecording(start_str, opts.outPath);
 					nMov++;
 					recording = 0;
 				}
 			}
 		}
 		else {
-			if( cfg.verbose ) {
+			if( opts.verbose ) {
 				cout << "No valid video signal detected from target device" << endl;
 			}
 
@@ -628,7 +645,7 @@ int main(int argc, char* argv[]) {
 				cout << stop_str;
 				cout << ":\tWhack resolution: " << cx << "x" << cy;
 				cout << ". Stopped recording" << endl;
-				stopRecording(start_str, vpath);
+				stopRecording(start_str, opts.outPath);
 				nMov++;
 				recording = 0;
 			}
@@ -657,7 +674,7 @@ int main(int argc, char* argv[]) {
 		}
 	} while ( true );
 
-	stopRecording(start_str, vpath);
+	stopRecording(start_str, opts.outPath);
 
 	if( fInit )
 		MWCaptureExitInstance();
