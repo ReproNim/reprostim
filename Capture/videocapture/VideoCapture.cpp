@@ -290,10 +290,8 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	}
 
 	// Set config filename if not specified on input
-	if ( opts.configPath.empty() ){
-		char c_fn[256];
-		sprintf(c_fn, "%s/config.yaml", opts.homePath.c_str());
-		opts.configPath = c_fn;
+	if ( opts.configPath.empty() ) {
+		opts.configPath = opts.homePath + "/config.yaml";
 	}
 
 	// Set output directory if not specified on input
