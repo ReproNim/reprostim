@@ -131,14 +131,14 @@ std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
 			if (std::regex_search(res, mSerial, reSerial)) {
 				// The serial number is in the first capture group (index 1)
 				serialNumber = mSerial[1].str();
-				std::cout << "Found Serial Number: " << serialNumber << std::endl;
+				if( verbose ) std::cout << "Found Serial Number: " << serialNumber << std::endl;
 			}
 		}
 	}
 	return serialNumber;
 }
 
-std::string getDevPathBySerial(bool verbose, const std::string& pattern, const std::string& serial) {
+std::string getVideoDevicePathBySerial(bool verbose, const std::string& pattern, const std::string& serial) {
 	std::string res;
 	// NOTE: ?? should we use "v4l2-ctl --list-devices | grep /dev" to determine possible devices
 	std::vector<std::string> v1 = getVideoDevicePaths(pattern);
@@ -170,7 +170,7 @@ void getTimeStr(char mov[256]) {
 /* ########################## end common ############################## */
 
 void startRecording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime[256],
-					char vpath[256]){
+					char vpath[256], const std::string& v_dev) {
 	getTimeStr(starttime);
 	char ffmpg[1024] = {0};
 	string a_fmt = cfg["a_fmt"].as<string>();
@@ -179,7 +179,7 @@ void startRecording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime
 	string a_dev = cfg["a_dev"].as<string>();
 	string v_fmt = cfg["v_fmt"].as<string>();
 	string v_opt = cfg["v_opt"].as<string>();
-	string v_dev = cfg["v_dev"].as<string>();
+	//string v_dev = cfg["v_dev"].as<string>();
 	string v_enc = cfg["v_enc"].as<string>();
 	string pix_fmt = cfg["pix_fmt"].as<string>();
 	string n_threads = cfg["n_threads"].as<string>();
@@ -250,9 +250,16 @@ int main(int argc, char* argv[]) {
 	char * cfg_fn = NULL;
 	char * rep_hm = NULL;
 	char video_path[256] = "";
+	// config options
 	bool fDevSerialSpecified = false;
+	bool fVideoDevPathSpecified = false;
 	std::string devSerial;
+	std::string videoDevPath;
+	std::string videoDevPathPattern;
+	// calculated options
+	std::string targetDevName;
 	std::string targetDevSerial;
+	std::string targetVideoDevPath;
 	int targetChannelIndex = -1;
 
 	int c = 0;
@@ -289,6 +296,7 @@ int main(int argc, char* argv[]) {
 		return 55;
 	}
 
+	// Read config
 	// Set config filename if not specified on input
 	if ( ! cfg_fn ){
 		char c_fn[256];
@@ -303,6 +311,17 @@ int main(int argc, char* argv[]) {
 		fDevSerialSpecified = !devSerial.empty() && devSerial!="auto";
 	} else {
 		fDevSerialSpecified = false;
+	}
+
+	if( config["video_device_path_pattern"] ) {
+		videoDevPathPattern = config["video_device_path_pattern"].as<std::string>();
+	}
+
+	if( config["ffm_opts"] && config["ffm_opts"]["v_dev"] ) {
+		videoDevPath = config["ffm_opts"]["v_dev"].as<std::string>();
+		fVideoDevPathSpecified = !videoDevPath.empty() && videoDevPath!="auto";
+	} else {
+		fVideoDevPathSpecified = false;
 	}
 
 	// Set output directory if not specified on input
@@ -400,7 +419,7 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 
-		for (int i = 0; i < nCount; i++){
+		for (int i = 0; i < nCount; i++) {
 
 			MWCAP_CHANNEL_INFO info;
 			mr = MWGetChannelInfoByIndex(i, &info);
@@ -428,6 +447,7 @@ int main(int argc, char* argv[]) {
 								 << info.szBoardSerialNo << " , index=" << i << endl;
 						}
 						targetDevSerial = info.szBoardSerialNo;
+						targetDevName = info.szProductName;
 						targetChannelIndex = i;
 						break;
 					} else {
@@ -441,6 +461,7 @@ int main(int argc, char* argv[]) {
 						cout << "Found USB Capture device, index=" << i << endl;
 					}
 					targetDevSerial = info.szBoardSerialNo;
+					targetDevName = info.szProductName;
 					targetChannelIndex = i;
 					break;
 				}
@@ -472,6 +493,7 @@ int main(int argc, char* argv[]) {
 		mr = MWGetDevicePath(targetChannelIndex, wPath);
 		if( verbose )
 			cout << "Device path: " << wPath << endl;
+
 		hChannel = MWOpenChannelByPath(wPath);
 		MWCAP_VIDEO_SIGNAL_STATUS vsStatus;
 		MWGetVideoSignalStatus(hChannel, &vsStatus);
@@ -515,8 +537,26 @@ int main(int argc, char* argv[]) {
 
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
+				// find target video device name/path when not specified explicitly
+				if( fVideoDevPathSpecified ) {
+					targetVideoDevPath = videoDevPath;
+				} else {
+					targetVideoDevPath = getVideoDevicePathBySerial(verbose, videoDevPathPattern, targetDevSerial);
+					if( targetVideoDevPath.empty() ) {
+						targetVideoDevPath = "/dev/video_not_found_911";
+						cerr << "ERROR[007]: video device path not found by S/N: " << targetDevSerial
+							 << ", use fallback one: " << targetVideoDevPath << endl;
+					}
+				}
+
+				if( !fVideoDevPathSpecified || !fDevSerialSpecified ) {
+					cout << "    <> Found Video Device          ===> "
+						 << targetVideoDevPath << ", S/N: " << targetDevSerial
+						 << ", " << targetDevName << endl;
+				}
+
 				startRecording(config["ffm_opts"], cx, cy,
-							   frameRate, start_str, vpath);
+							   frameRate, start_str, vpath, targetVideoDevPath);
 				recording = 1;
 				cout << start_str << ":\tStarted Recording: " << endl;
 				cout << "Apct Rat: " << cx << "x" << cy << endl;
