@@ -47,22 +47,19 @@
 #include <string.h>
 #include <unistd.h>
 #include <glob.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <ctime>
 #include <cmath>
-#include "LibMWCapture/MWCapture.h"
-#include "LibMWCapture/MWUSBCapture.h"
-#include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <regex>
 #include <array>
 #include <cstring>
-#include <sys/ioctl.h>
-#include <linux/videodev2.h>
 #include "yaml-cpp/yaml.h"
+#include "LibMWCapture/MWCapture.h"
+
+// TODO: Consider moving this option to make file, e.g. CFLAGS += -Wno-write-strings
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 using std::cerr;
@@ -180,7 +177,7 @@ struct FfmpegOpts {
 	std::string a_opt;
 	std::string v_fmt;
 	std::string v_opt;
-    std::string v_dev;
+	std::string v_dev;
 	bool        has_v_dev = false;
 	std::string v_enc;
 	std::string pix_fmt;
@@ -308,25 +305,28 @@ void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 	getTimeStr(starttime);
 	char ffmpg[1024] = {0};
 	const FfmpegOpts& opts = cfg.ffm_opts;
-	sprintf(ffmpg, "ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
-				   "%s %s %s %s %s/%s_.%s > /dev/null &",
-			opts.a_fmt.c_str(),
-			opts.a_nchan.c_str(),
-			opts.a_opt.c_str(),
-			opts.a_dev.c_str(),
-			opts.v_fmt.c_str(),
-			fr,
-			cx,
-			cy,
-			opts.v_opt.c_str(),
-			v_dev.c_str(),
-			opts.v_enc.c_str(),
-			opts.pix_fmt.c_str(),
-			opts.n_threads.c_str(),
-			opts.a_enc.c_str(),
-			outPath.c_str(),
-			starttime,
-			opts.out_fmt.c_str());
+	sprintf(
+		ffmpg,
+		"ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
+		"%s %s %s %s %s/%s_.%s > /dev/null &",
+		opts.a_fmt.c_str(),
+		opts.a_nchan.c_str(),
+		opts.a_opt.c_str(),
+		opts.a_dev.c_str(),
+		opts.v_fmt.c_str(),
+		fr,
+		cx,
+		cy,
+		opts.v_opt.c_str(),
+		v_dev.c_str(),
+		opts.v_enc.c_str(),
+		opts.pix_fmt.c_str(),
+		opts.n_threads.c_str(),
+		opts.a_enc.c_str(),
+		outPath.c_str(),
+		starttime,
+		opts.out_fmt.c_str()
+	);
 
 	cout << starttime;
 	cout << ": <SYSTEMCALL> " << ffmpg << endl;
