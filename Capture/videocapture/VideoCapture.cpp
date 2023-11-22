@@ -203,8 +203,15 @@ struct AppOpts {
 	bool        verbose = false;
 };
 
-void loadConfig(AppConfig& cfg, const std::string& pathConfig) {
-	YAML::Node doc = YAML::LoadFile(pathConfig);
+int loadConfig(AppConfig& cfg, const std::string& pathConfig) {
+	YAML::Node doc;
+	try {
+		doc = YAML::LoadFile(pathConfig);
+	} catch(const std::exception& e) {
+		cerr << "ERROR[008]: Failed load/parse config file "
+		     << pathConfig << ": " << e.what() << endl;
+		return -8;
+	}
 
 	if( doc["device_serial_number"] ) {
 		cfg.device_serial_number = doc["device_serial_number"].as<std::string>();
@@ -235,6 +242,7 @@ void loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		opts.a_enc = node["a_enc"].as<std::string>();
 		opts.out_fmt = node["out_fmt"].as<std::string>();
 	}
+	return 0;
 }
 
 int parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -362,16 +370,17 @@ int main(int argc, char* argv[]) {
 	AppOpts   opts;
 	AppConfig cfg;
 
-	const int nOpts = parseOpts(opts, argc, argv);
+	const int res1 = parseOpts(opts, argc, argv);
 
-	if( nOpts==1 ) return 0; // help message
-	if( nOpts!=0 ) return nOpts;
+	if( res1==1 ) return 0; // help message
+	if( res1!=0 ) return res1;
 
 	if( opts.verbose ) {
 		cout << "Config file: " << opts.configPath << endl;
 	}
 
-	loadConfig(cfg, opts.configPath);
+	const int res2 = loadConfig(cfg, opts.configPath);
+	if( res2!=0 ) return res2;
 
 	if ( opts.verbose ) {
 		cout << "Output path: " << opts.outPath << endl;
