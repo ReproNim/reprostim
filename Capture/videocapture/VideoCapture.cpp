@@ -171,42 +171,94 @@ void getTimeStr(char mov[256]) {
 
 /* ########################## end common ############################## */
 
-void startRecording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime[256],
-					char vpath[256], const std::string& v_dev) {
+/* ##################### begin options/config ######################### */
+
+struct FfmpegOpts {
+	std::string a_fmt;
+	std::string a_nchan;
+	std::string a_dev;
+	std::string a_opt;
+	std::string v_fmt;
+	std::string v_opt;
+    std::string v_dev;
+	bool        has_v_dev = false;
+	std::string v_enc;
+	std::string pix_fmt;
+	std::string n_threads;
+	std::string a_enc;
+	std::string out_fmt;
+};
+
+// App configuration loaded from config.yaml, for
+// historical reasons keep names in Python style
+struct AppConfig {
+	bool        verbose = false;
+	std::string device_serial_number;
+	bool        has_device_serial_number = false;
+	std::string video_device_path_pattern;
+	FfmpegOpts  ffm_opts;
+};
+
+void loadConfig(AppConfig& cfg, const std::string& pathConfig) {
+	YAML::Node doc = YAML::LoadFile(pathConfig);
+
+	if( doc["device_serial_number"] ) {
+		cfg.device_serial_number = doc["device_serial_number"].as<std::string>();
+		cfg.has_device_serial_number = !cfg.device_serial_number.empty() &&
+		                               cfg.device_serial_number!="auto";
+	} else {
+		cfg.has_device_serial_number = false;
+	}
+
+	if( doc["video_device_path_pattern"] ) {
+		cfg.video_device_path_pattern = doc["video_device_path_pattern"].as<std::string>();
+	}
+
+	if( doc["ffm_opts"] ) {
+		YAML::Node node = doc["ffm_opts"];
+		FfmpegOpts& opts = cfg.ffm_opts;
+		opts.a_fmt = node["a_fmt"].as<std::string>();
+		opts.a_nchan = node["a_nchan"].as<std::string>();
+		opts.a_opt = node["a_opt"].as<std::string>();
+		opts.a_dev = node["a_dev"].as<std::string>();
+		opts.v_fmt = node["v_fmt"].as<std::string>();
+		opts.v_opt = node["v_opt"].as<std::string>();
+		opts.v_dev = node["v_dev"].as<std::string>();
+		opts.v_enc = node["v_enc"].as<std::string>();
+		opts.has_v_dev = !opts.v_dev.empty() && opts.v_dev != "auto";
+		opts.pix_fmt = node["pix_fmt"].as<std::string>();
+		opts.n_threads = node["n_threads"].as<std::string>();
+		opts.a_enc = node["a_enc"].as<std::string>();
+		opts.out_fmt = node["out_fmt"].as<std::string>();
+	}
+}
+/* ###################### end options/config ########################## */
+
+
+void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
+					char starttime[256], char vpath[256], const std::string& v_dev) {
 	getTimeStr(starttime);
 	char ffmpg[1024] = {0};
-	std::string a_fmt = cfg["a_fmt"].as<std::string>();
-	std::string a_nchan = cfg["a_nchan"].as<std::string>();
-	std::string a_opt = cfg["a_opt"].as<std::string>();
-	std::string a_dev = cfg["a_dev"].as<std::string>();
-	std::string v_fmt = cfg["v_fmt"].as<std::string>();
-	std::string v_opt = cfg["v_opt"].as<std::string>();
-	//std::string v_dev = cfg["v_dev"].as<std::string>();
-	std::string v_enc = cfg["v_enc"].as<std::string>();
-	std::string pix_fmt = cfg["pix_fmt"].as<std::string>();
-	std::string n_threads = cfg["n_threads"].as<std::string>();
-	std::string a_enc = cfg["a_enc"].as<std::string>();
-	std::string out_fmt = cfg["out_fmt"].as<std::string>();
-
+	const FfmpegOpts& opts = cfg.ffm_opts;
 	sprintf(ffmpg, "ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
 				   "%s %s %s %s %s/%s_.%s > /dev/null &",
-			a_fmt.c_str(),
-			a_nchan.c_str(),
-			a_opt.c_str(),
-			a_dev.c_str(),
-			v_fmt.c_str(),
+			opts.a_fmt.c_str(),
+			opts.a_nchan.c_str(),
+			opts.a_opt.c_str(),
+			opts.a_dev.c_str(),
+			opts.v_fmt.c_str(),
 			fr,
 			cx,
 			cy,
-			v_opt.c_str(),
+			opts.v_opt.c_str(),
 			v_dev.c_str(),
-			v_enc.c_str(),
-			pix_fmt.c_str(),
-			n_threads.c_str(),
-			a_enc.c_str(),
+			opts.v_enc.c_str(),
+			opts.pix_fmt.c_str(),
+			opts.n_threads.c_str(),
+			opts.a_enc.c_str(),
 			vpath,
 			starttime,
-			out_fmt.c_str());
+			opts.out_fmt.c_str());
 
 	cout << starttime;
 	cout << ": <SYSTEMCALL> " << ffmpg << endl;
@@ -239,6 +291,7 @@ static void stopRecording(char start_str[256], char vpath[256]) {
 
 // Entry point
 int main(int argc, char* argv[]) {
+	AppConfig cfg;
 	const char* helpstr="Usage: VideoCapture -d <path> [-o <path> | -h | -v ]\n\n"
 						"\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
 						"\t-o <path>\tOutput directory where to save recordings (optional)\n"
@@ -247,17 +300,10 @@ int main(int argc, char* argv[]) {
 						"\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
 						"\t-v       \tVerbose, provides detailed information to stdout\n"
 						"\t-h       \tPrint this help string\n";
-	bool verbose = false;
 	char * vpath = NULL;
 	char * cfg_fn = NULL;
 	char * rep_hm = NULL;
 	char video_path[256] = "";
-	// config options
-	bool fDevSerialSpecified = false;
-	bool fVideoDevPathSpecified = false;
-	std::string devSerial;
-	std::string videoDevPath;
-	std::string videoDevPathPattern;
 	// calculated options
 	std::string targetDevName;
 	std::string targetDevSerial;
@@ -286,7 +332,7 @@ int main(int argc, char* argv[]) {
 				cout << helpstr << endl;
 				return 0;
 			case 'v':
-				verbose = true;
+				cfg.verbose = true;
 				break;
 		}
 	}
@@ -306,25 +352,7 @@ int main(int argc, char* argv[]) {
 		cfg_fn = c_fn;
 	}
 	cout << "Config file: " << cfg_fn << endl;
-	YAML::Node config = YAML::LoadFile(cfg_fn);
-
-	if( config["device_serial_number"] ) {
-		devSerial = config["device_serial_number"].as<std::string>();
-		fDevSerialSpecified = !devSerial.empty() && devSerial!="auto";
-	} else {
-		fDevSerialSpecified = false;
-	}
-
-	if( config["video_device_path_pattern"] ) {
-		videoDevPathPattern = config["video_device_path_pattern"].as<std::string>();
-	}
-
-	if( config["ffm_opts"] && config["ffm_opts"]["v_dev"] ) {
-		videoDevPath = config["ffm_opts"]["v_dev"].as<std::string>();
-		fVideoDevPathSpecified = !videoDevPath.empty() && videoDevPath!="auto";
-	} else {
-		fVideoDevPathSpecified = false;
-	}
+	loadConfig(cfg, cfg_fn);
 
 	// Set output directory if not specified on input
 	if ( ! vpath ){
@@ -334,7 +362,7 @@ int main(int argc, char* argv[]) {
 		vpath = video_path;
 	}
 
-	if ( verbose ) {
+	if ( cfg.verbose ) {
 		cout << "Output path: " << vpath << endl;
 	}
 
@@ -383,13 +411,13 @@ int main(int argc, char* argv[]) {
 
 	cout << "    <> Saving Videos to            ===> " << vpath << endl;;
 	cout << "    <> Recording from Video Device ===> ";
-	cout << config["ffm_opts"]["v_dev"];
-	cout << ", S/N=" << (fDevSerialSpecified?devSerial:"auto");
+	cout << cfg.ffm_opts.v_dev;
+	cout << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto");
 	cout << endl;
 
-	if( verbose ) {
-		if( fDevSerialSpecified )
-			cout << "Use device with specified S/N: " << devSerial << endl;
+	if( cfg.verbose ) {
+		if( cfg.has_device_serial_number )
+			cout << "Use device with specified S/N: " << cfg.device_serial_number << endl;
 		else
 			cout << "Use any first available Magewell USB Capture device" << endl;
 	}
@@ -406,7 +434,7 @@ int main(int argc, char* argv[]) {
 			cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
 		int nCount = MWGetChannelCount();
 
-		if( verbose )
+		if( cfg.verbose )
 			cout << "Channel count: " << nCount << endl;
 
 		if (nCount <= 0) {
@@ -426,7 +454,7 @@ int main(int argc, char* argv[]) {
 			MWCAP_CHANNEL_INFO info;
 			mr = MWGetChannelInfoByIndex(i, &info);
 
-			if( verbose ) {
+			if( cfg.verbose ) {
 				cout << "Found device on channel " << i;
 				cout << ". MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
 				cout << ", productID=" << info.wProductID;
@@ -442,9 +470,9 @@ int main(int argc, char* argv[]) {
 			}
 
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
-				if( fDevSerialSpecified ) {
-					if( devSerial==info.szBoardSerialNo ) {
-						if( verbose ) {
+				if( cfg.has_device_serial_number ) {
+					if( cfg.device_serial_number==info.szBoardSerialNo ) {
+						if( cfg.verbose ) {
 							cout << "Found USB Capture device with S/N="
 								 << info.szBoardSerialNo << " , index=" << i << endl;
 						}
@@ -453,13 +481,13 @@ int main(int argc, char* argv[]) {
 						targetChannelIndex = i;
 						break;
 					} else {
-						if( verbose ) {
+						if( cfg.verbose ) {
 							cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
 								 << ", skip it, index=" << i << endl;
 						}
 					}
 				} else {
-					if (verbose) {
+					if( cfg.verbose ) {
 						cout << "Found USB Capture device, index=" << i << endl;
 					}
 					targetDevSerial = info.szBoardSerialNo;
@@ -479,7 +507,7 @@ int main(int argc, char* argv[]) {
 					}
 					//return -56; // NOTE: break or continue execution?
 				} else {
-					if( verbose ) {
+					if( cfg.verbose ) {
 						cout << "Unknown USB device, skip it, index=" << i << endl;
 					}
 				}
@@ -487,13 +515,13 @@ int main(int argc, char* argv[]) {
 		}
 
 		if( targetChannelIndex<0 ) {
-			if( verbose ) cout << "Wait, no valid USB devices found" << endl;
+			if( cfg.verbose ) cout << "Wait, no valid USB devices found" << endl;
 			continue;
 		}
 
 		char wPath[256] = {0};
 		mr = MWGetDevicePath(targetChannelIndex, wPath);
-		if( verbose )
+		if( cfg.verbose )
 			cout << "Device path: " << wPath << endl;
 
 		hChannel = MWOpenChannelByPath(wPath);
@@ -516,7 +544,7 @@ int main(int argc, char* argv[]) {
 
 		sprintf(frameRate, "%.0f", round( 10000000./(dwFrameDuration==0?-1:dwFrameDuration)));
 
-		if( verbose ) {
+		if( cfg.verbose ) {
 			cout << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
 			cout << ", x=" << vsStatus.x;
 			cout << ", y=" << vsStatus.y;
@@ -540,10 +568,12 @@ int main(int argc, char* argv[]) {
 		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
 			if (recording == 0) {
 				// find target video device name/path when not specified explicitly
-				if( fVideoDevPathSpecified ) {
-					targetVideoDevPath = videoDevPath;
+				if( cfg.ffm_opts.has_v_dev ) {
+					targetVideoDevPath = cfg.ffm_opts.v_dev;
 				} else {
-					targetVideoDevPath = getVideoDevicePathBySerial(verbose, videoDevPathPattern, targetDevSerial);
+					targetVideoDevPath = getVideoDevicePathBySerial(cfg.verbose,
+																	cfg.video_device_path_pattern,
+																	targetDevSerial);
 					if( targetVideoDevPath.empty() ) {
 						targetVideoDevPath = "/dev/video_not_found_911";
 						cerr << "ERROR[007]: video device path not found by S/N: " << targetDevSerial
@@ -551,13 +581,13 @@ int main(int argc, char* argv[]) {
 					}
 				}
 
-				if( !fVideoDevPathSpecified || !fDevSerialSpecified ) {
+				if( !cfg.ffm_opts.has_v_dev || !cfg.has_device_serial_number ) {
 					cout << "    <> Found Video Device          ===> "
 						 << targetVideoDevPath << ", S/N: " << targetDevSerial
 						 << ", " << targetDevName << endl;
 				}
 
-				startRecording(config["ffm_opts"], cx, cy,
+				startRecording(cfg, cx, cy,
 							   frameRate, start_str, vpath, targetVideoDevPath);
 				recording = 1;
 				cout << start_str << ":\tStarted Recording: " << endl;
@@ -589,7 +619,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		else {
-			if( verbose ) {
+			if( cfg.verbose ) {
 				cout << "No valid video signal detected from target device" << endl;
 			}
 
