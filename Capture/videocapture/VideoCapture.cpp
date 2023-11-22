@@ -65,7 +65,9 @@
 #include "yaml-cpp/yaml.h"
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-using namespace std;
+using std::cerr;
+using std::cout;
+using std::endl;
 
 /* ######################### begin common ############################# */
 
@@ -91,14 +93,14 @@ std::vector<std::string> getVideoDevicePaths(const std::string& pattern) {
 	int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
 	if(return_value != 0) {
 		globfree(&glob_result);
-		stringstream ss;
+		std::stringstream ss;
 		ss << "glob() failed with return_value " << return_value << endl;
 		throw std::runtime_error(ss.str());
 	}
 
-	vector<string> filenames;
+	std::vector<std::string> filenames;
 	for(size_t i = 0; i < glob_result.gl_pathc; ++i) {
-		filenames.push_back(string(glob_result.gl_pathv[i]));
+		filenames.push_back(std::string(glob_result.gl_pathv[i]));
 	}
 
 	globfree(&glob_result);
@@ -117,12 +119,12 @@ std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
 
 	// Find "Device Caps" section
 	std::size_t pos1 = res.find("Device Caps");
-	if( pos1!=string::npos ) {
+	if( pos1!=std::string::npos ) {
 		res = res.substr(pos1);
 
 		// Find "Video Capture" line in remaining text
 		std::size_t pos2 = res.find("Video Capture");
-		if( pos2!=string::npos ) {
+		if( pos2!=std::string::npos ) {
 			res = res.substr(pos2);
 
 			// Find and parse "Serial : XXX" line in remaining text
@@ -173,18 +175,18 @@ void startRecording(YAML::Node cfg, int cx, int cy, char fr[256], char starttime
 					char vpath[256], const std::string& v_dev) {
 	getTimeStr(starttime);
 	char ffmpg[1024] = {0};
-	string a_fmt = cfg["a_fmt"].as<string>();
-	string a_nchan = cfg["a_nchan"].as<string>();
-	string a_opt = cfg["a_opt"].as<string>();
-	string a_dev = cfg["a_dev"].as<string>();
-	string v_fmt = cfg["v_fmt"].as<string>();
-	string v_opt = cfg["v_opt"].as<string>();
-	//string v_dev = cfg["v_dev"].as<string>();
-	string v_enc = cfg["v_enc"].as<string>();
-	string pix_fmt = cfg["pix_fmt"].as<string>();
-	string n_threads = cfg["n_threads"].as<string>();
-	string a_enc = cfg["a_enc"].as<string>();
-	string out_fmt = cfg["out_fmt"].as<string>();
+	std::string a_fmt = cfg["a_fmt"].as<std::string>();
+	std::string a_nchan = cfg["a_nchan"].as<std::string>();
+	std::string a_opt = cfg["a_opt"].as<std::string>();
+	std::string a_dev = cfg["a_dev"].as<std::string>();
+	std::string v_fmt = cfg["v_fmt"].as<std::string>();
+	std::string v_opt = cfg["v_opt"].as<std::string>();
+	//std::string v_dev = cfg["v_dev"].as<std::string>();
+	std::string v_enc = cfg["v_enc"].as<std::string>();
+	std::string pix_fmt = cfg["pix_fmt"].as<std::string>();
+	std::string n_threads = cfg["n_threads"].as<std::string>();
+	std::string a_enc = cfg["a_enc"].as<std::string>();
+	std::string out_fmt = cfg["out_fmt"].as<std::string>();
 
 	sprintf(ffmpg, "ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
 				   "%s %s %s %s %s/%s_.%s > /dev/null &",
