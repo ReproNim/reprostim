@@ -166,6 +166,49 @@ void getTimeStr(char mov[256]) {
 	sprintf(mov, "%d.%02d.%02d.%02d.%02d.%02d", yr, mo, da, hr, mn, sc);
 }
 
+// Video signal status helpers
+bool vssEquals(const MWCAP_VIDEO_SIGNAL_STATUS& vss1,
+			   const MWCAP_VIDEO_SIGNAL_STATUS& vss2) {
+	// TODO: ?? structure has also x and y fields, but it isn't used in
+	// original code, should we check it as well ??
+	return
+		( vss1.state           == vss2.state ) &&
+		( vss1.cx              == vss2.cx ) &&
+		( vss1.cy              == vss2.cy) &&
+		( vss1.cxTotal         == vss2.cxTotal ) &&
+		( vss1.cyTotal         == vss2.cyTotal ) &&
+		( vss1.bInterlaced     == vss2.bInterlaced ) &&
+		( vss1.dwFrameDuration == vss2.dwFrameDuration ) &&
+		( vss1.nAspectX        == vss2.nAspectX ) &&
+		( vss1.nAspectY        == vss2.nAspectY ) &&
+		( vss1.bSegmentedFrame == vss2.bSegmentedFrame ) &&
+		( vss1.frameType       == vss2.frameType ) &&
+		( vss1.colorFormat     == vss2.colorFormat ) &&
+		( vss1.quantRange      == vss2.quantRange ) &&
+		( vss1.satRange        == vss2.satRange );
+}
+
+std::string vssToString(const MWCAP_VIDEO_SIGNAL_STATUS& vsStatus) {
+	std::stringstream s;
+	s << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
+	s << ", x=" << vsStatus.x;
+	s << ", y=" << vsStatus.y;
+	s << ", cx=" << vsStatus.cx;
+	s << ", cy=" << vsStatus.cy;
+	s << ", cxTotal=" << vsStatus.cxTotal;
+	s << ", cyTotal=" << vsStatus.cyTotal;
+	s << ", bInterlaced=" << static_cast<bool>(vsStatus.bInterlaced);
+	s << ", dwFrameDuration=" << vsStatus.dwFrameDuration;
+	s << ", nAspectX=" << vsStatus.nAspectX;
+	s << ", nAspectY=" << vsStatus.nAspectY;
+	s << ", bSegmentedFrame=" << static_cast<bool>(vsStatus.bSegmentedFrame);
+	s << ", frameType=" << vsStatus.frameType;
+	s << ", colorFormat=" << vsStatus.colorFormat;
+	s << ", quantRange=" << vsStatus.quantRange;
+	s << ", satRange=" << vsStatus.satRange;
+	return s.str();
+}
+
 /* ########################## end common ############################## */
 
 /* ##################### begin options/config ######################### */
@@ -390,35 +433,11 @@ int main(int argc, char* argv[]) {
 	std::string targetVideoDevPath;
 	int         targetChannelIndex = -1;
 
-	MWCAP_VIDEO_SIGNAL_STATE state;
-	int cx = 0;
-	int cy = 0;
-	int cxTotal = 0;
-	int cyTotal = 0;
-	BOOLEAN bInterlaced = false;
-	DWORD dwFrameDuration = 0;
-	int nAspectX = 0;
-	int nAspectY = 0;
-	BOOLEAN bSegmentedFrame = false;
-	MWCAP_VIDEO_FRAME_TYPE frameType;
-	MWCAP_VIDEO_COLOR_FORMAT colorFormat;
-	MWCAP_VIDEO_QUANTIZATION_RANGE quantRange;
-	MWCAP_VIDEO_SATURATION_RANGE satRange;
+	// current video signal status
+	MWCAP_VIDEO_SIGNAL_STATUS vssCur = {};
 
-	MWCAP_VIDEO_SIGNAL_STATE prev_state;
-	int prev_cx = 0;
-	int prev_cy = 0;
-	int prev_cxTotal = 0;
-	int prev_cyTotal = 0;
-	BOOLEAN prev_bInterlaced = false;
-	DWORD prev_dwFrameDuration = 0;
-	int prev_nAspectX = 0;
-	int prev_nAspectY = 0;
-	BOOLEAN prev_bSegmentedFrame = false;
-	MWCAP_VIDEO_FRAME_TYPE prev_frameType;
-	MWCAP_VIDEO_COLOR_FORMAT prev_colorFormat;
-	MWCAP_VIDEO_QUANTIZATION_RANGE prev_quantRange;
-	MWCAP_VIDEO_SATURATION_RANGE prev_satRange;
+	// previous video signal status
+	MWCAP_VIDEO_SIGNAL_STATUS vssPrev = {};
 
 	int recording = 0;
 	char init_time[256] = {0};
@@ -548,48 +567,20 @@ int main(int argc, char* argv[]) {
 		if( opts.verbose )
 			cout << "Device path: " << wPath << endl;
 
+		// TODO: check res
 		hChannel = MWOpenChannelByPath(wPath);
-		MWCAP_VIDEO_SIGNAL_STATUS vsStatus;
-		MWGetVideoSignalStatus(hChannel, &vsStatus);
-		state           = vsStatus.state;
-		cx              = vsStatus.cx;
-		cy              = vsStatus.cy;
-		cxTotal         = vsStatus.cxTotal;
-		cyTotal         = vsStatus.cyTotal;
-		bInterlaced     = vsStatus.bInterlaced;
-		dwFrameDuration = vsStatus.dwFrameDuration;
-		nAspectX        = vsStatus.nAspectX;
-		nAspectY        = vsStatus.nAspectY;
-		bSegmentedFrame = vsStatus.bSegmentedFrame;
-		frameType       = vsStatus.frameType;
-		colorFormat     = vsStatus.colorFormat;
-		quantRange      = vsStatus.quantRange;
-		satRange        = vsStatus.satRange;
 
-		sprintf(frameRate, "%.0f", round( 10000000./(dwFrameDuration==0?-1:dwFrameDuration)));
+		// TODO: check res
+		MWGetVideoSignalStatus(hChannel, &vssCur);
+
+		sprintf(frameRate, "%.0f", round( 10000000./(vssCur.dwFrameDuration==0?-1:vssCur.dwFrameDuration)));
 
 		if( opts.verbose ) {
-			cout << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
-			cout << ", x=" << vsStatus.x;
-			cout << ", y=" << vsStatus.y;
-			cout << ", cx=" << vsStatus.cx;
-			cout << ", cy=" << vsStatus.cy;
-			cout << ", cxTotal=" << vsStatus.cxTotal;
-			cout << ", cyTotal=" << vsStatus.cyTotal;
-			cout << ", bInterlaced=" << static_cast<bool>(vsStatus.bInterlaced);
-			cout << ", dwFrameDuration=" << vsStatus.dwFrameDuration;
-			cout << ", nAspectX=" << vsStatus.nAspectX;
-			cout << ", nAspectY=" << vsStatus.nAspectY;
-			cout << ", bSegmentedFrame=" << static_cast<bool>(vsStatus.bSegmentedFrame);
-			cout << ", frameType=" << vsStatus.frameType;
-			cout << ", colorFormat=" << vsStatus.colorFormat;
-			cout << ", quantRange=" << vsStatus.quantRange;
-			cout << ", satRange=" << vsStatus.satRange;
-			cout << ". frameRate=" << frameRate;
-			cout << endl;
+			// just dump current video signal status
+			cout << vssToString(vssCur) << ". frameRate=" << frameRate << endl;
 		}
 
-		if (  ( cx > 0 ) && ( cx  < 9999 ) && (cy > 0) && (cy < 9999)) {
+		if (  ( vssCur.cx > 0 ) && ( vssCur.cx  < 9999 ) && (vssCur.cy > 0) && (vssCur.cy < 9999)) {
 			if (recording == 0) {
 				// find target video device name/path when not specified explicitly
 				if( cfg.ffm_opts.has_v_dev ) {
@@ -611,28 +602,16 @@ int main(int argc, char* argv[]) {
 						 << ", " << targetDevName << endl;
 				}
 
-				startRecording(cfg, cx, cy, frameRate, start_str,
+				startRecording(cfg, vssCur.cx, vssCur.cy, frameRate, start_str,
 							   opts.outPath, targetVideoDevPath);
 				recording = 1;
 				cout << start_str << ":\tStarted Recording: " << endl;
-				cout << "Apct Rat: " << cx << "x" << cy << endl;
+				cout << "Apct Rat: " << vssCur.cx << "x" << vssCur.cy << endl;
 				cout << "FR: " << frameRate << endl;
 				usleep(5000000);
 			}
 			else {
-				if (( state != prev_state ) ||
-					( cx != prev_cx ) || (cy != prev_cy) ||
-					( cxTotal != prev_cxTotal ) ||
-					( cyTotal != prev_cyTotal ) ||
-					( bInterlaced != prev_bInterlaced ) ||
-					( dwFrameDuration != prev_dwFrameDuration ) ||
-					( nAspectX != prev_nAspectX ) ||
-					( nAspectY != prev_nAspectY ) ||
-					( bSegmentedFrame != prev_bSegmentedFrame ) ||
-					( frameType != prev_frameType ) ||
-					( colorFormat != prev_colorFormat ) ||
-					( quantRange != prev_quantRange ) ||
-					( satRange != prev_satRange )) {
+				if( !vssEquals(vssCur, vssPrev) ) {
 					getTimeStr(stop_str);
 					cout << stop_str;
 					cout << ":\tStopped recording because something changed."<<endl;
@@ -650,7 +629,7 @@ int main(int argc, char* argv[]) {
 			if (recording == 1) {
 				getTimeStr(stop_str);
 				cout << stop_str;
-				cout << ":\tWhack resolution: " << cx << "x" << cy;
+				cout << ":\tWhack resolution: " << vssCur.cx << "x" << vssCur.cy;
 				cout << ". Stopped recording" << endl;
 				stopRecording(start_str, opts.outPath);
 				nMov++;
@@ -658,22 +637,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		prev_state = state;
-
-
-		prev_cx = cx;
-		prev_cy = cy;
-		prev_cxTotal = cxTotal;
-		prev_cyTotal = cyTotal;
-		prev_bInterlaced = bInterlaced;
-		prev_dwFrameDuration = dwFrameDuration;
-		prev_nAspectX = nAspectX;
-		prev_nAspectY = nAspectY;
-		prev_bSegmentedFrame = bSegmentedFrame;
-		prev_frameType = frameType;
-		prev_colorFormat = colorFormat;
-		prev_quantRange = quantRange;
-		prev_satRange = satRange;
+		vssPrev = vssCur;
 
 		if (hChannel != NULL) {
 			MWCloseChannel(hChannel);
