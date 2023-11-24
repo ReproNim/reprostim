@@ -68,6 +68,22 @@ using std::endl;
 
 /* ######################### begin common ############################# */
 
+std::string chiToString(MWCAP_CHANNEL_INFO& info) {
+	std::stringstream s;
+	s << "MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
+	s << ", productID=" << info.wProductID;
+	s << ", hardwareVersion=" << info.chHardwareVersion;
+	s << ", firmwareID=" << static_cast<uint>(info.byFirmwareID);
+	s << ", firmwareVersion=" << info.dwFirmwareVersion;
+	s << ", familyName=" << info.szFamilyName;
+	s << ", productName=" << info.szProductName;
+	s << ", firmwareName=" << info.szFirmwareName;
+	s << ", boardSerialNo=" << info.szBoardSerialNo;
+	s << ", boardIndex=" << static_cast<uint>(info.byBoardIndex);
+	s << ", channelIndex=" << static_cast<uint>(info.byChannelIndex);
+	return s.str();
+}
+
 std::string exec(bool verbose, const char* cmd) {
 	std::array<char, 128> buffer;
 	std::string result;
@@ -246,14 +262,14 @@ struct AppOpts {
 	bool        verbose = false;
 };
 
-int loadConfig(AppConfig& cfg, const std::string& pathConfig) {
+bool loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 	YAML::Node doc;
 	try {
 		doc = YAML::LoadFile(pathConfig);
 	} catch(const std::exception& e) {
 		cerr << "ERROR[008]: Failed load/parse config file "
 		     << pathConfig << ": " << e.what() << endl;
-		return -8;
+		return false;
 	}
 
 	if( doc["device_serial_number"] ) {
@@ -285,7 +301,7 @@ int loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		opts.a_enc = node["a_enc"].as<std::string>();
 		opts.out_fmt = node["out_fmt"].as<std::string>();
 	}
-	return 0;
+	return true;
 }
 
 int parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -420,8 +436,10 @@ int main(int argc, char* argv[]) {
 		cout << "Config file: " << opts.configPath << endl;
 	}
 
-	const int res2 = loadConfig(cfg, opts.configPath);
-	if( res2!=0 ) return res2;
+	if( !loadConfig(cfg, opts.configPath) ) {
+		// config.yaml load/parse problems
+		return -8;
+	}
 
 	if ( opts.verbose ) {
 		cout << "Output path: " << opts.outPath << endl;
@@ -498,18 +516,7 @@ int main(int argc, char* argv[]) {
 			mr = MWGetChannelInfoByIndex(i, &info);
 
 			if( opts.verbose ) {
-				cout << "Found device on channel " << i;
-				cout << ". MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
-				cout << ", productID=" << info.wProductID;
-				cout << ", hardwareVersion=" << info.chHardwareVersion;
-				cout << ", firmwareID=" << static_cast<uint>(info.byFirmwareID);
-				cout << ", firmwareVersion=" << info.dwFirmwareVersion;
-				cout << ", familyName=" << info.szFamilyName;
-				cout << ", productName=" << info.szProductName;
-				cout << ", firmwareName=" << info.szFirmwareName;
-				cout << ", boardSerialNo=" << info.szBoardSerialNo;
-				cout << ", boardIndex=" << static_cast<uint>(info.byBoardIndex);
-				cout << ", channelIndex=" << static_cast<uint>(info.byChannelIndex) << endl;
+				cout << "Found device on channel " << i << ". " << chiToString(info) << endl;
 			}
 
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
