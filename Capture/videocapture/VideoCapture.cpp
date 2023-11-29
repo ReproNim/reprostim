@@ -362,6 +362,80 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 
 /* ###################### end options/config ########################## */
 
+struct VideoDevice {
+	std::string name;
+	std::string serial;
+	int         channelIndex = -1;
+};
+
+bool findTargetVideoDevice(const AppConfig& cfg,
+						   const AppOpts& opts,
+						   VideoDevice& vd) {
+	vd.channelIndex = -1;
+	MW_RESULT mwRes = MWRefreshDevice();
+	if( mwRes!=MW_SUCCEEDED ) {
+		cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
+		return false;
+	}
+	int nCount = MWGetChannelCount();
+
+	if( opts.verbose )
+		cout << "Channel count: " << nCount << endl;
+
+	if (nCount <= 0) {
+		cout << "ERROR[001]: Can't find channels!" << endl;
+		return false;
+	}
+
+	for (int i = 0; i < nCount; i++) {
+
+		MWCAP_CHANNEL_INFO info;
+		mwRes = MWGetChannelInfoByIndex(i, &info);
+
+		if( opts.verbose ) {
+			cout << "Found device on channel " << i << ". " << chiToString(info) << endl;
+		}
+
+		if (strcmp(info.szFamilyName, "USB Capture") == 0) {
+			if( cfg.has_device_serial_number ) {
+				if( cfg.device_serial_number==info.szBoardSerialNo ) {
+					if( opts.verbose ) {
+						cout << "Found USB Capture device with S/N="
+							 << info.szBoardSerialNo << " , index=" << i << endl;
+					}
+					vd.serial       = info.szBoardSerialNo;
+					vd.name         = info.szProductName;
+					vd.channelIndex = i;
+					return true;
+				} else {
+					if( opts.verbose ) {
+						cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
+							 << ", skip it, index=" << i << endl;
+					}
+				}
+			} else {
+				if( opts.verbose ) {
+					cout << "Found USB Capture device, index=" << i << endl;
+				}
+				vd.serial       = info.szBoardSerialNo;
+				vd.name         = info.szProductName;
+				vd.channelIndex = i;
+				return true;
+			}
+		} else {
+			if (info.wProductID == 0 && info.wFamilyID == 0) {
+				cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
+				return false;
+			} else {
+				if( opts.verbose ) {
+					cout << "Unknown USB device, skip it, index=" << i << endl;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 
 void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 					char starttime[256],
@@ -398,7 +472,7 @@ void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 	system(ffmpg);
 }
 
-static void stopRecording(char start_str[256], const std::string& vpath) {
+void stopRecording(char start_str[256], const std::string& vpath) {
 	std::string ffmpid;
 	ffmpid = exec(true, "pidof ffmpeg");
 	cout << "stop record says: " << ffmpid.c_str() << endl;
@@ -422,6 +496,26 @@ static void stopRecording(char start_str[256], const std::string& vpath) {
 	}
 }
 
+/*
+TODO:
+void stopRecordingIfAny(const AppOpts& opts, int& recording, ) {
+
+	if ( recording > 0 ) {
+		getTimeStr(stop_str);
+		stopRecording(start_str, opts.outPath);
+		recording = 0;
+		cout << stop_str << ":\tStopped recording. No channels!"<<endl;
+	}
+}
+*/
+
+std::string vdToString(VideoDevice& vd) {
+	std::stringstream s;
+	s << vd.name << ", S/N=" << vd.serial << ", channelIndex=" << vd.channelIndex;
+	return s.str();
+}
+
+
 // Entry point
 int main(int argc, char* argv[]) {
 	AppOpts   opts;
@@ -432,24 +526,18 @@ int main(int argc, char* argv[]) {
 	if( res1==1 ) return 0; // help message
 	if( res1!=0 ) return res1;
 
-	if( opts.verbose ) {
-		cout << "Config file: " << opts.configPath << endl;
-	}
+	if( opts.verbose ) cout << "Config file: " << opts.configPath << endl;
 
 	if( !loadConfig(cfg, opts.configPath) ) {
 		// config.yaml load/parse problems
 		return -8;
 	}
 
-	if ( opts.verbose ) {
-		cout << "Output path: " << opts.outPath << endl;
-	}
+	if ( opts.verbose ) cout << "Output path: " << opts.outPath << endl;
 
 	// calculated options
-	std::string targetDevName;
-	std::string targetDevSerial;
+	VideoDevice targetDev;
 	std::string targetVideoDevPath;
-	int         targetChannelIndex = -1;
 
 	// current video signal status
 	MWCAP_VIDEO_SIGNAL_STATUS vssCur = {};
@@ -461,7 +549,6 @@ int main(int argc, char* argv[]) {
 	char init_time[256] = {0};
 	char start_str[256] = {0};
 	char stop_str[256] = {0};
-	int nMov = 0;
 	char frameRate[256] = {0};
 
 	MW_RESULT mr = MW_SUCCEEDED;
@@ -490,87 +577,26 @@ int main(int argc, char* argv[]) {
 	do {
 		usleep(1000000);
 		HCHANNEL hChannel = NULL;
-		MW_RESULT mwRes = MWRefreshDevice();
-		if( mwRes!=MW_SUCCEEDED )
-			cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
-		int nCount = MWGetChannelCount();
-
-		if( opts.verbose )
-			cout << "Channel count: " << nCount << endl;
-
-		if (nCount <= 0) {
-			cout << "ERROR[001]: Can't find channels!" << endl;
-			if ( recording > 0 ){
+		if( !findTargetVideoDevice(cfg, opts, targetDev) ) {
+			if ( recording > 0 ) {
 				getTimeStr(stop_str);
 				stopRecording(start_str, opts.outPath);
 				recording = 0;
 				cout << stop_str << ":\tStopped recording. No channels!"<<endl;
-				nMov++;
 			}
+			if( opts.verbose ) cout << "Wait, no channels found" << endl;
 			continue;
 		}
 
-		for (int i = 0; i < nCount; i++) {
-
-			MWCAP_CHANNEL_INFO info;
-			mr = MWGetChannelInfoByIndex(i, &info);
-
-			if( opts.verbose ) {
-				cout << "Found device on channel " << i << ". " << chiToString(info) << endl;
-			}
-
-			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
-				if( cfg.has_device_serial_number ) {
-					if( cfg.device_serial_number==info.szBoardSerialNo ) {
-						if( opts.verbose ) {
-							cout << "Found USB Capture device with S/N="
-								 << info.szBoardSerialNo << " , index=" << i << endl;
-						}
-						targetDevSerial = info.szBoardSerialNo;
-						targetDevName = info.szProductName;
-						targetChannelIndex = i;
-						break;
-					} else {
-						if( opts.verbose ) {
-							cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
-								 << ", skip it, index=" << i << endl;
-						}
-					}
-				} else {
-					if( opts.verbose ) {
-						cout << "Found USB Capture device, index=" << i << endl;
-					}
-					targetDevSerial = info.szBoardSerialNo;
-					targetDevName = info.szProductName;
-					targetChannelIndex = i;
-					break;
-				}
-			} else {
-				if (info.wProductID == 0 && info.wFamilyID == 0) {
-					cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
-					if (recording > 0) {
-						getTimeStr(stop_str);
-						stopRecording(start_str, opts.outPath);
-						recording = 0;
-						cout << stop_str << ":\tStopped recording. No channels!" << endl;
-						nMov++;
-					}
-					//return -56; // NOTE: break or continue execution?
-				} else {
-					if( opts.verbose ) {
-						cout << "Unknown USB device, skip it, index=" << i << endl;
-					}
-				}
-			}
-		}
-
-		if( targetChannelIndex<0 ) {
+		if( targetDev.channelIndex<0 ) {
 			if( opts.verbose ) cout << "Wait, no valid USB devices found" << endl;
 			continue;
 		}
 
+		if( opts.verbose ) cout << "Found target device: " << vdToString(targetDev) << endl;
+
 		char wPath[256] = {0};
-		mr = MWGetDevicePath(targetChannelIndex, wPath);
+		mr = MWGetDevicePath(targetDev.channelIndex, wPath);
 		if( opts.verbose )
 			cout << "Device path: " << wPath << endl;
 
@@ -582,10 +608,8 @@ int main(int argc, char* argv[]) {
 
 		sprintf(frameRate, "%.0f", round( 10000000./(vssCur.dwFrameDuration==0?-1:vssCur.dwFrameDuration)));
 
-		if( opts.verbose ) {
-			// just dump current video signal status
-			cout << vssToString(vssCur) << ". frameRate=" << frameRate << endl;
-		}
+		// just dump current video signal status
+		if( opts.verbose ) cout << vssToString(vssCur) << ". frameRate=" << frameRate << endl;
 
 		if (  ( vssCur.cx > 0 ) && ( vssCur.cx  < 9999 ) && (vssCur.cy > 0) && (vssCur.cy < 9999)) {
 			if (recording == 0) {
@@ -595,18 +619,18 @@ int main(int argc, char* argv[]) {
 				} else {
 					targetVideoDevPath = getVideoDevicePathBySerial(opts.verbose,
 																	cfg.video_device_path_pattern,
-																	targetDevSerial);
+																	targetDev.serial);
 					if( targetVideoDevPath.empty() ) {
 						targetVideoDevPath = "/dev/video_not_found_911";
-						cerr << "ERROR[007]: video device path not found by S/N: " << targetDevSerial
+						cerr << "ERROR[007]: video device path not found by S/N: " << targetDev.serial
 							 << ", use fallback one: " << targetVideoDevPath << endl;
 					}
 				}
 
 				if( !cfg.ffm_opts.has_v_dev || !cfg.has_device_serial_number ) {
 					cout << "    <> Found Video Device          ===> "
-						 << targetVideoDevPath << ", S/N: " << targetDevSerial
-						 << ", " << targetDevName << endl;
+						 << targetVideoDevPath << ", S/N: " << targetDev.serial
+						 << ", " << targetDev.name << endl;
 				}
 
 				startRecording(cfg, vssCur.cx, vssCur.cy, frameRate, start_str,
@@ -623,15 +647,12 @@ int main(int argc, char* argv[]) {
 					cout << stop_str;
 					cout << ":\tStopped recording because something changed."<<endl;
 					stopRecording(start_str, opts.outPath);
-					nMov++;
 					recording = 0;
 				}
 			}
 		}
 		else {
-			if( opts.verbose ) {
-				cout << "No valid video signal detected from target device" << endl;
-			}
+			if( opts.verbose ) cout << "No valid video signal detected from target device" << endl;
 
 			if (recording == 1) {
 				getTimeStr(stop_str);
@@ -639,7 +660,6 @@ int main(int argc, char* argv[]) {
 				cout << ":\tWhack resolution: " << vssCur.cx << "x" << vssCur.cy;
 				cout << ". Stopped recording" << endl;
 				stopRecording(start_str, opts.outPath);
-				nMov++;
 				recording = 0;
 			}
 		}
