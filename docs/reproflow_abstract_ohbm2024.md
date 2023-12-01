@@ -1,57 +1,46 @@
-# ReproFlow: ReproNim tools to establish scalable and automated MRI and behavioral data acquisition and QC
+# ReproFlow: a scalable environment for automated MRI and behavioral data integration
 
 ## Authors
 Horea-Ioan Ioanas
 Vadim Melnik
 Yaroslav O. Halchenko
 
+
+!!! should we make it fMRI? Would make it clearer. Sure you can potentially use behaviour as a session condition for structural/DTI measurements, but we don't want people asking themselves about that in the middle of reading the abstract... Also, has anybody actually done this?
+
 ## Introduction
 
-In neuroimaging and behavioral research, reproducibility is a critical goal, achievable through the standardization and automation of data acquisition and quality assurance (QA) processes.
-Standardization, especially in aligning data with the Brain Imaging Data Structure (BIDS) standard, is crucial as it not only facilitates efficient and thorough QA but also ensures consistency and interoperability across studies.
-The ReproNim project has made significant strides in this regard, offering a suite of tools - heudiconv with reproin heuristic, ReproStim, ReproEvents, and datalad/containers - which if combined in a workflow would collectively be termed 'ReproFlow'.
-ReproFlow is an approach to provide a scalable, automated approach for MRI and behavioral data acquisition, ensuring adherence to BIDS and enhancing the overall efficiency, quality and reproducibility of neuroimaging research.
-Here we will present a prototypical setup at Dartmouth Brain Imaging Center, incorporating of which at other centers can establish a robust, BIDS-compliant foundation, critical for advancing the field through reproducible, high-quality studies.
+Reproducibility is a critical consideration for modern neuroscience and is greatly aided by automation of data acquisition and standardization of data records.
+MRI and behavioural data are two of the foremost modalities in human neuroscience, making the seamless integration of these modalities a significant concern for numerous research centers.
+The Brain Imaging Data Structure (BIDS) is a preeminent data standard, well-suited for both modalities, and which ensures interoperability of data analysis tools as well as transparency of data records.
+The ReproNim project has made significant contributions in improving access to BIDS conversion, data sharing, and integration with quality assurance (QA) processes.
+ReproFlow is an environment which integrates numerous ReproNim tools — such as heuDiConv, ReproStim, ReproEvents, and datalad — in order to provide a scalable and automated solution for MRI and behavioural data integration.
+Here we present a pilot implementation of this environment, set up at the Dartmouth Brain Imaging Center, covering both software and open hardware solutions.
+The adaptation of this environment can help other centers establish a robust, multi-modal, and BIDS-compliant data acquisition pipeline, and thus significantly advance the reliability of modern neuroscience.
 
 ## Methods
 
-We have been developing a number of Free and Open Source software solutions and participated in BIDS standard development to ensure that not only that we have tools but have a standard to accommodate the (meta)data.
-The main components of the ReproFlow are:
-Heudiconv : https://github.com/nipy/heudiconv –…
-ReproIn: https://github.com/repronim/reproin – heuristic for HeuDiConv and specification for organizing and naming sequences in the scanner to automate conversion of neuroimaging data from DICOMs into BIDS
-ReproEvents: https://github.com/ReproNim/reprostim – audio/video capture
-ReproStim: (if not to be moved) https://github.com/ReproNim/reprostim/tree/master/Events – capturing of events from Curdes
-con/noisseur: https://github.com/con/noisseur  - capturing and OCRing for QC metadata entered at the scanner (e.g. sequence names, etc)
-https://github.com/ReproNim/containers – to provide reusable archive of containers…
+We have developed a number of Free and Open Source Software (FOSS) solutions, and made extensive contributions to the BIDS standard, in order to ensure both standard support for multimodal metadata, and adequate tools to automatically populate the metadata space.
+The ReproFlow environment consists of 6 core tools developed my the ReproNim project.
+HeuDiConv provides automatic MRI conversion from DICOM to BIDS.
+ReproIn provides user customization capabilities for HeuDiConv via an extensive heuristic syntax.
+ReproEvents provides audio and video capture capabilites to integrate complex stimuli with MRI data.
+ReproStim provides support for capturing behavioural events from participants.
+!!! Do we have anything for non-keypress behaviour? Eye tracking maybe? if not perhaps we should be more precise and not use the word “behaviour” when we go into the details.
+Con/noisseur captures and performs QA on operator input from the scanner.
+ReproNim Containers provide reusable software environments to ensure reliable deployment of the above tools.
 
-We actively participate in BIDS standard development to ensure that it provides adequate support for needed modalities, e.g. for ReproStim recorded stimuli (reference: https://github.com/bids-standard/bids-specification/issues/751 “RFC: stimuli BEP”), clarification of inheritance principle, etc.
-
-Here Figure which has   
-Stimuli laptop (of researcher) connected to projector via VGA splitter, and audio headphones via splitter
-Projector connected to VGA splitter
-MRI magnet + MRI console computer/display (through DVI splitter) - connected to the network
-Optical trigger pulse sent to curdes
-Curdes 
-connected to data beast via network
-Connected via USB to experimenter laptop
-Data beast on the network (wifi), connected to NTP server
-2 magewell devices connected to USB:
-One connected to VGA splitter + audio splitter
-Another to MRI console display DVI splitter
-Micropython thingie connected to curdes DB-35 (or whatever it is) and to databeast via usb
-Mri-inbox - server with PACS to receive DICOMs
-Rolando - server having DICOMs mounted via NFS, running 
-Heudiconv etc to place into BIDS datasets
-Whatever we come up with to slice videos into BIDS
-Whatever we come up with to slice events into BIDS _events.tsv
-(not yet sure if to be there) Falkor - web server providing ///ReproNim/containers 
-
-So pretty much more elaborate version of https://github.com/repronim/reproin#overall-workflow 
 
 ## Results
 
-At Dartmouth Brain Imaging Center (DBIC) we had collected and converted to BIDS over 40 DICOM datasets of various sizes using HeuDiConv/ReproIn.
-We have collected hours of audio/video stimuli using ReproStim, and those were already successfully used for recovery of randomization order and to check for presence of the suspected lag between audio and video in a few cases.
-ReproEvents and con/noissuer is yet to be deployed on permanent basis, but we expect to have all tooling and sample datasets to present by the time of the OHBM 2024 meeting.
+!!! Figure here, not in methods, since the environment is the result of our work, the methods are the tools we use for it.
+
+Over the course of its development, our HeuDiConv/ReproIn implementation at the Dartmouth Brain Imaging Center has been used to collect and standardize over 40 MRI datasets, which are now openly shareable in an understandable fashion for inspection and reuse by the broader research community.
+We have additionally collected corresponding audio/video stimuli using ReproStim, which were successfully used to recover previously undocumented experimental aspects (such as randomization order) and to improve data quality by identifying the presence of lag between modalities.
+ReproEvents and Con/noisseur are currently in early deployment and provide incipient event time stamp synchronization between the various modalities.
 
 ## Conclusions
+
+We argue based on our results that data integration remains a non-trivial matter for multi-modal set-ups and that significant improvements in automation and transparency are necessary to ensure data reliability.
+In particular, general-purpose open-source tools are needed in order to ensure sustainability of acquisition frameworks over time, and to ensure relevant know-how is shared across centers.
+We propose ReproFlow as a solution for these requirements and encourage re-use of this environment.
