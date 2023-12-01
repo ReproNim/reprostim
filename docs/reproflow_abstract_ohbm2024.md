@@ -21,13 +21,14 @@ The adaptation of this environment can help other centers establish a robust, mu
 ## Methods
 
 We have developed a number of Free and Open Source Software (FOSS) solutions, and made extensive contributions to the BIDS standard, in order to ensure both standard support for multimodal metadata, and adequate tools to automatically populate the metadata space.
-The ReproFlow environment consists of 6 core tools developed my the ReproNim project.
+The ReproFlow environment consists of 7 core tools developed my the ReproNim project.
 HeuDiConv provides automatic MRI conversion from DICOM to BIDS.
 ReproIn provides user customization capabilities for HeuDiConv via an extensive heuristic syntax.
 ReproEvents provides audio and video capture capabilites to integrate complex stimuli with MRI data.
 ReproStim provides support for capturing behavioural events from participants.
 !!! Do we have anything for non-keypress behaviour? Eye tracking maybe? if not perhaps we should be more precise and not use the word “behaviour” when we go into the details.
 Con/noisseur captures and performs QA on operator input from the scanner.
+ReproMon complements the QA capabilities by providing support for online operator feedback and alerts in case of incidents or anomalous metadata input.
 ReproNim Containers provide reusable software environments to ensure reliable deployment of the above tools.
 
 
