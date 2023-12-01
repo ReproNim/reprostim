@@ -1,33 +1,108 @@
 digraph graphname {
+    //newrank=true;
     size="14,8";
     graph [fontname = "sans", margin=0, splines=spline];
     rankdir="LR";
     node [fontname = "sans", style=filled];
     edge [fontname = "sans", color=gray50];
-    ntp[label="NTP Server", shape=ellipse, fillcolor=white, color="#5577FF"]
-    vga[shape=point, color=gray50];
-    aux[shape=point, color=gray50];
-    aud[label="Audio/Video Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
-    dis[label="Display Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
-    eve[label="Event Recorder", shape=box, color="#BBBBBB", fillcolor=grey93];
-    dat[label="Data Integrator", shape=box, color="#BBBBBB", fillcolor=grey93];
-    pac[label="PACS Server", shape=box, color="#BBBBBB", fillcolor=grey93];
+    ntp[label="NTP Server", shape=ellipse, fillcolor="#90B0FF", color=none, fontcolor=gray95]
+    aud[
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                <TR>
+                    <TD PORT="a">Audio/Video converter</TD>
+                    <TD PORT="usb">USB</TD>
+                </TR>
+            </TABLE>>
+            fillcolor=none;
+            shape=none;
+            color="#DDDDDD",
+    ];
+    eve[
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                <TR>
+                    <TD>      Event Recorder     </TD>
+                    <TD PORT="usb">USB</TD>
+                </TR>
+            </TABLE>>
+            fillcolor=none;
+            shape=none;
+            color="#DDDDDD",
+    ];
+    dat[label=" Data Integrator ", shape=box, color="#BBBBBB", fillcolor=grey93];
+    pac[
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                <TR>
+                    <TD PORT="a">       PACS Server        </TD>
+                    <TD PORT="eth">ETH</TD>
+                </TR>
+            </TABLE>>
+            fillcolor=none;
+            shape=none;
+            color="#DDDDDD",
+    ];
     bid[label="BIDS Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
-    rec[label=<Response Collector<BR/><FONT COLOR="#999999">(Current Designs)</FONT>>, shape=box, color="#BBBBBB", fillcolor=grey93];
-    dvi[shape=point, color=gray50]
+    dis[
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                <TR>
+                    <TD PORT="a">    Display Converter   </TD>
+                    <TD PORT="usb">USB</TD>
+                </TR>
+            </TABLE>>
+            fillcolor=none;
+            shape=none;
+            color="#DDDDDD",
+    ];
+    rec[
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                <TR>
+                    <TD PORT="a">Response Collector<BR/><FONT COLOR="#999999">(Current Designs)</FONT></TD>
+                    <TD PORT="ttl">Parallel<BR/>TTL</TD>
+                </TR>
+            </TABLE>>
+            fillcolor=none;
+            shape=none;
+            color="#DDDDDD",
+    ];
     subgraph cluster_operator {
         label="Operator";
         fontcolor=red;
         color=red;
         margin=10;
 
-        per[label="Personal Computer", shape=box, color="#BBBBBB", fillcolor=grey93];
-        mri[label=<MRI System<BR/><FONT COLOR="#999999">(Siemens)</FONT>>, shape=box, color="#BBBBBB", fillcolor=grey93];
-        mrm[label="MRI Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
-    mri -> dvi[headlabel="DVI", color=gray50, fontcolor=gray50, arrowhead=none, weight=100];
-    per -> aux[headlabel="AUX",  color=gray50, fontcolor=gray50, arrowhead=none, weight=100];
-    per -> vga[headlabel="VGA", color=gray50, fontcolor=gray50, arrowhead=none, weight=100];
-        ale[label="Alert Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        per[
+            label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                    <TR><TD ROWSPAN="3">Personal Computer</TD></TR>
+                    <TR>
+                        <TD PORT="vga">VGA</TD>
+                    </TR>
+                    <TR>
+                        <TD PORT="aux">AUX</TD>
+                    </TR>
+                </TABLE>>
+                fillcolor=none;
+                shape=none;
+                color="#DDDDDD",
+        ];
+
+        mrm[label="         MRI Monitor        ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        mri[
+            label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                    <TR><TD ROWSPAN="4">      MRI System     <BR/><FONT COLOR="#999999">(Siemens)</FONT></TD></TR>
+                    <TR>
+                        <TD PORT="dvi">DVI</TD>
+                    </TR>
+                    <TR>
+                        <TD PORT="optic">optic</TD>
+                    </TR>
+                    <TR>
+                        <TD PORT="eth">ETH</TD>
+                    </TR>
+                </TABLE>>
+                fillcolor=none,
+                shape=none,
+                color="#DDDDDD",
+        ];
+        ale[label="         Alert Monitor        ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
     }
 
     subgraph cluster_subject {
@@ -36,30 +111,41 @@ digraph graphname {
         color="#22AA22";
         margin=10;
 
-        vid[label="Video Projector", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
-        hea[label="Headphones", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
-        res[label="Response Device", shape=box, color="#BBBBBB", fillcolor=grey93];
+        vid[label="          Video Projector       ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        hea[label="           Headphones           ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        res[
+            label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                    <TR>
+                        <TD>    Response Device    </TD>
+                        <TD PORT="optic">optic</TD>
+                    </TR>
+                </TABLE>>
+                fillcolor=none;
+                shape=none;
+                color="#DDDDDD",
+        ];
     }
 
-    dvi -> mrm[constraint=false];
-    vga -> vid;
-    aux -> hea;
-    mri:e -> rec[label="Optic Fiber", color=gray50, fontcolor=gray50, weight=3];
-    res -> rec[label="Optic Fiber", color=gray50, fontcolor=gray50];
-    rec -> eve[label="Parallel TTL", color=gray50, fontcolor=gray50];
-    eve -> dat[label="USB", color=gray50, fontcolor=gray50];
-    dvi -> dis;
-    vga -> aud;
-    aux -> aud;
-    mri:e -> pac[label="ETH", color=gray50, fontcolor=gray50, weight=3];
-    pac -> bid[label="ETH", color=gray50, fontcolor=gray50];
-    dat -> bid[label="ETH", color=gray50, fontcolor=gray50];
-    dis -> dat[label="USB", color=gray50, fontcolor=gray50];
-    ntp -> dat[style=dotted, label="wifi", color="#5577FF", fontcolor="#5577FF"];
-    aud -> dat[label="USB", color=gray50, fontcolor=gray50];
-    dat -> ale[constraint=false]
+    mri:dvi:n -> mrm[constraint=false];
+    per:vga -> vid;
+    per:aux:e -> hea;
+    mri:optic -> rec:a;
+    res:optic -> rec:a;
+    rec:ttl -> eve;
+    eve:usb -> dat;
+    mri:dvi:e -> dis:a;
+    per:vga -> aud:a:w;
+    per:aux:e -> aud:a:w;
+    mri:eth -> pac:a;
+    pac:eth:e -> bid;
+    dat -> bid;
+    dis:usb -> dat;
+    ntp -> dat[label="WiFi   ", color="#5588FF", fontcolor="#5588FF"];
+    aud:usb -> dat:w;
+    dat -> ale;
     //{ rank=same; op1; op2; }
-    { rank=same; aud; rec; dis; pac; }
+    { rank=same; aud; rec; dis; pac; eve}
+    //{ rank=same; aud; rec; dis; pac; vid; hea; res }
     //{ rank=same; aud; rec; dis; pac; hea; vid; res}
     //{ rank=same; mri; pac; }
     { rank=same; ntp; dat; bid; }
