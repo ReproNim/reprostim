@@ -41,8 +41,6 @@ digraph graphname {
     per -> aux[headlabel="AUX",  color=gray50, fontcolor=gray50, arrowhead=none];
     per -> vga[headlabel="VGA", color=gray50, fontcolor=gray50, arrowhead=none];
     dvi -> mrm[constraint=false];
-    // op1 -> per[label="Operator", fontcolor=red, style=dotted, color=red];
-    // op2 -> mrc[label="Operator", fontcolor=red, style=dotted, color=red];
     vga -> vid;
     aux -> hea;
     mri -> sti[label="Optic Fiber", color=gray50, fontcolor=gray50, weight=3];
