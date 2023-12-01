@@ -1,5 +1,4 @@
 digraph graphname {
-    //newrank=true;
     size="14,8";
     graph [fontname = "sans", margin=0, splines=spline];
     rankdir="LR";
@@ -16,8 +15,6 @@ digraph graphname {
     bid[label="BIDS Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
     sti[label="Stimulus Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
     dvi[shape=point, color=gray50]
-    // op1[style=invis];
-    // op2[style=invis];
     subgraph cluster_operator {
         label="Operator";
         fontcolor=red;
