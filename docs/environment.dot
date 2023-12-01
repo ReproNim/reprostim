@@ -13,7 +13,7 @@ digraph graphname {
     dat[label="Data Integrator", shape=box, color="#BBBBBB", fillcolor=grey93];
     pac[label="PACS Server", shape=box, color="#BBBBBB", fillcolor=grey93];
     bid[label="BIDS Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
-    sti[label="Stimulus Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
+    rec[label=<Response Collector<BR/><FONT COLOR="#999999">(Current Designs)</FONT>>, shape=box, color="#BBBBBB", fillcolor=grey93];
     dvi[shape=point, color=gray50]
     subgraph cluster_operator {
         label="Operator";
@@ -22,8 +22,12 @@ digraph graphname {
         margin=10;
 
         per[label="Personal Computer", shape=box, color="#BBBBBB", fillcolor=grey93];
-        mri[label="MRI System", shape=box, color="#BBBBBB", fillcolor=grey93];
+        mri[label=<MRI System<BR/><FONT COLOR="#999999">(Siemens)</FONT>>, shape=box, color="#BBBBBB", fillcolor=grey93];
         mrm[label="MRI Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+    mri -> dvi[headlabel="DVI", color=gray50, fontcolor=gray50, arrowhead=none, weight=100];
+    per -> aux[headlabel="AUX",  color=gray50, fontcolor=gray50, arrowhead=none, weight=100];
+    per -> vga[headlabel="VGA", color=gray50, fontcolor=gray50, arrowhead=none, weight=100];
+        ale[label="Alert Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
     }
 
     subgraph cluster_subject {
@@ -37,28 +41,26 @@ digraph graphname {
         res[label="Response Device", shape=box, color="#BBBBBB", fillcolor=grey93];
     }
 
-    mri -> dvi[headlabel="DVI", color=gray50, fontcolor=gray50, arrowhead=none];
-    per -> aux[headlabel="AUX",  color=gray50, fontcolor=gray50, arrowhead=none];
-    per -> vga[headlabel="VGA", color=gray50, fontcolor=gray50, arrowhead=none];
     dvi -> mrm[constraint=false];
     vga -> vid;
     aux -> hea;
-    mri -> sti[label="Optic Fiber", color=gray50, fontcolor=gray50, weight=3];
-    res -> sti[label="Optic Fiber", color=gray50, fontcolor=gray50];
-    sti -> eve[label="Parallel TTL", color=gray50, fontcolor=gray50];
+    mri:e -> rec[label="Optic Fiber", color=gray50, fontcolor=gray50, weight=3];
+    res -> rec[label="Optic Fiber", color=gray50, fontcolor=gray50];
+    rec -> eve[label="Parallel TTL", color=gray50, fontcolor=gray50];
     eve -> dat[label="USB", color=gray50, fontcolor=gray50];
     dvi -> dis;
     vga -> aud;
     aux -> aud;
-    mri -> pac[label="ETH", color=gray50, fontcolor=gray50, weight=3];
+    mri:e -> pac[label="ETH", color=gray50, fontcolor=gray50, weight=3];
     pac -> bid[label="ETH", color=gray50, fontcolor=gray50];
     dat -> bid[label="ETH", color=gray50, fontcolor=gray50];
     dis -> dat[label="USB", color=gray50, fontcolor=gray50];
     ntp -> dat[style=dotted, label="wifi", color="#5577FF", fontcolor="#5577FF"];
     aud -> dat[label="USB", color=gray50, fontcolor=gray50];
+    dat -> ale[constraint=false]
     //{ rank=same; op1; op2; }
-    { rank=same; aud; sti; dis; pac; }
-    //{ rank=same; aud; sti; dis; pac; hea; vid; res}
+    { rank=same; aud; rec; dis; pac; }
+    //{ rank=same; aud; rec; dis; pac; hea; vid; res}
     //{ rank=same; mri; pac; }
     { rank=same; ntp; dat; bid; }
     //{ rank=same; dvi; aux; vga; }
