@@ -1,0 +1,72 @@
+digraph graphname {
+    //newrank=true;
+    size="14,8";
+    graph [fontname = "sans", margin=0, splines=spline];
+    rankdir="LR";
+    node [fontname = "sans", style=filled];
+    edge [fontname = "sans", color=gray50];
+    ntp[label="NTP Server", shape=ellipse, fillcolor=white, color="#5577FF"]
+    vga[shape=point, color=gray50];
+    aux[shape=point, color=gray50];
+    aud[label="Audio/Video Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
+    dis[label="Display Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
+    eve[label="Event Recorder", shape=box, color="#BBBBBB", fillcolor=grey93];
+    dat[label="Data Integrator", shape=box, color="#BBBBBB", fillcolor=grey93];
+    pac[label="PACS Server", shape=box, color="#BBBBBB", fillcolor=grey93];
+    bid[label="BIDS Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
+    sti[label="Stimulus Converter", shape=box, color="#BBBBBB", fillcolor=grey93];
+    dvi[shape=point, color=gray50]
+    // op1[style=invis];
+    // op2[style=invis];
+    subgraph cluster_operator {
+        label="Operator";
+        fontcolor=red;
+        color=red;
+        margin=10;
+
+        per[label="Personal Computer", shape=box, color="#BBBBBB", fillcolor=grey93];
+        mri[label="MRI System", shape=box, color="#BBBBBB", fillcolor=grey93];
+        mrm[label="MRI Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+    }
+
+    subgraph cluster_subject {
+        label="Subject";
+        fontcolor="#22AA22";
+        color="#22AA22";
+        margin=10;
+
+        vid[label="Video Projector", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        hea[label="Headphones", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        res[label="Response Device", shape=box, color="#BBBBBB", fillcolor=grey93];
+    }
+
+    mri -> dvi[headlabel="DVI", color=gray50, fontcolor=gray50, arrowhead=none];
+    per -> aux[headlabel="AUX",  color=gray50, fontcolor=gray50, arrowhead=none];
+    per -> vga[headlabel="VGA", color=gray50, fontcolor=gray50, arrowhead=none];
+    dvi -> mrm[constraint=false];
+    // op1 -> per[label="Operator", fontcolor=red, style=dotted, color=red];
+    // op2 -> mrc[label="Operator", fontcolor=red, style=dotted, color=red];
+    vga -> vid;
+    aux -> hea;
+    mri -> sti[label="Optic Fiber", color=gray50, fontcolor=gray50, weight=3];
+    res -> sti[label="Optic Fiber", color=gray50, fontcolor=gray50];
+    sti -> eve[label="Parallel TTL", color=gray50, fontcolor=gray50];
+    eve -> dat[label="USB", color=gray50, fontcolor=gray50];
+    dvi -> dis;
+    vga -> aud;
+    aux -> aud;
+    mri -> pac[label="ETH", color=gray50, fontcolor=gray50, weight=3];
+    pac -> bid[label="ETH", color=gray50, fontcolor=gray50];
+    dat -> bid[label="ETH", color=gray50, fontcolor=gray50];
+    dis -> dat[label="USB", color=gray50, fontcolor=gray50];
+    ntp -> dat[style=dotted, label="wifi", color="#5577FF", fontcolor="#5577FF"];
+    aud -> dat[label="USB", color=gray50, fontcolor=gray50];
+    //{ rank=same; op1; op2; }
+    { rank=same; aud; sti; dis; pac; }
+    //{ rank=same; aud; sti; dis; pac; hea; vid; res}
+    //{ rank=same; mri; pac; }
+    { rank=same; ntp; dat; bid; }
+    //{ rank=same; dvi; aux; vga; }
+    //{ rank=same; per; mri; mrm; vid; hea; res; }
+    //{ rank=same; cluster_subject; cluster_operator; }
+}
