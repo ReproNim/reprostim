@@ -19,7 +19,7 @@ The adaptation of this environment can help other centers establish a robust, mu
 ## Methods
 
 We have developed a number of Free and Open Source Software (FOSS) solutions, and made extensive contributions to the BIDS standard, in order to ensure both standard support for multimodal metadata, and adequate tools to automatically populate the metadata space.
-The ReproFlow environment consists of 8 core tools developed my the ReproNim project.
+The ReproFlow environment consists of 8 core tools developed by the ReproNim project.
 HeuDiConv provides configurable MRI conversion from DICOM to a desired layout.
 ReproIn provides configuration for HeuDiConv via an extensive heuristic syntax, and a user assistance utility.
 ReproEvents provides audio and video capture capabilites to integrate complex stimuli with MRI data.
