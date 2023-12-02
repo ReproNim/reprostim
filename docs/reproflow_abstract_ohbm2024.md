@@ -6,15 +6,15 @@ Vadim Melnik
 Yaroslav O. Halchenko
 
 
-!!! should we make it fMRI? Would make it clearer. Sure you can potentially use behaviour as a session condition for structural/DTI measurements, but we don't want people asking themselves about that in the middle of reading the abstract... Also, has anybody actually done this?
+!!! should we make it fMRI? Would make it clearer. Sure you can potentially use behavior as a session condition for structural/DTI measurements, but we don't want people asking themselves about that in the middle of reading the abstract... Also, has anybody actually done this?
 
 ## Introduction
 
 Reproducibility is a critical consideration for modern neuroscience and is greatly aided by automation of data acquisition and standardization of data records.
-MRI and behavioural data are two of the foremost modalities in human neuroscience, making the seamless integration of these modalities a significant concern for numerous research centers.
+MRI and behavioral data are two of the foremost modalities in human neuroscience, making the seamless integration of these modalities a significant concern for numerous research centers.
 The Brain Imaging Data Structure (BIDS) is a preeminent data standard, well-suited for both modalities, and which ensures interoperability of data analysis tools as well as transparency of data records.
-The ReproNim project has made significant contributions in improving access to BIDS conversion, data sharing, and integration with quality assurance (QA) processes.
-ReproFlow is an environment which integrates numerous ReproNim tools — such as heuDiConv, ReproStim, ReproEvents, and datalad — in order to provide a scalable and automated solution for MRI and behavioural data integration.
+The ReproNim project has made significant contributions in improving BIDS standard itself, access to BIDS conversion, data sharing, and integration with quality assurance (QA) processes.
+ReproFlow is an environment which integrates numerous ReproNim tools — such as HeuDiConv, ReproIn, ReproStim, ReproEvents, ReproMon, con/noissure, ///repronim/containers, DataLad, and datalad-containers extension — in order to provide a scalable and automated solution for MRI and behavioral data acquisition and integration in a standardized form.
 Here we present a pilot implementation of this environment, set up at the Dartmouth Brain Imaging Center, covering both software and open hardware solutions.
 The adaptation of this environment can help other centers establish a robust, multi-modal, and BIDS-compliant data acquisition pipeline, and thus significantly advance the reliability of modern neuroscience.
 
@@ -22,23 +22,27 @@ The adaptation of this environment can help other centers establish a robust, mu
 
 We have developed a number of Free and Open Source Software (FOSS) solutions, and made extensive contributions to the BIDS standard, in order to ensure both standard support for multimodal metadata, and adequate tools to automatically populate the metadata space.
 The ReproFlow environment consists of 7 core tools developed my the ReproNim project.
-HeuDiConv provides automatic MRI conversion from DICOM to BIDS.
-ReproIn provides user customization capabilities for HeuDiConv via an extensive heuristic syntax.
+HeuDiConv provides configurable MRI conversion from DICOM to a desired layout.
+ReproIn provides configuration for HeuDiConv for HeuDiConv via an extensive heuristic syntax, and an assistance utility.
 ReproEvents provides audio and video capture capabilites to integrate complex stimuli with MRI data.
-ReproStim provides support for capturing behavioural events from participants.
-!!! Do we have anything for non-keypress behaviour? Eye tracking maybe? if not perhaps we should be more precise and not use the word “behaviour” when we go into the details.
-Con/noisseur captures and performs QA on operator input from the scanner.
+ReproStim provides support for capturing behavioral events from participants.
+Con/noisseur captures and performs QA on operator input at the scanner console.
 ReproMon complements the QA capabilities by providing support for online operator feedback and alerts in case of incidents or anomalous metadata input.
-ReproNim Containers provide reusable software environments to ensure reliable deployment of the above tools.
+///ReproNim//containers provides DataLad dataset with popular containers and assistance scripts to ensure reproducible execution.
+DataLad and datalad-containers provide logistics for data and containers manipulations and provenance tracking.
+
+!!! Do we have anything for non-keypress behavior? Eye tracking maybe? if not perhaps we should be more precise and not use the word “behavior” when we go into the details.
 
 
 ## Results
 
-!!! Figure here, not in methods, since the environment is the result of our work, the methods are the tools we use for it.
-
 Over the course of its development, our HeuDiConv/ReproIn implementation at the Dartmouth Brain Imaging Center has been used to collect and standardize over 40 MRI datasets, which are now openly shareable in an understandable fashion for inspection and reuse by the broader research community.
 We have additionally collected corresponding audio/video stimuli using ReproStim, which were successfully used to recover previously undocumented experimental aspects (such as randomization order) and to improve data quality by identifying the presence of lag between modalities.
-ReproEvents and Con/noisseur are currently in early deployment and provide incipient event time stamp synchronization between the various modalities.
+ReproEvents, ReproMon, and Con/noisseur are currently in early deployment and provide incipient event time stamp synchronization between the various modalities.
+///ReproNim/containers contains all BIDS-Apps, NeuroDesk application, and other containers.
+
+!!! Figure here, not in methods, since the environment is the result of our work, the methods are the tools we use for it.
+
 
 ## Conclusions
 
