@@ -132,17 +132,17 @@ digraph graphname {
     mri:optic -> rec:a;
     res:optic -> rec:a;
     rec:ttl -> eve;
-    eve:usb -> dat;
+    eve:usb -> dat:w;
     mri:dvi:e -> dis:a;
-    per:vga -> aud:a:w;
+    per:vga -> aud:a:w[weight=5];
     per:aux:e -> aud:a:w;
     mri:eth -> pac:a;
     pac:eth:e -> bid;
     dat -> bid;
-    dis:usb -> dat;
+    dis:usb -> dat:w;
     ntp -> dat[label="WiFi   ", color="#5588FF", fontcolor="#5588FF"];
     aud:usb -> dat:w;
-    dat -> ale;
+    dat -> ale[weight=3];
     //{ rank=same; op1; op2; }
     { rank=same; aud; rec; dis; pac; eve}
     //{ rank=same; aud; rec; dis; pac; vid; hea; res }
