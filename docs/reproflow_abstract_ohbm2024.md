@@ -14,7 +14,7 @@ Reproducibility is a critical consideration for modern neuroscience and is great
 MRI and behavioral data are two of the foremost modalities in human neuroscience, making the seamless integration of these modalities a significant concern for numerous research centers.
 The Brain Imaging Data Structure (BIDS) is a preeminent data standard, well-suited for both modalities, and which ensures interoperability of data analysis tools as well as transparency of data records.
 The ReproNim project has made significant contributions in improving BIDS standard itself, access to BIDS conversion, data sharing, and integration with quality assurance (QA) processes.
-ReproFlow is an environment which integrates numerous ReproNim tools — such as HeuDiConv, ReproIn, ReproStim, ReproEvents, ReproMon, con/noissure, ///repronim/containers, DataLad, and datalad-containers extension — in order to provide a scalable and automated solution for MRI and behavioral data acquisition and integration in a standardized form.
+ReproFlow is an environment which integrates numerous ReproNim tools — such as HeuDiConv, ReproIn, ReproStim, ReproEvents, ReproMon, con/noisseur, ///repronim/containers, DataLad, and datalad-containers extension — in order to provide a scalable and automated solution for MRI and behavioral data acquisition and integration in a standardized form.
 Here we present a pilot implementation of this environment, set up at the Dartmouth Brain Imaging Center, covering both software and open hardware solutions.
 The adaptation of this environment can help other centers establish a robust, multi-modal, and BIDS-compliant data acquisition pipeline, and thus significantly advance the reliability of modern neuroscience.
 
@@ -31,8 +31,6 @@ ReproMon complements the QA capabilities by providing support for online operato
 ///ReproNim//containers provides DataLad dataset with popular containers and assistance scripts to ensure reproducible execution.
 DataLad and datalad-containers provide logistics for data and containers manipulations and provenance tracking.
 
-!!! Do we have anything for non-keypress behavior? Eye tracking maybe? if not perhaps we should be more precise and not use the word “behavior” when we go into the details.
-
 
 ## Results
 
@@ -40,9 +38,6 @@ Over the course of its development, our HeuDiConv/ReproIn implementation at the 
 We have additionally collected corresponding audio/video stimuli using ReproStim, which were successfully used to recover previously undocumented experimental aspects (such as randomization order) and to improve data quality by identifying the presence of lag between modalities.
 ReproEvents, ReproMon, and Con/noisseur are currently in early deployment and provide incipient event time stamp synchronization between the various modalities.
 ///ReproNim/containers contains all BIDS-Apps, NeuroDesk application, and other containers.
-
-!!! Figure here, not in methods, since the environment is the result of our work, the methods are the tools we use for it.
-
 
 ## Conclusions
 
