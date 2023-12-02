@@ -37,8 +37,6 @@ We have additionally collected corresponding audio/video stimuli using ReproStim
 ReproEvents, ReproMon, and Con/noisseur are currently in early deployment and provide incipient event time stamp synchronization between the various modalities.
 ///ReproNim/containers contains all BIDS-Apps, NeuroDesk application, and other containers.
 
-!!! Figure here, not in methods, since the environment is the result of our work, the methods are the tools we use for it.
-
 
 ## Conclusions
 
