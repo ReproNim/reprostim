@@ -6,8 +6,6 @@ Vadim Melnik
 Yaroslav O. Halchenko
 
 
-!!! should we make it fMRI? Would make it clearer. Sure you can potentially use behavior as a session condition for structural/DTI measurements, but we don't want people asking themselves about that in the middle of reading the abstract... Also, has anybody actually done this?
-
 ## Introduction
 
 Reproducibility is a critical consideration for modern neuroscience and is greatly aided by automation of data acquisition and standardization of data records.
@@ -30,8 +28,6 @@ Con/noisseur captures and performs QA on operator input at the scanner console.
 ReproMon complements the QA capabilities by providing support for online operator feedback and alerts in case of incidents or anomalous metadata input.
 ///ReproNim//containers provides DataLad dataset with popular containers and assistance scripts to ensure reproducible execution.
 DataLad and datalad-containers provide logistics for data and containers manipulations and provenance tracking.
-
-!!! Do we have anything for non-keypress behavior? Eye tracking maybe? if not perhaps we should be more precise and not use the word “behavior” when we go into the details.
 
 
 ## Results
