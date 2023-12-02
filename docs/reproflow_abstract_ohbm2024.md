@@ -6,8 +6,6 @@ Vadim Melnik
 Yaroslav O. Halchenko
 
 
-!!! should we make it fMRI? Would make it clearer. Sure you can potentially use behavior as a session condition for structural/DTI measurements, but we don't want people asking themselves about that in the middle of reading the abstract... Also, has anybody actually done this?
-
 ## Introduction
 
 Reproducibility is a critical consideration for modern neuroscience and is greatly aided by automation of data acquisition and standardization of data records.
