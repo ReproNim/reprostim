@@ -15,7 +15,7 @@ CFLAGS += -O0 \
           -Wno-unused-but-set-variable \
           -Wno-missing-field-initializers  \
           -fPIC \
-	  -std=c++11 \
+	  -std=c++17 \
 	  -g \
 	  $(LOCAL_CFLAGS) \
 	  
