@@ -43,6 +43,7 @@
 /************************************************************************************************/
 
 #include <iostream>
+#include <filesystem>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -65,6 +66,7 @@
 using std::cerr;
 using std::cout;
 using std::endl;
+namespace fs = std::filesystem;
 
 /* ######################### begin common ############################# */
 
@@ -390,6 +392,20 @@ struct VideoDevice {
 	int         channelIndex = -1;
 };
 
+bool checkOutDir(bool verbose, const std::string& outDir) {
+	if( !fs::exists(outDir)) {
+		_VERBOSE("Output path not exists, creating...");
+		if (fs::create_directories(outDir)) {
+			_VERBOSE("Done.");
+			return true;
+		} else {
+			_VERBOSE("Failed create output path: " << outDir);
+			return false;
+		}
+	}
+	return true;
+}
+
 bool findTargetVideoDevice(const AppConfig& cfg,
 						   const AppOpts& opts,
 						   VideoDevice& vd) {
@@ -545,6 +561,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	_VERBOSE("Output path: " << opts.outPath);
+	if( !checkOutDir(verbose, opts.outPath) ) {
+		// invalid output path
+		cerr << "ERROR[009]: Failed create/locate output path: " << opts.outPath << endl;
+		return -9;
+	}
 
 	// calculated options
 	VideoDevice targetDev;
