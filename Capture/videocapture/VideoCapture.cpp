@@ -193,6 +193,19 @@ std::string getTimeStr() {
 	return mov;
 }
 
+std::string mwcSdkVersion() {
+	BYTE bMajor = 0;
+	BYTE bMinor = 0;
+	WORD wBuild = 0;
+
+	if( MWGetVersion(&bMajor, &bMinor, &wBuild)==MW_SUCCEEDED ) {
+		std::ostringstream ostm;
+		ostm << int(bMajor) << "." << int(bMinor) << "." << int(wBuild);
+		return ostm.str();
+	}
+	return "?.?.?";
+}
+
 void safeMWCloseChannel(HCHANNEL& hChannel) {
 	if( hChannel != NULL) {
 		MWCloseChannel(hChannel);
@@ -395,7 +408,7 @@ struct VideoDevice {
 bool checkOutDir(bool verbose, const std::string& outDir) {
 	if( !fs::exists(outDir)) {
 		_VERBOSE("Output path not exists, creating...");
-		if (fs::create_directories(outDir)) {
+		if( fs::create_directories(outDir) ) {
 			_VERBOSE("Done.");
 			return true;
 		} else {
@@ -604,6 +617,8 @@ int main(int argc, char* argv[]) {
 	BOOL fInit = MWCaptureInitInstance();
 	if( !fInit )
 		cerr << "ERROR[005]: Failed MWCaptureInitInstance" << endl;
+
+	_VERBOSE("MWCapture SDK version: " << mwcSdkVersion());
 
 	do {
 		usleep(1000000);
