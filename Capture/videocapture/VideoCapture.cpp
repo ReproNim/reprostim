@@ -68,6 +68,14 @@ using std::endl;
 
 /* ######################### begin common ############################# */
 
+#ifndef _VERBOSE
+#define _VERBOSE(expr) if( verbose ) { cout << expr << endl; }
+#endif
+
+#ifndef PATH_MAX_LEN
+#define PATH_MAX_LEN 1024
+#endif
+
 std::string chiToString(MWCAP_CHANNEL_INFO& info) {
 	std::stringstream s;
 	s << "MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
@@ -84,10 +92,10 @@ std::string chiToString(MWCAP_CHANNEL_INFO& info) {
 	return s.str();
 }
 
-std::string exec(bool verbose, const char* cmd) {
+std::string exec(bool verbose, const std::string& cmd) {
 	std::array<char, 128> buffer;
 	std::string result;
-	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
 	if (!pipe) {
 		cerr << "popen() failed for cmd: " << cmd << endl;
 		throw std::runtime_error("popen() failed!");
@@ -95,7 +103,7 @@ std::string exec(bool verbose, const char* cmd) {
 	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 		result += buffer.data();
 	}
-	if( verbose ) cout << "exec -> :  " << result << endl;
+	_VERBOSE("exec -> :  " << result);
 	return result;
 }
 
@@ -122,8 +130,7 @@ std::vector<std::string> getVideoDevicePaths(const std::string& pattern) {
 
 std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
 	std::string serialNumber;
-	char cmd[1024] = {0};
-	sprintf(cmd, "v4l2-ctl -d %s --info", devPath.c_str());
+	std::string cmd = "v4l2-ctl -d " + devPath + " --info";
 
 	//std::string res = exec_cmd(verbose, cmd);
 	std::string res = exec(verbose, cmd);
@@ -146,7 +153,7 @@ std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
 			if (std::regex_search(res, mSerial, reSerial)) {
 				// The serial number is in the first capture group (index 1)
 				serialNumber = mSerial[1].str();
-				if( verbose ) std::cout << "Found Serial Number: " << serialNumber << std::endl;
+				_VERBOSE("Found Serial Number: " << serialNumber);
 			}
 		}
 	}
@@ -159,10 +166,10 @@ std::string getVideoDevicePathBySerial(bool verbose, const std::string& pattern,
 	std::vector<std::string> v1 = getVideoDevicePaths(pattern);
 
 	for (const auto& path : v1) {
-		if( verbose ) cout << path << endl;
+		_VERBOSE(path);
 		std::string sn = getVideoDeviceSerial(verbose, path);
 		if( !sn.empty() && sn==serial ) {
-			if( verbose ) cout << "Found video device path: " << path << ", S/N=" << serial << endl;
+			_VERBOSE("Found video device path: " << path << ", S/N=" << serial);
 			res = path;
 			break;
 		}
@@ -170,7 +177,8 @@ std::string getVideoDevicePathBySerial(bool verbose, const std::string& pattern,
 	return res;
 }
 
-void getTimeStr(char mov[256]) {
+std::string getTimeStr() {
+	char mov[256] = {0};
 	time_t now = time(0);
 	tm *ltm = localtime(&now);
 	int yr = 1900 + ltm->tm_year;
@@ -180,9 +188,23 @@ void getTimeStr(char mov[256]) {
 	int mn = ltm->tm_min;
 	int sc = ltm->tm_sec;
 	sprintf(mov, "%d.%02d.%02d.%02d.%02d.%02d", yr, mo, da, hr, mn, sc);
+	return mov;
+}
+
+void safeMWCloseChannel(HCHANNEL& hChannel) {
+	if( hChannel != NULL) {
+		MWCloseChannel(hChannel);
+		hChannel = NULL;
+	}
 }
 
 // Video signal status helpers
+std::string vssFrameRate(const MWCAP_VIDEO_SIGNAL_STATUS& vss) {
+	char frameRate[256] = {0};
+	sprintf(frameRate, "%.0f", round( 10000000./(vss.dwFrameDuration==0?-1:vss.dwFrameDuration)));
+	return frameRate;
+}
+
 bool vssEquals(const MWCAP_VIDEO_SIGNAL_STATUS& vss1,
 			   const MWCAP_VIDEO_SIGNAL_STATUS& vss2) {
 	// TODO: ?? structure has also x and y fields, but it isn't used in
@@ -305,7 +327,7 @@ bool loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 }
 
 int parseOpts(AppOpts& opts, int argc, char* argv[]) {
-	const char* HELP_STR = "Usage: VideoCapture -d <path> [-o <path> | -h | -v ]\n\n"
+	const std::string HELP_STR = "Usage: VideoCapture -d <path> [-o <path> | -h | -v ]\n\n"
 						   "\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
 						   "\t-o <path>\tOutput directory where to save recordings (optional)\n"
 						   "\t         \tDefaults to $REPROSTIM_HOME/Videos\n"
@@ -371,6 +393,7 @@ struct VideoDevice {
 bool findTargetVideoDevice(const AppConfig& cfg,
 						   const AppOpts& opts,
 						   VideoDevice& vd) {
+	bool verbose = opts.verbose;
 	vd.channelIndex = -1;
 	MW_RESULT mwRes = MWRefreshDevice();
 	if( mwRes!=MW_SUCCEEDED ) {
@@ -379,8 +402,7 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 	}
 	int nCount = MWGetChannelCount();
 
-	if( opts.verbose )
-		cout << "Channel count: " << nCount << endl;
+	_VERBOSE("Channel count: " << nCount);
 
 	if (nCount <= 0) {
 		cout << "ERROR[001]: Can't find channels!" << endl;
@@ -392,31 +414,21 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 		MWCAP_CHANNEL_INFO info;
 		mwRes = MWGetChannelInfoByIndex(i, &info);
 
-		if( opts.verbose ) {
-			cout << "Found device on channel " << i << ". " << chiToString(info) << endl;
-		}
+		_VERBOSE("Found device on channel " << i << ". " << chiToString(info));
 
 		if (strcmp(info.szFamilyName, "USB Capture") == 0) {
 			if( cfg.has_device_serial_number ) {
 				if( cfg.device_serial_number==info.szBoardSerialNo ) {
-					if( opts.verbose ) {
-						cout << "Found USB Capture device with S/N="
-							 << info.szBoardSerialNo << " , index=" << i << endl;
-					}
+					_VERBOSE("Found USB Capture device with S/N=" << info.szBoardSerialNo << " , index=" << i);
 					vd.serial       = info.szBoardSerialNo;
 					vd.name         = info.szProductName;
 					vd.channelIndex = i;
 					return true;
 				} else {
-					if( opts.verbose ) {
-						cout << "Unknown USB device with S/N=" << info.szBoardSerialNo
-							 << ", skip it, index=" << i << endl;
-					}
+					_VERBOSE("Unknown USB device with S/N=" << info.szBoardSerialNo << ", skip it, index=" << i);
 				}
 			} else {
-				if( opts.verbose ) {
-					cout << "Found USB Capture device, index=" << i << endl;
-				}
+				_VERBOSE("Found USB Capture device, index=" << i);
 				vd.serial       = info.szBoardSerialNo;
 				vd.name         = info.szProductName;
 				vd.channelIndex = i;
@@ -427,9 +439,7 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 				cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
 				return false;
 			} else {
-				if( opts.verbose ) {
-					cout << "Unknown USB device, skip it, index=" << i << endl;
-				}
+				_VERBOSE("Unknown USB device, skip it, index=" << i);
 			}
 		}
 	}
@@ -437,12 +447,14 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 }
 
 
-void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
-					char starttime[256],
+std::string startRecording(
+					const AppConfig& cfg,
+					int cx, int cy,
+					const std::string& frameRate,
 					const std::string& outPath,
 					const std::string& v_dev) {
-	getTimeStr(starttime);
-	char ffmpg[1024] = {0};
+	std::string start_ts = getTimeStr();
+	char ffmpg[PATH_MAX_LEN] = {0};
 	const FfmpegOpts& opts = cfg.ffm_opts;
 	sprintf(
 		ffmpg,
@@ -453,7 +465,7 @@ void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 		opts.a_opt.c_str(),
 		opts.a_dev.c_str(),
 		opts.v_fmt.c_str(),
-		fr,
+		frameRate.c_str(),
 		cx,
 		cy,
 		opts.v_opt.c_str(),
@@ -463,51 +475,49 @@ void startRecording(const AppConfig& cfg, int cx, int cy, char fr[256],
 		opts.n_threads.c_str(),
 		opts.a_enc.c_str(),
 		outPath.c_str(),
-		starttime,
+		start_ts.c_str(),
 		opts.out_fmt.c_str()
 	);
 
-	cout << starttime;
+	cout << start_ts;
 	cout << ": <SYSTEMCALL> " << ffmpg << endl;
 	system(ffmpg);
+	return start_ts;
 }
 
-void stopRecording(char start_str[256], const std::string& vpath) {
+void stopRecording(const std::string& start_ts, const std::string& vpath) {
 	std::string ffmpid;
 	ffmpid = exec(true, "pidof ffmpeg");
 	cout << "stop record says: " << ffmpid.c_str() << endl;
 	while ( ffmpid.length() > 0 ) {
 		cout << "<> PID of ffmpeg\t===> " << ffmpid.c_str() << endl;
-		char stop_str[256] = {0};
-		getTimeStr(stop_str);
-		char killCmd[256] = {0};
-		sprintf(killCmd, "kill -9 %s", ffmpid.c_str());
-		system(killCmd);
-		char oldname[256] = {0};
-		char newname[512] = {0};
-		sprintf(oldname, "%s/%s_.mkv", vpath.c_str(), start_str);
-		sprintf(newname, "%s/%s_%s.mkv", vpath.c_str(), start_str, stop_str);
-		cout << stop_str << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
+		std::string stop_ts = getTimeStr();
+		std::string killCmd = "kill -9 " + ffmpid;
+		system(killCmd.c_str());
+		//
+		std::string oldname = vpath + "/" + start_ts + "_.mkv";
+		std::string newname = vpath + "/" + start_ts + "_" + stop_ts + ".mkv";
+		cout << stop_ts << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
 		cout << newname << endl;
 		int x = 0;
-		x = rename(oldname, newname);
+		x = rename(oldname.c_str(), newname.c_str());
 		usleep(1500000); // Allow time for ffmpeg to stop
 		ffmpid = exec(true, "pidof ffmpeg");
 	}
 }
 
-/*
-TODO:
-void stopRecordingIfAny(const AppOpts& opts, int& recording, ) {
-
+void safeStopRecording(const AppOpts& opts,
+					   int& recording,
+					   const std::string& start_ts,
+					   const std::string& message
+					   ) {
 	if ( recording > 0 ) {
-		getTimeStr(stop_str);
-		stopRecording(start_str, opts.outPath);
+		std::string stop_str = getTimeStr();
+		stopRecording(start_ts, opts.outPath);
 		recording = 0;
-		cout << stop_str << ":\tStopped recording. No channels!"<<endl;
+		cout << stop_str << message << endl;
 	}
 }
-*/
 
 std::string vdToString(VideoDevice& vd) {
 	std::stringstream s;
@@ -522,18 +532,19 @@ int main(int argc, char* argv[]) {
 	AppConfig cfg;
 
 	const int res1 = parseOpts(opts, argc, argv);
+	bool verbose = opts.verbose;
 
 	if( res1==1 ) return 0; // help message
 	if( res1!=0 ) return res1;
 
-	if( opts.verbose ) cout << "Config file: " << opts.configPath << endl;
+	_VERBOSE("Config file: " << opts.configPath);
 
 	if( !loadConfig(cfg, opts.configPath) ) {
 		// config.yaml load/parse problems
 		return -8;
 	}
 
-	if ( opts.verbose ) cout << "Output path: " << opts.outPath << endl;
+	_VERBOSE("Output path: " << opts.outPath);
 
 	// calculated options
 	VideoDevice targetDev;
@@ -545,16 +556,16 @@ int main(int argc, char* argv[]) {
 	// previous video signal status
 	MWCAP_VIDEO_SIGNAL_STATUS vssPrev = {};
 
+	bool fRun = true;
 	int recording = 0;
-	char init_time[256] = {0};
-	char start_str[256] = {0};
-	char stop_str[256] = {0};
-	char frameRate[256] = {0};
+	std::string init_ts;
+	std::string start_ts;
+	std::string frameRate;
 
 	MW_RESULT mr = MW_SUCCEEDED;
 
-	getTimeStr(init_time);
-	cout << init_time;
+	init_ts = getTimeStr();
+	cout << init_ts;
 	cout << ": <><><> Starting VideoCapture <><><>" << endl;
 
 	cout << "    <> Saving Videos to            ===> " << opts.outPath << endl;;
@@ -563,11 +574,10 @@ int main(int argc, char* argv[]) {
 	cout << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto");
 	cout << endl;
 
-	if( opts.verbose ) {
-		if( cfg.has_device_serial_number )
-			cout << "Use device with specified S/N: " << cfg.device_serial_number << endl;
-		else
-			cout << "Use any first available Magewell USB Capture device" << endl;
+	if( cfg.has_device_serial_number ) {
+		_VERBOSE("Use device with specified S/N: " << cfg.device_serial_number);
+	} else {
+		_VERBOSE("Use any first available Magewell USB Capture device");
 	}
 
 	BOOL fInit = MWCaptureInitInstance();
@@ -578,27 +588,21 @@ int main(int argc, char* argv[]) {
 		usleep(1000000);
 		HCHANNEL hChannel = NULL;
 		if( !findTargetVideoDevice(cfg, opts, targetDev) ) {
-			if ( recording > 0 ) {
-				getTimeStr(stop_str);
-				stopRecording(start_str, opts.outPath);
-				recording = 0;
-				cout << stop_str << ":\tStopped recording. No channels!"<<endl;
-			}
-			if( opts.verbose ) cout << "Wait, no channels found" << endl;
+			safeStopRecording(opts, recording, start_ts, ":\tStopped recording. No channels!");
+			_VERBOSE("Wait, no channels found");
 			continue;
 		}
 
 		if( targetDev.channelIndex<0 ) {
-			if( opts.verbose ) cout << "Wait, no valid USB devices found" << endl;
+			_VERBOSE("Wait, no valid USB devices found");
 			continue;
 		}
 
-		if( opts.verbose ) cout << "Found target device: " << vdToString(targetDev) << endl;
+		_VERBOSE("Found target device: " << vdToString(targetDev));
 
 		char wPath[256] = {0};
 		mr = MWGetDevicePath(targetDev.channelIndex, wPath);
-		if( opts.verbose )
-			cout << "Device path: " << wPath << endl;
+		_VERBOSE("Device path: " << wPath);
 
 		// TODO: check res
 		hChannel = MWOpenChannelByPath(wPath);
@@ -606,10 +610,10 @@ int main(int argc, char* argv[]) {
 		// TODO: check res
 		MWGetVideoSignalStatus(hChannel, &vssCur);
 
-		sprintf(frameRate, "%.0f", round( 10000000./(vssCur.dwFrameDuration==0?-1:vssCur.dwFrameDuration)));
+		frameRate = vssFrameRate(vssCur);
 
 		// just dump current video signal status
-		if( opts.verbose ) cout << vssToString(vssCur) << ". frameRate=" << frameRate << endl;
+		_VERBOSE(vssToString(vssCur) << ". frameRate=" << frameRate);
 
 		if (  ( vssCur.cx > 0 ) && ( vssCur.cx  < 9999 ) && (vssCur.cy > 0) && (vssCur.cy < 9999)) {
 			if (recording == 0) {
@@ -633,46 +637,35 @@ int main(int argc, char* argv[]) {
 						 << ", " << targetDev.name << endl;
 				}
 
-				startRecording(cfg, vssCur.cx, vssCur.cy, frameRate, start_str,
-							   opts.outPath, targetVideoDevPath);
+				start_ts = startRecording(cfg, vssCur.cx, vssCur.cy, frameRate,
+										  opts.outPath, targetVideoDevPath);
 				recording = 1;
-				cout << start_str << ":\tStarted Recording: " << endl;
+				cout << start_ts << ":\tStarted Recording: " << endl;
 				cout << "Apct Rat: " << vssCur.cx << "x" << vssCur.cy << endl;
 				cout << "FR: " << frameRate << endl;
 				usleep(5000000);
 			}
 			else {
 				if( !vssEquals(vssCur, vssPrev) ) {
-					getTimeStr(stop_str);
-					cout << stop_str;
-					cout << ":\tStopped recording because something changed."<<endl;
-					stopRecording(start_str, opts.outPath);
-					recording = 0;
+					safeStopRecording(opts, recording, start_ts,
+									  ":\tStopped recording because something changed.");
 				}
 			}
 		}
 		else {
-			if( opts.verbose ) cout << "No valid video signal detected from target device" << endl;
+			_VERBOSE("No valid video signal detected from target device");
 
-			if (recording == 1) {
-				getTimeStr(stop_str);
-				cout << stop_str;
-				cout << ":\tWhack resolution: " << vssCur.cx << "x" << vssCur.cy;
-				cout << ". Stopped recording" << endl;
-				stopRecording(start_str, opts.outPath);
-				recording = 0;
-			}
+			std::ostringstream message;
+			message << ":\tWhack resolution: " << vssCur.cx << "x" << vssCur.cy;
+			message << ". Stopped recording";
+			safeStopRecording(opts, recording, start_ts, message.str());
 		}
 
 		vssPrev = vssCur;
+		safeMWCloseChannel(hChannel);
+	} while ( fRun );
 
-		if (hChannel != NULL) {
-			MWCloseChannel(hChannel);
-			hChannel = NULL;
-		}
-	} while ( true );
-
-	stopRecording(start_str, opts.outPath);
+	safeStopRecording(opts, recording, start_ts, "Program terminated");
 
 	if( fInit )
 		MWCaptureExitInstance();
