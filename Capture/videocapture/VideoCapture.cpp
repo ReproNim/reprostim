@@ -57,6 +57,7 @@
 #include <regex>
 #include <array>
 #include <cstring>
+#include <alsa/asoundlib.h>
 #include "yaml-cpp/yaml.h"
 #include "LibMWCapture/MWCapture.h"
 
@@ -77,6 +78,17 @@ namespace fs = std::filesystem;
 #ifndef PATH_MAX_LEN
 #define PATH_MAX_LEN 1024
 #endif
+
+struct VDevSerial {
+	std::string serialNumber;
+	std::string busInfo;
+};
+
+struct VDevPath {
+	std::string path;
+	std::string busInfo;
+};
+
 
 std::string chiToString(MWCAP_CHANNEL_INFO& info) {
 	std::stringstream s;
@@ -130,8 +142,9 @@ std::vector<std::string> getVideoDevicePaths(const std::string& pattern) {
 	return filenames;
 }
 
-std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
-	std::string serialNumber;
+// NOTE: uses by-value result
+VDevSerial getVideoDeviceSerial(bool verbose, const std::string& devPath) {
+	VDevSerial vdi;
 	std::string cmd = "v4l2-ctl -d " + devPath + " --info";
 
 	//std::string res = exec_cmd(verbose, cmd);
@@ -154,25 +167,34 @@ std::string getVideoDeviceSerial(bool verbose, const std::string& devPath) {
 			std::smatch mSerial;
 			if (std::regex_search(res, mSerial, reSerial)) {
 				// The serial number is in the first capture group (index 1)
-				serialNumber = mSerial[1].str();
-				_VERBOSE("Found Serial Number: " << serialNumber);
+				vdi.serialNumber = mSerial[1].str();
+				_VERBOSE("Found Serial Number: " << vdi.serialNumber);
+
+				std::regex reBusInfo("Bus info\\s+:\\s+([\\w\\-\\:\\.]+)");
+				std::smatch mBusInfo;
+				if (std::regex_search(res, mBusInfo, reBusInfo)) {
+					vdi.busInfo = mBusInfo[1].str();
+					_VERBOSE("Found Bus Info: " << vdi.busInfo);
+				}
 			}
 		}
 	}
-	return serialNumber;
+	return vdi;
 }
 
-std::string getVideoDevicePathBySerial(bool verbose, const std::string& pattern, const std::string& serial) {
-	std::string res;
+// NOTE: uses by-value result
+VDevPath getVideoDevicePathBySerial(bool verbose, const std::string& pattern, const std::string& serial) {
+	VDevPath res;
 	// NOTE: ?? should we use "v4l2-ctl --list-devices | grep /dev" to determine possible devices
 	std::vector<std::string> v1 = getVideoDevicePaths(pattern);
 
 	for (const auto& path : v1) {
 		_VERBOSE(path);
-		std::string sn = getVideoDeviceSerial(verbose, path);
-		if( !sn.empty() && sn==serial ) {
+		VDevSerial vdi = getVideoDeviceSerial(verbose, path);
+		if( !vdi.serialNumber.empty() && vdi.serialNumber==serial ) {
 			_VERBOSE("Found video device path: " << path << ", S/N=" << serial);
-			res = path;
+			res.path = path;
+			res.busInfo = vdi.busInfo;
 			break;
 		}
 	}
@@ -270,6 +292,7 @@ struct FfmpegOpts {
 	std::string a_fmt;
 	std::string a_nchan;
 	std::string a_dev;
+	bool        has_a_dev = false;
 	std::string a_opt;
 	std::string v_fmt;
 	std::string v_opt;
@@ -328,6 +351,7 @@ bool loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		opts.a_nchan = node["a_nchan"].as<std::string>();
 		opts.a_opt = node["a_opt"].as<std::string>();
 		opts.a_dev = node["a_dev"].as<std::string>();
+		opts.has_a_dev = !opts.a_dev.empty() && opts.a_dev != "auto";
 		opts.v_fmt = node["v_fmt"].as<std::string>();
 		opts.v_opt = node["v_opt"].as<std::string>();
 		opts.v_dev = node["v_dev"].as<std::string>();
@@ -475,16 +499,68 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 	return false;
 }
 
+std::string getAudioDevicePath(bool verbose, const std::string& busInfo) {
+	std::string res;
+
+	snd_ctl_t            *handle;
+	snd_ctl_card_info_t  *info;
+	// stack memory
+	snd_ctl_card_info_alloca(&info);
+
+	int card = -1;
+
+	if (snd_card_next(&card) < 0 || card < 0) {
+		return res;
+	}
+
+	_VERBOSE("Sound cards:");
+
+	do {
+		char card_name[32];
+		sprintf(card_name, "hw:%d", card);
+
+		if (snd_ctl_open(&handle, card_name, 0) < 0) {
+			_VERBOSE("Cannot open control for card" << card);
+			continue;
+		}
+
+		if( snd_ctl_card_info(handle, info) >= 0 )  {
+			std::string id = snd_ctl_card_info_get_id(info);
+			std::string name = snd_ctl_card_info_get_name(info);
+			std::string lname = snd_ctl_card_info_get_longname(info);
+			//_VERBOSE("Card " << int(card) << ": id=" << id << ", name=" << name << ", lname=" << lname);
+			snd_ctl_close(handle);
+
+			if( name.find("USB Capture")!=std::string::npos ) {
+				if( !busInfo.empty() &&
+					lname.find(busInfo)!=std::string::npos &&
+					lname.find("Magewell")!=std::string::npos )
+				{
+					_VERBOSE("Found target audio card: " << card);
+					std::ostringstream ostm;
+					ostm << "hw:" << card << ",0";
+					res = ostm.str();
+					break;
+				}
+			}
+
+		}
+	} while (snd_card_next(&card) >= 0 && card >= 0);
+	return res;
+}
 
 std::string startRecording(
 					const AppConfig& cfg,
 					int cx, int cy,
 					const std::string& frameRate,
 					const std::string& outPath,
-					const std::string& v_dev) {
+					const std::string& v_dev,
+					const std::string& a_dev) {
 	std::string start_ts = getTimeStr();
 	char ffmpg[PATH_MAX_LEN] = {0};
 	const FfmpegOpts& opts = cfg.ffm_opts;
+	std::string a_dev2 = a_dev;
+	if( a_dev2.find("-i ")!=0 ) a_dev2 = "-i " + a_dev2;
 	sprintf(
 		ffmpg,
 		"ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
@@ -492,7 +568,7 @@ std::string startRecording(
 		opts.a_fmt.c_str(),
 		opts.a_nchan.c_str(),
 		opts.a_opt.c_str(),
-		opts.a_dev.c_str(),
+		a_dev2.c_str(),
 		opts.v_fmt.c_str(),
 		frameRate.c_str(),
 		cx,
@@ -582,7 +658,9 @@ int main(int argc, char* argv[]) {
 
 	// calculated options
 	VideoDevice targetDev;
+	std::string targetBusInfo;
 	std::string targetVideoDevPath;
+	std::string targetAudioDevPath;
 
 	// current video signal status
 	MWCAP_VIDEO_SIGNAL_STATUS vssCur = {};
@@ -607,6 +685,7 @@ int main(int argc, char* argv[]) {
 	cout << cfg.ffm_opts.v_dev;
 	cout << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto");
 	cout << endl;
+	cout << "    <> Recording from Audio Device ===> " << cfg.ffm_opts.a_dev << endl;
 
 	if( cfg.has_device_serial_number ) {
 		_VERBOSE("Use device with specified S/N: " << cfg.device_serial_number);
@@ -656,10 +735,13 @@ int main(int argc, char* argv[]) {
 				// find target video device name/path when not specified explicitly
 				if( cfg.ffm_opts.has_v_dev ) {
 					targetVideoDevPath = cfg.ffm_opts.v_dev;
+					targetBusInfo = "N/A";
 				} else {
-					targetVideoDevPath = getVideoDevicePathBySerial(opts.verbose,
+					VDevPath vdp = getVideoDevicePathBySerial(opts.verbose,
 																	cfg.video_device_path_pattern,
 																	targetDev.serial);
+					targetVideoDevPath = vdp.path;
+					targetBusInfo = vdp.busInfo;
 					if( targetVideoDevPath.empty() ) {
 						targetVideoDevPath = "/dev/video_not_found_911";
 						cerr << "ERROR[007]: video device path not found by S/N: " << targetDev.serial
@@ -670,11 +752,25 @@ int main(int argc, char* argv[]) {
 				if( !cfg.ffm_opts.has_v_dev || !cfg.has_device_serial_number ) {
 					cout << "    <> Found Video Device          ===> "
 						 << targetVideoDevPath << ", S/N: " << targetDev.serial
+						 << ", busInfo: " << targetBusInfo
 						 << ", " << targetDev.name << endl;
 				}
 
-				start_ts = startRecording(cfg, vssCur.cx, vssCur.cy, frameRate,
-										  opts.outPath, targetVideoDevPath);
+				if( cfg.ffm_opts.has_a_dev ) {
+					targetAudioDevPath = cfg.ffm_opts.a_dev;
+				} else {
+					targetAudioDevPath = getAudioDevicePath(opts.verbose, targetBusInfo);
+					cout << "    <> Found Audio Device          ===> " << targetAudioDevPath << endl;
+				}
+				_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
+
+				start_ts = startRecording(cfg,
+										  vssCur.cx,
+										  vssCur.cy,
+										  frameRate,
+										  opts.outPath,
+										  targetVideoDevPath,
+										  targetAudioDevPath);
 				recording = 1;
 				cout << start_ts << ":\tStarted Recording: " << endl;
 				cout << "Apct Rat: " << vssCur.cx << "x" << vssCur.cy << endl;
