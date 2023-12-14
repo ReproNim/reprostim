@@ -1,0 +1,176 @@
+////////////////////////////////////////////////////////////////////////////
+// Module Version Information Resource Template
+// Author: Killer
+// Date Last Modified: 2000/03/24
+// History:
+//		2000/03/24 - Initial Release
+////////////////////////////////////////////////////////////////////////////
+
+#include "Product.h"
+#include "FileVer.h"
+
+#ifndef VER_MAJOR
+	#error Major Version (VER_MAJOR) Not Defined!
+#endif
+
+#ifndef VER_MINOR
+	#error Minor Version (VER_MINOR) Not Defined!
+#endif
+
+#ifndef VER_RELEASE
+	#error Release (VER_RELEASE) Not Defined!
+#endif
+
+#ifndef VER_BUILD
+	#error Build Version (VER_BUILD) Not Defined!
+#endif
+
+#if (VER_MINOR < 10)
+	#define VER_MINOR_PAD "0"
+#else
+	#define VER_MINOR_PAD
+#endif
+
+#if (VER_BUILD < 10)
+	#define VER_BUILD_PAD "00"
+#elif (VER_BUILD < 100)
+	#define VER_BUILD_PAD "0"
+#else
+	#define VER_BUILD_PAD
+#endif
+
+#ifndef VER_FILE_OS
+	#define VER_FILE_OS 0x4L
+#endif
+
+#ifndef VER_FILE_TYPE
+	#define VER_FILE_TYPE 0x2L
+#endif
+
+#ifndef VER_FILE_SUBTYPE
+	#define VER_FILE_SUBTYPE 0x0L
+#endif
+
+#if defined(_DEBUG) || defined(DEBUG)
+	#define VER_DEBUG           VS_FF_DEBUG
+#else
+	#define VER_DEBUG           0
+#endif
+
+#ifndef VER_CLASS
+	#define VER_CLASS "\0"
+#endif
+
+#define VER_FILE_FLAGS			(VER_DEBUG)
+#define VER_FILE_FLAGS_MASK		0x0030003FL
+
+#define VER_FILE_VERSION		VER_MAJOR, VER_MINOR, VER_RELEASE, VER_BUILD
+#define VER_PRODUCT_VERSION		VER_MAJOR, VER_MINOR, VER_RELEASE, 0
+
+#define VER_FILE_STR1(a, b, c, d)	#a "." VER_MINOR_PAD #b "." #c "." VER_BUILD_PAD #d "\0"
+#define VER_FILE_STR2(a, b, c, d)	VER_FILE_STR1(a, b, c, d)
+	
+#define VER_PRODUCT_STR1(a, b)	#a "." VER_MINOR_PAD #b "\0"
+#define VER_PRODUCT_STR2(a, b)	VER_PRODUCT_STR1(a, b)	
+
+#define VER_BUILD_STR1(a)		"Build: " #a
+#define VER_BUILD_STR2(a)		VER_BUILD_STR1(a)
+
+#define VER_FILE_VERSION_STR	VER_FILE_STR2(VER_MAJOR, VER_MINOR, VER_RELEASE, VER_BUILD)
+#define VER_PRODUCT_VERSION_STR	VER_PRODUCT_STR2(VER_MAJOR, VER_MINOR) " " VER_CLASS
+
+#define VER_RELEASE_NAME1(CLASS, NUMBER)	CLASS " " #NUMBER
+#define VER_RELEASE_NAME2(CLASS, NUMBER)	VER_RELEASE_NAME1(CLASS, NUMBER)
+
+#ifndef VER_COMMENT
+	#define VER_COMMENT_BUILD "* " VER_BUILD_STR2(VER_BUILD)
+
+	#ifdef VER_DATE
+		#define	VER_COMMENT_DATE "\r\n* Date: " VER_DATE
+	#else
+		#define	VER_COMMENT_DATE ""
+	#endif
+
+	#ifdef VER_SVN
+		#define	VER_COMMENT_REVISION "\r\n* Revision: " VER_SVN
+	#else
+		#define	VER_COMMENT_REVISION ""
+	#endif
+
+	#if defined(_DEBUG) || defined(DEBUG)
+		#define	VER_COMMENT_DEBUG "\r\n* Checked Build"
+	#else
+		#define	VER_COMMENT_DEBUG "\r\n* Free Build"
+	#endif
+
+	#if defined(_UNICODE)
+		#define	VER_COMMENT_CODING "\r\n* Unicode "
+	#else
+		#define	VER_COMMENT_CODING "\r\n* MBCS "
+	#endif
+
+#endif
+
+#ifndef FILE_DESCRIPTION
+	#define FILE_DESCRIPTION "Products Component\0"
+#endif
+
+#ifndef ORIGINAL_FILENAME
+	#define ORIGINAL_FILENAME "\0"
+#endif
+
+#ifndef INTERNAL_NAME
+	#define INTERNAL_NAME ORIGINAL_FILENAME
+#endif
+
+#ifndef LEGAL_TRADEMARKS
+	#define LEGAL_TRADEMARKS "Magewell (TM)\0"
+#endif
+
+#ifndef PRODUCT_NAME
+	#define PRODUCT_NAME "USB Capture Utility\0"
+#endif
+
+#ifndef COMPANY_NAME
+	#define COMPANY_NAME "Nanjing Magewell Electronics Co., LTD.\0"
+#endif
+
+#ifndef LEGAL_COPYRIGHT
+	#define LEGAL_COPYRIGHT "Copyright (c) 2011-2017 Nanjing Magewell Electronics " \
+							"Co., Ltd. All rights reserved.\0"
+#endif
+
+////////////////////////////////////////////////////////////////////////////
+//
+// Updated Version Resource
+//
+
+VS_VERSION_INFO VERSIONINFO
+	FILEVERSION VER_FILE_VERSION
+	PRODUCTVERSION	VER_PRODUCT_VERSION
+	FILEFLAGSMASK	0x0030003FL
+	FILEFLAGS		VER_FILE_FLAGS
+	FILEOS			VER_FILE_OS
+	FILETYPE		VER_FILE_TYPE
+	FILESUBTYPE		VER_FILE_SUBTYPE
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", COMPANY_NAME
+            VALUE "FileDescription", FILE_DESCRIPTION
+            VALUE "FileVersion", VER_FILE_VERSION_STR
+            VALUE "InternalName", INTERNAL_NAME
+            VALUE "LegalCopyright", LEGAL_COPYRIGHT
+			VALUE "LegalTrademarks", LEGAL_TRADEMARKS
+            VALUE "OriginalFilename", ORIGINAL_FILENAME
+            VALUE "ProductName", PRODUCT_NAME
+            VALUE "ProductVersion", VER_PRODUCT_VERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
