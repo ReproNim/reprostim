@@ -57,6 +57,8 @@
 #include <regex>
 #include <array>
 #include <cstring>
+#include <chrono>
+#include <thread>
 #include <alsa/asoundlib.h>
 #include "yaml-cpp/yaml.h"
 #include "LibMWCapture/MWCapture.h"
@@ -64,20 +66,34 @@
 // TODO: Consider moving this option to make file, e.g. CFLAGS += -Wno-write-strings
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-using std::cerr;
-using std::cout;
-using std::endl;
 namespace fs = std::filesystem;
 
 /* ######################### begin common ############################# */
 
+#ifndef _ERROR
+#define _ERROR(expr) std::cerr << expr << std::endl
+#endif
+
+#ifndef _INFO
+#define _INFO(expr) std::cout << expr << std::endl
+#endif
+
 #ifndef _VERBOSE
-#define _VERBOSE(expr) if( verbose ) { cout << expr << endl; }
+#define _VERBOSE(expr) if( verbose ) { std::cout << expr << std::endl; }
 #endif
 
 #ifndef PATH_MAX_LEN
 #define PATH_MAX_LEN 1024
 #endif
+
+#ifndef SLEEP_MS
+#define SLEEP_MS(sec) std::this_thread::sleep_for(std::chrono::milliseconds(sec))
+#endif
+
+#ifndef SLEEP_SEC
+#define SLEEP_SEC(sec) SLEEP_MS(static_cast<int>(sec*1000))
+#endif
+
 
 struct VDevSerial {
 	std::string serialNumber;
@@ -91,7 +107,7 @@ struct VDevPath {
 
 
 std::string chiToString(MWCAP_CHANNEL_INFO& info) {
-	std::stringstream s;
+	std::ostringstream s;
 	s << "MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
 	s << ", productID=" << info.wProductID;
 	s << ", hardwareVersion=" << info.chHardwareVersion;
@@ -111,7 +127,7 @@ std::string exec(bool verbose, const std::string& cmd) {
 	std::string result;
 	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
 	if (!pipe) {
-		cerr << "popen() failed for cmd: " << cmd << endl;
+		_ERROR("popen() failed for cmd: " << cmd);
 		throw std::runtime_error("popen() failed!");
 	}
 	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
@@ -128,8 +144,8 @@ std::vector<std::string> getVideoDevicePaths(const std::string& pattern) {
 	int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
 	if(return_value != 0) {
 		globfree(&glob_result);
-		std::stringstream ss;
-		ss << "glob() failed with return_value " << return_value << endl;
+		std::ostringstream ss;
+		ss << "glob() failed with return_value " << return_value << std::endl;
 		throw std::runtime_error(ss.str());
 	}
 
@@ -149,7 +165,7 @@ VDevSerial getVideoDeviceSerial(bool verbose, const std::string& devPath) {
 
 	//std::string res = exec_cmd(verbose, cmd);
 	std::string res = exec(verbose, cmd);
-	//cout << "Result: " << res << endl;
+	//_INFO("Result: " << res);
 	std::regex reVideoCapture("Video Capture");
 
 	// Find "Device Caps" section
@@ -264,7 +280,7 @@ bool vssEquals(const MWCAP_VIDEO_SIGNAL_STATUS& vss1,
 }
 
 std::string vssToString(const MWCAP_VIDEO_SIGNAL_STATUS& vsStatus) {
-	std::stringstream s;
+	std::ostringstream s;
 	s << "MWCAP_VIDEO_SIGNAL_STATUS: state=" << vsStatus.state;
 	s << ", x=" << vsStatus.x;
 	s << ", y=" << vsStatus.y;
@@ -327,8 +343,8 @@ bool loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 	try {
 		doc = YAML::LoadFile(pathConfig);
 	} catch(const std::exception& e) {
-		cerr << "ERROR[008]: Failed load/parse config file "
-		     << pathConfig << ": " << e.what() << endl;
+		_ERROR("ERROR[008]: Failed load/parse config file "
+		     << pathConfig << ": " << e.what());
 		return false;
 	}
 
@@ -377,8 +393,8 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 
 	int c = 0;
 	if (argc == 1) {
-		cerr << "ERROR[006]: Please provide valid options" << endl;
-		cout << HELP_STR << endl;
+		_ERROR("ERROR[006]: Please provide valid options");
+		_INFO(HELP_STR);
 		return 55;
 	}
 
@@ -394,7 +410,7 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 				if(optarg) opts.homePath = optarg;
 				break;
 			case 'h':
-				cout << HELP_STR << endl;
+				_INFO(HELP_STR);
 				return 1;
 			case 'v':
 				opts.verbose = true;
@@ -404,8 +420,8 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 
 	// Terminate when REPROSTIM_HOME not specified
 	if ( opts.homePath.empty() ){
-		cerr << "ERROR[007]: REPROSTIM_HOME not specified, see -d" << endl;
-		cout << HELP_STR << endl;
+		_ERROR("ERROR[007]: REPROSTIM_HOME not specified, see -d");
+		_INFO(HELP_STR);
 		return 55;
 	}
 
@@ -450,7 +466,7 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 	vd.channelIndex = -1;
 	MW_RESULT mwRes = MWRefreshDevice();
 	if( mwRes!=MW_SUCCEEDED ) {
-		cerr << "ERROR[004]: Failed MWRefreshDevice: " << mwRes << endl;
+		_ERROR("ERROR[004]: Failed MWRefreshDevice: " << mwRes);
 		return false;
 	}
 	int nCount = MWGetChannelCount();
@@ -458,7 +474,7 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 	_VERBOSE("Channel count: " << nCount);
 
 	if (nCount <= 0) {
-		cout << "ERROR[001]: Can't find channels!" << endl;
+		_ERROR("ERROR[001]: Can't find channels!");
 		return false;
 	}
 
@@ -489,7 +505,7 @@ bool findTargetVideoDevice(const AppConfig& cfg,
 			}
 		} else {
 			if (info.wProductID == 0 && info.wFamilyID == 0) {
-				cerr << "ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs." << endl;
+				_ERROR("ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.");
 				return false;
 			} else {
 				_VERBOSE("Unknown USB device, skip it, index=" << i);
@@ -584,8 +600,7 @@ std::string startRecording(
 		opts.out_fmt.c_str()
 	);
 
-	cout << start_ts;
-	cout << ": <SYSTEMCALL> " << ffmpg << endl;
+	_INFO(start_ts << ": <SYSTEMCALL> " << ffmpg);
 	system(ffmpg);
 	return start_ts;
 }
@@ -593,20 +608,19 @@ std::string startRecording(
 void stopRecording(const std::string& start_ts, const std::string& vpath) {
 	std::string ffmpid;
 	ffmpid = exec(true, "pidof ffmpeg");
-	cout << "stop record says: " << ffmpid.c_str() << endl;
+	_INFO("stop record says: " << ffmpid.c_str());
 	while ( ffmpid.length() > 0 ) {
-		cout << "<> PID of ffmpeg\t===> " << ffmpid.c_str() << endl;
+		_INFO("<> PID of ffmpeg\t===> " << ffmpid.c_str());
 		std::string stop_ts = getTimeStr();
 		std::string killCmd = "kill -9 " + ffmpid;
 		system(killCmd.c_str());
 		//
 		std::string oldname = vpath + "/" + start_ts + "_.mkv";
 		std::string newname = vpath + "/" + start_ts + "_" + stop_ts + ".mkv";
-		cout << stop_ts << ":\tKilling " << ffmpid.c_str() << ". Saving video ";
-		cout << newname << endl;
+		_INFO(stop_ts << ":\tKilling " << ffmpid.c_str() << ". Saving video " << newname);
 		int x = 0;
 		x = rename(oldname.c_str(), newname.c_str());
-		usleep(1500000); // Allow time for ffmpeg to stop
+		SLEEP_SEC(1.5); // Allow time for ffmpeg to stop
 		ffmpid = exec(true, "pidof ffmpeg");
 	}
 }
@@ -620,17 +634,17 @@ void safeStopRecording(const AppOpts& opts,
 		std::string stop_str = getTimeStr();
 		stopRecording(start_ts, opts.outPath);
 		recording = 0;
-		cout << stop_str << message << endl;
+		_INFO(stop_str << message);
 	}
 }
 
 std::string vdToString(VideoDevice& vd) {
-	std::stringstream s;
+	std::ostringstream s;
 	s << vd.name << ", S/N=" << vd.serial << ", channelIndex=" << vd.channelIndex;
 	return s.str();
 }
 
-
+////////////////////////////////////////////////////////////////////////////
 // Entry point
 int main(int argc, char* argv[]) {
 	AppOpts   opts;
@@ -652,7 +666,7 @@ int main(int argc, char* argv[]) {
 	_VERBOSE("Output path: " << opts.outPath);
 	if( !checkOutDir(verbose, opts.outPath) ) {
 		// invalid output path
-		cerr << "ERROR[009]: Failed create/locate output path: " << opts.outPath << endl;
+		_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
 		return -9;
 	}
 
@@ -677,15 +691,11 @@ int main(int argc, char* argv[]) {
 	MW_RESULT mr = MW_SUCCEEDED;
 
 	init_ts = getTimeStr();
-	cout << init_ts;
-	cout << ": <><><> Starting VideoCapture <><><>" << endl;
-
-	cout << "    <> Saving Videos to            ===> " << opts.outPath << endl;;
-	cout << "    <> Recording from Video Device ===> ";
-	cout << cfg.ffm_opts.v_dev;
-	cout << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto");
-	cout << endl;
-	cout << "    <> Recording from Audio Device ===> " << cfg.ffm_opts.a_dev << endl;
+	_INFO(init_ts << ": <><><> Starting VideoCapture <><><>");
+	_INFO("    <> Saving Videos to            ===> " << opts.outPath);
+	_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
+		<< ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto"));
+	_INFO("    <> Recording from Audio Device ===> " << cfg.ffm_opts.a_dev);
 
 	if( cfg.has_device_serial_number ) {
 		_VERBOSE("Use device with specified S/N: " << cfg.device_serial_number);
@@ -695,12 +705,12 @@ int main(int argc, char* argv[]) {
 
 	BOOL fInit = MWCaptureInitInstance();
 	if( !fInit )
-		cerr << "ERROR[005]: Failed MWCaptureInitInstance" << endl;
+		_ERROR("ERROR[005]: Failed MWCaptureInitInstance");
 
 	_VERBOSE("MWCapture SDK version: " << mwcSdkVersion());
 
 	do {
-		usleep(1000000);
+		SLEEP_SEC(1);
 		HCHANNEL hChannel = NULL;
 		if( !findTargetVideoDevice(cfg, opts, targetDev) ) {
 			safeStopRecording(opts, recording, start_ts, ":\tStopped recording. No channels!");
@@ -744,23 +754,23 @@ int main(int argc, char* argv[]) {
 					targetBusInfo = vdp.busInfo;
 					if( targetVideoDevPath.empty() ) {
 						targetVideoDevPath = "/dev/video_not_found_911";
-						cerr << "ERROR[007]: video device path not found by S/N: " << targetDev.serial
-							 << ", use fallback one: " << targetVideoDevPath << endl;
+						_ERROR("ERROR[007]: video device path not found by S/N: " << targetDev.serial
+							 << ", use fallback one: " << targetVideoDevPath);
 					}
 				}
 
 				if( !cfg.ffm_opts.has_v_dev || !cfg.has_device_serial_number ) {
-					cout << "    <> Found Video Device          ===> "
+					_INFO("    <> Found Video Device          ===> "
 						 << targetVideoDevPath << ", S/N: " << targetDev.serial
 						 << ", busInfo: " << targetBusInfo
-						 << ", " << targetDev.name << endl;
+						 << ", " << targetDev.name);
 				}
 
 				if( cfg.ffm_opts.has_a_dev ) {
 					targetAudioDevPath = cfg.ffm_opts.a_dev;
 				} else {
 					targetAudioDevPath = getAudioDevicePath(opts.verbose, targetBusInfo);
-					cout << "    <> Found Audio Device          ===> " << targetAudioDevPath << endl;
+					_INFO("    <> Found Audio Device          ===> " << targetAudioDevPath);
 				}
 				_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
 
@@ -772,10 +782,10 @@ int main(int argc, char* argv[]) {
 										  targetVideoDevPath,
 										  targetAudioDevPath);
 				recording = 1;
-				cout << start_ts << ":\tStarted Recording: " << endl;
-				cout << "Apct Rat: " << vssCur.cx << "x" << vssCur.cy << endl;
-				cout << "FR: " << frameRate << endl;
-				usleep(5000000);
+				_INFO(start_ts << ":\tStarted Recording: ");
+				_INFO("Apct Rat: " << vssCur.cx << "x" << vssCur.cy);
+				_INFO("FR: " << frameRate);
+				SLEEP_SEC(5);
 			}
 			else {
 				if( !vssEquals(vssCur, vssPrev) ) {
