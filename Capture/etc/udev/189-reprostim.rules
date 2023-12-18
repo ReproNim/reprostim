@@ -1,4 +1,11 @@
+# For an active user logged in via session manager
+#
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2935", TAG+="uaccess"
+
+# uaccess TAG is in effect for logind'ed user session. For a daemon it would not work, so we will
+# try to provide explicit permissions
+# SUBSYSTEM=="usb", ATTR{idVendor}=="2935", MODE="0660", OWNER="reprostim", GROUP="plugdev"
+
 
 
 
