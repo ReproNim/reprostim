@@ -186,9 +186,15 @@ In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
 
 ### 2) Create "udev" rules
 Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
-content listed below:
+appropriate content depending on system type. 
+
+For an active/desktop user logged in via session manager it should be like:
 
     ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2935", TAG+="uaccess"
+
+For a daemon configuration we should provide explicit permissions like:
+
+    SUBSYSTEM=="usb", ATTR{idVendor}=="2935", MODE="0660", OWNER="reprostim", GROUP="plugdev"
 
 Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in 
 step 1) from lsusb utility.
