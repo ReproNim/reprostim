@@ -460,6 +460,24 @@ bool checkOutDir(bool verbose, const std::string& outDir) {
 	return true;
 }
 
+int checkSystem(bool verbose) {
+	// check ffmpeg
+	std::string ffmpeg = exec(false, "which ffmpeg");
+	if( ffmpeg.empty() ) {
+		_ERROR("ffmpeg program not found. Please make sure ffmpeg package is installed.");
+		return EX_UNAVAILABLE;
+	}
+
+	// check v4l2-ctl
+	std::string v4l2ctl = exec(false, "which v4l2-ctl");
+	if( v4l2ctl.empty() ) {
+		_ERROR("v4l2-ctl program not found. Please make sure v4l-utils package is installed.");
+		return EX_UNAVAILABLE;
+	}
+
+	return EX_OK;
+}
+
 bool findTargetVideoDevice(const AppConfig& cfg,
 						   const AppOpts& opts,
 						   VideoDevice& vd) {
@@ -655,7 +673,7 @@ int main(int argc, char* argv[]) {
 	bool verbose = opts.verbose;
 
 	if( res1==1 ) return EX_OK; // help message
-	if( res1!=0 ) return res1;
+	if( res1!=EX_OK ) return res1;
 
 	_VERBOSE("Config file: " << opts.configPath);
 
@@ -669,6 +687,12 @@ int main(int argc, char* argv[]) {
 		// invalid output path
 		_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
 		return EX_CANTCREAT;
+	}
+
+	const int res2 = checkSystem(verbose);
+	if( res2!=EX_OK ) {
+		// problem with system configuration and installed packages
+		return res2;
 	}
 
 	// calculated options
