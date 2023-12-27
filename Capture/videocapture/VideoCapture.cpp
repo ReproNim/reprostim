@@ -59,6 +59,7 @@
 #include <cstring>
 #include <chrono>
 #include <thread>
+#include <sysexits.h>
 #include <alsa/asoundlib.h>
 #include "yaml-cpp/yaml.h"
 #include "LibMWCapture/MWCapture.h"
@@ -395,7 +396,7 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	if (argc == 1) {
 		_ERROR("ERROR[006]: Please provide valid options");
 		_INFO(HELP_STR);
-		return 55;
+		return EX_USAGE;
 	}
 
 	while( ( c = getopt (argc, argv, "d:o:c:hv") ) != -1 ) {
@@ -422,7 +423,7 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	if ( opts.homePath.empty() ){
 		_ERROR("ERROR[007]: REPROSTIM_HOME not specified, see -d");
 		_INFO(HELP_STR);
-		return 55;
+		return EX_USAGE;
 	}
 
 	// Set config filename if not specified on input
@@ -434,7 +435,7 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	if( opts.outPath.empty() ) {
 		opts.outPath = opts.homePath + "/Videos";
 	}
-	return 0;
+	return EX_OK;
 }
 
 /* ###################### end options/config ########################## */
@@ -653,21 +654,21 @@ int main(int argc, char* argv[]) {
 	const int res1 = parseOpts(opts, argc, argv);
 	bool verbose = opts.verbose;
 
-	if( res1==1 ) return 0; // help message
+	if( res1==1 ) return EX_OK; // help message
 	if( res1!=0 ) return res1;
 
 	_VERBOSE("Config file: " << opts.configPath);
 
 	if( !loadConfig(cfg, opts.configPath) ) {
 		// config.yaml load/parse problems
-		return -8;
+		return EX_CONFIG;
 	}
 
 	_VERBOSE("Output path: " << opts.outPath);
 	if( !checkOutDir(verbose, opts.outPath) ) {
 		// invalid output path
 		_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
-		return -9;
+		return EX_CANTCREAT;
 	}
 
 	// calculated options
@@ -811,5 +812,5 @@ int main(int argc, char* argv[]) {
 
 	if( fInit )
 		MWCaptureExitInstance();
-	return 0;
+	return EX_OK;
 }
