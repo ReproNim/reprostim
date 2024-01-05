@@ -19,6 +19,8 @@ net_if=$(ip route | awk '/^default/{print $5}')
 # configured usb dongle network
 birch_if=enx8cae4cdd98c0
 udev_rules="$topd/Capture/etc/udev/189-reprostim.rules"
+data_path=/data/reprostim
+user_name=reprostim
 
 
 
@@ -28,11 +30,11 @@ apt install -y net-tools ncdu
 # tools which will be used by our tools
 apt install -y git-annex
 
-if ! id reprostim > /dev/null; then
+if ! id "$user_name" > /dev/null; then
 	# might add --disabled-password here
-	adduser reprostim
+	adduser "$user_name"
 	for g in dialout audio dip video plugdev ; do
-		adduser reprostim $g || echo "failed adding to $g"
+		adduser "$user_name" $g || echo "failed adding to $g"
 	done
 fi
 
@@ -49,6 +51,35 @@ c=/etc/udev/rules.d/"$udev_rules_file"
 		echo "Need to reboot computer for udevd changes to take effect for already attached devices!"
 	fi
 }
+
+# Install build and run time dependencies -- for now just copy pasted from README.md
+apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils g++ make
+
+#
+# Prepare folder/config copy for data
+#
+
+[ -e "$data_path" ] || {
+	mkdir -p "$data_path"
+	cp "$topd/Capture/videocapture/config.yaml" "$data_path"
+	chown "$user_name:$user_name" -R "$data_path"
+	chmod o-rwX "$data_path"
+	if [ $(lsusb | grep -c "ID 2935") -gt 1 ]; then
+		echo "Multiple magewell devices detected -- adjust $data_path/config.yaml with device id"
+	fi
+}
+
+#
+## Install binaries
+#
+# TODO: rename/package/instlal consistently
+if [ ! -e /usr/local/bin/reprostim-videocapture ] && [ -e "$topd/Capture/videocapture/VideoCapture" ]; then
+	cp -p "$topd/Capture/videocapture/VideoCapture" "/usr/local/bin/reprostim-videocapture"
+	# TODO: add service script setup etc
+else
+	echo "Need to build VideoCapture"
+fi
+
 
 #
 # Connecting to Birch.  It needs us to provide it with dhcp server.
