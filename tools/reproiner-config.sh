@@ -12,10 +12,16 @@
 #
 set -eu
 
+topd=$(readlink -f "$0" | xargs dirname | xargs dirname)
+
 # default network interface
 net_if=$(ip route | awk '/^default/{print $5}')
 # configured usb dongle network
 birch_if=enx8cae4cdd98c0
+udev_rules="$topd/Capture/etc/udev/189-reprostim.rules"
+
+
+
 
 # helper tools installed
 apt install -y net-tools ncdu 
@@ -29,6 +35,20 @@ if ! id reprostim > /dev/null; then
 		adduser reprostim $g || echo "failed adding to $g"
 	done
 fi
+
+#
+## Magewell devices "support" for audio/video capture
+#
+udev_rules_file=$(basename "$udev_rules")
+c=/etc/udev/rules.d/"$udev_rules_file"
+[ -e "$c" ] || {
+	cp "$udev_rules" "$c"
+	udevadm control --reload
+	# But above is not sufficient if device already connected
+	if lsusb | grep -q "ID 2935"; then
+		echo "Need to reboot computer for udevd changes to take effect for already attached devices!"
+	fi
+}
 
 #
 # Connecting to Birch.  It needs us to provide it with dhcp server.
@@ -64,7 +84,7 @@ EOF
 	service isc-dhcp-server restart
 fi
 
-if ! grep "$birch_if" /etc/default/isc-dhcp-server; then
+if ! grep -q "$birch_if" /etc/default/isc-dhcp-server; then
 	sed -i -e "s,INTERFACESv4=.*,INTERFACESv4=\"$birch_if\",g" /etc/default/isc-dhcp-server
 	service isc-dhcp-server restart
 fi
