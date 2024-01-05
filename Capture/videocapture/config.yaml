@@ -2,6 +2,7 @@
 #
 # Use S/N from target Magewell USB Capture device, or specify "auto"
 # value to pickup first available USB Capture device.
+# Can use `lsusb -d 2935: -v  | grep iSer` to discover available.
 #
 #device_serial_number: "B208000000000"
 device_serial_number: "auto"
