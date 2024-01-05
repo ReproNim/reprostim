@@ -4,7 +4,9 @@
 # value to pickup first available USB Capture device.
 # Can use `lsusb -d 2935: -v  | grep iSer` to discover available.
 #
-#device_serial_number: "B208000000000"
+# The ones we have just FTR:
+#device_serial_number: "B208180921036"  # for con/noisure
+#device_serial_number: "B208220302195"  # reprostim
 device_serial_number: "auto"
 
 #
