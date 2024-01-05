@@ -1,0 +1,47 @@
+---
+#
+# Use S/N from target Magewell USB Capture device, or specify "auto"
+# value to pickup first available USB Capture device.
+#
+#device_serial_number: "B208000000000"
+device_serial_number: "auto"
+
+#
+# Specify basic pattern for possible video device path locations,
+# syntax is the same as pattern parameter in "glob" Linux API. This
+# parameter used only when "ffm_opts.v_dev" parameter set to "auto".
+#
+video_device_path_pattern: "/dev/video*"
+
+#
+# Video capture ffmpeg recording options
+#
+ffm_opts:
+  a_fmt: "-f alsa"
+  a_nchan: "-ac 2"
+  #
+  # Optionally, specify "a_dev" ALSA audio device explicitly (e.g. hw:1,0)
+  # to override value calculated from "device_serial_number" or specify
+  # "auto" value, to calculate "a_dev" automatically based on
+  # "device_serial_number" value
+  #
+  a_dev: "auto"
+  a_opt: "-thread_queue_size 4096"
+  v_fmt: "-f v4l2 -input_format yuyv422"
+  v_opt: "-thread_queue_size 4096"
+  #
+  # Optionally, specify "v_dev" explicitly to override value
+  # calculated from "device_serial_number" value or specify
+  # "auto" value, to calculate "v_dev" automatically based on
+  # "device_serial_number" value
+  #
+  # NOTE: in case v_dev specified explicitly, a_dev value
+  # should be also specified explicitly
+  #
+  #v_dev: "/dev/video4"
+  v_dev: "auto"
+  v_enc: "-c:v copy"
+  pix_fmt: ""
+  n_threads: ""
+  a_enc: "-acodec aac"
+  out_fmt: "mkv"
