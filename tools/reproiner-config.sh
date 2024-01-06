@@ -26,7 +26,7 @@ user_name=reprostim
 
 
 # helper tools installed
-apt install -y net-tools ncdu dstat
+apt install -y net-tools ncdu dstat btrfs-compsize
 # tools which will be used by our tools
 apt install -y git-annex
 
