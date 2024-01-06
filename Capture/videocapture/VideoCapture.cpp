@@ -43,6 +43,8 @@
 /************************************************************************************************/
 
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <filesystem>
 #include <stdio.h>
 #include <string.h>
@@ -219,17 +221,25 @@ VDevPath getVideoDevicePathBySerial(bool verbose, const std::string& pattern, co
 }
 
 std::string getTimeStr() {
-	char mov[256] = {0};
-	time_t now = time(0);
-	tm *ltm = localtime(&now);
-	int yr = 1900 + ltm->tm_year;
-	int mo = 1 + ltm->tm_mon;
-	int da = ltm->tm_mday;
-	int hr = ltm->tm_hour;
-	int mn = ltm->tm_min;
-	int sc = ltm->tm_sec;
-	sprintf(mov, "%d.%02d.%02d.%02d.%02d.%02d", yr, mo, da, hr, mn, sc);
-	return mov;
+    // Use chrono for high resolution time
+    auto now = std::chrono::system_clock::now();
+    auto nowAsTimeT = std::chrono::system_clock::to_time_t(now);
+    auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000; // extract milliseconds
+
+    // Convert to local time
+    tm *ltm = localtime(&nowAsTimeT);
+
+    // Prepare the string stream for formatting
+    std::stringstream ss;
+    ss << 1900 + ltm->tm_year << '.'
+       << std::setw(2) << std::setfill('0') << 1 + ltm->tm_mon << '.'
+       << std::setw(2) << std::setfill('0') << ltm->tm_mday << '.'
+       << std::setw(2) << std::setfill('0') << ltm->tm_hour << '.'
+       << std::setw(2) << std::setfill('0') << ltm->tm_min << '.'
+       << std::setw(2) << std::setfill('0') << ltm->tm_sec << '.'
+       << std::setw(3) << std::setfill('0') << nowMs.count();  // add milliseconds
+
+    return ss.str();
 }
 
 std::string mwcSdkVersion() {
