@@ -26,7 +26,7 @@ user_name=reprostim
 
 
 # helper tools installed
-apt install -y net-tools ncdu 
+apt install -y net-tools ncdu dstat
 # tools which will be used by our tools
 apt install -y git-annex
 
