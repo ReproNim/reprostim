@@ -36,6 +36,10 @@ if ! id "$user_name" > /dev/null; then
 	for g in dialout audio dip video plugdev ; do
 		adduser "$user_name" $g || echo "failed adding to $g"
 	done
+	# To stream line future git operations
+	su -c 'git config --global user.name "ReproStim User"' "$user_name"
+	su -c 'git config --global user.email "changeme@example.com"' "$user_name"
+	su -c 'ssh-keygen -q -N "" -f ~/.ssh/id_ed25519 -t ed25519' "$user_name"
 fi
 
 #
@@ -62,11 +66,21 @@ apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v
 [ -e "$data_path" ] || {
 	mkdir -p "$data_path"
 	cp "$topd/Capture/videocapture/config.yaml" "$data_path"
-	chown "$user_name:$user_name" -R "$data_path"
 	chmod o-rwX "$data_path"
+	# Let's make it into datalad dataset for git-annex webapp to sync etc
+	apt install -y datalad
+	datalad create -c text2git -f "$data_path"
+	datalad save -d "$data_path" -m "Initial content - just config"
+	# TODO: yet to make sure it works -- do not need to bother to add them unlocked
+	# seems to not work: https://git-annex.branchable.com/forum/Is_there_a_way_to_have_assistant_add_files_locked__63__/?updated#comment-f24e81205fec4165237a27a53886349c
+	git -C "$data_path" config annex.addunlocked  false
+	chown "$user_name:$user_name" -R "$data_path"
 	if [ $(lsusb | grep -c "ID 2935") -gt 1 ]; then
 		echo "Multiple magewell devices detected -- adjust $data_path/config.yaml with device id"
 	fi
+	# TODO: start here git annex webapp as service - configure to offload to remote
+	# location while removing locally
+	
 }
 
 #
