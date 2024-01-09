@@ -1,4 +1,4 @@
-TARGET_VIDEOCAPTURE := VideoCapture
+TARGET_VIDEOCAPTURE := reprostim-videocapture
 
 LOCAL_CFLAGS += -I../3rdparty/MWCapture_SDK_Linux-3_3_1_1313/Include
 

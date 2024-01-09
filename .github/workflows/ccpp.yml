@@ -25,5 +25,5 @@ jobs:
       working-directory: Capture/videocapture
 
     - name: Dry run of -h
-      run: ./VideoCapture -h
+      run: ./reprostim-videocapture -h
       working-directory: Capture/videocapture
