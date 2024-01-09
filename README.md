@@ -183,6 +183,10 @@ And locate line with device, e.g.:
 
 In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
 
+Optionally Magewell device name and serial number can be quickly checked with this command:
+
+    lsusb -d 2935: -v | grep -E 'iSerial|iProduct'
+
 
 ### 2) Create "udev" rules
 Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
