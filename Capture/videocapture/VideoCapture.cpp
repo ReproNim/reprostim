@@ -65,6 +65,7 @@
 #include <alsa/asoundlib.h>
 #include "yaml-cpp/yaml.h"
 #include "LibMWCapture/MWCapture.h"
+#include "capturelib.h"
 
 // TODO: Consider moving this option to make file, e.g. CFLAGS += -Wno-write-strings
 #pragma GCC diagnostic ignored "-Wwrite-strings"

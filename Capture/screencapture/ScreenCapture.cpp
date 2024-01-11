@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <cstring>
+#include "capturelib.h"
 
 int main() {
     int fd = open("/dev/video4", O_RDWR);

@@ -123,12 +123,17 @@ subjects.
 
 On Debian
 
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils g++ make
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils cmake g++
 
 ## Build
 
-    cd Capture/videocapture
+    cd Capture
+
+    mkdir build
+    cd build
+    cmake ..
     make
+
 
 ## Subdirectories Structure
 
