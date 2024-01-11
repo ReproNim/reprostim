@@ -2,7 +2,7 @@
 project (capturelib)
 
 add_library(${PROJECT_NAME} STATIC
-        src/capturelib.cpp
+        src/CaptureLib.cpp
 )
 add_library(reprostim::capturelib ALIAS ${PROJECT_NAME})
 

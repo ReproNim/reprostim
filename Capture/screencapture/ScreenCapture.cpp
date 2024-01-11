@@ -10,9 +10,28 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <cstring>
-#include "capturelib.h"
+#include <sysexits.h>
+#include "CaptureLib.h"
 
-int main() {
+
+// App configuration loaded from config.yaml, for
+// historical reasons keep names in Python style
+struct AppConfig {
+	std::string device_serial_number;
+	bool        has_device_serial_number = false;
+	std::string video_device_path_pattern;
+};
+
+// App command-line options and args
+struct AppOpts {
+	std::string configPath;
+	std::string homePath;
+	std::string outPath;
+	bool        verbose = false;
+};
+
+
+int main1() {
     int fd = open("/dev/video4", O_RDWR);
     if (fd == -1) {
         perror("Failed to open /dev/video4");
@@ -152,4 +171,99 @@ int main() {
     close(fd);
 
     return 0;
+}
+
+
+int parseOpts(AppOpts& opts, int argc, char* argv[]) {
+	const std::string HELP_STR = "Usage: ScreenCapture -d <path> [-o <path> | -h | -v ]\n\n"
+								 "\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
+								 "\t-o <path>\tOutput directory where to save recordings (optional)\n"
+								 "\t         \tDefaults to $REPROSTIM_HOME/Screens\n"
+								 "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
+								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
+								 "\t-v       \tVerbose, provides detailed information to stdout\n"
+								 "\t-h       \tPrint this help string\n";
+
+	int c = 0;
+	if (argc == 1) {
+		_ERROR("ERROR[006]: Please provide valid options");
+		_INFO(HELP_STR);
+		return EX_USAGE;
+	}
+
+	while( ( c = getopt (argc, argv, "d:o:c:hv") ) != -1 ) {
+		switch(c) {
+			case 'o':
+				if(optarg) opts.outPath = optarg;
+				break;
+			case 'c':
+				if(optarg) opts.configPath = optarg;
+				break;
+			case 'd':
+				if(optarg) opts.homePath = optarg;
+				break;
+			case 'h':
+				_INFO(HELP_STR);
+				return 1;
+			case 'v':
+				opts.verbose = true;
+				break;
+		}
+	}
+
+	// Terminate when REPROSTIM_HOME not specified
+	if ( opts.homePath.empty() ){
+		_ERROR("ERROR[007]: REPROSTIM_HOME not specified, see -d");
+		_INFO(HELP_STR);
+		return EX_USAGE;
+	}
+
+	// Set config filename if not specified on input
+	if ( opts.configPath.empty() ) {
+		opts.configPath = opts.homePath + "/config.yaml";
+	}
+
+	// Set output directory if not specified on input
+	if( opts.outPath.empty() ) {
+		opts.outPath = opts.homePath + "/Screens";
+	}
+	return EX_OK;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+// Entry point
+
+int main(int argc, char* argv[]) {
+	AppOpts   opts;
+	AppConfig cfg;
+
+	const int res1 = parseOpts(opts, argc, argv);
+	bool verbose = opts.verbose;
+
+	if( res1==1 ) return EX_OK; // help message
+	if( res1!=EX_OK ) return res1;
+
+/*
+	_VERBOSE("Config file: " << opts.configPath);
+
+	if( !loadConfig(cfg, opts.configPath) ) {
+		// config.yaml load/parse problems
+		return EX_CONFIG;
+	}
+
+	_VERBOSE("Output path: " << opts.outPath);
+	if( !checkOutDir(verbose, opts.outPath) ) {
+		// invalid output path
+		_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
+		return EX_CANTCREAT;
+	}
+
+	const int res2 = checkSystem(verbose);
+	if( res2!=EX_OK ) {
+		// problem with system configuration and installed packages
+		return res2;
+	}
+*/
+	return main1();
 }

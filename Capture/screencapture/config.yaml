@@ -1,0 +1,17 @@
+#
+# Use S/N from target Magewell USB Capture device, or specify "auto"
+# value to pickup first available USB Capture device.
+# Can use `lsusb -d 2935: -v  | grep iSer` to discover available.
+#
+# The ones we have just FTR:
+#device_serial_number: "B208180921036"  # for con/noisure
+#device_serial_number: "B208220302195"  # reprostim
+device_serial_number: "auto"
+
+#
+# Specify basic pattern for possible video device path locations,
+# syntax is the same as pattern parameter in "glob" Linux API. This
+# parameter used only when "ffm_opts.v_dev" parameter set to "auto".
+#
+video_device_path_pattern: "/dev/video*"
+
