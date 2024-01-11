@@ -87,8 +87,8 @@ apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v
 ## Install binaries
 #
 # TODO: rename/package/install consistently
-if [ ! -e /usr/local/bin/reprostim-videocapture ] && [ -e "$topd/Capture/videocapture/reprostim-videocapture" ]; then
-	cp -p "$topd/Capture/videocapture/reprostim-videocapture" "/usr/local/bin/reprostim-videocapture"
+if [ ! -e /usr/local/bin/reprostim-videocapture ] && [ -e "$topd/Capture/build/videocapture/reprostim-videocapture" ]; then
+	cp -p "$topd/Capture/build/videocapture/reprostim-videocapture" "/usr/local/bin/reprostim-videocapture"
 	# TODO: add service script setup etc
 else
 	echo "Need to build videocapture"
