@@ -60,6 +60,7 @@
 #include <array>
 #include <cstring>
 #include <chrono>
+#include <csignal>
 #include <thread>
 #include <sysexits.h>
 #include <alsa/asoundlib.h>
@@ -71,6 +72,10 @@ namespace fs = std::filesystem;
 
 /* ######################### begin common ############################# */
 
+#define EX_SYS_BREAK_EXEC		140	/* custom exit code when execution broken by Ctrl+C, SIGINT or similar events */
+
+// private static global flag
+/*static */ volatile sig_atomic_t s_nSysBreakExec = 0;
 
 
 struct VDevSerial {
@@ -217,6 +222,10 @@ std::string getTimeStr() {
     return ss.str();
 }
 
+bool isSysBreakExec() {
+	return s_nSysBreakExec == 0 ? false : true;
+}
+
 std::string mwcSdkVersion() {
 	BYTE bMajor = 0;
 	BYTE bMinor = 0;
@@ -235,6 +244,10 @@ void safeMWCloseChannel(HCHANNEL& hChannel) {
 		MWCloseChannel(hChannel);
 		hChannel = NULL;
 	}
+}
+
+void setSysBreakExec(bool fBreak) {
+	s_nSysBreakExec = fBreak ? 1 : 0;
 }
 
 // Video signal status helpers
@@ -610,6 +623,7 @@ std::string startRecording(
 }
 
 void stopRecording(const std::string& start_ts, const std::string& vpath) {
+	std::string oldname = vpath + "/" + start_ts + "_.mkv";
 	std::string ffmpid;
 	ffmpid = exec(true, "pidof ffmpeg");
 	_INFO("stop record says: " << ffmpid.c_str());
@@ -619,13 +633,20 @@ void stopRecording(const std::string& start_ts, const std::string& vpath) {
 		std::string killCmd = "kill -9 " + ffmpid;
 		system(killCmd.c_str());
 		//
-		std::string oldname = vpath + "/" + start_ts + "_.mkv";
 		std::string newname = vpath + "/" + start_ts + "_" + stop_ts + ".mkv";
 		_INFO(stop_ts << ":\tKilling " << ffmpid.c_str() << ". Saving video " << newname);
-		int x = 0;
-		x = rename(oldname.c_str(), newname.c_str());
+		rename(oldname.c_str(), newname.c_str());
 		SLEEP_SEC(1.5); // Allow time for ffmpeg to stop
 		ffmpid = exec(true, "pidof ffmpeg");
+	}
+
+	// finally double check file again, as sometime ffmpeg
+	// process killed while unfinished video file exists
+	if( std::filesystem::exists(oldname) ) {
+		std::string stop_ts = getTimeStr();
+		std::string newname2 = vpath + "/" + start_ts + "_" + stop_ts + ".mkv";
+		_INFO(":\tFound still unfinished video file, fixing it. Saving video " << newname2);
+		rename(oldname.c_str(), newname2.c_str());
 	}
 }
 
@@ -642,6 +663,17 @@ void safeStopRecording(const AppOpts& opts,
 	}
 }
 
+void signalHandler(int signum) {
+	//_INFO("Signal received: " << signum);
+	if (signum == SIGINT) {
+		_INFO("Ctrl+C received. Terminating...");
+		if(isSysBreakExec() ) {
+			_INFO("Force exit, 2nd attempt");
+			std::exit(signum);
+		}
+		setSysBreakExec(true);
+	}
+}
 std::string vdToString(VideoDevice& vd) {
 	std::ostringstream s;
 	s << vd.name << ", S/N=" << vd.serial << ", channelIndex=" << vd.channelIndex;
@@ -653,6 +685,8 @@ std::string vdToString(VideoDevice& vd) {
 int main(int argc, char* argv[]) {
 	AppOpts   opts;
 	AppConfig cfg;
+
+	std::signal(SIGINT, signalHandler);
 
 	const int res1 = parseOpts(opts, argc, argv);
 	bool verbose = opts.verbose;
@@ -815,11 +849,16 @@ int main(int argc, char* argv[]) {
 
 		vssPrev = vssCur;
 		safeMWCloseChannel(hChannel);
-	} while ( fRun );
+
+	} while (fRun && !isSysBreakExec());
 
 	safeStopRecording(opts, recording, start_ts, "Program terminated");
 
 	if( fInit )
 		MWCaptureExitInstance();
+
+	if(isSysBreakExec() )
+		return EX_SYS_BREAK_EXEC;
+
 	return EX_OK;
 }
