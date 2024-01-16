@@ -73,6 +73,7 @@ namespace fs = std::filesystem;
 /* ######################### begin common ############################# */
 
 #define EX_SYS_BREAK_EXEC		140	/* custom exit code when execution broken by Ctrl+C, SIGINT or similar events */
+#define EX_CONFIG_RELOAD		141	/* custom exit code when config.yaml file changed */
 
 // private static global flag
 /*static */ volatile sig_atomic_t s_nSysBreakExec = 0;
@@ -118,6 +119,16 @@ std::string exec(bool verbose, const std::string& cmd) {
 	}
 	_VERBOSE("exec -> :  " << result);
 	return result;
+}
+
+// get file hash info in string format representing unique file snapshot in time
+std::string getFileChangeHash(const std::string& filePath) {
+	std::filesystem::file_time_type mt = std::filesystem::last_write_time(filePath);
+	auto t = mt.time_since_epoch();
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t);
+	std::ostringstream oss;
+	oss << ms.count();
+	return oss.str();
 }
 
 std::vector<std::string> getVideoDevicePaths(const std::string& pattern) {
@@ -680,9 +691,7 @@ std::string vdToString(VideoDevice& vd) {
 	return s.str();
 }
 
-////////////////////////////////////////////////////////////////////////////
-// Entry point
-int main(int argc, char* argv[]) {
+int appRun(int argc, char* argv[]) {
 	AppOpts   opts;
 	AppConfig cfg;
 
@@ -719,6 +728,7 @@ int main(int argc, char* argv[]) {
 	std::string targetBusInfo;
 	std::string targetVideoDevPath;
 	std::string targetAudioDevPath;
+	std::string configHash = getFileChangeHash(opts.configPath);
 
 	// current video signal status
 	MWCAP_VIDEO_SIGNAL_STATUS vssCur = {};
@@ -727,6 +737,7 @@ int main(int argc, char* argv[]) {
 	MWCAP_VIDEO_SIGNAL_STATUS vssPrev = {};
 
 	bool fRun = true;
+	bool fConfigChanged = false;
 	int recording = 0;
 	std::string init_ts;
 	std::string start_ts;
@@ -850,6 +861,14 @@ int main(int argc, char* argv[]) {
 		vssPrev = vssCur;
 		safeMWCloseChannel(hChannel);
 
+		// check config changed
+		std::string configHash2 = getFileChangeHash(opts.configPath);
+		if( configHash!=configHash2 ) {
+			_INFO("Config file was modified (" << configHash << " -> " << configHash2 << ") : " << opts.configPath);
+			_INFO("Reloading config and restarting capture ...");
+			fConfigChanged = true;
+			fRun = false;
+		}
 	} while (fRun && !isSysBreakExec());
 
 	safeStopRecording(opts, recording, start_ts, "Program terminated");
@@ -857,8 +876,23 @@ int main(int argc, char* argv[]) {
 	if( fInit )
 		MWCaptureExitInstance();
 
-	if(isSysBreakExec() )
+	if( isSysBreakExec() )
 		return EX_SYS_BREAK_EXEC;
 
+	if( fConfigChanged )
+		return EX_CONFIG_RELOAD;
+
 	return EX_OK;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Entry point
+
+int main(int argc, char* argv[]) {
+	int res = EX_OK;
+	do {
+		res = appRun(argc, argv);
+		optind = 0; // force restart argument scanning for getopt
+	} while( res==EX_CONFIG_RELOAD );
+	return res;
 }
