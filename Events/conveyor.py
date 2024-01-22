@@ -2,7 +2,7 @@ import csv
 import select
 import os
 from datetime import datetime
-from mpremote import pyboard
+from mpremote import transport_serial
 from time import time
 from .listeners import listen
 
@@ -43,11 +43,13 @@ def timed_events(
 	report=True,
 	pin_assignment=None,
 	):
-	pyb = pyboard.Pyboard(devicenode, 115200)
+	pyb = transport_serial.SerialTransport(devicenode, 115200)
 	if check_delay:
 		try:
 			from .listeners import no_listen
-		except pyboard.PyboardError:
+		except:
+		# maybe more specific error
+		#except transport_Serial.PyboardError:
 			print("❌ Only one board is connected, live roundtrip delay testing will be disabled by default.")
 			check_delay = False
 		else:
@@ -112,7 +114,7 @@ def handle_message(my_message, f,
 	return writer
 
 def test_delay_dry(devicenode="/dev/ttyACM0"):
-	pyb = pyboard.Pyboard(devicenode, 115200)
+	pyb = transport_serial.SerialTransport(devicenode, 115200)
 	t0 = time()
 	pyb.enter_raw_repl()
 	pyb.exec_raw_no_follow('import pinstates; pinstates.dry_test()')

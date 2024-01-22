@@ -1,6 +1,6 @@
 import select
 import os
-from mpremote import pyboard
+from mpremote import transport_serial
 from time import time
 
 def listen(command, pyb):
@@ -52,7 +52,7 @@ def listen(command, pyb):
 
 
 def no_listen(command, rt_devicenode="/dev/ttyACM1"):
-	pyb_debug = pyboard.Pyboard(rt_devicenode, 115200)
+	pyb_debug = transport_serial.SerialTransport(rt_devicenode, 115200)
 	pyb_debug.enter_raw_repl()
 	result = pyb_debug.exec_raw_no_follow(command)
 
