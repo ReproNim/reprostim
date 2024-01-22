@@ -14,25 +14,9 @@
 #include "yaml-cpp/yaml.h"
 #include "LibMWCapture/MWCapture.h"
 #include "CaptureLib.h"
+#include "CaptureApp.h"
 
 using namespace reprostim;
-
-// App configuration loaded from config.yaml, for
-// historical reasons keep names in Python style
-struct AppConfig {
-	std::string device_serial_number;
-	bool        has_device_serial_number = false;
-	std::string video_device_path_pattern;
-};
-
-// App command-line options and args
-struct AppOpts {
-	std::string configPath;
-	std::string homePath;
-	std::string outPath;
-	bool        verbose = false;
-};
-
 
 int main1() {
     int fd = open("/dev/video4", O_RDWR);
