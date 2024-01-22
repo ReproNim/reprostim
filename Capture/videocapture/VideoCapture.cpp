@@ -106,7 +106,7 @@ std::string chiToString(MWCAP_CHANNEL_INFO& info) {
 	return s.str();
 }
 
-std::string exec(bool verbose, const std::string& cmd) {
+std::string exec(bool verbose, const std::string& cmd, bool showStdout=false) {
 	std::array<char, 128> buffer;
 	std::string result;
 	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
@@ -116,6 +116,10 @@ std::string exec(bool verbose, const std::string& cmd) {
 	}
 	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 		result += buffer.data();
+		if( showStdout ) {
+			_INFO_RAW(buffer.data());
+			fflush(stdout); // force output
+		}
 	}
 	_VERBOSE("exec -> :  " << result);
 	return result;
@@ -593,7 +597,15 @@ std::string getAudioDevicePath(bool verbose, const std::string& busInfo) {
 	return res;
 }
 
+void threadFuncFfmpeg(bool verbose, const std::string& cmd) {
+	std::thread::id tid= std::this_thread::get_id();
+	_VERBOSE("threadFuncFfmpeg start [" << tid << "]: " << cmd);
+	exec(verbose, cmd, true);
+	_VERBOSE("threadFuncFfmpeg leave [" << tid << "]: " << cmd);
+}
+
 std::string startRecording(
+					bool verbose,
 					const AppConfig& cfg,
 					int cx, int cy,
 					const std::string& frameRate,
@@ -608,7 +620,7 @@ std::string startRecording(
 	sprintf(
 		ffmpg,
 		"ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
-		"%s %s %s %s %s/%s_.%s > /dev/null &",
+		"%s %s %s %s %s/%s_.%s 2>&1", // > /dev/null &",
 		opts.a_fmt.c_str(),
 		opts.a_nchan.c_str(),
 		opts.a_opt.c_str(),
@@ -628,8 +640,12 @@ std::string startRecording(
 		opts.out_fmt.c_str()
 	);
 
-	_INFO(start_ts << ": <SYSTEMCALL> " << ffmpg);
-	system(ffmpg);
+	std::string cmd = ffmpg;
+	_INFO(start_ts << ": <SYSTEMCALL> " << cmd.c_str());
+	//system(cmd);
+	std::thread t(&threadFuncFfmpeg, verbose, cmd);
+	_VERBOSE("started recording thread: " << t.get_id());
+	t.detach(); // make daemon thread
 	return start_ts;
 }
 
@@ -684,7 +700,16 @@ void signalHandler(int signum) {
 		}
 		setSysBreakExec(true);
 	}
+	if( signum == SIGTERM  || signum == SIGKILL ) {
+		_INFO("Termination or kill: " << signum);
+		if(isSysBreakExec() ) {
+			_INFO("Force exit, 2nd attempt");
+			std::exit(signum);
+		}
+		setSysBreakExec(true);
+	}
 }
+
 std::string vdToString(VideoDevice& vd) {
 	std::ostringstream s;
 	s << vd.name << ", S/N=" << vd.serial << ", channelIndex=" << vd.channelIndex;
@@ -695,7 +720,10 @@ int appRun(int argc, char* argv[]) {
 	AppOpts   opts;
 	AppConfig cfg;
 
-	std::signal(SIGINT, signalHandler);
+	std::signal(SIGINT,  signalHandler);
+	std::signal(SIGTERM, signalHandler);
+	std::signal(SIGKILL, signalHandler);
+
 
 	const int res1 = parseOpts(opts, argc, argv);
 	bool verbose = opts.verbose;
@@ -829,7 +857,8 @@ int appRun(int argc, char* argv[]) {
 				}
 				_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
 
-				start_ts = startRecording(cfg,
+				start_ts = startRecording(verbose,
+				                          cfg,
 										  vssCur.cx,
 										  vssCur.cy,
 										  frameRate,

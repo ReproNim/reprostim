@@ -11,6 +11,10 @@
 #define _INFO(expr) std::cout << expr << std::endl
 #endif
 
+#ifndef _INFO_RAW
+#define _INFO_RAW(expr) std::cout << expr
+#endif
+
 #ifndef _VERBOSE
 #define _VERBOSE(expr) if( verbose ) { std::cout << expr << std::endl; }
 #endif
