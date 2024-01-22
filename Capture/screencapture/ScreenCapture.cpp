@@ -15,6 +15,7 @@
 #include "LibMWCapture/MWCapture.h"
 #include "CaptureLib.h"
 #include "CaptureApp.h"
+#include "ScreenCapture.h"
 
 using namespace reprostim;
 
@@ -160,8 +161,27 @@ int main1() {
     return 0;
 }
 
+////////////////////////////////////////////////////////////////////////////
+// ScreenCaptureApp class
 
-int parseOpts(AppOpts& opts, int argc, char* argv[]) {
+ScreenCaptureApp::ScreenCaptureApp() {
+	appName = "ScreenCapture";
+}
+
+void ScreenCaptureApp::onCaptureStart() {
+	_INFO("TODO: start snapshots");
+	recording = 1;
+	main1();
+}
+
+void ScreenCaptureApp::onCaptureStop(const std::string& message) {
+	if( recording>0 ) {
+		_INFO("TODO: stop snapshots. " << message);
+		recording = 0;
+	}
+}
+
+int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	const std::string HELP_STR = "Usage: ScreenCapture -d <path> [-o <path> | -h | -v ]\n\n"
 								 "\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
 								 "\t-o <path>\tOutput directory where to save recordings (optional)\n"
@@ -222,35 +242,11 @@ int parseOpts(AppOpts& opts, int argc, char* argv[]) {
 // Entry point
 
 int main(int argc, char* argv[]) {
-	AppOpts   opts;
-	AppConfig cfg;
-
-	const int res1 = parseOpts(opts, argc, argv);
-	bool verbose = opts.verbose;
-
-	if( res1==1 ) return EX_OK; // help message
-	if( res1!=EX_OK ) return res1;
-
-/*
-	_VERBOSE("Config file: " << opts.configPath);
-
-	if( !loadConfig(cfg, opts.configPath) ) {
-		// config.yaml load/parse problems
-		return EX_CONFIG;
-	}
-
-	_VERBOSE("Output path: " << opts.outPath);
-	if( !checkOutDir(verbose, opts.outPath) ) {
-		// invalid output path
-		_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
-		return EX_CANTCREAT;
-	}
-
-	const int res2 = checkSystem(verbose);
-	if( res2!=EX_OK ) {
-		// problem with system configuration and installed packages
-		return res2;
-	}
-*/
-	return main1();
+	int res = EX_OK;
+	do {
+		ScreenCaptureApp app;
+		res = app.run(argc, argv);
+		optind = 0; // force restart argument scanning for getopt
+	} while( res==EX_CONFIG_RELOAD );
+	return res;
 }
