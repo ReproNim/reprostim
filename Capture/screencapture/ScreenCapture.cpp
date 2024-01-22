@@ -11,8 +11,11 @@
 #include <sys/mman.h>
 #include <cstring>
 #include <sysexits.h>
+#include "yaml-cpp/yaml.h"
+#include "LibMWCapture/MWCapture.h"
 #include "CaptureLib.h"
 
+using namespace reprostim;
 
 // App configuration loaded from config.yaml, for
 // historical reasons keep names in Python style
