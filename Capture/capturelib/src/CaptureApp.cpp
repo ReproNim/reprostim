@@ -1,29 +1,10 @@
 #include <iostream>
-#include <iostream>
-#include <iomanip>
 #include <sstream>
-#include <filesystem>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <glob.h>
-#include <fcntl.h>
-#include <ctime>
-#include <cmath>
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <regex>
-#include <array>
-#include <cstring>
 #include <chrono>
 #include <csignal>
 #include <thread>
 #include <sysexits.h>
-#include <alsa/asoundlib.h>
 #include "yaml-cpp/yaml.h"
-#include "LibMWCapture/MWCapture.h"
-#include "CaptureLib.h"
 #include "CaptureApp.h"
 
 namespace reprostim {

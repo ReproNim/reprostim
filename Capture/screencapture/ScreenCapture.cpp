@@ -1,9 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <ctime>
-//#include <format>
 #include <iomanip>
-#include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/videodev2.h>
@@ -11,10 +9,6 @@
 #include <sys/mman.h>
 #include <cstring>
 #include <sysexits.h>
-#include "yaml-cpp/yaml.h"
-#include "LibMWCapture/MWCapture.h"
-#include "CaptureLib.h"
-#include "CaptureApp.h"
 #include "ScreenCapture.h"
 
 using namespace reprostim;

@@ -1,6 +1,11 @@
 #ifndef REPROSTIM_CAPTURELIB_H
 #define REPROSTIM_CAPTURELIB_H
 
+#include <string>
+#include <iostream>
+#include <vector>
+#include "LibMWCapture/MWCapture.h"
+
 /*########################### Common macros ############################*/
 
 #ifndef _ERROR

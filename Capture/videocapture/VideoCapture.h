@@ -1,6 +1,8 @@
 #ifndef CAPTURE_VIDEOCAPTURE_H
 #define CAPTURE_VIDEOCAPTURE_H
 
+#include "CaptureApp.h"
+
 ///////////////////////////////////////////////////////////////////////////
 //
 using namespace reprostim;

@@ -1,6 +1,7 @@
 #ifndef CAPTURE_SCREENCAPTURE_H
 #define CAPTURE_SCREENCAPTURE_H
 
+#include "CaptureApp.h"
 ///////////////////////////////////////////////////////////////////////////
 //
 using namespace reprostim;

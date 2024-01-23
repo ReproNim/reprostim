@@ -1,6 +1,8 @@
 #ifndef CAPTURE_CAPTUREAPP_H
 #define CAPTURE_CAPTUREAPP_H
 
+#include "CaptureLib.h"
+
 namespace reprostim {
 
 	struct FfmpegOpts {
