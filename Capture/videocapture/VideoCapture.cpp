@@ -70,6 +70,7 @@ void threadFuncFfmpeg(bool verbose, const std::string& cmd) {
 
 VideoCaptureApp::VideoCaptureApp() {
 	appName = "VideoCapture";
+	audioEnabled = true;
 }
 
 void VideoCaptureApp::onCaptureStart() {

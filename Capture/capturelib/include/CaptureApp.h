@@ -44,6 +44,7 @@ namespace reprostim {
 	protected:
 		// setup data
 		std::string appName;
+		bool        audioEnabled;
 
 		// config data
 		AppOpts   opts;
@@ -66,6 +67,7 @@ namespace reprostim {
 
 
 	public:
+		CaptureApp();
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);

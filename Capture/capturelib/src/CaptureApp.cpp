@@ -29,6 +29,11 @@ namespace reprostim {
 		}
 	}
 
+	CaptureApp::CaptureApp() {
+		appName = "TODO_appName";
+		audioEnabled = true;
+	}
+
 	bool CaptureApp::loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		YAML::Node doc;
 		try {
@@ -137,7 +142,9 @@ namespace reprostim {
 		_INFO("    <> Saving output to            ===> " << opts.outPath);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
 														 << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto"));
-		_INFO("    <> Recording from Audio Device ===> " << cfg.ffm_opts.a_dev);
+		if( audioEnabled ) {
+			_INFO("    <> Recording from Audio Device ===> " << cfg.ffm_opts.a_dev);
+		}
 
 		if( cfg.has_device_serial_number ) {
 			_VERBOSE("Use device with specified S/N: " << cfg.device_serial_number);
@@ -210,13 +217,15 @@ namespace reprostim {
 									  << ", " << targetDev.name);
 					}
 
-					if( cfg.ffm_opts.has_a_dev ) {
-						targetAudioDevPath = cfg.ffm_opts.a_dev;
-					} else {
-						targetAudioDevPath = getAudioDevicePath(opts.verbose, targetBusInfo);
-						_INFO("    <> Found Audio Device          ===> " << targetAudioDevPath);
+					if( audioEnabled ) {
+						if (cfg.ffm_opts.has_a_dev) {
+							targetAudioDevPath = cfg.ffm_opts.a_dev;
+						} else {
+							targetAudioDevPath = getAudioDevicePath(opts.verbose, targetBusInfo);
+							_INFO("    <> Found Audio Device          ===> " << targetAudioDevPath);
+						}
+						_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
 					}
-					_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
 
 					onCaptureStart();
 				}

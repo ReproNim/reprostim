@@ -160,6 +160,7 @@ int main1() {
 
 ScreenCaptureApp::ScreenCaptureApp() {
 	appName = "ScreenCapture";
+	audioEnabled = false;
 }
 
 void ScreenCaptureApp::onCaptureStart() {
