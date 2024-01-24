@@ -217,7 +217,7 @@ void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 }
 
 int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
-	const std::string HELP_STR = "Usage: ScreenCapture -d <path> [-o <path> | -h | -v ]\n\n"
+	const std::string HELP_STR = "Usage: reprostim-screencapture -d <path> [-o <path> | -h | -v ]\n\n"
 								 "\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
 								 "\t-o <path>\tOutput directory where to save recordings (optional)\n"
 								 "\t         \tDefaults to $REPROSTIM_HOME/Screens\n"
