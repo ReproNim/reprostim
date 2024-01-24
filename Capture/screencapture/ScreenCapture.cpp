@@ -3,27 +3,28 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <filesystem>
-#include <linux/videodev2.h>
-#include <opencv2/opencv.hpp>
+#include <cstring>
+#include <atomic>
+#include <thread>
+#include <sysexits.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <cstring>
-#include <sysexits.h>
+#include <linux/videodev2.h>
+#include <opencv2/opencv.hpp>
 #include "ScreenCapture.h"
+
 
 using namespace reprostim;
 
-// TODO:
-//  v4l2-ctl --stream-mmap --stream-count=1 --stream-to=file.png --device=/dev/video0
-//  sudo apt-get update
-//  sudo apt-get install libopencv-dev
-//  g++ -o capture capture.cpp -std=c++17 -lopencv_core -lopencv_highgui -lopencv_imgcodecs
+static std::atomic<int> g_activeSessionId(0);
 
 int recordScreens(bool verbose,
+				int sessionId,
 				int cx, int cy,
 				int threshold,
 				const std::string& outPath,
 				const std::string& videoDevPath) {
+	_VERBOSE("recordScreens enter, sessionId=" << sessionId);
 	int fd = open(videoDevPath.c_str(), O_RDWR);
 	if (fd == -1) {
 		_ERROR("Failed to open " << videoDevPath);
@@ -90,36 +91,29 @@ int recordScreens(bool verbose,
 		return -1;
 	}
 
-	// Capture a single frame (as an example)
-	if (ioctl(fd, VIDIOC_QBUF, &buf) == -1) {
-		_ERROR("Failed to enqueue buffer");
-		ioctl(fd, VIDIOC_STREAMOFF, &buf.type);
-		munmap(buffer, buf.length);
-		close(fd);
-		return -1;
-	}
-
-	if (ioctl(fd, VIDIOC_DQBUF, &buf) == -1) {
-		_ERROR("Failed to dequeue buffer");
-		ioctl(fd, VIDIOC_STREAMOFF, &buf.type);
-		munmap(buffer, buf.length);
-		close(fd);
-		return -1;
-	}
-
-	// At this point, the buffer contains the captured frame.
 	// Variables to store two consecutive frames
 	unsigned char* previousFrame = new unsigned char[buf.length];
 	unsigned char* currentFrame = new unsigned char[buf.length];
 	bool isFirstFrame = true;
 
 	// Capturing and comparing loop
-	for (int i = 0; i < 1000; i++) { // Capture 1000 frames as an example
-		// Capture a frame
-		if (ioctl(fd, VIDIOC_QBUF, &buf) == -1 || ioctl(fd, VIDIOC_DQBUF, &buf) == -1) {
-			_ERROR("Failed to capture frame");
+	while (true) {
+		if( sessionId!=g_activeSessionId ) {
+			_INFO("Capture terminated for sessionId=" << sessionId);
 			break;
 		}
+
+		// Capture a frame, enqueue buffer
+		if (ioctl(fd, VIDIOC_QBUF, &buf) == -1) {
+			_ERROR("Failed to capture frame (enqueue buffer)");
+			break;
+		}
+		// Capture a frame, dequeue buffer
+		if (ioctl(fd, VIDIOC_DQBUF, &buf) == -1) {
+			_ERROR("Failed to capture frame (dequeue buffer)");
+			break;
+		}
+
 		memcpy(isFirstFrame ? previousFrame : currentFrame, buffer, buf.length);
 
 		// If it's not the first frame, compare it with the previous one
@@ -168,12 +162,14 @@ int recordScreens(bool verbose,
 
 				std::string framePath2 = framePath + ".png";
 				cv::imwrite(framePath2, frame);
+
+				// Swap buffers for the next iteration
+				// only when large change
+				unsigned char* temp = previousFrame;
+				previousFrame = currentFrame;
+				currentFrame = temp;
 			}
 
-			// Swap buffers for the next iteration
-			unsigned char* temp = previousFrame;
-			previousFrame = currentFrame;
-			currentFrame = temp;
 		} else {
 			isFirstFrame = false;
 		}
@@ -188,6 +184,7 @@ int recordScreens(bool verbose,
 	munmap(buffer, buf.length);
 	close(fd);
 
+	_VERBOSE("recordScreens leave, sessionId=" << sessionId);
 	return 0;
 }
 
@@ -200,19 +197,28 @@ ScreenCaptureApp::ScreenCaptureApp() {
 }
 
 void ScreenCaptureApp::onCaptureStart() {
-	_INFO("TODO: start snapshots");
+	g_activeSessionId.fetch_add(1);
+	int sessionId = g_activeSessionId;
+	_INFO("Start recording snapshots, sessionId=" << sessionId);
+	SLEEP_MS(200);
 	recording = 1;
-	recordScreens(opts.verbose,
+
+	std::thread t(&recordScreens, opts.verbose,
+				  sessionId,
 				  vssCur.cx, vssCur.cy,
 				  30000,
 				  opts.outPath,
 				  targetVideoDevPath);
+	SLEEP_MS(100);
+	t.detach();
 }
 
 void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 	if( recording>0 ) {
-		_INFO("TODO: stop snapshots. " << message);
+		int sessionId = g_activeSessionId.fetch_add(1);
+		_INFO("Stop recording snapshots. " << sessionId);
 		recording = 0;
+		SLEEP_SEC(1);
 	}
 }
 
