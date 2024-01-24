@@ -18,7 +18,9 @@ jobs:
         fetch-depth: 0
 
     - name: Install build dependencies
-      run: sudo apt install -y libyaml-cpp-dev libasound2-dev libv4l-dev libudev-dev cmake g++
+      run: |
+        sudo apt update
+        sudo apt install -y libyaml-cpp-dev libasound2-dev libv4l-dev libudev-dev libopencv-dev cmake g++
 
     - name: Build
       run: |
