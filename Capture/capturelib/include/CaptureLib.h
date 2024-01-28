@@ -4,6 +4,8 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <chrono>
+#include <thread>
 #include "LibMWCapture/MWCapture.h"
 
 /*########################### Common macros ############################*/
@@ -29,7 +31,7 @@
 #endif
 
 #ifndef SLEEP_MS
-#define SLEEP_MS(sec) std::this_thread::sleep_for(std::chrono::milliseconds(sec))
+#define SLEEP_MS(ms) std::this_thread::sleep_for(std::chrono::milliseconds(ms))
 #endif
 
 #ifndef SLEEP_SEC

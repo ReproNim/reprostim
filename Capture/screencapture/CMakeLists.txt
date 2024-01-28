@@ -4,6 +4,7 @@ project(reprostim-screencapture)
 
 # Create the executable
 add_executable(${PROJECT_NAME}
+        RecordingThread.cpp
         ScreenCapture.cpp
         main.cpp
 )

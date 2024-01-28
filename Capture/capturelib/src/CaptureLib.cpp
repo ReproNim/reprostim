@@ -11,9 +11,7 @@
 #include <string>
 #include <regex>
 #include <array>
-#include <chrono>
 #include <csignal>
-#include <thread>
 #include <sysexits.h>
 #include <alsa/asoundlib.h>
 #include "CaptureLib.h"
