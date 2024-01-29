@@ -54,10 +54,10 @@ void ScreenCaptureApp::onCaptureStart() {
 			opts.verbose,
 			sessionId,
 			vssCur.cx, vssCur.cy,
-			30000, // <-- TODO: move to config
+			m_scOpts.threshold,
 			opts.outPath,
 			targetVideoDevPath,
-			false // <-- TODO: move to config
+			m_scOpts.dump_raw
 	});
 
 	m_prtCur->start();
@@ -74,6 +74,18 @@ void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 		recording = 0;
 		SLEEP_SEC(1);
 	}
+}
+
+bool ScreenCaptureApp::onLoadConfig(AppConfig &cfg, const std::string &pathConfig, YAML::Node doc) {
+	if( doc["sc_opts"] ) {
+		YAML::Node node = doc["sc_opts"];
+		m_scOpts.dump_raw = node["dump_raw"].as<bool>();
+		m_scOpts.threshold = node["threshold"].as<int>();
+	} else {
+		m_scOpts.threshold = 0;
+		m_scOpts.dump_raw = false;
+	}
+	return true;
 }
 
 int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -131,4 +143,5 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	}
 	return EX_OK;
 }
+
 

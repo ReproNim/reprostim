@@ -16,7 +16,32 @@
 using namespace reprostim;
 
 ////////////////////////////////////////////////////////////////////////
+
+// TODO: work on algorithm to detect changes better
+inline int calcFrameDiff(unsigned char *f1, unsigned char *f2, size_t len) {
+	/*
+	int diffSum = 0;
+	for (size_t j = 0; j < len; j++) {
+		int i1 = static_cast<int>(f1[j]);
+		int i2 = static_cast<int>(f2[j]);
+		//diffSum += abs(i1 - i2);
+		if( i1 != i2 ) {
+			diffSum++;
+		}
+	}
+	_INFO("calcDiff: diffSum=" << diffSum);
+	return diffSum;*/
+
+	int difference = 0;
+	for (size_t j = 0; j < len; j++) {
+		difference += abs(static_cast<int>(f1[j]) - static_cast<int>(f2[j]));
+	}
+	//_INFO("calcDiff: difference=" << difference);
+	return difference;
+}
+
 int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
+	_INFO("threshold=" << rp.threshold);
 	bool verbose = rp.verbose;
 	_VERBOSE("recordScreens enter, sessionId=" << rp.sessionId);
 	int fd = open(rp.videoDevPath.c_str(), O_RDWR);
@@ -88,7 +113,6 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	// Variables to store two consecutive frames
 	unsigned char* previousFrame = new unsigned char[buf.length];
 	unsigned char* currentFrame = new unsigned char[buf.length];
-	bool isFirstFrame = true;
 	int nFrame = 0;
 
 	// Capturing and comparing loop
@@ -109,59 +133,52 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 			break;
 		}
 
-		memcpy(isFirstFrame ? previousFrame : currentFrame, buffer, buf.length);
+		memcpy(currentFrame, buffer, buf.length);
+		// Save the first frame
+		if( nFrame==0 ) {
+			memcpy(previousFrame, buffer, buf.length);
+		}
 		nFrame++;
 
-		// If it's not the first frame, compare it with the previous one
-		if (!isFirstFrame) {
-			int difference = 0;
-			for (size_t j = 0; j < buf.length; j++) {
-				difference += abs(static_cast<int>(currentFrame[j]) - static_cast<int>(previousFrame[j]));
-			}
+		int difference = calcFrameDiff(currentFrame, previousFrame, buf.length);
 
-			if (difference > rp.threshold) {
-				std::string ts = getTimeStr();
-				_VERBOSE(ts << " change " << difference << " detected");
+		if (difference > rp.threshold || nFrame==1) {
+			std::string ts = getTimeStr();
+			_INFO(ts << " change " << difference << " detected");
 
-				std::string baseName = ts;
-				std::filesystem::path basePath = std::filesystem::path(rp.outPath) / baseName;
+			std::string baseName = ts;
+			std::filesystem::path basePath = std::filesystem::path(rp.outPath) / baseName;
 
-				if( rp.dumpRawFrame ) {
-					std::string rawPath = basePath.string() + ".bin";
-					_INFO("Save frame [" << nFrame << "] to: " << rawPath);
-					std::ofstream outputFile(rawPath, std::ios::binary);
-					if (!outputFile.is_open()) {
-						_ERROR("Error opening file for writing: " << rawPath);
-						break;
-					}
-
-					outputFile.write(reinterpret_cast<char *>(currentFrame), buf.length);
-					if (!outputFile.good()) {
-						_ERROR("Error writing to file: " << rawPath);
-						outputFile.close();
-						break;
-					}
-					outputFile.close();
+			if (rp.dumpRawFrame) {
+				std::string rawPath = basePath.string() + ".bin";
+				_INFO("Save frame [" << nFrame << "] to: " << rawPath);
+				std::ofstream outputFile(rawPath, std::ios::binary);
+				if (!outputFile.is_open()) {
+					_ERROR("Error opening file for writing: " << rawPath);
+					break;
 				}
 
-				std::string pngPath = basePath.string() + ".png";
-				//cv::Mat frame(cy, cx, CV_8UC3, currentFrame);
-				cv::Mat yuyvImage(rp.cy, rp.cx, CV_8UC2, currentFrame);
-				cv::Mat frame;
-				cv::cvtColor(yuyvImage, frame, cv::COLOR_YUV2BGR_YUYV);
-				_INFO("Save frame [" << nFrame << "] to: " << pngPath);
-				cv::imwrite(pngPath, frame);
-
-				// Swap buffers for the next iteration
-				// only when large change
-				unsigned char* temp = previousFrame;
-				previousFrame = currentFrame;
-				currentFrame = temp;
+				outputFile.write(reinterpret_cast<char *>(currentFrame), buf.length);
+				if (!outputFile.good()) {
+					_ERROR("Error writing to file: " << rawPath);
+					outputFile.close();
+					break;
+				}
+				outputFile.close();
 			}
 
-		} else {
-			isFirstFrame = false;
+			std::string pngPath = basePath.string() + ".png";
+			//cv::Mat frame(cy, cx, CV_8UC3, currentFrame);
+			cv::Mat yuyvImage(rp.cy, rp.cx, CV_8UC2, currentFrame);
+			cv::Mat frame;
+			cv::cvtColor(yuyvImage, frame, cv::COLOR_YUV2BGR_YUYV);
+			_INFO("Save frame [" << nFrame << "] to: " << pngPath);
+			cv::imwrite(pngPath, frame);
 		}
+		// Swap buffers for the next iteration
+		unsigned char* temp = previousFrame;
+		previousFrame = currentFrame;
+		currentFrame = temp;
 	}
 
 	delete[] previousFrame;

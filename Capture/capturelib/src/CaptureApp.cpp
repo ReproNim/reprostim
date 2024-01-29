@@ -4,7 +4,6 @@
 #include <csignal>
 #include <thread>
 #include <sysexits.h>
-#include "yaml-cpp/yaml.h"
 #include "CaptureApp.h"
 
 namespace reprostim {
@@ -74,7 +73,7 @@ namespace reprostim {
 			opts.a_enc = node["a_enc"].as<std::string>();
 			opts.out_fmt = node["out_fmt"].as<std::string>();
 		}
-		return true;
+		return this->onLoadConfig(cfg, pathConfig, doc);
 	}
 
 	void CaptureApp::onCaptureStart() {
@@ -83,6 +82,10 @@ namespace reprostim {
 
 	void CaptureApp::onCaptureStop(const std::string& message) {
 		_INFO("TODO: onCaptureStop" << message);
+	}
+
+	bool CaptureApp::onLoadConfig(AppConfig &cfg, const std::string &pathConfig, YAML::Node doc) {
+		return true;
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {

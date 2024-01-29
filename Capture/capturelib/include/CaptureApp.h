@@ -2,6 +2,7 @@
 #define CAPTURE_CAPTUREAPP_H
 
 #include "CaptureLib.h"
+#include "yaml-cpp/yaml.h"
 
 namespace reprostim {
 
@@ -71,6 +72,7 @@ namespace reprostim {
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);
+		virtual bool onLoadConfig(AppConfig& cfg, const std::string& pathConfig, YAML::Node doc);
 		virtual int  parseOpts(AppOpts& opts, int argc, char* argv[]);
 		int  run(int argc, char* argv[]);
 	};
