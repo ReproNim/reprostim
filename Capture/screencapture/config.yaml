@@ -22,9 +22,14 @@ video_device_path_pattern: "/dev/video*"
 sc_opts:
   # Specifies diff threshold to detect changes in the screen
   threshold: 400000
-  # bool, specifies whether to dump raw frames to disk along with
-  # PNG screenshots. Useful for debugging.
+  # bool, specifies whether to dump raw frames to disk along
+  # with PNG screenshots. Useful for debugging.
   dump_raw: false
+  # Specifies obligatory snapshot capture interval in ms. When
+  # value  is greater than 0 , then snapshot will  be captured
+  # at least  every specified period.
+  interval_ms: 0
+
 
 
 

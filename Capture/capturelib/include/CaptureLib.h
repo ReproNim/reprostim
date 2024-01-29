@@ -103,5 +103,13 @@ namespace reprostim {
 
 	std::string vssToString(const MWCAP_VIDEO_SIGNAL_STATUS &vsStatus);
 
+	// inline functions
+	inline long long currentTimeMs() {
+		return std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::system_clock::now().time_since_epoch()
+		).count();
+	}
+
+
 }
 #endif //REPROSTIM_CAPTURELIB_H

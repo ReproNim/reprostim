@@ -1,6 +1,5 @@
 #include <iostream>
 #include <unistd.h>
-#include <filesystem>
 #include <atomic>
 #include <thread>
 #include <sysexits.h>
@@ -18,8 +17,10 @@ inline void rtSafeDelete(RecordingThread* &prt) {
 		}
 		if( !prt->isRunning() ) {
 			delete prt;
+		} else {
+			// NOTE: memory-leaks are possible in rare conditions
+			_INFO("Failed to stop recording thread: " << prt);
 		}
-		// NOTE: memory-leaks are possible in rare conditions
 		prt = nullptr;
 	}
 }
@@ -42,7 +43,7 @@ ScreenCaptureApp::~ScreenCaptureApp() {
 void ScreenCaptureApp::onCaptureStart() {
 	g_activeSessionId.fetch_add(1);
 	int sessionId = g_activeSessionId;
-	_INFO("Start recording snapshots, sessionId=" << sessionId);
+	_INFO("Start recording snapshots in session " << sessionId);
 	SLEEP_MS(200);
 	recording = 1;
 
@@ -57,7 +58,8 @@ void ScreenCaptureApp::onCaptureStart() {
 			m_scOpts.threshold,
 			opts.outPath,
 			targetVideoDevPath,
-			m_scOpts.dump_raw
+			m_scOpts.dump_raw,
+			m_scOpts.interval_ms
 	});
 
 	m_prtCur->start();
@@ -65,8 +67,7 @@ void ScreenCaptureApp::onCaptureStart() {
 
 void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 	if( recording>0 ) {
-		int sessionId = g_activeSessionId.fetch_add(1);
-		_INFO("Stop recording snapshots. " << sessionId);
+		_INFO("Stop recording snapshots for session " << g_activeSessionId );
 		rtSafeDelete(m_prtPrev);
 		m_prtPrev = m_prtCur;
 		rtSafeDelete(m_prtPrev);
@@ -80,10 +81,12 @@ bool ScreenCaptureApp::onLoadConfig(AppConfig &cfg, const std::string &pathConfi
 	if( doc["sc_opts"] ) {
 		YAML::Node node = doc["sc_opts"];
 		m_scOpts.dump_raw = node["dump_raw"].as<bool>();
+		m_scOpts.interval_ms = node["interval_ms"].as<int>();
 		m_scOpts.threshold = node["threshold"].as<int>();
 	} else {
-		m_scOpts.threshold = 0;
 		m_scOpts.dump_raw = false;
+		m_scOpts.interval_ms = 0;
+		m_scOpts.threshold = 0;
 	}
 	return true;
 }

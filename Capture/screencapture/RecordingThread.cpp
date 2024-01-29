@@ -65,7 +65,7 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	fmt.fmt.pix.width  = rp.cx; // 640;
 	fmt.fmt.pix.height = rp.cy; // 480;
 	if (ioctl(fd, VIDIOC_S_FMT, &fmt) == -1) {
-		_ERROR("Failed to set format");
+		_ERROR("Failed to set v4l2 format: cx=" << rp.cx << ", cy=" << rp.cy);
 		close(fd);
 		return -1;
 	}
@@ -113,18 +113,20 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	unsigned char* previousFrame = new unsigned char[buf.length];
 	unsigned char* currentFrame = new unsigned char[buf.length];
 	int nFrame = 0;
+	bool fSave = false;
+	long long nextSaveTime = currentTimeMs() + rp.intervalMs;
 
 	std::string start_ts = getTimeStr();
 	std::filesystem::path sessionPath = std::filesystem::path(rp.outPath) / (start_ts + "_");
 	if( !std::filesystem::exists(sessionPath) ) {
-		_INFO("Create directory: " << sessionPath.string());
+		_INFO("Create session " << rp.sessionId << " directory: " << sessionPath.string());
 		std::filesystem::create_directory(sessionPath);
 	}
 
 	// Capturing and comparing loop
 	while (true) {
 		if( terminated ) {
-			_INFO("Capture terminated for sessionId=" << rp.sessionId);
+			_INFO("Capture terminated for session " << rp.sessionId);
 			break;
 		}
 
@@ -146,13 +148,31 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 		}
 		nFrame++;
 
+		fSave = false;
+
+		// always save first frame
+		if( nFrame==1 ) {
+			fSave = true;
+			_VERBOSE("Save frame: first frame");
+		}
+
+		// save frame when difference is above threshold
 		int difference = calcFrameDiff(currentFrame, previousFrame, buf.length);
+		if (difference > rp.threshold  ) {
+			fSave = true;
+			_VERBOSE("Save frame: difference=" << difference);
+		}
 
-		if (difference > rp.threshold || nFrame==1) {
-			std::string ts = getTimeStr();
-			_INFO(ts << " change " << difference << " detected");
+		// check obligatory save interval
+		if( rp.intervalMs>0 && currentTimeMs() > nextSaveTime ) {
+			fSave = true;
+			_VERBOSE("Save frame: interval");
+		}
 
-			std::string baseName = ts;
+		if (fSave) {
+			nextSaveTime = currentTimeMs() + rp.intervalMs;
+
+			std::string baseName = getTimeStr();
 			std::filesystem::path basePath = sessionPath / baseName;
 
 			if (rp.dumpRawFrame) {
@@ -199,7 +219,8 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	std::string end_ts = getTimeStr();
 	std::filesystem::path sessionPath2 = sessionPath;
 	sessionPath2.replace_filename(start_ts+"_"+end_ts);
-	_INFO("Rename session directory: " << sessionPath.string() << " -> " << sessionPath2.string());
+	_INFO("Rename session " << rp.sessionId << " directory: "
+		<< sessionPath.string() << " -> " << sessionPath2.string());
 	std::filesystem::rename(sessionPath, sessionPath2);
 
 	_VERBOSE("recordScreens leave, sessionId=" << rp.sessionId);

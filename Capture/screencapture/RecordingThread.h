@@ -15,6 +15,7 @@ struct RecordingParams {
 	std::string outPath;
 	std::string videoDevPath;
 	bool dumpRawFrame;
+	int intervalMs;
 };
 
 

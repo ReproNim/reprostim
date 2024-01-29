@@ -11,6 +11,7 @@ using namespace reprostim;
 // Specific options for ScreenCaptureApp
 struct ScreenCaptureOpts {
 	bool dump_raw;
+	int  interval_ms;
 	int  threshold;
 };
 
