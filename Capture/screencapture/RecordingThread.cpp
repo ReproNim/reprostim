@@ -41,7 +41,6 @@ inline int calcFrameDiff(unsigned char *f1, unsigned char *f2, size_t len) {
 }
 
 int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
-	_INFO("threshold=" << rp.threshold);
 	bool verbose = rp.verbose;
 	_VERBOSE("recordScreens enter, sessionId=" << rp.sessionId);
 	int fd = open(rp.videoDevPath.c_str(), O_RDWR);
@@ -115,6 +114,13 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	unsigned char* currentFrame = new unsigned char[buf.length];
 	int nFrame = 0;
 
+	std::string start_ts = getTimeStr();
+	std::filesystem::path sessionPath = std::filesystem::path(rp.outPath) / (start_ts + "_");
+	if( !std::filesystem::exists(sessionPath) ) {
+		_INFO("Create directory: " << sessionPath.string());
+		std::filesystem::create_directory(sessionPath);
+	}
+
 	// Capturing and comparing loop
 	while (true) {
 		if( terminated ) {
@@ -147,7 +153,7 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 			_INFO(ts << " change " << difference << " detected");
 
 			std::string baseName = ts;
-			std::filesystem::path basePath = std::filesystem::path(rp.outPath) / baseName;
+			std::filesystem::path basePath = sessionPath / baseName;
 
 			if (rp.dumpRawFrame) {
 				std::string rawPath = basePath.string() + ".bin";
@@ -189,6 +195,12 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	ioctl(fd, VIDIOC_STREAMOFF, &buf.type);
 	munmap(buffer, buf.length);
 	close(fd);
+
+	std::string end_ts = getTimeStr();
+	std::filesystem::path sessionPath2 = sessionPath;
+	sessionPath2.replace_filename(start_ts+"_"+end_ts);
+	_INFO("Rename session directory: " << sessionPath.string() << " -> " << sessionPath2.string());
+	std::filesystem::rename(sessionPath, sessionPath2);
 
 	_VERBOSE("recordScreens leave, sessionId=" << rp.sessionId);
 	return 0;
