@@ -7,6 +7,7 @@
 #include <chrono>
 #include <thread>
 #include "LibMWCapture/MWCapture.h"
+#include "CaptureVer.h"
 
 /*########################### Common macros ############################*/
 

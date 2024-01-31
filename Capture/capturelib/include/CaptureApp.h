@@ -74,6 +74,7 @@ namespace reprostim {
 		virtual void onCaptureStop(const std::string& message);
 		virtual bool onLoadConfig(AppConfig& cfg, const std::string& pathConfig, YAML::Node doc);
 		virtual int  parseOpts(AppOpts& opts, int argc, char* argv[]);
+		void printVersion();
 		int  run(int argc, char* argv[]);
 	};
 

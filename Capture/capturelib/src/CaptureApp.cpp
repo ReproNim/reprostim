@@ -93,6 +93,11 @@ namespace reprostim {
 		return EX_OK;
 	}
 
+	void CaptureApp::printVersion() {
+		_INFO(appName << " " << CAPTURE_VERSION_STRING);
+		_INFO(" Build date " << CAPTURE_VERSION_DATE);
+	}
+
 	int CaptureApp::run(int argc, char* argv[]) {
 
 		std::signal(SIGINT,  signalHandler);
