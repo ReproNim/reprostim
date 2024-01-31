@@ -95,7 +95,8 @@ namespace reprostim {
 
 	void CaptureApp::printVersion() {
 		_INFO(appName << " " << CAPTURE_VERSION_STRING);
-		_INFO(" Build date " << CAPTURE_VERSION_DATE);
+		_INFO(" Build Date : " << CAPTURE_VERSION_DATE);
+		_INFO(" Build Tag  : " << CAPTURE_VERSION_TAG);
 	}
 
 	int CaptureApp::run(int argc, char* argv[]) {

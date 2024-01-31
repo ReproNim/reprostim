@@ -31,9 +31,13 @@ jobs:
       working-directory: Capture
 
     - name: Test "reprostim-videocapture -h"
-      run: ./reprostim-videocapture -h
+      run: |
+        ./reprostim-videocapture -V
+        ./reprostim-videocapture -h
       working-directory: Capture/build/videocapture
 
     - name: Test "reprostim-screencapture -h"
-      run: ./reprostim-screencapture -h
+      run: |
+        ./reprostim-screencapture -V
+        ./reprostim-screencapture -h
       working-directory: Capture/build/screencapture
