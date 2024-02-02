@@ -18,12 +18,22 @@ jobs:
         fetch-depth: 0
 
     - name: Install build dependencies
-      run: sudo apt install -y libyaml-cpp-dev libasound2-dev libv4l-dev libudev-dev make g++
+      run: |
+        sudo apt update
+        sudo apt install -y libyaml-cpp-dev libasound2-dev libv4l-dev libudev-dev libopencv-dev cmake g++
 
     - name: Build
-      run: make
-      working-directory: Capture/videocapture
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
+      working-directory: Capture
 
-    - name: Dry run of -h
-      run: ./VideoCapture -h
-      working-directory: Capture/videocapture
+    - name: Test "reprostim-videocapture -h"
+      run: ./reprostim-videocapture -h
+      working-directory: Capture/build/videocapture
+
+    - name: Test "reprostim-screencapture -h"
+      run: ./reprostim-screencapture -h
+      working-directory: Capture/build/screencapture

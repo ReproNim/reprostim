@@ -43,8 +43,10 @@ ffm_opts:
   #
   #v_dev: "/dev/video4"
   v_dev: "auto"
-  v_enc: "-c:v libx264" #  -preset veryslow -crf 0"
-  pix_fmt: "-pix_fmt yuv420p"
+  v_enc: "-c:v libx264 -flush_packets 1"
+  #v_enc: "-c:v libx264 -preset veryslow -crf 0"
+  pix_fmt: ""
+  #pix_fmt: "-pix_fmt yuv420p"
   n_threads: ""
   a_enc: "-acodec aac"
   out_fmt: "mkv"

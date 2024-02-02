@@ -123,12 +123,17 @@ subjects.
 
 On Debian
 
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils g++ make
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils libopencv-dev cmake g++
 
 ## Build
 
-    cd Capture/videocapture
+    cd Capture
+
+    mkdir build
+    cd build
+    cmake ..
     make
+
 
 ## Subdirectories Structure
 
@@ -182,6 +187,10 @@ And locate line with device, e.g.:
     Bus 004 Device 012: ID 2935:0008 Magewell USB Capture DVI+
 
 In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
+
+Optionally Magewell device name and serial number can be quickly checked with this command:
+
+    lsusb -d 2935: -v | grep -E 'iSerial|iProduct'
 
 
 ### 2) Create "udev" rules
