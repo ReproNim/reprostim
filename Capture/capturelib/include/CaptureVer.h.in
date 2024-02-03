@@ -1,6 +1,9 @@
 #ifndef CAPTURE_CAPTUREVER_H
 #define CAPTURE_CAPTUREVER_H
-/* NOTE: This file is generated automatically */
+/*
+    NOTE: This file is generated automatically by CaptureVer.h.in template
+    Generation date: ${CAPTURE_VERSION_DATE}
+*/
 
 #define CAPTURE_VERSION_MAJOR ${CAPTURE_VERSION_MAJOR}
 #define CAPTURE_VERSION_MINOR ${CAPTURE_VERSION_MINOR}

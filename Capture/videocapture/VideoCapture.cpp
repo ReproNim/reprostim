@@ -51,6 +51,7 @@
 #include <chrono>
 #include <thread>
 #include <sysexits.h>
+#include <getopt.h>
 #include "VideoCapture.h"
 
 using namespace reprostim;
@@ -103,9 +104,12 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tDefaults to $REPROSTIM_HOME/Videos\n"
 								 "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
 								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
-								 "\t-v       \tVerbose, provides detailed information to stdout\n"
-								 "\t-V       \tPrint version information\n"
-								 "\t-h       \tPrint this help string\n";
+								 "\t-v, --verbose\n"
+								 "\t         \tVerbose, provides detailed information to stdout\n"
+								 "\t-V, --version\n"
+								 "\t         \tPrint version information\n"
+								 "\t-h, --help\n"
+								 "\t         \tPrint this help string\n";
 
 	int c = 0;
 	if (argc == 1) {
@@ -114,7 +118,14 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 		return EX_USAGE;
 	}
 
-	while( ( c = getopt (argc, argv, "d:o:c:hvV") ) != -1 ) {
+	struct option longOpts[] = {
+			{"help", no_argument, nullptr, 'h'},
+			{"verbose", no_argument, nullptr, 'v'},
+			{"version", no_argument, nullptr, 'V'},
+			{nullptr, 0, nullptr, 0}
+	};
+
+	while ((c = getopt_long(argc, argv, "o:c:d:hvV", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
 				if(optarg) opts.outPath = optarg;
