@@ -147,7 +147,7 @@ namespace reprostim {
 		MW_RESULT mr = MW_SUCCEEDED;
 
 		init_ts = getTimeStr();
-		_INFO(init_ts << ": <><><> Starting " << appName << " <><><>");
+		_INFO(init_ts << ": <><><> Starting " << appName <<  " " << CAPTURE_VERSION_STRING << " <><><>");
 		_INFO("    <> Saving output to            ===> " << opts.outPath);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
 														 << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto"));
