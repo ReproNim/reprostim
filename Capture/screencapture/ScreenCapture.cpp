@@ -3,6 +3,7 @@
 #include <atomic>
 #include <thread>
 #include <sysexits.h>
+#include <getopt.h>
 #include "ScreenCapture.h"
 
 
@@ -29,7 +30,7 @@ inline void rtSafeDelete(RecordingThread* &prt) {
 // ScreenCaptureApp class
 
 ScreenCaptureApp::ScreenCaptureApp() {
-	appName = "ScreenCapture";
+	appName = "reprostim-screencapture";
 	audioEnabled = false;
 	m_prtCur = nullptr;
 	m_prtPrev = nullptr;
@@ -98,8 +99,12 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tDefaults to $REPROSTIM_HOME/Screens\n"
 								 "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
 								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
-								 "\t-v       \tVerbose, provides detailed information to stdout\n"
-								 "\t-h       \tPrint this help string\n";
+								 "\t-v, --verbose\n"
+								 "\t         \tVerbose, provides detailed information to stdout\n"
+								 "\t-V, --version\n"
+								 "\t         \tPrint version information\n"
+								 "\t-h, --help\n"
+								 "\t         \tPrint this help string\n";
 
 	int c = 0;
 	if (argc == 1) {
@@ -108,16 +113,23 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 		return EX_USAGE;
 	}
 
-	while( ( c = getopt (argc, argv, "d:o:c:hv") ) != -1 ) {
-		switch(c) {
+	struct option longOpts[] = {
+			{"help", no_argument, nullptr, 'h'},
+			{"verbose", no_argument, nullptr, 'v'},
+			{"version", no_argument, nullptr, 'V'},
+			{nullptr, 0, nullptr, 0}
+	};
+
+	while ((c = getopt_long(argc, argv, "o:c:d:hvV", longOpts, nullptr)) != -1) {
+		switch (c) {
 			case 'o':
-				if(optarg) opts.outPath = optarg;
+				if (optarg) opts.outPath = optarg;
 				break;
 			case 'c':
-				if(optarg) opts.configPath = optarg;
+				if (optarg) opts.configPath = optarg;
 				break;
 			case 'd':
-				if(optarg) opts.homePath = optarg;
+				if (optarg) opts.homePath = optarg;
 				break;
 			case 'h':
 				_INFO(HELP_STR);
@@ -125,8 +137,12 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			case 'v':
 				opts.verbose = true;
 				break;
+			case 'V':
+				printVersion();
+				return 1;
 		}
 	}
+
 
 	// Terminate when REPROSTIM_HOME not specified
 	if ( opts.homePath.empty() ){

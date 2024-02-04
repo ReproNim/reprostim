@@ -93,6 +93,12 @@ namespace reprostim {
 		return EX_OK;
 	}
 
+	void CaptureApp::printVersion() {
+		_INFO(appName << " " << CAPTURE_VERSION_STRING);
+		_INFO(" Build Date : " << CAPTURE_VERSION_DATE);
+		_INFO(" Build Tag  : " << CAPTURE_VERSION_TAG);
+	}
+
 	int CaptureApp::run(int argc, char* argv[]) {
 
 		std::signal(SIGINT,  signalHandler);
@@ -141,7 +147,7 @@ namespace reprostim {
 		MW_RESULT mr = MW_SUCCEEDED;
 
 		init_ts = getTimeStr();
-		_INFO(init_ts << ": <><><> Starting " << appName << " <><><>");
+		_INFO(init_ts << ": <><><> Starting " << appName <<  " " << CAPTURE_VERSION_STRING << " <><><>");
 		_INFO("    <> Saving output to            ===> " << opts.outPath);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
 														 << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto"));
