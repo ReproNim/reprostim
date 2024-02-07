@@ -3,9 +3,12 @@
 
 #include <iostream>
 #include <atomic>
+#include "CaptureThreading.h"
 
 using namespace reprostim;
 
+// Screen capture params shared between threads
+// make sure it's thread-safe in usage
 struct RecordingParams {
 	bool verbose;
 	int sessionId;
@@ -18,27 +21,6 @@ struct RecordingParams {
 	int intervalMs;
 };
 
-
-class RecordingThread {
-
-private:
-	const RecordingParams m_params;
-	std::atomic<bool>     m_running;
-	std::atomic<bool>     m_terminate;
-	bool                  verbose;
-
-	void run();
-
-public:
-	RecordingThread(const RecordingParams &params);
-
-	virtual ~RecordingThread();
-
-	bool isRunning() const;
-
-	void start();
-
-	void stop();
-};
+using RecordingThread = WorkerThread<RecordingParams>;
 
 #endif //CAPTURE_RECORDINGTHREAD_H

@@ -40,7 +40,7 @@ inline int calcFrameDiff(unsigned char *f1, unsigned char *f2, size_t len) {
 	return difference;
 }
 
-int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
+int recordScreens(const RecordingParams& rp, std::function<bool()> isTerminated) {
 	bool verbose = rp.verbose;
 	_VERBOSE("recordScreens enter, sessionId=" << rp.sessionId);
 	int fd = open(rp.videoDevPath.c_str(), O_RDWR);
@@ -125,7 +125,7 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 
 	// Capturing and comparing loop
 	while (true) {
-		if( terminated ) {
+		if( isTerminated() ) {
 			_INFO("Capture terminated for session " << rp.sessionId);
 			break;
 		}
@@ -230,46 +230,12 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 
 
 ////////////////////////////////////////////////////////////////////////
-RecordingThread::RecordingThread(const RecordingParams &params) : m_params(params) {
-	verbose = params.verbose;
-	m_running = false;
-	m_terminate = false;
-}
 
-RecordingThread::~RecordingThread() {
-
-}
-
+// specialization/override for default WorkerThread::run
+template<>
 void RecordingThread::run() {
-	m_running = true;
-	recordScreens(m_params, m_terminate);
-	m_running = false;
-}
-
-void RecordingThread::start() {
-	m_running = false;
-	m_terminate = false;
-	std::thread t(&RecordingThread::run, this);
-	for (int i = 0; i < 10; i++) {
-		SLEEP_MS(100);
-		if (m_running) {
-			break;
-		}
-	}
-	t.detach();
-}
-
-void RecordingThread::stop() {
-	m_terminate = true;
-	for (int i = 0; i < 10; i++) {
-		SLEEP_MS(100);
-		if (!m_running) {
-			break;
-		}
-	}
-}
-
-bool RecordingThread::isRunning() const {
-	return m_running;
+	recordScreens(m_params,
+				  [this]() { return isTerminated(); }
+				  );
 }
 

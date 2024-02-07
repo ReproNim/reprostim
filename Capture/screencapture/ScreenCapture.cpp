@@ -11,34 +11,16 @@ using namespace reprostim;
 
 static std::atomic<int> g_activeSessionId(0);
 
-inline void rtSafeDelete(RecordingThread* &prt) {
-	if( prt ) {
-		if( prt->isRunning() ) {
-			prt->stop();
-		}
-		if( !prt->isRunning() ) {
-			delete prt;
-		} else {
-			// NOTE: memory-leaks are possible in rare conditions
-			_INFO("Failed to stop recording thread: " << prt);
-		}
-		prt = nullptr;
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////
 // ScreenCaptureApp class
 
 ScreenCaptureApp::ScreenCaptureApp() {
 	appName = "reprostim-screencapture";
 	audioEnabled = false;
-	m_prtCur = nullptr;
-	m_prtPrev = nullptr;
 }
 
 ScreenCaptureApp::~ScreenCaptureApp() {
-	rtSafeDelete(m_prtCur);
-	rtSafeDelete(m_prtPrev);
+	m_recExec.shutdown();
 }
 
 void ScreenCaptureApp::onCaptureStart() {
@@ -48,11 +30,7 @@ void ScreenCaptureApp::onCaptureStart() {
 	SLEEP_MS(200);
 	recording = 1;
 
-	rtSafeDelete(m_prtPrev);
-	m_prtPrev = m_prtCur;
-	rtSafeDelete(m_prtPrev);
-
-	m_prtCur = new RecordingThread(RecordingParams{
+	RecordingThread* pt = RecordingThread::newInstance(RecordingParams{
 			opts.verbose,
 			sessionId,
 			vssCur.cx, vssCur.cy,
@@ -63,16 +41,13 @@ void ScreenCaptureApp::onCaptureStart() {
 			m_scOpts.interval_ms
 	});
 
-	m_prtCur->start();
+	m_recExec.schedule(pt);
 }
 
 void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 	if( recording>0 ) {
 		_INFO("Stop recording snapshots for session " << g_activeSessionId );
-		rtSafeDelete(m_prtPrev);
-		m_prtPrev = m_prtCur;
-		rtSafeDelete(m_prtPrev);
-		m_prtCur = nullptr;
+		m_recExec.schedule(nullptr);
 		recording = 0;
 		SLEEP_SEC(1);
 	}
