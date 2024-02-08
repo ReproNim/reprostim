@@ -46,7 +46,7 @@ void ScreenCaptureApp::onCaptureStart() {
 
 void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 	if( recording>0 ) {
-		_INFO("Stop recording snapshots for session " << g_activeSessionId );
+		_INFO("Stop recording snapshots for session " << g_activeSessionId << ". " << message);
 		m_recExec.schedule(nullptr);
 		recording = 0;
 		SLEEP_SEC(1);

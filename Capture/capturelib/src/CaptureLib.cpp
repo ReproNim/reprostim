@@ -71,7 +71,11 @@ namespace reprostim {
 		return s.str();
 	}
 
-	std::string exec(bool verbose, const std::string &cmd, bool showStdout) {
+	std::string exec(bool verbose,
+					 const std::string &cmd,
+					 bool showStdout,
+					 std::function<bool()> isTerminated
+					 ) {
 		std::array<char, 128> buffer;
 		std::string result;
 		std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
@@ -79,7 +83,7 @@ namespace reprostim {
 			_ERROR("popen() failed for cmd: " << cmd);
 			throw std::runtime_error("popen() failed!");
 		}
-		while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+		while (!isTerminated() && fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 			result += buffer.data();
 			if (showStdout) {
 				_INFO_RAW(buffer.data());

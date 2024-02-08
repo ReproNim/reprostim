@@ -140,6 +140,7 @@ namespace reprostim {
 		SingleThreadExecutor();
 		~SingleThreadExecutor();
 
+		T* getCurrentThread() const;
 		void schedule(T* pThread);
 		void shutdown();
 	};
@@ -154,6 +155,11 @@ namespace reprostim {
 	inline SingleThreadExecutor<T>::~SingleThreadExecutor() {
 		safeDelete(m_pCur);
 		safeDelete(m_pPrev);
+	}
+
+	template<typename T>
+	T* SingleThreadExecutor<T>::getCurrentThread() const {
+		return m_pCur;
 	}
 
 	template<typename T>

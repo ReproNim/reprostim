@@ -59,11 +59,57 @@ using namespace reprostim;
 ////////////////////////////////////////////////////////////////////////////
 //
 
-void threadFuncFfmpeg(bool verbose, const std::string& cmd) {
+inline std::string buildVideoFile(
+		const std::string& outPath,
+		const std::string& name,
+		const std::string& out_fmt) {
+	return std::filesystem::path(outPath) / (name + "." + out_fmt);
+}
+
+std::string renameVideoFile(
+		const std::string& outVideoFile,
+		const std::string& outPath,
+		const std::string& start_ts,
+		const std::string& out_fmt,
+		const std::string& message) {
+	if( std::filesystem::exists(outVideoFile) ) {
+		std::string stop_ts = getTimeStr();
+		std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "_" + stop_ts, out_fmt);
+		_INFO(message << " Saving video " << outVideoFile2);
+		rename(outVideoFile.c_str(), outVideoFile2.c_str());
+		return outVideoFile2;
+	}
+	return outVideoFile;
+}
+
+
+// specialization/override for default WorkerThread::run
+template<>
+void FfmpegThread ::run() {
+	verbose = getParams().verbose;
 	std::thread::id tid= std::this_thread::get_id();
-	_VERBOSE("threadFuncFfmpeg start [" << tid << "]: " << cmd);
-	exec(verbose, cmd, true);
-	_VERBOSE("threadFuncFfmpeg leave [" << tid << "]: " << cmd);
+	_VERBOSE("FfmpegThread start [" << tid << "]: " << getParams().cmd);
+
+	_INFO(getParams().start_ts << ": <SYSTEMCALL> " << getParams().cmd);
+	//system(cmd);
+
+	// NOTE: in future improve async subprocess execution with reworked exec API.
+	try {
+		exec(verbose,
+			 getParams().cmd,
+			 true,
+			 [this]() { return isTerminated(); }
+		);
+	} catch(std::exception& e) {
+		_ERROR("FfmpegThread unhandled exception: " << e.what());
+	}
+	renameVideoFile(getParams().outVideoFile,
+					getParams().outPath,
+					getParams().start_ts,
+					getParams().outExt,
+					":\tFfmpeg thread terminated.");
+
+	_VERBOSE("FfmpegThread leave [" << tid << "]: " << getParams().cmd);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -72,6 +118,10 @@ void threadFuncFfmpeg(bool verbose, const std::string& cmd) {
 VideoCaptureApp::VideoCaptureApp() {
 	appName = "reprostim-videocapture";
 	audioEnabled = true;
+}
+
+VideoCaptureApp::~VideoCaptureApp() {
+	m_ffmpegExec.shutdown();
 }
 
 void VideoCaptureApp::onCaptureStart() {
@@ -93,7 +143,7 @@ void VideoCaptureApp::onCaptureStop(const std::string& message) {
 		std::string stop_str = getTimeStr();
 		stopRecording(start_ts, opts.outPath);
 		recording = 0;
-		_INFO(stop_str << message);
+		_INFO(stop_str << " " << message);
 	}
 }
 
@@ -174,10 +224,11 @@ std::string VideoCaptureApp::startRecording(int cx, int cy, const std::string& f
 	const FfmpegOpts& opts = cfg.ffm_opts;
 	std::string a_dev2 = a_dev;
 	if( a_dev2.find("-i ")!=0 ) a_dev2 = "-i " + a_dev2;
+	std::string outVideoFile = buildVideoFile(outPath, start_ts + "_", opts.out_fmt);
 	sprintf(
 			ffmpg,
 			"ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
-			"%s %s %s %s %s/%s_.%s 2>&1", // > /dev/null &",
+			"%s %s %s %s %s 2>&1", // > /dev/null &",
 			opts.a_fmt.c_str(),
 			opts.a_nchan.c_str(),
 			opts.a_opt.c_str(),
@@ -192,24 +243,26 @@ std::string VideoCaptureApp::startRecording(int cx, int cy, const std::string& f
 			opts.pix_fmt.c_str(),
 			opts.n_threads.c_str(),
 			opts.a_enc.c_str(),
-			outPath.c_str(),
-			start_ts.c_str(),
-			opts.out_fmt.c_str()
+			outVideoFile.c_str()
 	);
 
-	std::string cmd = ffmpg;
-	_INFO(start_ts << ": <SYSTEMCALL> " << cmd.c_str());
-	//system(cmd);
-	std::thread t(&threadFuncFfmpeg, verbose, cmd);
-	_VERBOSE("started recording thread: " << t.get_id());
-	t.detach(); // make daemon thread
+	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
+			verbose,
+			ffmpg,
+			opts.out_fmt,
+			outPath,
+			outVideoFile,
+			start_ts
+	});
+
+	m_ffmpegExec.schedule(pt);
 	return start_ts;
 }
 
 void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::string& vpath) {
-	std::string oldname = vpath + "/" + start_ts + "_.mkv";
-	std::string ffmpid;
-	ffmpid = exec(true, "pidof ffmpeg");
+	std::string out_fmt = cfg.ffm_opts.out_fmt;
+	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
+	std::string ffmpid = exec(true, "pidof ffmpeg");
 	_INFO("stop record says: " << ffmpid.c_str());
 	while ( ffmpid.length() > 0 ) {
 		_INFO("<> PID of ffmpeg\t===> " << ffmpid.c_str());
@@ -217,20 +270,16 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::stri
 		std::string killCmd = "kill -9 " + ffmpid;
 		system(killCmd.c_str());
 		//
-		std::string newname = vpath + "/" + start_ts + "_" + stop_ts + ".mkv";
-		_INFO(stop_ts << ":\tKilling " << ffmpid.c_str() << ". Saving video " << newname);
-		rename(oldname.c_str(), newname.c_str());
 		SLEEP_SEC(1.5); // Allow time for ffmpeg to stop
 		ffmpid = exec(true, "pidof ffmpeg");
 	}
 
+	m_ffmpegExec.schedule(nullptr);
+
 	// finally double check file again, as sometime ffmpeg
 	// process killed while unfinished video file exists
-	if( std::filesystem::exists(oldname) ) {
-		std::string stop_ts = getTimeStr();
-		std::string newname2 = vpath + "/" + start_ts + "_" + stop_ts + ".mkv";
-		_INFO(":\tFound still unfinished video file, fixing it. Saving video " << newname2);
-		rename(oldname.c_str(), newname2.c_str());
-	}
+	renameVideoFile(oldname, vpath, start_ts, out_fmt,
+					":\tFound still unfinished video file, fixing it.");
 }
+
 

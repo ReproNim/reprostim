@@ -2,6 +2,7 @@
 #define REPROSTIM_CAPTURELIB_H
 
 #include <string>
+#include <functional>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -67,7 +68,8 @@ namespace reprostim {
 
 	std::string chiToString(MWCAP_CHANNEL_INFO &info);
 
-	std::string exec(bool verbose, const std::string &cmd, bool showStdout = false);
+	std::string exec(bool verbose, const std::string &cmd, bool showStdout = false,
+					 std::function<bool()> isTerminated = [](){ return false; });
 
 	bool findTargetVideoDevice(bool verbose, const std::string &serialNumber, VideoDevice &vd);
 

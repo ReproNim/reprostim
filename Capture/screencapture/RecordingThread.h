@@ -10,15 +10,15 @@ using namespace reprostim;
 // Screen capture params shared between threads
 // make sure it's thread-safe in usage
 struct RecordingParams {
-	bool verbose;
-	int sessionId;
-	int cx;
-	int cy;
-	int threshold;
-	std::string outPath;
-	std::string videoDevPath;
-	bool dumpRawFrame;
-	int intervalMs;
+	const bool verbose;
+	const int sessionId;
+	const int cx;
+	const int cy;
+	const int threshold;
+	const std::string outPath;
+	const std::string videoDevPath;
+	const bool dumpRawFrame;
+	const int intervalMs;
 };
 
 using RecordingThread = WorkerThread<RecordingParams>;
