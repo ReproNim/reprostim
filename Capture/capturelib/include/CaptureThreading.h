@@ -4,7 +4,24 @@
 #include <iostream>
 #include <atomic>
 #include <thread>
+#include <mutex>
 #include "CaptureLib.h"
+
+//////////////////////////////////////////////////////////////////////////
+// Macros
+
+#ifndef _SYNC_LOCK
+#define _SYNC_LOCK(mutex_) std::lock_guard<std::mutex> _sync_lock(mutex_)
+#endif //_SYNC_LOCK
+
+#ifndef _DECLARE_CLASS_WITH_SYNC
+#define _DECLARE_CLASS_WITH_SYNC() mutable std::mutex _this_mutex_
+#endif //_DECLARE_CLASS_WITH_SYNC
+
+#ifndef _SYNC
+#define _SYNC() _SYNC_LOCK(_this_mutex_)
+#endif //_SYNC
+
 
 namespace reprostim {
 

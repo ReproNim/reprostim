@@ -2,6 +2,7 @@
 #define CAPTURE_CAPTUREAPP_H
 
 #include "CaptureLib.h"
+#include "CaptureThreading.h"
 #include "yaml-cpp/yaml.h"
 
 namespace reprostim {
@@ -42,7 +43,17 @@ namespace reprostim {
 
 
 	class CaptureApp {
+	private:
+		_DECLARE_CLASS_WITH_SYNC();
+
+		std::set<std::string> m_disconnDevs;
+
+		inline void disconnDevAdd(const std::string& devPath);
+		inline bool disconnDevContains(const std::string& devPath) const;
+		inline void disconnDevRemove(const std::string& devPath);
+
 	protected:
+
 		// setup data
 		std::string appName;
 		bool        audioEnabled;
@@ -62,10 +73,11 @@ namespace reprostim {
 		MWCAP_VIDEO_SIGNAL_STATUS vssPrev; // previous video signal status
 		VideoDevice               targetDev;
 		std::string               targetBusInfo;
+		std::string               targetMwDevPath;
 		std::string               targetVideoDevPath;
 		std::string               targetAudioDevPath;
 
-
+		static void usbHotplugCallback(MWUSBHOT_PLUG_EVETN event, const char *pszDevicePath, void* pParam);
 
 	public:
 		CaptureApp();
@@ -73,10 +85,28 @@ namespace reprostim {
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);
 		virtual bool onLoadConfig(AppConfig& cfg, const std::string& pathConfig, YAML::Node doc);
+		virtual void onUsbDevArrived(const std::string& devPath);
+		virtual void onUsbDevLeft(const std::string& devPath);
 		virtual int  parseOpts(AppOpts& opts, int argc, char* argv[]);
 		void printVersion();
 		int  run(int argc, char* argv[]);
 	};
+
+	// inline methods
+	inline void CaptureApp::disconnDevAdd(const std::string& devPath) {
+		_SYNC();
+		m_disconnDevs.insert(devPath);
+	}
+
+	inline bool CaptureApp::disconnDevContains(const std::string& devPath) const {
+		_SYNC();
+		return m_disconnDevs.find(devPath)!=m_disconnDevs.end();
+	}
+
+	inline void CaptureApp::disconnDevRemove(const std::string& devPath) {
+		_SYNC();
+		m_disconnDevs.erase(devPath);
+	}
 
 }
 #endif //CAPTURE_CAPTUREAPP_H
