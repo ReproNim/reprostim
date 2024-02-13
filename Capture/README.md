@@ -9,7 +9,7 @@ USB Capture devices and save it to a file. It is a part of the ReproStim project
 
 On Debian:
 
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils libopencv-dev cmake g++
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev v4l-utils libopencv-dev cmake g++
 
 Project requirements:
    - OS Linux
@@ -22,6 +22,7 @@ Project requirements:
      - libudev-dev
      - libasound-dev
      - libyaml-cpp-dev
+     - libspdlog-dev
      - libopencv-dev
      - v4l-utils
      - ffmpeg

@@ -123,7 +123,7 @@ subjects.
 
 On Debian
 
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v4l-utils libopencv-dev cmake g++
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev v4l-utils libopencv-dev cmake g++
 
 ## Build
 
