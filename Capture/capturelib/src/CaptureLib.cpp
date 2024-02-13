@@ -199,7 +199,7 @@ namespace reprostim {
 						_VERBOSE("Found target audio card: " << card);
 						std::ostringstream ostm;
 						ostm << "hw:" << card << ",1";
- 						res = ostm.str();
+						res = ostm.str();
 						break;
 					}
 				}
