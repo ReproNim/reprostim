@@ -16,6 +16,20 @@ device_serial_number: "auto"
 #
 video_device_path_pattern: "/dev/video*"
 
+# Specify capture session file logger settings
+# it is used to log capture session related information to file
+# located in output directory and named like output file
+# with ".log" extension.
+
+# to enable session file logger set "session_logger_enabled" to "true"
+session_logger_enabled: true
+
+# specify session file logger level (DEBUG, INFO, WARN, ERROR)
+session_logger_level: "DEBUG"
+
+# specify session log line format, from spdlog library
+session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
+
 #
 # Video capture ffmpeg recording options
 #

@@ -29,6 +29,9 @@ namespace reprostim {
 	struct AppConfig {
 		std::string device_serial_number;
 		bool        has_device_serial_number = false;
+		bool        session_logger_enabled = false;
+		LogLevel    session_logger_level = LogLevel::OFF;
+		std::string session_logger_pattern;
 		std::string video_device_path_pattern;
 		FfmpegOpts  ffm_opts;
 	};
@@ -40,7 +43,6 @@ namespace reprostim {
 		std::string outPath;
 		bool        verbose = false;
 	};
-
 
 	class CaptureApp {
 	private:
@@ -81,6 +83,7 @@ namespace reprostim {
 
 	public:
 		CaptureApp();
+		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);
@@ -93,6 +96,18 @@ namespace reprostim {
 	};
 
 	// inline methods
+	inline SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
+		if( cfg.session_logger_enabled ) {
+			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
+			pLogger->open(name,
+						  filePath,
+						  cfg.session_logger_level,
+						  cfg.session_logger_pattern);
+			return pLogger;
+		}
+		return nullptr;
+	}
+
 	inline void CaptureApp::disconnDevAdd(const std::string& devPath) {
 		_SYNC();
 		m_disconnDevs.insert(devPath);

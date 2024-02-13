@@ -116,12 +116,14 @@ int recordScreens(const RecordingParams& rp, std::function<bool()> isTerminated)
 	bool fSave = false;
 	long long nextSaveTime = currentTimeMs() + rp.intervalMs;
 
-	std::string start_ts = getTimeStr();
-	std::filesystem::path sessionPath = std::filesystem::path(rp.outPath) / (start_ts + "_");
+	//std::string start_ts = getTimeStr();
+	std::filesystem::path sessionPath = std::filesystem::path(rp.outPath) / (rp.start_ts + "_");
 	if( !std::filesystem::exists(sessionPath) ) {
 		_INFO("Create session " << rp.sessionId << " directory: " << sessionPath.string());
 		std::filesystem::create_directory(sessionPath);
 	}
+
+	_SESSION_LOG_BEGIN(rp.pLogger);
 
 	// Capturing and comparing loop
 	while (true) {
@@ -218,12 +220,13 @@ int recordScreens(const RecordingParams& rp, std::function<bool()> isTerminated)
 
 	std::string end_ts = getTimeStr();
 	std::filesystem::path sessionPath2 = sessionPath;
-	sessionPath2.replace_filename(start_ts+"_"+end_ts);
+	sessionPath2.replace_filename(rp.start_ts+"_"+end_ts);
 	_INFO("Rename session " << rp.sessionId << " directory: "
 		<< sessionPath.string() << " -> " << sessionPath2.string());
 	std::filesystem::rename(sessionPath, sessionPath2);
 
 	_VERBOSE("recordScreens leave, sessionId=" << rp.sessionId);
+	_SESSION_LOG_END_CLOSE_RENAME(sessionPath2.string() + ".log");
 	return 0;
 }
 
@@ -234,8 +237,12 @@ int recordScreens(const RecordingParams& rp, std::function<bool()> isTerminated)
 // specialization/override for default WorkerThread::run
 template<>
 void RecordingThread::run() {
-	recordScreens(m_params,
-				  [this]() { return isTerminated(); }
-				  );
+	try {
+		recordScreens(m_params,
+					  [this]() { return isTerminated(); }
+		);
+	} catch(std::exception e) {
+		_ERROR("Unhandled exception: " << e.what());
+	};
 }
 

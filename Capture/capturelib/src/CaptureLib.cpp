@@ -15,6 +15,8 @@
 #include <sysexits.h>
 #include <alsa/asoundlib.h>
 #include "CaptureLib.h"
+#include <spdlog/sinks/basic_file_sink.h>
+
 
 namespace fs = std::filesystem;
 
@@ -22,6 +24,7 @@ namespace reprostim {
 
 	// private static global flag
 	static volatile sig_atomic_t s_nSysBreakExec = 0;
+	thread_local SessionLogger_ptr tl_pSessionLogger = nullptr;
 
 	bool checkOutDir(bool verbose, const std::string &outDir) {
 		if (!fs::exists(outDir)) {
@@ -74,6 +77,7 @@ namespace reprostim {
 	std::string exec(bool verbose,
 					 const std::string &cmd,
 					 bool showStdout,
+					 int maxResLen,
 					 std::function<bool()> isTerminated
 					 ) {
 		std::array<char, 128> buffer;
@@ -84,12 +88,19 @@ namespace reprostim {
 			throw std::runtime_error("popen() failed!");
 		}
 		while (!isTerminated() && fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-			result += buffer.data();
+			if( !(maxResLen>0 && result.size()>=maxResLen) ) {
+				result += buffer.data();
+			}
 			if (showStdout) {
 				_INFO_RAW(buffer.data());
 				fflush(stdout); // force output
 			}
 		}
+
+		if( maxResLen>0 && result.size()>=maxResLen ) {
+			result += " ...";
+		}
+
 		_VERBOSE("exec -> :  " << result);
 		return result;
 	}
@@ -328,6 +339,30 @@ namespace reprostim {
 		return "?.?.?";
 	}
 
+	LogLevel parseLogLevel(const std::string &level) {
+		if( level == "DEBUG" ) {
+			return LogLevel::DEBUG;
+		} else if( level == "INFO" ) {
+			return LogLevel::INFO;
+		} else if( level == "WARN" ) {
+			return LogLevel::WARN;
+		} else if( level == "ERROR" ) {
+			return LogLevel::ERROR;
+		} else if( level == "OFF" ) {
+			return LogLevel::OFF;
+		} else {
+			try {
+				int n = std::stoi(level);
+				if( n>=LogLevel::OFF && n<=LogLevel::ERROR ) {
+					return static_cast<LogLevel>(n);
+				}
+			} catch( std::exception &e ) {
+				_ERROR("Failed to parse log level: " << level << ", " << e.what());
+			}
+			return LogLevel::OFF;
+		}
+	}
+
 	void safeMWCloseChannel(HCHANNEL&hChannel) {
 		if (hChannel != NULL) {
 			MWCloseChannel(hChannel);
@@ -393,4 +428,69 @@ namespace reprostim {
 		s << ", satRange=" << vsStatus.satRange;
 		return s.str();
 	}
+
+	///////////////////////////////////////////////////////////////////////////////
+	// FileLogger implementation
+
+	FileLogger::FileLogger() {
+		m_nLevel = LogLevel::OFF;
+	}
+
+	FileLogger::~FileLogger() {
+		close();
+	}
+
+	void FileLogger::log(int level, const std::string &msg) {
+		if( level>=m_nLevel && m_pLogger ) {
+			switch( level ) {
+				case LogLevel::DEBUG:
+					m_pLogger->debug(msg);
+					break;
+				case LogLevel::INFO:
+					m_pLogger->info(msg);
+					break;
+				case LogLevel::WARN:
+					m_pLogger->warn(msg);
+					break;
+				case LogLevel::ERROR:
+					m_pLogger->error(msg);
+					break;
+			}
+		}
+	}
+
+	std::string FileLogger::move(const std::string& newFilePath) {
+		if( m_pLogger ) {
+			_ERROR("Can't rename log file while logger is open:  " << m_sName << ", " << m_sFilePath);
+		}
+		if( std::filesystem::exists(m_sFilePath) ) {
+			rename(m_sFilePath.c_str(), newFilePath.c_str());
+			return newFilePath;
+		}
+		return m_sFilePath;
+	}
+
+	void FileLogger::open(const std::string &name,
+						  const std::string &filePath, int level,
+						  const std::string &pattern) {
+		m_sName = name;
+		m_sFilePath = filePath;
+		m_nLevel = level;
+		if( m_pLogger ) {
+			m_pLogger.reset();
+		}
+		m_pLogger = spdlog::basic_logger_mt(m_sName, m_sFilePath);
+		m_pLogger->set_level(spdlog::level::trace);
+		if( !pattern.empty() ) {
+			m_pLogger->set_pattern(pattern);
+		}
+	}
+
+	void FileLogger::close() {
+		if( m_pLogger ) {
+			m_pLogger.reset();
+		}
+	}
+
+
 } // reprostim

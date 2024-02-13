@@ -87,6 +87,8 @@ std::string renameVideoFile(
 template<>
 void FfmpegThread ::run() {
 	verbose = getParams().verbose;
+	_SESSION_LOG_BEGIN(getParams().pLogger);
+
 	std::thread::id tid= std::this_thread::get_id();
 	_VERBOSE("FfmpegThread start [" << tid << "]: " << getParams().cmd);
 
@@ -97,19 +99,23 @@ void FfmpegThread ::run() {
 	try {
 		exec(verbose,
 			 getParams().cmd,
-			 true,
+			 true, 48,
 			 [this]() { return isTerminated(); }
 		);
 	} catch(std::exception& e) {
 		_ERROR("FfmpegThread unhandled exception: " << e.what());
 	}
-	renameVideoFile(getParams().outVideoFile,
+	_VERBOSE("FfmpegThread terminating [" << tid << "]: " << getParams().cmd);
+
+	std::string outVideoFile2 = renameVideoFile(getParams().outVideoFile,
 					getParams().outPath,
 					getParams().start_ts,
 					getParams().outExt,
 					":\tFfmpeg thread terminated.");
 
+	// terminate session logs
 	_VERBOSE("FfmpegThread leave [" << tid << "]: " << getParams().cmd);
+	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -246,13 +252,17 @@ std::string VideoCaptureApp::startRecording(int cx, int cy, const std::string& f
 			outVideoFile.c_str()
 	);
 
+	SessionLogger_ptr pLogger = createSessionLogger("session_logger_" + start_ts, outVideoFile + ".log");
+	_SESSION_LOG_BEGIN(pLogger);
+	_VERBOSE("Created session logger: session_logger_" << start_ts);
 	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
 			verbose,
 			ffmpg,
 			opts.out_fmt,
 			outPath,
 			outVideoFile,
-			start_ts
+			start_ts,
+			pLogger
 	});
 
 	m_ffmpegExec.schedule(pt);
@@ -274,6 +284,7 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::stri
 		ffmpid = exec(true, "pidof ffmpeg");
 	}
 
+	_SESSION_LOG_END();
 	m_ffmpegExec.schedule(nullptr);
 
 	// finally double check file again, as sometime ffmpeg

@@ -19,6 +19,8 @@ struct RecordingParams {
 	const std::string videoDevPath;
 	const bool dumpRawFrame;
 	const int intervalMs;
+	const std::string& start_ts;
+	const SessionLogger_ptr pLogger;
 };
 
 using RecordingThread = WorkerThread<RecordingParams>;

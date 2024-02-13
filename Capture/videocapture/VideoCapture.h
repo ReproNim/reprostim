@@ -11,12 +11,13 @@ using namespace reprostim;
 // ffmpeg params shared between threads
 // make sure it's thread-safe in usage
 struct FfmpegParams {
-	const bool        verbose;
-	const std::string cmd;
-	const std::string outExt;
-	const std::string outPath;
-	const std::string outVideoFile;
-	const std::string start_ts;
+	const bool              verbose;
+	const std::string       cmd;
+	const std::string       outExt;
+	const std::string       outPath;
+	const std::string       outVideoFile;
+	const std::string       start_ts;
+	const SessionLogger_ptr pLogger;
 };
 
 using FfmpegThread = WorkerThread<FfmpegParams>;

@@ -24,8 +24,12 @@ ScreenCaptureApp::~ScreenCaptureApp() {
 }
 
 void ScreenCaptureApp::onCaptureStart() {
+	start_ts = getTimeStr();
 	g_activeSessionId.fetch_add(1);
 	int sessionId = g_activeSessionId;
+	SessionLogger_ptr pLogger = createSessionLogger("session_"+sessionId,
+													opts.outPath + "/" + start_ts + "_.log");
+	_SESSION_LOG_BEGIN(pLogger);
 	_INFO("Start recording snapshots in session " << sessionId);
 	SLEEP_MS(200);
 	recording = 1;
@@ -38,7 +42,9 @@ void ScreenCaptureApp::onCaptureStart() {
 			opts.outPath,
 			targetVideoDevPath,
 			m_scOpts.dump_raw,
-			m_scOpts.interval_ms
+			m_scOpts.interval_ms,
+			start_ts,
+			pLogger
 	});
 
 	m_recExec.schedule(pt);
@@ -47,6 +53,7 @@ void ScreenCaptureApp::onCaptureStart() {
 void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 	if( recording>0 ) {
 		_INFO("Stop recording snapshots for session " << g_activeSessionId << ". " << message);
+		_SESSION_LOG_END();
 		m_recExec.schedule(nullptr);
 		recording = 0;
 		SLEEP_SEC(1);

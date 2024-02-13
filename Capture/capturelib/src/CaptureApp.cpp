@@ -55,6 +55,12 @@ namespace reprostim {
 			cfg.video_device_path_pattern = doc["video_device_path_pattern"].as<std::string>();
 		}
 
+		if( doc["session_logger_enabled"] ) {
+			cfg.session_logger_enabled = doc["session_logger_enabled"].as<bool>();
+			cfg.session_logger_level = parseLogLevel(doc["session_logger_level"].as<std::string >());
+			cfg.session_logger_pattern = doc["session_logger_pattern"].as<std::string>();
+		}
+
 		if( doc["ffm_opts"] ) {
 			YAML::Node node = doc["ffm_opts"];
 			FfmpegOpts& opts = cfg.ffm_opts;

@@ -27,4 +27,6 @@ target_link_libraries(${PROJECT_NAME}
             asound
             v4l2
             yaml-cpp
+            spdlog
+            fmt
         )
