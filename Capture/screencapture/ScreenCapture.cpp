@@ -27,7 +27,7 @@ void ScreenCaptureApp::onCaptureStart() {
 	start_ts = getTimeStr();
 	g_activeSessionId.fetch_add(1);
 	int sessionId = g_activeSessionId;
-	SessionLogger_ptr pLogger = createSessionLogger("session_"+sessionId,
+	SessionLogger_ptr pLogger = createSessionLogger("session_" + std::to_string(sessionId),
 													opts.outPath + "/" + start_ts + "_.log");
 	_SESSION_LOG_BEGIN(pLogger);
 	_INFO("Start recording snapshots in session " << sessionId);

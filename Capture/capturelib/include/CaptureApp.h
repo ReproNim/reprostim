@@ -96,17 +96,6 @@ namespace reprostim {
 	};
 
 	// inline methods
-	inline SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
-		if( cfg.session_logger_enabled ) {
-			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
-			pLogger->open(name,
-						  filePath,
-						  cfg.session_logger_level,
-						  cfg.session_logger_pattern);
-			return pLogger;
-		}
-		return nullptr;
-	}
 
 	inline void CaptureApp::disconnDevAdd(const std::string& devPath) {
 		_SYNC();

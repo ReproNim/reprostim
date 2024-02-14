@@ -131,12 +131,12 @@ VideoCaptureApp::~VideoCaptureApp() {
 }
 
 void VideoCaptureApp::onCaptureStart() {
-	start_ts = startRecording(vssCur.cx,
-							  vssCur.cy,
-							  frameRate,
-							  opts.outPath,
-							  targetVideoDevPath,
-							  targetAudioDevPath);
+	startRecording(vssCur.cx,
+				  vssCur.cy,
+				  frameRate,
+				  opts.outPath,
+				  targetVideoDevPath,
+				  targetAudioDevPath);
 	recording = 1;
 	_INFO(start_ts << ":\tStarted Recording: ");
 	_INFO("Apct Rat: " << vssCur.cx << "x" << vssCur.cy);
@@ -223,9 +223,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	return EX_OK;
 }
 
-std::string VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRate,
+void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRate,
 		const std::string& outPath, const std::string& v_dev, const std::string& a_dev) {
-	std::string start_ts = getTimeStr();
+	start_ts = getTimeStr();
 	char ffmpg[PATH_MAX_LEN] = {0};
 	const FfmpegOpts& opts = cfg.ffm_opts;
 	std::string a_dev2 = a_dev;
@@ -266,7 +266,6 @@ std::string VideoCaptureApp::startRecording(int cx, int cy, const std::string& f
 	});
 
 	m_ffmpegExec.schedule(pt);
-	return start_ts;
 }
 
 void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::string& vpath) {

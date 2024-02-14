@@ -34,7 +34,7 @@
 #define _SESSION_LOG_END_CLOSE_RENAME(newFilePath) { \
 	SessionLogger_ptr p = tl_pSessionLogger; \
 	_SESSION_LOG_END(); \
-	if( p ) { p->close(); p->move(newFilePath); } \
+	if( p ) { p->info("Session logging end: "+p->getName()); p->close(); p->move(newFilePath); } \
 }
 #endif
 
@@ -92,6 +92,7 @@ namespace reprostim {
 		void debug_(const std::string &msg);
 		void error(const std::string &msg);
 		const std::string& getFilePath() const;
+		const std::string& getName() const;
 		void info(const std::string &msg);
 		bool isDebugEnabled() const;
 		bool isErrorEnabled() const;
@@ -114,6 +115,10 @@ namespace reprostim {
 
 	inline const std::string& FileLogger::getFilePath() const {
 		return m_sFilePath;
+	}
+
+	inline const std::string& FileLogger::getName() const {
+		return m_sName;
 	}
 
 	inline void FileLogger::info(const std::string &msg) {

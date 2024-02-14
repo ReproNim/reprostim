@@ -33,6 +33,21 @@ namespace reprostim {
 		audioEnabled = true;
 	}
 
+	SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
+		if( cfg.session_logger_enabled ) {
+			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
+			pLogger->open(name,
+						  filePath,
+						  cfg.session_logger_level,
+						  cfg.session_logger_pattern);
+			std::string ver = appName + " " + CAPTURE_VERSION_STRING;
+			pLogger->info("Session logging begin: " + ver + ", " + name
+			              + ", start_ts="+start_ts);
+			return pLogger;
+		}
+		return nullptr;
+	}
+
 	bool CaptureApp::loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		YAML::Node doc;
 		try {

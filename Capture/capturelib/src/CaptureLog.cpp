@@ -42,11 +42,19 @@ namespace reprostim {
 	class FileLogger::Impl {
 	private:
 		std::shared_ptr<spdlog::logger> m_pLogger;
+		std::string                     m_sName;
 	public:
 
 		void close() {
 			if( m_pLogger ) {
+				// Flush all logs
+				m_pLogger->flush();
 				m_pLogger.reset();
+				if( !m_sName.empty() ) {
+					// Force logger to be dropped
+					spdlog::drop(m_sName);
+					m_sName = "";
+				}
 			}
 		}
 
@@ -80,16 +88,22 @@ namespace reprostim {
 		void open(const std::string &name,
 				  const std::string &filePath,
 				  const std::string &pattern) {
-			if( m_pLogger ) {
-				m_pLogger.reset();
+			if( isOpen() ) {
+				close();
 			}
+			m_sName = name;
 			m_pLogger = spdlog::basic_logger_mt(name, filePath);
 			m_pLogger->set_level(spdlog::level::trace);
 			if( !pattern.empty() ) {
 				m_pLogger->set_pattern(pattern);
 			}
+			// NOTE: in future we can add more options here
+			// for realtime logging
+			//
+			//m_pLogger->flush_on(spdlog::level::trace);
+			// available only in newer version in future
+			// m_pLogger->set_flush_interval(std::chrono::milliseconds(1000));
 		}
-
 	};
 
 	// FileLogger implementation
