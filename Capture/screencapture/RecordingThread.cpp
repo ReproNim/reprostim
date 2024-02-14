@@ -40,7 +40,7 @@ inline int calcFrameDiff(unsigned char *f1, unsigned char *f2, size_t len) {
 	return difference;
 }
 
-int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
+int recordScreens(const RecordingParams& rp, std::function<bool()> isTerminated) {
 	bool verbose = rp.verbose;
 	_VERBOSE("recordScreens enter, sessionId=" << rp.sessionId);
 	int fd = open(rp.videoDevPath.c_str(), O_RDWR);
@@ -116,16 +116,18 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 	bool fSave = false;
 	long long nextSaveTime = currentTimeMs() + rp.intervalMs;
 
-	std::string start_ts = getTimeStr();
-	std::filesystem::path sessionPath = std::filesystem::path(rp.outPath) / (start_ts + "_");
+	//std::string start_ts = getTimeStr();
+	std::filesystem::path sessionPath = std::filesystem::path(rp.outPath) / (rp.start_ts + "_");
 	if( !std::filesystem::exists(sessionPath) ) {
 		_INFO("Create session " << rp.sessionId << " directory: " << sessionPath.string());
 		std::filesystem::create_directory(sessionPath);
 	}
 
+	_SESSION_LOG_BEGIN(rp.pLogger);
+
 	// Capturing and comparing loop
 	while (true) {
-		if( terminated ) {
+		if( isTerminated() ) {
 			_INFO("Capture terminated for session " << rp.sessionId);
 			break;
 		}
@@ -218,58 +220,29 @@ int recordScreens(const RecordingParams& rp, std::atomic<bool>& terminated) {
 
 	std::string end_ts = getTimeStr();
 	std::filesystem::path sessionPath2 = sessionPath;
-	sessionPath2.replace_filename(start_ts+"_"+end_ts);
+	sessionPath2.replace_filename(rp.start_ts+"_"+end_ts);
 	_INFO("Rename session " << rp.sessionId << " directory: "
 		<< sessionPath.string() << " -> " << sessionPath2.string());
 	std::filesystem::rename(sessionPath, sessionPath2);
 
 	_VERBOSE("recordScreens leave, sessionId=" << rp.sessionId);
+	_SESSION_LOG_END_CLOSE_RENAME(sessionPath2.string() + ".log");
 	return 0;
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////
-RecordingThread::RecordingThread(const RecordingParams &params) : m_params(params) {
-	verbose = params.verbose;
-	m_running = false;
-	m_terminate = false;
-}
 
-RecordingThread::~RecordingThread() {
-
-}
-
+// specialization/override for default WorkerThread::run
+template<>
 void RecordingThread::run() {
-	m_running = true;
-	recordScreens(m_params, m_terminate);
-	m_running = false;
-}
-
-void RecordingThread::start() {
-	m_running = false;
-	m_terminate = false;
-	std::thread t(&RecordingThread::run, this);
-	for (int i = 0; i < 10; i++) {
-		SLEEP_MS(100);
-		if (m_running) {
-			break;
-		}
-	}
-	t.detach();
-}
-
-void RecordingThread::stop() {
-	m_terminate = true;
-	for (int i = 0; i < 10; i++) {
-		SLEEP_MS(100);
-		if (!m_running) {
-			break;
-		}
-	}
-}
-
-bool RecordingThread::isRunning() const {
-	return m_running;
+	try {
+		recordScreens(m_params,
+					  [this]() { return isTerminated(); }
+		);
+	} catch(std::exception e) {
+		_ERROR("Unhandled exception: " << e.what());
+	};
 }
 

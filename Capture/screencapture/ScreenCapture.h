@@ -17,9 +17,8 @@ struct ScreenCaptureOpts {
 
 class ScreenCaptureApp: public CaptureApp {
 private:
-	RecordingThread*  m_prtCur;
-	RecordingThread*  m_prtPrev;
-	ScreenCaptureOpts m_scOpts;
+	SingleThreadExecutor<RecordingThread> m_recExec;
+	ScreenCaptureOpts                     m_scOpts;
 public:
 	ScreenCaptureApp();
 	~ScreenCaptureApp();

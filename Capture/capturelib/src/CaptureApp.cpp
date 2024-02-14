@@ -33,6 +33,21 @@ namespace reprostim {
 		audioEnabled = true;
 	}
 
+	SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
+		if( cfg.session_logger_enabled ) {
+			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
+			pLogger->open(name,
+						  filePath,
+						  cfg.session_logger_level,
+						  cfg.session_logger_pattern);
+			std::string ver = appName + " " + CAPTURE_VERSION_STRING;
+			pLogger->info("Session logging begin: " + ver + ", " + name
+			              + ", start_ts="+start_ts);
+			return pLogger;
+		}
+		return nullptr;
+	}
+
 	bool CaptureApp::loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		YAML::Node doc;
 		try {
@@ -53,6 +68,12 @@ namespace reprostim {
 
 		if( doc["video_device_path_pattern"] ) {
 			cfg.video_device_path_pattern = doc["video_device_path_pattern"].as<std::string>();
+		}
+
+		if( doc["session_logger_enabled"] ) {
+			cfg.session_logger_enabled = doc["session_logger_enabled"].as<bool>();
+			cfg.session_logger_level = parseLogLevel(doc["session_logger_level"].as<std::string >());
+			cfg.session_logger_pattern = doc["session_logger_pattern"].as<std::string>();
 		}
 
 		if( doc["ffm_opts"] ) {
@@ -86,6 +107,16 @@ namespace reprostim {
 
 	bool CaptureApp::onLoadConfig(AppConfig &cfg, const std::string &pathConfig, YAML::Node doc) {
 		return true;
+	}
+
+	void CaptureApp::onUsbDevArrived(const std::string& devPath) {
+		_INFO("Connected USB device: " << devPath);
+		disconnDevRemove(devPath);
+	}
+
+	void CaptureApp::onUsbDevLeft(const std::string& devPath) {
+		_INFO("Disconnected USB device: " << devPath);
+		disconnDevAdd(devPath);
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -167,8 +198,22 @@ namespace reprostim {
 
 		_VERBOSE("MWCapture SDK version: " << mwcSdkVersion());
 
+		// register USB hotplug callback if any
+		bool hasHotplug = true;
+		if (MWUSBRegisterHotPlug(CaptureApp::usbHotplugCallback, this) != MW_SUCCEEDED) {
+			_ERROR("Failed register USB device hot plug callback");
+			hasHotplug = false;
+		}
+
 		do {
 			SLEEP_SEC(1);
+
+			if( !targetMwDevPath.empty() && disconnDevContains(targetMwDevPath) ) {
+				onCaptureStop("Target USB device instance " + targetMwDevPath + " disconnected");
+				targetMwDevPath = "";
+				continue;
+			}
+
 			HCHANNEL hChannel = NULL;
 			if( !findTargetVideoDevice(opts.verbose,
 									   cfg.has_device_serial_number?cfg.device_serial_number:"",
@@ -186,8 +231,13 @@ namespace reprostim {
 			_VERBOSE("Found target device: " << vdToString(targetDev));
 
 			char wPath[256] = {0};
-			mr = MWGetDevicePath(targetDev.channelIndex, wPath);
-			_VERBOSE("Device path: " << wPath);
+			if( MWGetDevicePath(targetDev.channelIndex, wPath)==MW_SUCCEEDED ) {
+				targetMwDevPath = wPath;
+				_VERBOSE("Magewell device instance path: " << wPath);
+			} else {
+				_ERROR("ERROR[006]: Failed MWGetDevicePath");
+				targetMwDevPath = "";
+			}
 
 			// TODO: check res
 			hChannel = MWOpenChannelByPath(wPath);
@@ -222,8 +272,11 @@ namespace reprostim {
 					if( !cfg.ffm_opts.has_v_dev || !cfg.has_device_serial_number ) {
 						_INFO("    <> Found Video Device          ===> "
 									  << targetVideoDevPath << ", S/N: " << targetDev.serial
-									  << ", busInfo: " << targetBusInfo
 									  << ", " << targetDev.name);
+						_INFO("    <>                                  "
+									  << "USB bus info         : " << targetBusInfo);
+						_INFO("    <>                                  "
+									  << "Instance device path : " << targetMwDevPath);
 					}
 
 					if( audioEnabled ) {
@@ -268,6 +321,11 @@ namespace reprostim {
 
 		onCaptureStop("Program terminated");
 
+		if( hasHotplug ) {
+			MWUSBUnRegisterHotPlug();
+			hasHotplug = false;
+		}
+
 		if( fInit )
 			MWCaptureExitInstance();
 
@@ -280,4 +338,19 @@ namespace reprostim {
 		return EX_OK;
 	}
 
+	void CaptureApp::usbHotplugCallback(MWUSBHOT_PLUG_EVETN event, const char *pszDevicePath, void* pParam) {
+		if( pParam==NULL ) return;
+		CaptureApp* pApp = reinterpret_cast<CaptureApp*>(pParam);
+		bool verbose = pApp->verbose;
+		switch(event) {
+			case USBHOT_PLUG_EVENT_DEVICE_ARRIVED:
+				pApp->onUsbDevArrived(pszDevicePath);
+				break;
+			case USBHOT_PLUG_EVENT_DEVICE_LEFT:
+				pApp->onUsbDevLeft(pszDevicePath);
+				break;
+			default:
+				_VERBOSE("Unknown USB hotplug event: " << event << ", " << pszDevicePath);
+		}
+	}
 }
