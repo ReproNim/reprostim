@@ -8,6 +8,7 @@ configure_file(${PROJECT_SOURCE_DIR}/include/CaptureVer.h.in
 
 add_library(${PROJECT_NAME} STATIC
         src/CaptureLib.cpp
+        src/CaptureLog.cpp
         src/CaptureApp.cpp
         include/CaptureVer.h.in
 )
