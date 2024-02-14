@@ -4,13 +4,12 @@
 #include <string>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <vector>
 #include <chrono>
 #include <thread>
-#include <spdlog/spdlog.h>
 #include "LibMWCapture/MWCapture.h"
-
 #include "CaptureVer.h"
 
 /*########################### Common macros ############################*/
@@ -176,10 +175,12 @@ namespace reprostim {
 
 	class FileLogger {
 	private:
+		class Impl; // private logger implementation
+		std::unique_ptr<Impl>           m_pImpl;
 		std::string                     m_sFilePath;
 		volatile int                    m_nLevel;
-		std::shared_ptr<spdlog::logger> m_pLogger;
 		std::string                     m_sName;
+
 		void log(int level, const std::string &msg);
 	public:
 		FileLogger();

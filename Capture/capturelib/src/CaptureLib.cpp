@@ -14,8 +14,9 @@
 #include <csignal>
 #include <sysexits.h>
 #include <alsa/asoundlib.h>
-#include "CaptureLib.h"
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include "CaptureLib.h"
 
 
 namespace fs = std::filesystem;
@@ -429,10 +430,65 @@ namespace reprostim {
 		return s.str();
 	}
 
-  ///////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
 	// FileLogger implementation
 
-	FileLogger::FileLogger() {
+	// FileLogger::Impl private implementation
+	class FileLogger::Impl {
+	private:
+		std::shared_ptr<spdlog::logger> m_pLogger;
+	public:
+
+		void close() {
+			if( m_pLogger ) {
+				m_pLogger.reset();
+			}
+		}
+
+		inline std::shared_ptr<spdlog::logger>& getLogger() {
+			return m_pLogger;
+		}
+
+		inline bool isOpen() const {
+			return m_pLogger!=nullptr;
+		}
+
+		void log(int level, const std::string &msg) {
+			if( m_pLogger ) {
+				switch( level ) {
+					case LogLevel::DEBUG:
+						m_pLogger->debug(msg);
+						break;
+					case LogLevel::INFO:
+						m_pLogger->info(msg);
+						break;
+					case LogLevel::WARN:
+						m_pLogger->warn(msg);
+						break;
+					case LogLevel::ERROR:
+						m_pLogger->error(msg);
+						break;
+				}
+			}
+		}
+
+		void open(const std::string &name,
+				  const std::string &filePath,
+				  const std::string &pattern) {
+			if( m_pLogger ) {
+				m_pLogger.reset();
+			}
+			m_pLogger = spdlog::basic_logger_mt(name, filePath);
+			m_pLogger->set_level(spdlog::level::trace);
+			if( !pattern.empty() ) {
+				m_pLogger->set_pattern(pattern);
+			}
+		}
+
+	};
+
+	// FileLogger implementation
+	FileLogger::FileLogger(): m_pImpl(new Impl()) {
 		m_nLevel = LogLevel::OFF;
 	}
 
@@ -441,26 +497,13 @@ namespace reprostim {
 	}
 
 	void FileLogger::log(int level, const std::string &msg) {
-		if( level>=m_nLevel && m_pLogger ) {
-			switch( level ) {
-				case LogLevel::DEBUG:
-					m_pLogger->debug(msg);
-					break;
-				case LogLevel::INFO:
-					m_pLogger->info(msg);
-					break;
-				case LogLevel::WARN:
-					m_pLogger->warn(msg);
-					break;
-				case LogLevel::ERROR:
-					m_pLogger->error(msg);
-					break;
-			}
+		if( level>=m_nLevel ) {
+			m_pImpl->log(level, msg);
 		}
 	}
 
 	std::string FileLogger::move(const std::string& newFilePath) {
-		if( m_pLogger ) {
+		if( m_pImpl->isOpen() ) {
 			_ERROR("Can't rename log file while logger is open:  " << m_sName << ", " << m_sFilePath);
 		}
 		if( std::filesystem::exists(m_sFilePath) ) {
@@ -476,20 +519,11 @@ namespace reprostim {
 		m_sName = name;
 		m_sFilePath = filePath;
 		m_nLevel = level;
-		if( m_pLogger ) {
-			m_pLogger.reset();
-		}
-		m_pLogger = spdlog::basic_logger_mt(m_sName, m_sFilePath);
-		m_pLogger->set_level(spdlog::level::trace);
-		if( !pattern.empty() ) {
-			m_pLogger->set_pattern(pattern);
-		}
+		m_pImpl->open(name, filePath, pattern);
 	}
 
 	void FileLogger::close() {
-		if( m_pLogger ) {
-			m_pLogger.reset();
-		}
+		m_pImpl->close();
 	}
 
 } // reprostim
