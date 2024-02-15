@@ -112,5 +112,19 @@ namespace reprostim {
 		m_disconnDevs.erase(devPath);
 	}
 
+	// Default main entry point implementation
+	// for use in main.cpp in application based
+	// on CaptureApp
+	template<typename T>
+	int mainImpl(int argc, char* argv[]) {
+		int res = EXIT_SUCCESS;
+		do {
+			T app;
+			res = app.run(argc, argv);
+			optind = 0; // force restart argument scanning for getopt
+		} while(res == EX_CONFIG_RELOAD);
+		return res;
+	}
+
 }
 #endif //CAPTURE_CAPTUREAPP_H
