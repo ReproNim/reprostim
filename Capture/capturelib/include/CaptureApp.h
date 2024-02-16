@@ -85,6 +85,7 @@ namespace reprostim {
 	public:
 		CaptureApp();
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
+		void listDevices();
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);

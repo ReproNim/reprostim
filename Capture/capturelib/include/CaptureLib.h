@@ -90,6 +90,8 @@ namespace reprostim {
 
 	bool isSysBreakExec();
 
+	void listAudioDevices(bool verbose);
+
 	std::string mwcSdkVersion();
 
 	void safeMWCloseChannel(HCHANNEL&hChannel);

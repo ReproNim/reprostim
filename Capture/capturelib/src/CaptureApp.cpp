@@ -48,6 +48,18 @@ namespace reprostim {
 		return nullptr;
 	}
 
+	void CaptureApp::listDevices() {
+		printVersion();
+		_INFO(" ");
+		_INFO("[List of available Video devices]:");
+		_INFO("  N/A in this version.");
+		_INFO(" ");
+		if( audioEnabled ) {
+			_INFO("[List of available Audio devices]:");
+			listAudioDevices(opts.verbose);
+		}
+	}
+
 	bool CaptureApp::loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		YAML::Node doc;
 		try {

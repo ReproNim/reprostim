@@ -164,6 +164,8 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tVerbose, provides detailed information to stdout\n"
 								 "\t-V, --version\n"
 								 "\t         \tPrint version information\n"
+								 "\t-l, --list-devices\n"
+								 "\t         \tList devices, only audio is supported\n"
 								 "\t-h, --help\n"
 								 "\t         \tPrint this help string\n";
 
@@ -178,10 +180,11 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{"help", no_argument, nullptr, 'h'},
 			{"verbose", no_argument, nullptr, 'v'},
 			{"version", no_argument, nullptr, 'V'},
+			{"list-devices", no_argument, nullptr, 'l'},
 			{nullptr, 0, nullptr, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "o:c:d:hvV", longOpts, nullptr)) != -1) {
+	while ((c = getopt_long(argc, argv, "o:c:d:hvVl", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
 				if(optarg) opts.outPath = optarg;
@@ -194,6 +197,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 				break;
 			case 'h':
 				_INFO(HELP_STR);
+				return 1;
+			case 'l':
+				listDevices();
 				return 1;
 			case 'v':
 				opts.verbose = true;

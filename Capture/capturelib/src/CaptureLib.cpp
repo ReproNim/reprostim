@@ -197,7 +197,7 @@ namespace reprostim {
 						lname.find("Magewell") != std::string::npos) {
 						_VERBOSE("Found target audio card: " << card);
 						std::ostringstream ostm;
-						ostm << "hw:" << card << ",";
+						ostm << "hw:" << std::to_string(card) << ",";
 						if( subdev.empty() )
 							ostm << DEFAULT_AUDIO_SUBDEV;
 						else
@@ -327,6 +327,88 @@ namespace reprostim {
 
 	bool isSysBreakExec() {
 		return s_nSysBreakExec == 0 ? false : true;
+	}
+
+	void listAudioDevices(bool verbose) {
+		snd_pcm_stream_t stream = SND_PCM_STREAM_CAPTURE; // SND_PCM_STREAM_PLAYBACK;
+		//
+		snd_ctl_t *handle;
+		snd_ctl_card_info_t *info;
+		snd_pcm_info_t *pcminfo;
+		// stack memory
+		snd_ctl_card_info_alloca(&info);
+		snd_pcm_info_alloca(&pcminfo);
+
+		int card = -1;
+
+		if (snd_card_next(&card) < 0 || card < 0) {
+			return;
+		}
+
+		_INFO("Stream: " << snd_pcm_stream_name(stream));
+
+		do {
+			std::string cardAlsaName = "hw:" + std::to_string(card);
+			if (snd_ctl_open(&handle, cardAlsaName.c_str(), 0) < 0) {
+				_ERROR("Cannot open control for card" << card);
+				continue;
+			}
+
+			if (snd_ctl_card_info(handle, info) >= 0) {
+				std::string id = snd_ctl_card_info_get_id(info);
+				std::string name = snd_ctl_card_info_get_name(info);
+				std::string lname = snd_ctl_card_info_get_longname(info);
+				_INFO("  Sound Card " << std::to_string(int(card)) << ":");
+				_INFO("    ALSA Name : " << cardAlsaName);
+				_INFO("    ID        : " << id);
+				_INFO("    Name      : " << name);
+				_INFO("    LName     : " << lname);
+				_INFO("    Devices   :");
+
+				int dev = -1;
+				int err = 0;
+
+				while( true ) {
+					unsigned int count = 0;
+					if( snd_ctl_pcm_next_device(handle, &dev)<0 ) {
+						_ERROR("Failed snd_ctl_pcm_next_device");
+					}
+
+					if( dev<0 ) {
+						break;
+					}
+
+					snd_pcm_info_set_device(pcminfo, dev);
+					snd_pcm_info_set_subdevice(pcminfo, 0);
+					snd_pcm_info_set_stream(pcminfo, stream);
+					if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+						if (err != -ENOENT)
+							_ERROR("Failed snd_ctl_pcm_info: " << snd_strerror(err));
+						continue;
+					}
+					_INFO("      Device " << std::to_string(dev) << ":");
+					_INFO("        ALSA Name : " << cardAlsaName << "," << std::to_string(dev));
+					_INFO("        ID        : " << snd_pcm_info_get_id(pcminfo));
+					_INFO("        Name      : " << snd_pcm_info_get_name(pcminfo));
+
+					int c = snd_pcm_info_get_subdevices_count(pcminfo);
+					_INFO("        Subdevices: ");
+					_INFO("          Count: " << c);
+					_INFO("          Avail: " << snd_pcm_info_get_subdevices_avail(pcminfo));
+
+					for( int i=0; i<c; i++) {
+						snd_pcm_info_set_subdevice(pcminfo, i);
+						if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+							_ERROR("Failed  snd_ctl_pcm_info: " << snd_strerror(err));
+						} else {
+							_INFO("          Subdevice " << std::to_string(i) << ":");
+							_INFO("            Name : " << snd_pcm_info_get_subdevice_name(pcminfo));
+						}
+					}
+				}
+				snd_ctl_close(handle);
+			}
+		} while (snd_card_next(&card) >= 0 && card >= 0);
 	}
 
 	std::string mwcSdkVersion() {
