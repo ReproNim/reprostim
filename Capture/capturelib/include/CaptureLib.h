@@ -15,6 +15,12 @@
 
 /*########################### Common macros ############################*/
 
+
+// hardcoded audio sub device to Line-In by default
+#ifndef DEFAULT_AUDIO_SUBDEV
+#define DEFAULT_AUDIO_SUBDEV "1"
+#endif
+
 #ifndef PATH_MAX_LEN
 #define PATH_MAX_LEN 1024
 #endif
@@ -66,7 +72,8 @@ namespace reprostim {
 
 	bool findTargetVideoDevice(bool verbose, const std::string &serialNumber, VideoDevice &vd);
 
-	std::string getAudioDevicePath(bool verbose, const std::string &busInfo);
+	std::string getAudioDevicePath(bool verbose, const std::string &busInfo,
+								   const std::string &subdev);
 
 	// get file hash info in string format representing unique file snapshot in time
 	std::string getFileChangeHash(const std::string &filePath);

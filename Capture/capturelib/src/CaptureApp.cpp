@@ -83,7 +83,14 @@ namespace reprostim {
 			opts.a_nchan = node["a_nchan"].as<std::string>();
 			opts.a_opt = node["a_opt"].as<std::string>();
 			opts.a_dev = node["a_dev"].as<std::string>();
-			opts.has_a_dev = !opts.a_dev.empty() && opts.a_dev != "auto";
+			opts.has_a_dev = !opts.a_dev.empty() && opts.a_dev.find("auto")==std::string::npos;
+			opts.a_subdev = DEFAULT_AUDIO_SUBDEV;
+			if( opts.a_dev.find("auto,")==0 ) {
+				std::string subdev = opts.a_dev.substr(5);
+				if( !subdev.empty() ) {
+					opts.a_subdev = subdev;
+				}
+			}
 			opts.v_fmt = node["v_fmt"].as<std::string>();
 			opts.v_opt = node["v_opt"].as<std::string>();
 			opts.v_dev = node["v_dev"].as<std::string>();
@@ -283,7 +290,9 @@ namespace reprostim {
 						if (cfg.ffm_opts.has_a_dev) {
 							targetAudioDevPath = cfg.ffm_opts.a_dev;
 						} else {
-							targetAudioDevPath = getAudioDevicePath(opts.verbose, targetBusInfo);
+							targetAudioDevPath = getAudioDevicePath(opts.verbose,
+																	targetBusInfo,
+																	cfg.ffm_opts.a_subdev);
 							_INFO("    <> Found Audio Device          ===> " << targetAudioDevPath);
 						}
 						_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);

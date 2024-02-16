@@ -40,7 +40,9 @@ ffm_opts:
   # Optionally, specify "a_dev" ALSA audio device explicitly (e.g. hw:1,0)
   # to override value calculated from "device_serial_number" or specify
   # "auto" value, to calculate "a_dev" automatically based on
-  # "device_serial_number" value
+  # "device_serial_number" value.
+  # To specify audio subdevice explicitly in auto mode it can be added
+  # after comma (,) e.g. "auto,0"
   #
   a_dev: "auto"
   a_opt: "-thread_queue_size 4096"

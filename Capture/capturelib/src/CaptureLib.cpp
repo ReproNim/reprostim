@@ -158,7 +158,8 @@ namespace reprostim {
 		return false;
 	}
 
-	std::string getAudioDevicePath(bool verbose, const std::string &busInfo) {
+	std::string getAudioDevicePath(bool verbose, const std::string &busInfo,
+								   const std::string &subdev) {
 		std::string res;
 
 		snd_ctl_t *handle;
@@ -196,7 +197,11 @@ namespace reprostim {
 						lname.find("Magewell") != std::string::npos) {
 						_VERBOSE("Found target audio card: " << card);
 						std::ostringstream ostm;
-						ostm << "hw:" << card << ",1";
+						ostm << "hw:" << card << ",";
+						if( subdev.empty() )
+							ostm << DEFAULT_AUDIO_SUBDEV;
+						else
+							ostm << subdev;
 						res = ostm.str();
 						break;
 					}
