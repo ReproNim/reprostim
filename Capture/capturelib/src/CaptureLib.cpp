@@ -212,6 +212,19 @@ namespace reprostim {
 		return res;
 	}
 
+	std::string getAudioCtlElemName(snd_ctl_elem_id_t *id)
+	{
+		std::string res;
+		char *str;
+		str = snd_ctl_ascii_elem_id_get(id);
+		if (str) {
+			res = str;
+			//_VERBOSE("getAudioCtlElemName=" << str);
+			free(str);
+		}
+		return res;
+	}
+
 // get file hash info in string format representing unique file snapshot in time
 	std::string getFileChangeHash(const std::string &filePath) {
 		std::filesystem::file_time_type mt = std::filesystem::last_write_time(filePath);
@@ -329,6 +342,51 @@ namespace reprostim {
 		return s_nSysBreakExec == 0 ? false : true;
 	}
 
+	static void listAudioControls(bool verbose,
+								  const std::string &cardName,
+								  const std::string &indent)
+	{
+		int err = 0 ;
+		snd_hctl_t *handle;
+		snd_hctl_elem_t *elem;
+		snd_ctl_elem_id_t *id;
+		snd_ctl_elem_info_t *info;
+		snd_ctl_elem_id_alloca(&id);
+		snd_ctl_elem_info_alloca(&info);
+
+		if( (err = snd_hctl_open(&handle, cardName.c_str(), 0)) < 0 ) {
+			_ERROR("Failed snd_hctl_open: " << cardName << ", " << snd_strerror(err));
+			return;
+		}
+
+		if( (err = snd_hctl_load(handle)) < 0 ) {
+			_ERROR("Failed snd_hctl_load: " << cardName << ", " << snd_strerror(err));
+			return;
+		}
+
+		int j = 0;
+		for( elem = snd_hctl_first_elem(handle); elem; elem = snd_hctl_elem_next(elem) ) {
+			if ((err = snd_hctl_elem_info(elem, info)) < 0) {
+				_ERROR("Failed snd_hctl_elem_info: " << cardName << ", " << snd_strerror(err));
+				return;
+			}
+			_VERBOSE("elem: info=" << info);
+			//if( snd_ctl_elem_info_is_inactive(info) )
+			//	continue;
+			snd_hctl_elem_get_id(elem, id);
+			_VERBOSE("elem: id=" << id);
+			_INFO(indent << "HCTL Elem[" << std::to_string(j) << "] : " << getAudioCtlElemName(id));
+
+			//unsigned int count = snd_ctl_elem_info_get_count(info);
+			//snd_ctl_elem_type_t type_ = snd_ctl_elem_info_get_type(info);
+			//_INFO("count=" << count << ", type=" << type_);
+			j++;
+		}
+		snd_hctl_close(handle);
+		return;
+	}
+
+
 	void listAudioDevices(bool verbose) {
 		snd_pcm_stream_t stream = SND_PCM_STREAM_CAPTURE; // SND_PCM_STREAM_PLAYBACK;
 		//
@@ -407,6 +465,8 @@ namespace reprostim {
 					}
 				}
 				snd_ctl_close(handle);
+				_INFO("    Controls  :");
+				listAudioControls(verbose, cardAlsaName, "      ");
 			}
 		} while (snd_card_next(&card) >= 0 && card >= 0);
 	}
