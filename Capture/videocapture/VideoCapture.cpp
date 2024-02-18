@@ -85,7 +85,6 @@ std::string renameVideoFile(
 // specialization/override for default WorkerThread::run
 template<>
 void FfmpegThread ::run() {
-	verbose = getParams().verbose;
 	_SESSION_LOG_BEGIN(getParams().pLogger);
 
 	std::thread::id tid= std::this_thread::get_id();
@@ -96,8 +95,7 @@ void FfmpegThread ::run() {
 
 	// NOTE: in future improve async subprocess execution with reworked exec API.
 	try {
-		exec(verbose,
-			 getParams().cmd,
+		exec(getParams().cmd,
 			 true, 48,
 			 [this]() { return isTerminated(); }
 		);
@@ -261,7 +259,6 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	_SESSION_LOG_BEGIN(pLogger);
 	_VERBOSE("Created session logger: session_logger_" << start_ts);
 	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
-			verbose,
 			ffmpg,
 			opts.out_fmt,
 			outPath,
@@ -276,7 +273,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::string& vpath) {
 	std::string out_fmt = cfg.ffm_opts.out_fmt;
 	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
-	std::string ffmpid = exec(true, "pidof ffmpeg");
+	std::string ffmpid = exec("pidof ffmpeg");
 	_INFO("stop record says: " << ffmpid.c_str());
 	while ( ffmpid.length() > 0 ) {
 		_INFO("<> PID of ffmpeg\t===> " << ffmpid.c_str());
@@ -285,7 +282,7 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::stri
 		system(killCmd.c_str());
 		//
 		SLEEP_SEC(1.5); // Allow time for ffmpeg to stop
-		ffmpid = exec(true, "pidof ffmpeg");
+		ffmpid = exec("pidof ffmpeg");
 	}
 
 	_SESSION_LOG_END();

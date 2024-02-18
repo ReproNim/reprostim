@@ -38,7 +38,6 @@ namespace reprostim {
 		const T m_params;
 		std::atomic<bool> m_running;
 		std::atomic<bool> m_terminated;
-		bool verbose;
 
 	public:
 		WorkerThread(const T &params);
@@ -61,7 +60,6 @@ namespace reprostim {
 
 	template<typename T>
 	WorkerThread<T>::WorkerThread(const T &params) : m_params(params) {
-		verbose = params.verbose;
 		m_running = false;
 		m_terminated = false;
 	}

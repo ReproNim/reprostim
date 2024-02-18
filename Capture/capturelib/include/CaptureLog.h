@@ -17,7 +17,7 @@
 #endif
 
 #ifndef _VERBOSE
-#define _VERBOSE(expr) if( verbose ) { std::cout << expr << std::endl; _SESSION_LOG_DEBUG(expr); }
+#define _VERBOSE(expr) if( isVerbose() ) { std::cout << expr << std::endl; _SESSION_LOG_DEBUG(expr); }
 #endif
 
 // Session logger related macros
@@ -152,8 +152,24 @@ namespace reprostim {
 	// Session logger pointer type
 	using SessionLogger_ptr = std::shared_ptr<FileLogger>;
 
+	//////////////////////////////////////////////////////////////////////////
+	// Global variables
+
+	extern volatile int g_verbose;
+
 	// global TLS variable to hold local session logger
 	extern thread_local SessionLogger_ptr tl_pSessionLogger;
+
+	//////////////////////////////////////////////////////////////////////////
+	// Inline functions
+
+	inline bool isVerbose() {
+		return g_verbose>0;
+	}
+
+	inline void setVerbose(bool verbose) {
+		g_verbose = verbose ? 1 : 0;
+	}
 
 }
 #endif //CAPTURE_CAPTURELOG_H

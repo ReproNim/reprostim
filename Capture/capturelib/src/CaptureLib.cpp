@@ -24,7 +24,7 @@ namespace reprostim {
 	// private static global flag
 	static volatile sig_atomic_t s_nSysBreakExec = 0;
 
-	bool checkOutDir(bool verbose, const std::string &outDir) {
+	bool checkOutDir(const std::string &outDir) {
 		if (!fs::exists(outDir)) {
 			_VERBOSE("Output path not exists, creating...");
 			if (fs::create_directories(outDir)) {
@@ -38,16 +38,16 @@ namespace reprostim {
 		return true;
 	}
 
-	int checkSystem(bool verbose) {
+	int checkSystem() {
 		// check ffmpeg
-		std::string ffmpeg = exec(false, "which ffmpeg");
+		std::string ffmpeg = exec("which ffmpeg");
 		if (ffmpeg.empty()) {
 			_ERROR("ffmpeg program not found. Please make sure ffmpeg package is installed.");
 			return EX_UNAVAILABLE;
 		}
 
 		// check v4l2-ctl
-		std::string v4l2ctl = exec(false, "which v4l2-ctl");
+		std::string v4l2ctl = exec("which v4l2-ctl");
 		if (v4l2ctl.empty()) {
 			_ERROR("v4l2-ctl program not found. Please make sure v4l-utils package is installed.");
 			return EX_UNAVAILABLE;
@@ -72,8 +72,7 @@ namespace reprostim {
 		return s.str();
 	}
 
-	std::string exec(bool verbose,
-					 const std::string &cmd,
+	std::string exec(const std::string &cmd,
 					 bool showStdout,
 					 int maxResLen,
 					 std::function<bool()> isTerminated
@@ -103,8 +102,7 @@ namespace reprostim {
 		return result;
 	}
 
-	bool findTargetVideoDevice(bool verbose,
-							   const std::string &serialNumber,
+	bool findTargetVideoDevice(const std::string &serialNumber,
 							   VideoDevice &vd) {
 		vd.channelIndex = -1;
 		MW_RESULT mwRes = MWRefreshDevice();
@@ -158,7 +156,7 @@ namespace reprostim {
 		return false;
 	}
 
-	std::string getAudioInDevicePath(bool verbose, const std::string &busInfo,
+	std::string getAudioInDevicePath(const std::string &busInfo,
 									 const std::string &device) {
 		std::string res;
 
@@ -201,7 +199,7 @@ namespace reprostim {
 						std::string alsaCardName = ostm.str();
 						ostm << "," ;
 						if( device.empty() )
-							ostm << getDefaultAudioInDeviceByCard(verbose, alsaCardName);
+							ostm << getDefaultAudioInDeviceByCard(alsaCardName);
 						else
 							ostm << device;
 						res = ostm.str();
@@ -227,7 +225,7 @@ namespace reprostim {
 		return res;
 	}
 
-	std::string getDefaultAudioInDeviceByCard(bool verbose, const std::string &alsaCardName) {
+	std::string getDefaultAudioInDeviceByCard(const std::string &alsaCardName) {
 		std::string res = DEFAULT_AUDIO_IN_DEVICE;
 
 		int err = 0 ;
@@ -308,12 +306,12 @@ namespace reprostim {
 	}
 
 // NOTE: uses by-value result
-	VDevSerial getVideoDeviceSerial(bool verbose, const std::string &devPath) {
+	VDevSerial getVideoDeviceSerial(const std::string &devPath) {
 		VDevSerial vdi;
 		std::string cmd = "v4l2-ctl -d " + devPath + " --info";
 
 		//std::string res = exec_cmd(verbose, cmd);
-		std::string res = exec(verbose, cmd);
+		std::string res = exec(cmd);
 		//_INFO("Result: " << res);
 		std::regex reVideoCapture("Video Capture");
 
@@ -348,14 +346,14 @@ namespace reprostim {
 	}
 
 // NOTE: uses by-value result
-	VDevPath getVideoDevicePathBySerial(bool verbose, const std::string &pattern, const std::string &serial) {
+	VDevPath getVideoDevicePathBySerial(const std::string &pattern, const std::string &serial) {
 		VDevPath res;
 		// NOTE: ?? should we use "v4l2-ctl --list-devices | grep /dev" to determine possible devices
 		std::vector<std::string> v1 = getVideoDevicePaths(pattern);
 
 		for (const auto &path: v1) {
 			_VERBOSE(path);
-			VDevSerial vdi = getVideoDeviceSerial(verbose, path);
+			VDevSerial vdi = getVideoDeviceSerial(path);
 			if (!vdi.serialNumber.empty() && vdi.serialNumber == serial) {
 				_VERBOSE("Found video device path: " << path << ", S/N=" << serial);
 				res.path = path;
@@ -393,8 +391,7 @@ namespace reprostim {
 		return s_nSysBreakExec == 0 ? false : true;
 	}
 
-	static void listAudioControls(bool verbose,
-								  const std::string &cardName,
+	static void listAudioControls(const std::string &cardName,
 								  const std::string &indent)
 	{
 		int err = 0 ;
@@ -436,12 +433,12 @@ namespace reprostim {
 		}
 		snd_hctl_close(handle);
 
-		getDefaultAudioInDeviceByCard(verbose, cardName);
+		getDefaultAudioInDeviceByCard(cardName);
 		return;
 	}
 
 
-	void listAudioDevices(bool verbose) {
+	void listAudioDevices() {
 		snd_pcm_stream_t stream = SND_PCM_STREAM_CAPTURE; // SND_PCM_STREAM_PLAYBACK;
 		//
 		snd_ctl_t *handle;
@@ -520,7 +517,7 @@ namespace reprostim {
 				}
 				snd_ctl_close(handle);
 				_INFO("    Controls  :");
-				listAudioControls(verbose, cardAlsaName, "      ");
+				listAudioControls(cardAlsaName, "      ");
 			}
 		} while (snd_card_next(&card) >= 0 && card >= 0);
 	}

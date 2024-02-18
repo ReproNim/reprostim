@@ -60,22 +60,22 @@ namespace reprostim {
 	//////////////////////////////////////////////////////////////////////////
 	// Functions
 
-	bool checkOutDir(bool verbose, const std::string &outDir);
+	bool checkOutDir(const std::string &outDir);
 
-	int checkSystem(bool verbose);
+	int checkSystem();
 
 	std::string chiToString(MWCAP_CHANNEL_INFO &info);
 
-	std::string exec(bool verbose, const std::string &cmd, bool showStdout = false,
+	std::string exec(const std::string &cmd, bool showStdout = false,
 					 int maxResLen = -1,
 					 std::function<bool()> isTerminated = [](){ return false; });
 
-	bool findTargetVideoDevice(bool verbose, const std::string &serialNumber, VideoDevice &vd);
+	bool findTargetVideoDevice(const std::string &serialNumber, VideoDevice &vd);
 
-	std::string getAudioInDevicePath(bool verbose, const std::string &busInfo,
+	std::string getAudioInDevicePath(const std::string &busInfo,
 									 const std::string &device);
 
-	std::string getDefaultAudioInDeviceByCard(bool verbose, const std::string &alsaCardName);
+	std::string getDefaultAudioInDeviceByCard(const std::string &alsaCardName);
 
 	// get file hash info in string format representing unique file snapshot in time
 	std::string getFileChangeHash(const std::string &filePath);
@@ -83,16 +83,16 @@ namespace reprostim {
 	std::vector<std::string> getVideoDevicePaths(const std::string &pattern);
 
 	// NOTE: uses by-value result
-	VDevSerial getVideoDeviceSerial(bool verbose, const std::string &devPath);
+	VDevSerial getVideoDeviceSerial(const std::string &devPath);
 
 	// NOTE: uses by-value result
-	VDevPath getVideoDevicePathBySerial(bool verbose, const std::string &pattern, const std::string &serial);
+	VDevPath getVideoDevicePathBySerial(const std::string &pattern, const std::string &serial);
 
 	std::string getTimeStr();
 
 	bool isSysBreakExec();
 
-	void listAudioDevices(bool verbose);
+	void listAudioDevices();
 
 	std::string mwcSdkVersion();
 
@@ -117,6 +117,7 @@ namespace reprostim {
 				std::chrono::system_clock::now().time_since_epoch()
 		).count();
 	}
+
 
 }
 #endif //REPROSTIM_CAPTURELIB_H

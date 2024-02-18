@@ -9,6 +9,7 @@ namespace fs = std::filesystem;
 
 namespace reprostim {
 
+	volatile int g_verbose = 0;
 	thread_local SessionLogger_ptr tl_pSessionLogger = nullptr;
 
 	LogLevel parseLogLevel(const std::string &level) {

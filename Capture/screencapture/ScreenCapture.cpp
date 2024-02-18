@@ -35,7 +35,6 @@ void ScreenCaptureApp::onCaptureStart() {
 	recording = 1;
 
 	RecordingThread* pt = RecordingThread::newInstance(RecordingParams{
-			opts.verbose,
 			sessionId,
 			vssCur.cx, vssCur.cy,
 			m_scOpts.threshold,

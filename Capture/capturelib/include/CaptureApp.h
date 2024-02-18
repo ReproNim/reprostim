@@ -65,7 +65,6 @@ namespace reprostim {
 		// config data
 		AppOpts   opts;
 		AppConfig cfg;
-		bool      verbose;
 
 		// session runtime data
 		std::string               configHash;
