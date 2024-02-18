@@ -140,3 +140,5 @@ amixer -c 1 controls
         numid=3,iface=MIXER,name='HDMI Capture Volume'
         numid=1,iface=PCM,name='Capture Channel Map'
         numid=4,iface=PCM,name='Capture Channel Map',device=1
+
+sudo apt install guvcview

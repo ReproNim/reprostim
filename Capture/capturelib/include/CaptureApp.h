@@ -12,7 +12,8 @@ namespace reprostim {
 		std::string a_nchan;
 		std::string a_dev;
 		bool        has_a_dev = false;
-		std::string a_subdev; // calculated option
+		std::string a_alsa_dev; // calculated option
+		bool        has_a_alsa_dev = false;
 		std::string a_opt;
 		std::string v_fmt;
 		std::string v_opt;

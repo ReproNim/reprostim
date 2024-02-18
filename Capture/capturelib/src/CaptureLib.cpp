@@ -158,8 +158,8 @@ namespace reprostim {
 		return false;
 	}
 
-	std::string getAudioDevicePath(bool verbose, const std::string &busInfo,
-								   const std::string &subdev) {
+	std::string getAudioInDevicePath(bool verbose, const std::string &busInfo,
+									 const std::string &device) {
 		std::string res;
 
 		snd_ctl_t *handle;
@@ -197,11 +197,13 @@ namespace reprostim {
 						lname.find("Magewell") != std::string::npos) {
 						_VERBOSE("Found target audio card: " << card);
 						std::ostringstream ostm;
-						ostm << "hw:" << std::to_string(card) << ",";
-						if( subdev.empty() )
-							ostm << DEFAULT_AUDIO_SUBDEV;
+						ostm << "hw:" << std::to_string(card);
+						std::string alsaCardName = ostm.str();
+						ostm << "," ;
+						if( device.empty() )
+							ostm << getDefaultAudioInDeviceByCard(verbose, alsaCardName);
 						else
-							ostm << subdev;
+							ostm << device;
 						res = ostm.str();
 						break;
 					}
@@ -212,7 +214,7 @@ namespace reprostim {
 		return res;
 	}
 
-	std::string getAudioCtlElemName(snd_ctl_elem_id_t *id)
+	static std::string getAudioCtlElemName(snd_ctl_elem_id_t *id)
 	{
 		std::string res;
 		char *str;
@@ -222,6 +224,55 @@ namespace reprostim {
 			//_VERBOSE("getAudioCtlElemName=" << str);
 			free(str);
 		}
+		return res;
+	}
+
+	std::string getDefaultAudioInDeviceByCard(bool verbose, const std::string &alsaCardName) {
+		std::string res = DEFAULT_AUDIO_IN_DEVICE;
+
+		int err = 0 ;
+		snd_hctl_t *handle;
+		snd_hctl_elem_t *elem;
+		snd_ctl_elem_id_t *id;
+		snd_ctl_elem_info_t *info;
+		snd_ctl_elem_id_alloca(&id);
+		snd_ctl_elem_info_alloca(&info);
+
+		if( (err = snd_hctl_open(&handle, alsaCardName.c_str(), 0)) < 0 ) {
+			_ERROR("Failed snd_hctl_open: " << alsaCardName << ", " << snd_strerror(err));
+			return res;
+		}
+
+		if( (err = snd_hctl_load(handle)) < 0 ) {
+			_ERROR("Failed snd_hctl_load: " << alsaCardName << ", " << snd_strerror(err));
+			snd_hctl_close(handle);
+			return res;
+		}
+
+		for( elem = snd_hctl_first_elem(handle); elem; elem = snd_hctl_elem_next(elem) ) {
+			if ((err = snd_hctl_elem_info(elem, info)) < 0) {
+				_ERROR("Failed snd_hctl_elem_info: " << alsaCardName << ", " << snd_strerror(err));
+				break;
+			}
+			snd_hctl_elem_get_id(elem, id);
+			std::string elemName = getAudioCtlElemName(id);
+			_VERBOSE("HCTL Elem (card="<< alsaCardName << ") : " << elemName);
+			// try to find string in format like listed below and locate device there:
+			// numid=4,iface=PCM,name='Capture Channel Map',device=1
+			int pos = 0;
+			if( elemName.find("iface=PCM") != std::string::npos &&
+				elemName.find("Capture Channel Map") != std::string::npos &&
+				(pos = elemName.find("device=")) != std::string::npos ) {
+				res = elemName.substr(pos+7);
+				if( res.empty() ) {
+					res = DEFAULT_AUDIO_IN_DEVICE;
+				} else {
+					_VERBOSE("Found audio-in ALSA device : " << res);
+					break;
+				}
+			}
+		}
+		snd_hctl_close(handle);
 		return res;
 	}
 
@@ -361,6 +412,7 @@ namespace reprostim {
 
 		if( (err = snd_hctl_load(handle)) < 0 ) {
 			_ERROR("Failed snd_hctl_load: " << cardName << ", " << snd_strerror(err));
+			snd_hctl_close(handle);
 			return;
 		}
 
@@ -368,7 +420,7 @@ namespace reprostim {
 		for( elem = snd_hctl_first_elem(handle); elem; elem = snd_hctl_elem_next(elem) ) {
 			if ((err = snd_hctl_elem_info(elem, info)) < 0) {
 				_ERROR("Failed snd_hctl_elem_info: " << cardName << ", " << snd_strerror(err));
-				return;
+				break;
 			}
 			_VERBOSE("elem: info=" << info);
 			//if( snd_ctl_elem_info_is_inactive(info) )
@@ -383,6 +435,8 @@ namespace reprostim {
 			j++;
 		}
 		snd_hctl_close(handle);
+
+		getDefaultAudioInDeviceByCard(verbose, cardName);
 		return;
 	}
 
