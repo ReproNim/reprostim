@@ -72,14 +72,13 @@ std::string renameVideoFile(
 		const std::string& start_ts,
 		const std::string& out_fmt,
 		const std::string& message) {
+	std::string stop_ts = getTimeStr();
+	std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "_" + stop_ts, out_fmt);
 	if( std::filesystem::exists(outVideoFile) ) {
-		std::string stop_ts = getTimeStr();
-		std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "_" + stop_ts, out_fmt);
 		_INFO(message << " Saving video " << outVideoFile2);
 		rename(outVideoFile.c_str(), outVideoFile2.c_str());
-		return outVideoFile2;
 	}
-	return outVideoFile;
+	return outVideoFile2;
 }
 
 
