@@ -11,7 +11,6 @@ using namespace reprostim;
 // ffmpeg params shared between threads
 // make sure it's thread-safe in usage
 struct FfmpegParams {
-	const bool              verbose;
 	const std::string       cmd;
 	const std::string       outExt;
 	const std::string       outPath;

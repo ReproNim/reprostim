@@ -10,7 +10,6 @@ using namespace reprostim;
 // Screen capture params shared between threads
 // make sure it's thread-safe in usage
 struct RecordingParams {
-	const bool verbose;
 	const int sessionId;
 	const int cx;
 	const int cy;

@@ -24,7 +24,7 @@ namespace reprostim {
 	// private static global flag
 	static volatile sig_atomic_t s_nSysBreakExec = 0;
 
-	bool checkOutDir(bool verbose, const std::string &outDir) {
+	bool checkOutDir(const std::string &outDir) {
 		if (!fs::exists(outDir)) {
 			_VERBOSE("Output path not exists, creating...");
 			if (fs::create_directories(outDir)) {
@@ -38,16 +38,16 @@ namespace reprostim {
 		return true;
 	}
 
-	int checkSystem(bool verbose) {
+	int checkSystem() {
 		// check ffmpeg
-		std::string ffmpeg = exec(false, "which ffmpeg");
+		std::string ffmpeg = exec("which ffmpeg");
 		if (ffmpeg.empty()) {
 			_ERROR("ffmpeg program not found. Please make sure ffmpeg package is installed.");
 			return EX_UNAVAILABLE;
 		}
 
 		// check v4l2-ctl
-		std::string v4l2ctl = exec(false, "which v4l2-ctl");
+		std::string v4l2ctl = exec("which v4l2-ctl");
 		if (v4l2ctl.empty()) {
 			_ERROR("v4l2-ctl program not found. Please make sure v4l-utils package is installed.");
 			return EX_UNAVAILABLE;
@@ -72,8 +72,7 @@ namespace reprostim {
 		return s.str();
 	}
 
-	std::string exec(bool verbose,
-					 const std::string &cmd,
+	std::string exec(const std::string &cmd,
 					 bool showStdout,
 					 int maxResLen,
 					 std::function<bool()> isTerminated
@@ -103,8 +102,7 @@ namespace reprostim {
 		return result;
 	}
 
-	bool findTargetVideoDevice(bool verbose,
-							   const std::string &serialNumber,
+	bool findTargetVideoDevice(const std::string &serialNumber,
 							   VideoDevice &vd) {
 		vd.channelIndex = -1;
 		MW_RESULT mwRes = MWRefreshDevice();
@@ -158,7 +156,8 @@ namespace reprostim {
 		return false;
 	}
 
-	std::string getAudioDevicePath(bool verbose, const std::string &busInfo) {
+	std::string getAudioInDevicePath(const std::string &busInfo,
+									 const std::string &device) {
 		std::string res;
 
 		snd_ctl_t *handle;
@@ -196,7 +195,13 @@ namespace reprostim {
 						lname.find("Magewell") != std::string::npos) {
 						_VERBOSE("Found target audio card: " << card);
 						std::ostringstream ostm;
-						ostm << "hw:" << card << ",1";
+						ostm << "hw:" << std::to_string(card);
+						std::string alsaCardName = ostm.str();
+						ostm << "," ;
+						if( device.empty() )
+							ostm << getDefaultAudioInDeviceByCard(alsaCardName);
+						else
+							ostm << device;
 						res = ostm.str();
 						break;
 					}
@@ -204,6 +209,68 @@ namespace reprostim {
 
 			}
 		} while (snd_card_next(&card) >= 0 && card >= 0);
+		return res;
+	}
+
+	static std::string getAudioCtlElemName(snd_ctl_elem_id_t *id)
+	{
+		std::string res;
+		char *str;
+		str = snd_ctl_ascii_elem_id_get(id);
+		if (str) {
+			res = str;
+			//_VERBOSE("getAudioCtlElemName=" << str);
+			free(str);
+		}
+		return res;
+	}
+
+	std::string getDefaultAudioInDeviceByCard(const std::string &alsaCardName) {
+		std::string res = DEFAULT_AUDIO_IN_DEVICE;
+
+		int err = 0 ;
+		snd_hctl_t *handle;
+		snd_hctl_elem_t *elem;
+		snd_ctl_elem_id_t *id;
+		snd_ctl_elem_info_t *info;
+		snd_ctl_elem_id_alloca(&id);
+		snd_ctl_elem_info_alloca(&info);
+
+		if( (err = snd_hctl_open(&handle, alsaCardName.c_str(), 0)) < 0 ) {
+			_ERROR("Failed snd_hctl_open: " << alsaCardName << ", " << snd_strerror(err));
+			return res;
+		}
+
+		if( (err = snd_hctl_load(handle)) < 0 ) {
+			_ERROR("Failed snd_hctl_load: " << alsaCardName << ", " << snd_strerror(err));
+			snd_hctl_close(handle);
+			return res;
+		}
+
+		for( elem = snd_hctl_first_elem(handle); elem; elem = snd_hctl_elem_next(elem) ) {
+			if ((err = snd_hctl_elem_info(elem, info)) < 0) {
+				_ERROR("Failed snd_hctl_elem_info: " << alsaCardName << ", " << snd_strerror(err));
+				break;
+			}
+			snd_hctl_elem_get_id(elem, id);
+			std::string elemName = getAudioCtlElemName(id);
+			_VERBOSE("HCTL Elem (card="<< alsaCardName << ") : " << elemName);
+			// try to find string in format like listed below and locate device there:
+			// numid=4,iface=PCM,name='Capture Channel Map',device=1
+			int pos = 0;
+			if( elemName.find("iface=PCM") != std::string::npos &&
+				elemName.find("Capture Channel Map") != std::string::npos &&
+				(pos = elemName.find("device=")) != std::string::npos ) {
+				res = elemName.substr(pos+7);
+				if( res.empty() ) {
+					res = DEFAULT_AUDIO_IN_DEVICE;
+				} else {
+					_VERBOSE("Found audio-in ALSA device : " << res);
+					break;
+				}
+			}
+		}
+		snd_hctl_close(handle);
 		return res;
 	}
 
@@ -239,12 +306,12 @@ namespace reprostim {
 	}
 
 // NOTE: uses by-value result
-	VDevSerial getVideoDeviceSerial(bool verbose, const std::string &devPath) {
+	VDevSerial getVideoDeviceSerial(const std::string &devPath) {
 		VDevSerial vdi;
 		std::string cmd = "v4l2-ctl -d " + devPath + " --info";
 
 		//std::string res = exec_cmd(verbose, cmd);
-		std::string res = exec(verbose, cmd);
+		std::string res = exec(cmd);
 		//_INFO("Result: " << res);
 		std::regex reVideoCapture("Video Capture");
 
@@ -279,14 +346,14 @@ namespace reprostim {
 	}
 
 // NOTE: uses by-value result
-	VDevPath getVideoDevicePathBySerial(bool verbose, const std::string &pattern, const std::string &serial) {
+	VDevPath getVideoDevicePathBySerial(const std::string &pattern, const std::string &serial) {
 		VDevPath res;
 		// NOTE: ?? should we use "v4l2-ctl --list-devices | grep /dev" to determine possible devices
 		std::vector<std::string> v1 = getVideoDevicePaths(pattern);
 
 		for (const auto &path: v1) {
 			_VERBOSE(path);
-			VDevSerial vdi = getVideoDeviceSerial(verbose, path);
+			VDevSerial vdi = getVideoDeviceSerial(path);
 			if (!vdi.serialNumber.empty() && vdi.serialNumber == serial) {
 				_VERBOSE("Found video device path: " << path << ", S/N=" << serial);
 				res.path = path;
@@ -322,6 +389,137 @@ namespace reprostim {
 
 	bool isSysBreakExec() {
 		return s_nSysBreakExec == 0 ? false : true;
+	}
+
+	static void listAudioControls(const std::string &cardName,
+								  const std::string &indent)
+	{
+		int err = 0 ;
+		snd_hctl_t *handle;
+		snd_hctl_elem_t *elem;
+		snd_ctl_elem_id_t *id;
+		snd_ctl_elem_info_t *info;
+		snd_ctl_elem_id_alloca(&id);
+		snd_ctl_elem_info_alloca(&info);
+
+		if( (err = snd_hctl_open(&handle, cardName.c_str(), 0)) < 0 ) {
+			_ERROR("Failed snd_hctl_open: " << cardName << ", " << snd_strerror(err));
+			return;
+		}
+
+		if( (err = snd_hctl_load(handle)) < 0 ) {
+			_ERROR("Failed snd_hctl_load: " << cardName << ", " << snd_strerror(err));
+			snd_hctl_close(handle);
+			return;
+		}
+
+		int j = 0;
+		for( elem = snd_hctl_first_elem(handle); elem; elem = snd_hctl_elem_next(elem) ) {
+			if ((err = snd_hctl_elem_info(elem, info)) < 0) {
+				_ERROR("Failed snd_hctl_elem_info: " << cardName << ", " << snd_strerror(err));
+				break;
+			}
+			_VERBOSE("elem: info=" << info);
+			//if( snd_ctl_elem_info_is_inactive(info) )
+			//	continue;
+			snd_hctl_elem_get_id(elem, id);
+			_VERBOSE("elem: id=" << id);
+			_INFO(indent << "HCTL Elem[" << std::to_string(j) << "] : " << getAudioCtlElemName(id));
+
+			//unsigned int count = snd_ctl_elem_info_get_count(info);
+			//snd_ctl_elem_type_t type_ = snd_ctl_elem_info_get_type(info);
+			//_INFO("count=" << count << ", type=" << type_);
+			j++;
+		}
+		snd_hctl_close(handle);
+
+		getDefaultAudioInDeviceByCard(cardName);
+		return;
+	}
+
+
+	void listAudioDevices() {
+		snd_pcm_stream_t stream = SND_PCM_STREAM_CAPTURE; // SND_PCM_STREAM_PLAYBACK;
+		//
+		snd_ctl_t *handle;
+		snd_ctl_card_info_t *info;
+		snd_pcm_info_t *pcminfo;
+		// stack memory
+		snd_ctl_card_info_alloca(&info);
+		snd_pcm_info_alloca(&pcminfo);
+
+		int card = -1;
+
+		if (snd_card_next(&card) < 0 || card < 0) {
+			return;
+		}
+
+		_INFO("Stream: " << snd_pcm_stream_name(stream));
+
+		do {
+			std::string cardAlsaName = "hw:" + std::to_string(card);
+			if (snd_ctl_open(&handle, cardAlsaName.c_str(), 0) < 0) {
+				_ERROR("Cannot open control for card" << card);
+				continue;
+			}
+
+			if (snd_ctl_card_info(handle, info) >= 0) {
+				std::string id = snd_ctl_card_info_get_id(info);
+				std::string name = snd_ctl_card_info_get_name(info);
+				std::string lname = snd_ctl_card_info_get_longname(info);
+				_INFO("  Sound Card " << std::to_string(int(card)) << ":");
+				_INFO("    ALSA Name : " << cardAlsaName);
+				_INFO("    ID        : " << id);
+				_INFO("    Name      : " << name);
+				_INFO("    LName     : " << lname);
+				_INFO("    Devices   :");
+
+				int dev = -1;
+				int err = 0;
+
+				while( true ) {
+					unsigned int count = 0;
+					if( snd_ctl_pcm_next_device(handle, &dev)<0 ) {
+						_ERROR("Failed snd_ctl_pcm_next_device");
+					}
+
+					if( dev<0 ) {
+						break;
+					}
+
+					snd_pcm_info_set_device(pcminfo, dev);
+					snd_pcm_info_set_subdevice(pcminfo, 0);
+					snd_pcm_info_set_stream(pcminfo, stream);
+					if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+						if (err != -ENOENT)
+							_ERROR("Failed snd_ctl_pcm_info: " << snd_strerror(err));
+						continue;
+					}
+					_INFO("      Device " << std::to_string(dev) << ":");
+					_INFO("        ALSA Name : " << cardAlsaName << "," << std::to_string(dev));
+					_INFO("        ID        : " << snd_pcm_info_get_id(pcminfo));
+					_INFO("        Name      : " << snd_pcm_info_get_name(pcminfo));
+
+					int c = snd_pcm_info_get_subdevices_count(pcminfo);
+					_INFO("        Subdevices: ");
+					_INFO("          Count: " << c);
+					_INFO("          Avail: " << snd_pcm_info_get_subdevices_avail(pcminfo));
+
+					for( int i=0; i<c; i++) {
+						snd_pcm_info_set_subdevice(pcminfo, i);
+						if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+							_ERROR("Failed  snd_ctl_pcm_info: " << snd_strerror(err));
+						} else {
+							_INFO("          Subdevice " << std::to_string(i) << ":");
+							_INFO("            Name : " << snd_pcm_info_get_subdevice_name(pcminfo));
+						}
+					}
+				}
+				snd_ctl_close(handle);
+				_INFO("    Controls  :");
+				listAudioControls(cardAlsaName, "      ");
+			}
+		} while (snd_card_next(&card) >= 0 && card >= 0);
 	}
 
 	std::string mwcSdkVersion() {

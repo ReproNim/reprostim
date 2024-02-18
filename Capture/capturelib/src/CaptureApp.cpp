@@ -48,6 +48,18 @@ namespace reprostim {
 		return nullptr;
 	}
 
+	void CaptureApp::listDevices() {
+		printVersion();
+		_INFO(" ");
+		_INFO("[List of available Video devices]:");
+		_INFO("  N/A in this version.");
+		_INFO(" ");
+		if( audioEnabled ) {
+			_INFO("[List of available Audio devices]:");
+			listAudioDevices();
+		}
+	}
+
 	bool CaptureApp::loadConfig(AppConfig& cfg, const std::string& pathConfig) {
 		YAML::Node doc;
 		try {
@@ -83,7 +95,16 @@ namespace reprostim {
 			opts.a_nchan = node["a_nchan"].as<std::string>();
 			opts.a_opt = node["a_opt"].as<std::string>();
 			opts.a_dev = node["a_dev"].as<std::string>();
-			opts.has_a_dev = !opts.a_dev.empty() && opts.a_dev != "auto";
+			opts.has_a_dev = !opts.a_dev.empty() && opts.a_dev.find("auto")==std::string::npos;
+			opts.a_alsa_dev = DEFAULT_AUDIO_IN_DEVICE;
+			opts.has_a_alsa_dev = false;
+			if( opts.a_dev.find("auto,")==0 ) {
+				std::string alsaDev = opts.a_dev.substr(5);
+				if( !alsaDev.empty() ) {
+					opts.a_alsa_dev = alsaDev;
+					opts.has_a_alsa_dev = true;
+				}
+			}
 			opts.v_fmt = node["v_fmt"].as<std::string>();
 			opts.v_opt = node["v_opt"].as<std::string>();
 			opts.v_dev = node["v_dev"].as<std::string>();
@@ -137,7 +158,7 @@ namespace reprostim {
 		std::signal(SIGKILL, signalHandler);
 
 		const int res1 = parseOpts(opts, argc, argv);
-		verbose = opts.verbose;
+		setVerbose(opts.verbose);
 
 		if( res1==1 ) return EX_OK; // help message
 		if( res1!=EX_OK ) return res1;
@@ -150,13 +171,13 @@ namespace reprostim {
 		}
 
 		_VERBOSE("Output path: " << opts.outPath);
-		if( !checkOutDir(verbose, opts.outPath) ) {
+		if( !checkOutDir(opts.outPath) ) {
 			// invalid output path
 			_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
 			return EX_CANTCREAT;
 		}
 
-		const int res2 = checkSystem(verbose);
+		const int res2 = checkSystem();
 		if( res2!=EX_OK ) {
 			// problem with system configuration and installed packages
 			return res2;
@@ -215,8 +236,7 @@ namespace reprostim {
 			}
 
 			HCHANNEL hChannel = NULL;
-			if( !findTargetVideoDevice(opts.verbose,
-									   cfg.has_device_serial_number?cfg.device_serial_number:"",
+			if( !findTargetVideoDevice(cfg.has_device_serial_number?cfg.device_serial_number:"",
 									   targetDev) ) {
 				onCaptureStop(":\tStopped recording. No channels!");
 				_VERBOSE("Wait, no channels found");
@@ -257,8 +277,7 @@ namespace reprostim {
 						targetVideoDevPath = cfg.ffm_opts.v_dev;
 						targetBusInfo = "N/A";
 					} else {
-						VDevPath vdp = getVideoDevicePathBySerial(opts.verbose,
-																  cfg.video_device_path_pattern,
+						VDevPath vdp = getVideoDevicePathBySerial(cfg.video_device_path_pattern,
 																  targetDev.serial);
 						targetVideoDevPath = vdp.path;
 						targetBusInfo = vdp.busInfo;
@@ -283,7 +302,12 @@ namespace reprostim {
 						if (cfg.ffm_opts.has_a_dev) {
 							targetAudioDevPath = cfg.ffm_opts.a_dev;
 						} else {
-							targetAudioDevPath = getAudioDevicePath(opts.verbose, targetBusInfo);
+							std::string alsaDev = "";
+							if( cfg.ffm_opts.has_a_alsa_dev ) {
+								alsaDev = cfg.ffm_opts.a_alsa_dev;
+							}
+							targetAudioDevPath = getAudioInDevicePath(targetBusInfo,
+																	  alsaDev);
 							_INFO("    <> Found Audio Device          ===> " << targetAudioDevPath);
 						}
 						_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
@@ -341,7 +365,6 @@ namespace reprostim {
 	void CaptureApp::usbHotplugCallback(MWUSBHOT_PLUG_EVETN event, const char *pszDevicePath, void* pParam) {
 		if( pParam==NULL ) return;
 		CaptureApp* pApp = reinterpret_cast<CaptureApp*>(pParam);
-		bool verbose = pApp->verbose;
 		switch(event) {
 			case USBHOT_PLUG_EVENT_DEVICE_ARRIVED:
 				pApp->onUsbDevArrived(pszDevicePath);

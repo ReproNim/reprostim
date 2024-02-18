@@ -41,7 +41,6 @@ inline int calcFrameDiff(unsigned char *f1, unsigned char *f2, size_t len) {
 }
 
 int recordScreens(const RecordingParams& rp, std::function<bool()> isTerminated) {
-	bool verbose = rp.verbose;
 	_VERBOSE("recordScreens enter, sessionId=" << rp.sessionId);
 	int fd = open(rp.videoDevPath.c_str(), O_RDWR);
 	if (fd == -1) {

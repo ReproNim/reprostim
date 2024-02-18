@@ -12,6 +12,8 @@ namespace reprostim {
 		std::string a_nchan;
 		std::string a_dev;
 		bool        has_a_dev = false;
+		std::string a_alsa_dev; // calculated option
+		bool        has_a_alsa_dev = false;
 		std::string a_opt;
 		std::string v_fmt;
 		std::string v_opt;
@@ -63,7 +65,6 @@ namespace reprostim {
 		// config data
 		AppOpts   opts;
 		AppConfig cfg;
-		bool      verbose;
 
 		// session runtime data
 		std::string               configHash;
@@ -84,6 +85,7 @@ namespace reprostim {
 	public:
 		CaptureApp();
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
+		void listDevices();
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);
@@ -110,6 +112,20 @@ namespace reprostim {
 	inline void CaptureApp::disconnDevRemove(const std::string& devPath) {
 		_SYNC();
 		m_disconnDevs.erase(devPath);
+	}
+
+	// Default main entry point implementation
+	// for use in main.cpp in application based
+	// on CaptureApp
+	template<typename T>
+	int mainImpl(int argc, char* argv[]) {
+		int res = EXIT_SUCCESS;
+		do {
+			T app;
+			res = app.run(argc, argv);
+			optind = 0; // force restart argument scanning for getopt
+		} while(res == EX_CONFIG_RELOAD);
+		return res;
 	}
 
 }

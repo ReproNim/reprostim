@@ -72,21 +72,19 @@ std::string renameVideoFile(
 		const std::string& start_ts,
 		const std::string& out_fmt,
 		const std::string& message) {
+	std::string stop_ts = getTimeStr();
+	std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "_" + stop_ts, out_fmt);
 	if( std::filesystem::exists(outVideoFile) ) {
-		std::string stop_ts = getTimeStr();
-		std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "_" + stop_ts, out_fmt);
 		_INFO(message << " Saving video " << outVideoFile2);
 		rename(outVideoFile.c_str(), outVideoFile2.c_str());
-		return outVideoFile2;
 	}
-	return outVideoFile;
+	return outVideoFile2;
 }
 
 
 // specialization/override for default WorkerThread::run
 template<>
 void FfmpegThread ::run() {
-	verbose = getParams().verbose;
 	_SESSION_LOG_BEGIN(getParams().pLogger);
 
 	std::thread::id tid= std::this_thread::get_id();
@@ -97,8 +95,7 @@ void FfmpegThread ::run() {
 
 	// NOTE: in future improve async subprocess execution with reworked exec API.
 	try {
-		exec(verbose,
-			 getParams().cmd,
+		exec(getParams().cmd,
 			 true, 48,
 			 [this]() { return isTerminated(); }
 		);
@@ -164,6 +161,8 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tVerbose, provides detailed information to stdout\n"
 								 "\t-V, --version\n"
 								 "\t         \tPrint version information\n"
+								 "\t-l, --list-devices\n"
+								 "\t         \tList devices, only audio is supported\n"
 								 "\t-h, --help\n"
 								 "\t         \tPrint this help string\n";
 
@@ -178,10 +177,11 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{"help", no_argument, nullptr, 'h'},
 			{"verbose", no_argument, nullptr, 'v'},
 			{"version", no_argument, nullptr, 'V'},
+			{"list-devices", no_argument, nullptr, 'l'},
 			{nullptr, 0, nullptr, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "o:c:d:hvV", longOpts, nullptr)) != -1) {
+	while ((c = getopt_long(argc, argv, "o:c:d:hvVl", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
 				if(optarg) opts.outPath = optarg;
@@ -194,6 +194,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 				break;
 			case 'h':
 				_INFO(HELP_STR);
+				return 1;
+			case 'l':
+				listDevices();
 				return 1;
 			case 'v':
 				opts.verbose = true;
@@ -256,7 +259,6 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	_SESSION_LOG_BEGIN(pLogger);
 	_VERBOSE("Created session logger: session_logger_" << start_ts);
 	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
-			verbose,
 			ffmpg,
 			opts.out_fmt,
 			outPath,
@@ -271,7 +273,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::string& vpath) {
 	std::string out_fmt = cfg.ffm_opts.out_fmt;
 	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
-	std::string ffmpid = exec(true, "pidof ffmpeg");
+	std::string ffmpid = exec("pidof ffmpeg");
 	_INFO("stop record says: " << ffmpid.c_str());
 	while ( ffmpid.length() > 0 ) {
 		_INFO("<> PID of ffmpeg\t===> " << ffmpid.c_str());
@@ -280,7 +282,7 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::stri
 		system(killCmd.c_str());
 		//
 		SLEEP_SEC(1.5); // Allow time for ffmpeg to stop
-		ffmpid = exec(true, "pidof ffmpeg");
+		ffmpid = exec("pidof ffmpeg");
 	}
 
 	_SESSION_LOG_END();

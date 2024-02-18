@@ -130,3 +130,15 @@ cat /proc/asound/cards
                               Magewell USB Capture DVI+ at usb-0000:05:00.0-2, super speed
          2 [HDMI           ]: HDA-Intel - HDA ATI HDMI
                               HDA ATI HDMI at 0xfe630000 irq 41
+
+
+amixer -c 1 controls
+
+        numid=5,iface=MIXER,name='Line In Capture Switch'
+        numid=6,iface=MIXER,name='Line In Capture Volume'
+        numid=2,iface=MIXER,name='HDMI Capture Switch'
+        numid=3,iface=MIXER,name='HDMI Capture Volume'
+        numid=1,iface=PCM,name='Capture Channel Map'
+        numid=4,iface=PCM,name='Capture Channel Map',device=1
+
+sudo apt install guvcview
