@@ -4,8 +4,8 @@ project(reprostim-videocapture)
 
 # Create the executable
 add_executable(${PROJECT_NAME}
-        VideoCapture.cpp
-        main.cpp
+        src/VideoCapture.cpp
+        src/main.cpp
 )
 # Copy config.yaml to out folder as well
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.yaml ${CMAKE_CURRENT_BINARY_DIR}/config.yaml COPYONLY)
