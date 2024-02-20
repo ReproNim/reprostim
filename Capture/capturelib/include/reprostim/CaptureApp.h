@@ -1,8 +1,8 @@
 #ifndef CAPTURE_CAPTUREAPP_H
 #define CAPTURE_CAPTUREAPP_H
 
-#include "CaptureLib.h"
-#include "CaptureThreading.h"
+#include "reprostim/CaptureLib.h"
+#include "reprostim/CaptureThreading.h"
 #include "yaml-cpp/yaml.h"
 
 namespace reprostim {

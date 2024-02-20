@@ -1,8 +1,8 @@
 #ifndef CAPTURE_VIDEOCAPTURE_H
 #define CAPTURE_VIDEOCAPTURE_H
 
-#include "CaptureApp.h"
-#include "CaptureThreading.h"
+#include "reprostim/CaptureApp.h"
+#include "reprostim/CaptureThreading.h"
 
 ///////////////////////////////////////////////////////////////////////////
 //

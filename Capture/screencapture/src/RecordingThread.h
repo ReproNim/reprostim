@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <atomic>
-#include "CaptureThreading.h"
+#include "reprostim/CaptureThreading.h"
 
 using namespace reprostim;
 

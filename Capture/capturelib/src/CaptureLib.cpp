@@ -14,7 +14,7 @@
 #include <csignal>
 #include <sysexits.h>
 #include <alsa/asoundlib.h>
-#include "CaptureLib.h"
+#include "reprostim/CaptureLib.h"
 
 
 namespace fs = std::filesystem;

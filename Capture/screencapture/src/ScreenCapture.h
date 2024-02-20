@@ -1,7 +1,7 @@
 #ifndef CAPTURE_SCREENCAPTURE_H
 #define CAPTURE_SCREENCAPTURE_H
 
-#include "CaptureApp.h"
+#include "reprostim/CaptureApp.h"
 #include "RecordingThread.h"
 
 ///////////////////////////////////////////////////////////////////////////

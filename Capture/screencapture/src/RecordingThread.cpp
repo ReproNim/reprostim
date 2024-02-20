@@ -10,7 +10,7 @@
 #include <sys/mman.h>
 #include <linux/videodev2.h>
 #include <opencv2/opencv.hpp>
-#include "CaptureLib.h"
+#include "reprostim/CaptureLib.h"
 #include "RecordingThread.h"
 
 using namespace reprostim;
