@@ -3,6 +3,8 @@ cmake_minimum_required (VERSION 3.10)
 
 project(Capture)
 
+option(CTEST_ENABLED "Specify CTest build and run are enabled" ON)
+
 # hook to reload version.txt file
 set(CAPTURE_VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/version.txt")
 configure_file(${CAPTURE_VERSION_FILE}
@@ -47,3 +49,15 @@ link_directories(${MWCAPTURE_SDK_HOME}/Lib/${ARCH})
 add_subdirectory(capturelib)
 add_subdirectory(screencapture)
 add_subdirectory(videocapture)
+
+# Add tests optionally
+if(CTEST_ENABLED)
+    message(STATUS "CTests are ENABLED")
+    enable_testing()
+    add_subdirectory(test)
+    add_subdirectory(capturelib/test)
+    add_subdirectory(screencapture/test)
+    add_subdirectory(videocapture/test)
+else()
+    message(STATUS "CTests are DISABLED")
+endif()

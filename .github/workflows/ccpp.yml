@@ -41,3 +41,8 @@ jobs:
         ./reprostim-screencapture -V
         ./reprostim-screencapture -h
       working-directory: Capture/build/screencapture
+
+    - name: Run tests with CTest
+      run: |
+        ctest --output-on-failure
+      working-directory: Capture/build
