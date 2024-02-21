@@ -7,7 +7,7 @@ int add(int a, int b) {
 	return a + b;
 }
 
-TEST_CASE("capturelib_add_test", "[add]") {
+TEST_CASE("TestCaptureLib_add", "[add]") {
 	// Test case 1
 	REQUIRE(add(1, 2) == 3);
 
