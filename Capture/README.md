@@ -54,9 +54,10 @@ utility. The program captures video/audio streams from Magewell USB Capture devi
 and saves it as video file (*.mkv).
     
 
-Both utilities use `capturelib` as a shared library.
+Both utilities use `capturelib` as a shared library. 
 
-So in general, the project structure looks like this:
+All projects C++ code live in the `reprostim` namespace. So in general, the project 
+structure looks like this:
 
 ![Project Structure](docs/images/project_structure.png)
 
