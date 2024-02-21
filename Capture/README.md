@@ -56,6 +56,10 @@ and saves it as video file (*.mkv).
 
 Both utilities use `capturelib` as a shared library.
 
+So in general, the project structure looks like this:
+
+![Project Structure](docs/images/project_structure.png)
+
 ## Versioning
 
 Current model consists of two versions: explicit and implicit. Explicit version 
@@ -83,3 +87,19 @@ E.g. in CLion IDE, you can add "version-auto-inc.cmake" as External Tool under
 
 Then you can run it from the IDE to increment build number manually or integrate it
 with build process (as pre-build hook) to increment build number automatically.
+
+## Testing
+
+In short words project uses CMake + CTest + Catch2 for unit testing. To run tests, 
+build project and execute the following command:
+
+    cd Capture/build
+    ctest
+
+Root project and each subproject have their own tests located in the "test" directory 
+along with CMakeList.txt and C++ sources. 
+
+Tests build process controlled by CMake option `CTEST_ENABLED`. If it is set to ON 
+(default value), tests will be built. If it is set to OFF, tests will be skipped (can 
+be useful for development in IDE under some circumstances to skip tests and reduce 
+compilation time).
