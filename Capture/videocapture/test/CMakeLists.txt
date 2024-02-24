@@ -1,8 +1,11 @@
 # CTests for videocapture project
 project(reprostim-videocapture-tests)
 
+set(APP_SRC ${PROJECT_SOURCE_DIR}/../src)
+
 add_executable(${PROJECT_NAME}
         TestVideoCapture.cpp
+        ${APP_SRC}/VideoCapture.cpp
 )
 
 target_link_libraries(
@@ -13,7 +16,7 @@ target_link_libraries(
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC
-        ${PROJECT_SOURCE_DIR}/../src
+        ${APP_SRC}
 )
 
 
