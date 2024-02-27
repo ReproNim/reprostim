@@ -10,7 +10,7 @@ set(CAPTURE_VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/version.txt")
 configure_file(${CAPTURE_VERSION_FILE}
         "${CMAKE_BINARY_DIR}/version.txt" COPYONLY)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # version info
 set(CAPTURE_VERSION_MAJOR 0)
