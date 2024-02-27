@@ -2,15 +2,15 @@
 project (capturelib)
 
 # version header generator
-configure_file(${PROJECT_SOURCE_DIR}/include/CaptureVer.h.in
-        ${PROJECT_SOURCE_DIR}/include/CaptureVer.h
+configure_file(${PROJECT_SOURCE_DIR}/include/reprostim/CaptureVer.h.in
+        ${PROJECT_SOURCE_DIR}/include/reprostim/CaptureVer.h
 )
 
 add_library(${PROJECT_NAME} STATIC
         src/CaptureLib.cpp
         src/CaptureLog.cpp
         src/CaptureApp.cpp
-        include/CaptureVer.h.in
+        include/reprostim/CaptureVer.h.in
 )
 add_library(reprostim::capturelib ALIAS ${PROJECT_NAME})
 

@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
-#include "CaptureLib.h"
+#include "reprostim/CaptureLib.h"
 
 namespace fs = std::filesystem;
 

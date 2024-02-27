@@ -4,7 +4,7 @@
 #include <csignal>
 #include <thread>
 #include <sysexits.h>
-#include "CaptureApp.h"
+#include "reprostim/CaptureApp.h"
 
 namespace reprostim {
 

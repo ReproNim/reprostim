@@ -4,9 +4,9 @@ project(reprostim-screencapture)
 
 # Create the executable
 add_executable(${PROJECT_NAME}
-        RecordingThread.cpp
-        ScreenCapture.cpp
-        main.cpp
+        src/RecordingThread.cpp
+        src/ScreenCapture.cpp
+        src/main.cpp
 )
 # Copy config.yaml to out folder as well
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.yaml ${CMAKE_CURRENT_BINARY_DIR}/config.yaml COPYONLY)

@@ -1,0 +1,26 @@
+Capture/
+├── capturelib/
+│   ├── include/
+│   │   └── reprostim/
+│   │       └── CaptureLib.h
+│   ├── src/
+│   ├── test/
+│   └── CMakeLists.txt
+│
+├── screencapture/
+│   ├── src/
+│   ├── test/
+│   ├── config.yaml
+│   └── CMakeLists.txt
+│
+├── videocapture/
+│   ├── src/
+│   ├── test/
+│   ├── config.yaml
+│   └── CMakeLists.txt
+│
+├── test/
+│   └── CMakeLists.txt
+│
+├── CMakeLists.txt
+└── README.md

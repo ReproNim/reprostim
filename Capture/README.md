@@ -9,7 +9,7 @@ USB Capture devices and save it to a file. It is a part of the ReproStim project
 
 On Debian:
 
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev v4l-utils libopencv-dev cmake g++
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev cmake g++
 
 Project requirements:
    - OS Linux
@@ -24,6 +24,7 @@ Project requirements:
      - libyaml-cpp-dev
      - libspdlog-dev
      - libopencv-dev
+     - catch2
      - v4l-utils
      - ffmpeg
  
@@ -53,7 +54,12 @@ utility. The program captures video/audio streams from Magewell USB Capture devi
 and saves it as video file (*.mkv).
     
 
-Both utilities use `capturelib` as a shared library.
+Both utilities use `capturelib` as a shared library. 
+
+All projects C++ code live in the `reprostim` namespace. So in general, the project 
+structure looks like this:
+
+![Project Structure](docs/images/project_structure.png)
 
 ## Versioning
 
@@ -82,3 +88,19 @@ E.g. in CLion IDE, you can add "version-auto-inc.cmake" as External Tool under
 
 Then you can run it from the IDE to increment build number manually or integrate it
 with build process (as pre-build hook) to increment build number automatically.
+
+## Testing
+
+In short words project uses CMake + CTest + Catch2 for unit testing. To run tests, 
+build project and execute the following command:
+
+    cd Capture/build
+    ctest
+
+Root project and each subproject have their own tests located in the "test" directory 
+along with CMakeList.txt and C++ sources. 
+
+Tests build process controlled by CMake option `CTEST_ENABLED`. If it is set to ON 
+(default value), tests will be built. If it is set to OFF, tests will be skipped (can 
+be useful for development in IDE under some circumstances to skip tests and reduce 
+compilation time).

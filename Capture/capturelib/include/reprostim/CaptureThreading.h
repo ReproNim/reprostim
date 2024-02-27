@@ -5,7 +5,7 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
-#include "CaptureLib.h"
+#include "reprostim/CaptureLib.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Macros

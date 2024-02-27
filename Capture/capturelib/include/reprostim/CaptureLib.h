@@ -10,8 +10,8 @@
 #include <chrono>
 #include <thread>
 #include "LibMWCapture/MWCapture.h"
-#include "CaptureVer.h"
-#include "CaptureLog.h"
+#include "reprostim/CaptureVer.h"
+#include "reprostim/CaptureLog.h"
 
 /*########################### Common macros ############################*/
 
