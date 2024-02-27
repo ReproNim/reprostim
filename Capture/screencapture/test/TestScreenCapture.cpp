@@ -22,7 +22,7 @@ TEST_CASE("TestScreenCapture_add",
 }
 
 TEST_CASE("TestScreenCapture_constructor_destructor",
-		  "[screencapture][ScreenCaptureApp][constructor][destructor") {
+		  "[screencapture][ScreenCaptureApp][constructor][destructor]") {
 	std::unique_ptr<ScreenCaptureApp> pApp(new ScreenCaptureApp());
 	REQUIRE(pApp != nullptr);
 
