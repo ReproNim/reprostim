@@ -28,3 +28,36 @@ TEST_CASE("TestCaptureLib_getTimeStr",
 	ts = getTimeStr();
 	REQUIRE(std::regex_search(ts, match, pattern));
 }
+
+// test for isSysBreakExec
+TEST_CASE("TestCaptureLib_isSysBreakExec",
+		  "[capturelib][isSysBreakExec]") {
+	REQUIRE(isSysBreakExec() == false);
+	setSysBreakExec(true);
+	REQUIRE(isSysBreakExec() == true);
+	setSysBreakExec(false);
+}
+
+// test for mmwcSdkVersion
+TEST_CASE("TestCaptureLib_mwcSdkVersion",
+		  "[capturelib][mwcSdkVersion]") {
+	std::string version = mwcSdkVersion();
+	REQUIRE(version.length() > 0);
+	REQUIRE(version == "3.3.1313");
+}
+
+// test for checkOutDir
+TEST_CASE("TestCaptureLib_checkOutDir",
+		  "[capturelib][checkOutDir]") {
+	std::string outDir = "/tmp";
+	REQUIRE(checkOutDir(outDir) == true);
+}
+
+// test for currentTimeMs
+TEST_CASE("TestCaptureLib_currentTimeMs",
+		  "[capturelib][currentTimeMs]") {
+	auto t1 = currentTimeMs();
+	SLEEP_MS(20);
+	auto t2 = currentTimeMs();
+	REQUIRE((t2 - t1) >= 20);
+}
