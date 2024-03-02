@@ -16,6 +16,7 @@ namespace reprostim {
 		std::string a_alsa_dev; // calculated option
 		bool        has_a_alsa_dev = false;
 		std::string a_opt;
+		std::unordered_map<std::string, AudioVolume> a_vol;
 		std::string v_fmt;
 		std::string v_opt;
 		std::string v_dev;
@@ -75,11 +76,12 @@ namespace reprostim {
 		std::string               start_ts;
 		MWCAP_VIDEO_SIGNAL_STATUS vssCur; // current video signal status
 		MWCAP_VIDEO_SIGNAL_STATUS vssPrev; // previous video signal status
-		VideoDevice               targetDev;
+		AudioInDevice             targetAudioInDev;
+		VideoDevice               targetVideoDev;
 		std::string               targetBusInfo;
 		std::string               targetMwDevPath;
 		std::string               targetVideoDevPath;
-		std::string               targetAudioDevPath;
+		std::string               targetAudioInDevPath;
 
 		static void usbHotplugCallback(MWUSBHOT_PLUG_EVETN event, const char *pszDevicePath, void* pParam);
 

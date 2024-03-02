@@ -46,6 +46,16 @@ ffm_opts:
   #
   a_dev: "auto"
   a_opt: "-thread_queue_size 4096"
+  #
+  # Optionally, specify "a_vol" to set audio volume level
+  # for "line-in" and "hdmi" audio inputs
+  # use (0% - 100%) to set volume level in percentage
+  # or integer number to set volume level in device raw uints
+  #
+  a_vol:
+    line-in: "95%"
+    hdmi: "0%"
+
   v_fmt: "-f v4l2 -input_format yuyv422"
   v_opt: "-thread_queue_size 4096"
   #

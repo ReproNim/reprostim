@@ -61,3 +61,45 @@ TEST_CASE("TestCaptureLib_currentTimeMs",
 	auto t2 = currentTimeMs();
 	REQUIRE((t2 - t1) >= 20);
 }
+
+// test for getAudioInNameByAlias
+TEST_CASE("TestCaptureLib_getAudioInNameByAlias",
+		  "[capturelib][getAudioInNameByAlias]") {
+	std::string name = getAudioInNameByAlias("default");
+	REQUIRE(name.length() == 0);
+
+	name = getAudioInNameByAlias("line-in");
+	REQUIRE(name.length() >0 );
+
+	name = getAudioInNameByAlias("hdmi");
+	REQUIRE(name.length() >0 );
+}
+
+// test for parseAudioVolume
+TEST_CASE("TestCaptureLib_parseAudioVolume",
+		  "[capturelib][parseAudioVolume]") {
+	AudioVolume av = parseAudioVolume("0%");
+	REQUIRE(av.label == "0%");
+	REQUIRE(av.level == 0.0f);
+	REQUIRE(av.unit == VolumeLevelUnit::PERCENT);
+
+	av = parseAudioVolume("57.1%");
+	REQUIRE(av.label == "57.1%");
+	REQUIRE(av.level == 57.1f);
+	REQUIRE(av.unit == VolumeLevelUnit::PERCENT);
+
+	av = parseAudioVolume("86");
+	REQUIRE(av.label == "86");
+	REQUIRE(av.level == 86.0f);
+	REQUIRE(av.unit == VolumeLevelUnit::RAW);
+
+	av = parseAudioVolume("80.2dB");
+	REQUIRE(av.label == "80.2dB");
+	REQUIRE(av.level == 80.2f);
+	REQUIRE(av.unit == VolumeLevelUnit::DB);
+
+	// check parseAudioVolume with invalid inputs
+	REQUIRE_THROWS_AS(parseAudioVolume("-1%"), std::runtime_error);
+	REQUIRE_THROWS_AS(parseAudioVolume("102%"), std::runtime_error);
+	REQUIRE_THROWS_AS(parseAudioVolume("95W"), std::runtime_error);
+}

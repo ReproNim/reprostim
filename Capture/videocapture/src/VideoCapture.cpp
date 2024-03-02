@@ -133,7 +133,7 @@ void VideoCaptureApp::onCaptureStart() {
 				  frameRate,
 				  opts.outPath,
 				  targetVideoDevPath,
-				  targetAudioDevPath);
+				  targetAudioInDevPath);
 	recording = 1;
 	_INFO(start_ts << ":\tStarted Recording: ");
 	_INFO("Apct Rat: " << vssCur.cx << "x" << vssCur.cy);

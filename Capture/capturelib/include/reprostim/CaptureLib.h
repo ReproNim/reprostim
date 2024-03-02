@@ -9,6 +9,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <cmath>
 #include "LibMWCapture/MWCapture.h"
 #include "reprostim/CaptureVer.h"
 #include "reprostim/CaptureLog.h"
@@ -40,7 +41,34 @@
 namespace reprostim {
 
 	//////////////////////////////////////////////////////////////////////////
+	// Enums
+
+	enum VolumeLevelUnit: int {
+		RAW     = 0,
+		PERCENT = 1,
+		DB      = 2 // not supported yet
+	};
+
+	//////////////////////////////////////////////////////////////////////////
 	// Structs
+
+	struct AudioInDevice {
+		std::string  alsaCardName;
+		std::string  alsaDeviceName;
+		std::string  cardId;
+		std::string  deviceId;
+	};
+
+	struct AudioVolume {
+		std::string     label;
+		float           level = 0.0;
+		VolumeLevelUnit unit = VolumeLevelUnit::RAW;
+
+		inline long getLevelAsLong() const {
+			return static_cast<long>(std::round(level));
+		}
+	};
+
 	struct VDevSerial {
 		std::string serialNumber;
 		std::string busInfo;
@@ -72,8 +100,11 @@ namespace reprostim {
 
 	bool findTargetVideoDevice(const std::string &serialNumber, VideoDevice &vd);
 
-	std::string getAudioInDevicePath(const std::string &busInfo,
-									 const std::string &device);
+	// returns audio device ALSA path and sound card ALSA name
+	AudioInDevice getAudioInDevice(const std::string &busInfo,
+								   const std::string &device);
+
+	std::string getAudioInNameByAlias(const std::string &alias);
 
 	std::string getDefaultAudioInDeviceByCard(const std::string &alsaCardName);
 
@@ -96,7 +127,12 @@ namespace reprostim {
 
 	std::string mwcSdkVersion();
 
+	AudioVolume parseAudioVolume(std::string text);
+
 	void safeMWCloseChannel(HCHANNEL&hChannel);
+
+	void setAudioInVolumeByCard(const std::string &alsaCardName,
+								const std::unordered_map<std::string, AudioVolume> &mapNameVolume);
 
 	void setSysBreakExec(bool fBreak);
 
