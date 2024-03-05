@@ -715,10 +715,19 @@ namespace reprostim {
 										<< ", label=" << av.label
 										<< ")"
 									);
+									_INFO("Set volume for Left channel: " << nVol2);
 									snd_ctl_elem_value_set_integer(control, 0, nVol2);
 									if ((err = snd_hctl_elem_write(elem, control)) < 0) {
 										_ERROR("Failed setAudioInVolumeByCard, snd_hctl_elem_write: " << cardName
-																									  << ", "
+																									  << ", 0, "
+																									  << snd_strerror(
+																											  err));
+									}
+									_INFO("Set volume for Right channel: " << nVol2);
+									snd_ctl_elem_value_set_integer(control, 1, nVol2);
+									if ((err = snd_hctl_elem_write(elem, control)) < 0) {
+										_ERROR("Failed setAudioInVolumeByCard, snd_hctl_elem_write: " << cardName
+																									  << ", 1, "
 																									  << snd_strerror(
 																											  err));
 									}
