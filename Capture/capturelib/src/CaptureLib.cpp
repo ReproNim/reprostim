@@ -24,6 +24,12 @@ namespace reprostim {
 	// private static global flag
 	static volatile sig_atomic_t s_nSysBreakExec = 0;
 
+	static std::unordered_map<std::string, std::string> s_audioInAliasNameMap = {
+			{"line-in", "Line In Capture Volume"},
+			{"linein", "Line In Capture Volume"},
+			{"hdmi", "HDMI Capture Volume"}
+	};
+
 	bool checkOutDir(const std::string &outDir) {
 		if (!fs::exists(outDir)) {
 			_VERBOSE("Output path not exists, creating...");
@@ -156,9 +162,19 @@ namespace reprostim {
 		return false;
 	}
 
-	std::string getAudioInDevicePath(const std::string &busInfo,
-									 const std::string &device) {
+	// get audio-in control name by reprostim alias
+	std::string getAudioInNameByAlias(const std::string &alias) {
 		std::string res;
+		auto it = s_audioInAliasNameMap.find(alias);
+		if (it != s_audioInAliasNameMap.end()) {
+			res = it->second;
+		}
+		return res;
+	}
+
+	AudioInDevice getAudioInDevice(const std::string &busInfo,
+								   const std::string &device) {
+		AudioInDevice res;
 
 		snd_ctl_t *handle;
 		snd_ctl_card_info_t *info;
@@ -198,11 +214,17 @@ namespace reprostim {
 						ostm << "hw:" << std::to_string(card);
 						std::string alsaCardName = ostm.str();
 						ostm << "," ;
-						if( device.empty() )
-							ostm << getDefaultAudioInDeviceByCard(alsaCardName);
-						else
-							ostm << device;
-						res = ostm.str();
+
+						std::string deviceId = device;
+						if( deviceId.empty() ) {
+							deviceId = getDefaultAudioInDeviceByCard(alsaCardName);
+						}
+						ostm << deviceId;
+
+						res.alsaCardName = alsaCardName;
+						res.alsaDeviceName = ostm.str();
+						res.cardId = std::to_string(card);
+						res.deviceId = deviceId;
 						break;
 					}
 				}
@@ -399,8 +421,10 @@ namespace reprostim {
 		snd_hctl_elem_t *elem;
 		snd_ctl_elem_id_t *id;
 		snd_ctl_elem_info_t *info;
+		snd_ctl_elem_value_t *control;
 		snd_ctl_elem_id_alloca(&id);
 		snd_ctl_elem_info_alloca(&info);
+		snd_ctl_elem_value_alloca(&control);
 
 		if( (err = snd_hctl_open(&handle, cardName.c_str(), 0)) < 0 ) {
 			_ERROR("Failed snd_hctl_open: " << cardName << ", " << snd_strerror(err));
@@ -424,7 +448,35 @@ namespace reprostim {
 			//	continue;
 			snd_hctl_elem_get_id(elem, id);
 			_VERBOSE("elem: id=" << id);
-			_INFO(indent << "HCTL Elem[" << std::to_string(j) << "] : " << getAudioCtlElemName(id));
+			std::string sElem = getAudioCtlElemName(id);
+			_INFO(indent << "HCTL Elem[" << std::to_string(j) << "] : " << sElem);
+			if( sElem.find("iface=MIXER") != std::string::npos &&
+				sElem.find("Capture Volume") != std::string::npos ) {
+				long nVolMin = snd_ctl_elem_info_get_min(info);
+				long nVolMax = snd_ctl_elem_info_get_max(info);
+				long nVol = -1;
+				// read current value
+				snd_ctl_elem_value_set_id(control, id);
+				if ((err = snd_hctl_elem_read(elem, control)) < 0) {
+					_ERROR("Failed snd_hctl_elem_read: " << cardName << ", " << snd_strerror(err));
+				} else {
+					nVol = snd_ctl_elem_value_get_integer(control, 0);
+					//long l = snd_ctl_ascii_value_parse(handle, control, info, "80%");
+					//snd_ctl_elem_value_set_integer(control, 0, (nVol+1));
+					//if ((err = snd_hctl_elem_write(elem, control)) < 0) {
+					//	_ERROR("Failed snd_hctl_elem_write: " << cardName << ", " << snd_strerror(err));
+					//}
+				}
+				_INFO(indent << "             : volume(min=" << std::to_string(nVolMin)
+							<< ", max=" << std::to_string(nVolMax)
+							<< ", current=" << std::to_string(nVol) << ")"
+				);
+				for( const auto& entry : s_audioInAliasNameMap ) {
+					if( sElem.find(entry.second) != std::string::npos ) {
+						_INFO(indent << "             : reprostim alias=" << entry.first);
+					}
+				}
+			}
 
 			//unsigned int count = snd_ctl_elem_info_get_count(info);
 			//snd_ctl_elem_type_t type_ = snd_ctl_elem_info_get_type(info);
@@ -535,11 +587,168 @@ namespace reprostim {
 		return "?.?.?";
 	}
 
+ 	AudioVolume parseAudioVolume(std::string text) {
+		AudioVolume av;
+		av.unit = VolumeLevelUnit::RAW;
+		av.label = text;
+		if(text.empty()) {
+			throw std::runtime_error("empty text");
+		}
+
+		if( text.ends_with('%') && text.length()>1 ) {
+			text = text.substr(0, text.length() - 1);
+			av.unit = VolumeLevelUnit::PERCENT;
+		}
+
+		if( (text.ends_with("db") || text.ends_with("dB")) && text.length()>2 ) {
+			text = text.substr(0, text.length() - 2);
+			av.unit = VolumeLevelUnit::DB;
+		}
+
+		size_t pos = 0;
+		av.level = std::stof(text, &pos);
+		if( pos<text.length() ) {
+			throw std::runtime_error("Usupported volume level value "+av.label);
+		}
+
+		if(av.unit == VolumeLevelUnit::PERCENT ) {
+			if( av.level<0.0 ) {
+				throw std::runtime_error("Invalid percent value "+av.label);
+			} else
+			if( av.level>100.0 ) {
+				throw std::runtime_error("Invalid percent value "+av.label);
+			}
+		}
+		return av;
+	}
+
+
 	void safeMWCloseChannel(HCHANNEL&hChannel) {
 		if (hChannel != NULL) {
 			MWCloseChannel(hChannel);
 			hChannel = NULL;
 		}
+	}
+
+	void setAudioInVolumeByCard(const std::string &cardName,
+								const std::unordered_map<std::string, AudioVolume> &mapNameVolume)
+	{
+		_VERBOSE("setAudioInVolumeByCard: card=" << cardName << ", mapNameVolume.size=" << mapNameVolume. size());
+		int err = 0 ;
+		snd_hctl_t *handle;
+		snd_hctl_elem_t *elem;
+		snd_ctl_elem_id_t *id;
+		snd_ctl_elem_info_t *info;
+		snd_ctl_elem_value_t *control;
+		snd_ctl_elem_id_alloca(&id);
+		snd_ctl_elem_info_alloca(&info);
+		snd_ctl_elem_value_alloca(&control);
+
+		if( (err = snd_hctl_open(&handle, cardName.c_str(), 0)) < 0 ) {
+			_ERROR("Failed setAudioInVolumeByCard, snd_hctl_open: " << cardName << ", " << snd_strerror(err));
+			return;
+		}
+
+		if( (err = snd_hctl_load(handle)) < 0 ) {
+			_ERROR("Failed setAudioInVolumeByCard, snd_hctl_load: " << cardName << ", " << snd_strerror(err));
+			snd_hctl_close(handle);
+			return;
+		}
+
+		int j = 0;
+		for( elem = snd_hctl_first_elem(handle); elem; elem = snd_hctl_elem_next(elem) ) {
+			if ((err = snd_hctl_elem_info(elem, info)) < 0) {
+				_ERROR("Failed setAudioInVolumeByCard, snd_hctl_elem_info: " << cardName << ", " << snd_strerror(err));
+				break;
+			}
+			_VERBOSE("elem: info=" << info);
+			//if( snd_ctl_elem_info_is_inactive(info) )
+			//	continue;
+			snd_hctl_elem_get_id(elem, id);
+			std::string sElem = getAudioCtlElemName(id);
+			_VERBOSE("elem: id=" << id << ", "  << sElem);
+			if( sElem.find("iface=MIXER") != std::string::npos ) {
+				for( const auto& entry : mapNameVolume) {
+					std::string controlName = getAudioInNameByAlias(entry.first);
+					if( !controlName.empty() && sElem.find(controlName) != std::string::npos ) {
+						long nVolMin = snd_ctl_elem_info_get_min(info);
+						long nVolMax = snd_ctl_elem_info_get_max(info);
+						long nVol = -1;
+						// read current value
+						snd_ctl_elem_value_set_id(control, id);
+						if ((err = snd_hctl_elem_read(elem, control)) < 0) {
+							_ERROR("Failed setAudioInVolumeByCard, snd_hctl_elem_read: " << cardName << ", "
+																						 << snd_strerror(err));
+						} else {
+							nVol = snd_ctl_elem_value_get_integer(control, 0);
+							_VERBOSE("Audio-In HCTL: " << sElem << ", Volume(min=" << std::to_string(nVolMin)
+													<< ", max=" << std::to_string(nVolMax)
+													<< ", current=" << std::to_string(nVol) << ")"
+							);
+
+							// set HCTL volume specified on AudioVolume
+							const AudioVolume& av = entry.second;
+							long nVol2 = nVol;
+							if(av.unit == VolumeLevelUnit::PERCENT ) {
+								nVol2 = static_cast<long>(nVolMin + std::round(((nVolMax - nVolMin) * av.level) / 100.0));
+								if( nVol2<nVolMin ) {
+									nVol2 = nVolMin;
+								}
+								if( nVol2>nVolMax ) {
+									nVol2 = nVolMax;
+								}
+							} else if(av.unit == VolumeLevelUnit::RAW ) {
+								nVol2 = av.getLevelAsLong();
+							} else {
+								_ERROR("Unsupported volume unit: " << av.unit << ", " << av.label);
+							}
+
+							if( nVol2 != nVol ) {
+								if( nVol2>=nVolMin && nVol2<=nVolMax) {
+									_INFO("Set audio-in device volume, {"
+										<< sElem
+										<< "}, alias=" << entry.first
+										<< ", level(min=" << std::to_string(nVolMin)
+										<< ", max=" << std::to_string(nVolMax)
+										<< ", old=" << std::to_string(nVol)
+										<< ", new=" << std::to_string(nVol2)
+										<< ", label=" << av.label
+										<< ")"
+									);
+									_INFO("Set volume for Left channel: " << nVol2);
+									snd_ctl_elem_value_set_integer(control, 0, nVol2);
+									if ((err = snd_hctl_elem_write(elem, control)) < 0) {
+										_ERROR("Failed setAudioInVolumeByCard, snd_hctl_elem_write: " << cardName
+																									  << ", 0, "
+																									  << snd_strerror(
+																											  err));
+									}
+									_INFO("Set volume for Right channel: " << nVol2);
+									snd_ctl_elem_value_set_integer(control, 1, nVol2);
+									if ((err = snd_hctl_elem_write(elem, control)) < 0) {
+										_ERROR("Failed setAudioInVolumeByCard, snd_hctl_elem_write: " << cardName
+																									  << ", 1, "
+																									  << snd_strerror(
+																											  err));
+									}
+								} else {
+									_ERROR("Invalid audio-in volume level: " << nVol2
+										<< ", {" << sElem
+										<< "}, alias=" << entry.first
+										<< ", level(min=" << std::to_string(nVolMin)
+										<< ", max=" << std::to_string(nVolMax)
+										<< ", cur=" << std::to_string(nVol)
+										<< ")"
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+			j++;
+		}
+		snd_hctl_close(handle);
 	}
 
 	void setSysBreakExec(bool fBreak) {

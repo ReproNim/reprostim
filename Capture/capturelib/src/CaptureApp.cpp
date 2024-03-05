@@ -41,8 +41,22 @@ namespace reprostim {
 						  cfg.session_logger_level,
 						  cfg.session_logger_pattern);
 			std::string ver = appName + " " + CAPTURE_VERSION_STRING;
-			pLogger->info("Session logging begin: " + ver + ", " + name
+			pLogger->info("Session logging begin   : " + ver + ", " + name
 			              + ", start_ts="+start_ts);
+			pLogger->info("        Video device    : " + targetVideoDevPath +
+				", S/N: " + targetVideoDev.serial + ", " + targetVideoDev.name +
+				", bus info: " + targetBusInfo);
+			pLogger->info("                        : " + std::to_string(vssCur.cx) + "x" +
+						  std::to_string(vssCur.cy) + ", " + frameRate + " fps");
+			if( audioEnabled ) {
+				pLogger->info("        Audio-in device : " + targetAudioInDevPath);
+				for(const auto& entry: cfg.ffm_opts.a_vol) {
+					pLogger->info("                        : " + entry.first +
+						+ "/" + getAudioInNameByAlias(entry.first) +
+						"=" + entry.second.label
+					);
+				}
+			}
 			return pLogger;
 		}
 		return nullptr;
@@ -103,6 +117,26 @@ namespace reprostim {
 				if( !alsaDev.empty() ) {
 					opts.a_alsa_dev = alsaDev;
 					opts.has_a_alsa_dev = true;
+				}
+			}
+
+			// parse a_vol
+			if( node["a_vol"] ) {
+				YAML::Node nodeVol = node["a_vol"];
+				for(YAML::const_iterator it=nodeVol.begin(); it!=nodeVol.end(); ++it) {
+					std::string key = it->first.as<std::string>();
+					std::string audioName = getAudioInNameByAlias(key);
+					if( audioName.empty() ) {
+						_ERROR("Failed parse audio volume: " << key << ", unknown audio device alias");
+						return false;
+					}
+					YAML::Node nodeVol2 = nodeVol[key];
+					try {
+						opts.a_vol[key] = parseAudioVolume(nodeVol2.as<std::string>());
+					} catch (const std::exception& e) {
+						_ERROR("Failed parse audio volume: " << key << ", " << e.what());
+						return false;
+					}
 				}
 			}
 			opts.v_fmt = node["v_fmt"].as<std::string>();
@@ -237,21 +271,21 @@ namespace reprostim {
 
 			HCHANNEL hChannel = NULL;
 			if( !findTargetVideoDevice(cfg.has_device_serial_number?cfg.device_serial_number:"",
-									   targetDev) ) {
+									   targetVideoDev) ) {
 				onCaptureStop(":\tStopped recording. No channels!");
 				_VERBOSE("Wait, no channels found");
 				continue;
 			}
 
-			if( targetDev.channelIndex<0 ) {
+			if(targetVideoDev.channelIndex < 0 ) {
 				_VERBOSE("Wait, no valid USB devices found");
 				continue;
 			}
 
-			_VERBOSE("Found target device: " << vdToString(targetDev));
+			_VERBOSE("Found target device: " << vdToString(targetVideoDev));
 
 			char wPath[256] = {0};
-			if( MWGetDevicePath(targetDev.channelIndex, wPath)==MW_SUCCEEDED ) {
+			if(MWGetDevicePath(targetVideoDev.channelIndex, wPath) == MW_SUCCEEDED ) {
 				targetMwDevPath = wPath;
 				_VERBOSE("Magewell device instance path: " << wPath);
 			} else {
@@ -278,20 +312,20 @@ namespace reprostim {
 						targetBusInfo = "N/A";
 					} else {
 						VDevPath vdp = getVideoDevicePathBySerial(cfg.video_device_path_pattern,
-																  targetDev.serial);
+																  targetVideoDev.serial);
 						targetVideoDevPath = vdp.path;
 						targetBusInfo = vdp.busInfo;
 						if( targetVideoDevPath.empty() ) {
 							targetVideoDevPath = "/dev/video_not_found_911";
-							_ERROR("ERROR[007]: video device path not found by S/N: " << targetDev.serial
+							_ERROR("ERROR[007]: video device path not found by S/N: " << targetVideoDev.serial
 																					  << ", use fallback one: " << targetVideoDevPath);
 						}
 					}
 
 					if( !cfg.ffm_opts.has_v_dev || !cfg.has_device_serial_number ) {
 						_INFO("    <> Found Video Device          ===> "
-									  << targetVideoDevPath << ", S/N: " << targetDev.serial
-									  << ", " << targetDev.name);
+									  << targetVideoDevPath << ", S/N: " << targetVideoDev.serial
+									  << ", " << targetVideoDev.name);
 						_INFO("    <>                                  "
 									  << "USB bus info         : " << targetBusInfo);
 						_INFO("    <>                                  "
@@ -300,17 +334,30 @@ namespace reprostim {
 
 					if( audioEnabled ) {
 						if (cfg.ffm_opts.has_a_dev) {
-							targetAudioDevPath = cfg.ffm_opts.a_dev;
+							targetAudioInDevPath = cfg.ffm_opts.a_dev;
 						} else {
 							std::string alsaDev = "";
 							if( cfg.ffm_opts.has_a_alsa_dev ) {
 								alsaDev = cfg.ffm_opts.a_alsa_dev;
 							}
-							targetAudioDevPath = getAudioInDevicePath(targetBusInfo,
-																	  alsaDev);
-							_INFO("    <> Found Audio Device          ===> " << targetAudioDevPath);
+							targetAudioInDev = getAudioInDevice(targetBusInfo, alsaDev);
+							targetAudioInDevPath = targetAudioInDev.alsaDeviceName;
+							_INFO("    <> Found Audio-In Device       ===> " << targetAudioInDevPath);
+							// set audio card volume
+							if( cfg.ffm_opts.a_vol.size()>0 && !targetAudioInDev.alsaCardName.empty() ) {
+								for(const auto& entry: cfg.ffm_opts.a_vol) {
+									_INFO("    <>                                  Sub-device "
+										<< '\"' << entry.first
+										<< "/" << getAudioInNameByAlias(entry.first) << '\"'
+										<< " volume : "
+										<< entry.second.label
+									);
+								}
+
+								setAudioInVolumeByCard(targetAudioInDev.alsaCardName, cfg.ffm_opts.a_vol);
+							}
 						}
-						_VERBOSE("Target ALSA audio device path: " << targetAudioDevPath);
+						_VERBOSE("Target ALSA audio device path: " << targetAudioInDevPath);
 					}
 
 					onCaptureStart();

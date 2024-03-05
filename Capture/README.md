@@ -13,7 +13,7 @@ On Debian:
 
 Project requirements:
    - OS Linux
-   - g++ (C++17)
+   - g++ (C++20)
    - CMake 3.10+
    - Packages:
      - Magewell Capture SDK for Linux 3.3.1.1313
