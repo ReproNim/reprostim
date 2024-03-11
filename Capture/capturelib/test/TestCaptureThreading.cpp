@@ -7,10 +7,16 @@ using namespace reprostim;
 using TestWorkerThread = WorkerThread<std::string>;
 using TestSingleThreadExecutor = SingleThreadExecutor<TestWorkerThread>;
 
+struct TestTask {
+	std::string name;
+	long        timeout;
+};
+_TYPEDEF_TASK_QUEUE(TestTaskQueue, std::string, TestTask);
+
 // override TestWorkerThread::run implementation
 template<>
 void TestWorkerThread::run() {
-	_INFO("run() enter");
+	_INFO("run() enter: " << m_params);
 	while (true) {
 		if( isTerminated() ) {
 			_INFO("terminated " << m_params);
@@ -19,7 +25,15 @@ void TestWorkerThread::run() {
 		_INFO("running... " << m_params);
 		SLEEP_MS(30);
 	}
-	_INFO("run() leave");
+	_INFO("run() leave: " << m_params);
+}
+
+// override TestTaskQueue::doTask implementation
+template<>
+void TestTaskQueue::doTask(const TestTask &task) {
+	_INFO("doTask() enter: " << task.name);
+	SLEEP_MS(task.timeout);
+	_INFO("doTask() leave: " << task.name);
 }
 
 // test TestWorkerThread
@@ -36,6 +50,31 @@ TEST_CASE("TestCaptureThreading_WorkerThread",
 	REQUIRE(p->isRunning() == false);
 	REQUIRE(p->isTerminated() == true);
 	TestWorkerThread::deleteInstance(p);
+}
+
+// test TestTaskQueueThread
+TEST_CASE("TestCaptureThreading_TaskQueueThread",
+		  "[capturelib][CaptureThreading][TaskQueueThread]") {
+	TestTaskQueue q("zzz");
+
+	TestTask taskA = {"taskA", 200};
+	TestTask taskB = {"taskB", 1000};
+	TestTask taskC = {"taskC", 100};
+
+	q.start();
+	SLEEP_MS(50);
+	REQUIRE(q.isRunning() == true);
+	REQUIRE(q.isTerminated() == false);
+	REQUIRE(q.isEmpty() == true);
+
+	q.push(taskA);
+	SLEEP_MS(1000);
+	q.push(taskB);
+	q.push(taskC);
+	REQUIRE(q.isEmpty() == false);
+	SLEEP_MS(2000);
+	REQUIRE(q.isEmpty() == true);
+	q.stop();
 }
 
 // test TestSingleThreadExecutor
