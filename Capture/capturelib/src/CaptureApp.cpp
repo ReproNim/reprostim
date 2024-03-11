@@ -149,6 +149,31 @@ namespace reprostim {
 			opts.a_enc = node["a_enc"].as<std::string>();
 			opts.out_fmt = node["out_fmt"].as<std::string>();
 		}
+
+		// load repromon_opts
+		if( doc["repromon_opts"] ) {
+			YAML::Node node = doc["repromon_opts"];
+			RepromonOpts& opts = cfg.repromon_opts;
+			opts.enabled = node["enabled"].as<bool>();
+			opts.api_base_url = node["api_base_url"].as<std::string>();
+			opts.api_key = node["api_key"].as<std::string>();
+			if( opts.enabled && opts.api_key=="${REPROMON_API_KEY}" ) {
+				const char* envApiKey = std::getenv("REPROMON_API_KEY");
+				if( envApiKey!=nullptr ) {
+					opts.api_key = envApiKey;
+					_VERBOSE("Expanded repromon api_key: " << opts.api_key);
+				} else {
+					_ERROR("Failed expand repromon api_key in config.yaml, "
+						   "env variable not found: "
+						   << opts.api_key);
+					return false;
+				}
+			}
+			opts.data_provider_id = node["data_provider_id"].as<int>();
+			opts.device_id = node["device_id"].as<int>();
+			opts.message_category_id = node["message_category_id"].as<int>();
+			opts.message_level_id = node["message_level_id"].as<int>();
+		}
 		return this->onLoadConfig(cfg, pathConfig, doc);
 	}
 

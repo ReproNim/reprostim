@@ -28,16 +28,28 @@ namespace reprostim {
 		std::string out_fmt;
 	};
 
+	// repromon options from config.yaml repromon_opts:
+	struct RepromonOpts {
+		bool          enabled = false;
+		std::string   api_base_url;
+		std::string   api_key;
+		int           data_provider_id;
+		int           device_id;
+		int           message_category_id;
+		int           message_level_id;
+	};
+
 	// App configuration loaded from config.yaml, for
 	// historical reasons keep names in Python style
 	struct AppConfig {
-		std::string device_serial_number;
-		bool        has_device_serial_number = false;
-		bool        session_logger_enabled = false;
-		LogLevel    session_logger_level = LogLevel::OFF;
-		std::string session_logger_pattern;
-		std::string video_device_path_pattern;
-		FfmpegOpts  ffm_opts;
+		std::string  device_serial_number;
+		bool         has_device_serial_number = false;
+		bool         session_logger_enabled = false;
+		LogLevel     session_logger_level = LogLevel::OFF;
+		std::string  session_logger_pattern;
+		std::string  video_device_path_pattern;
+		RepromonOpts repromon_opts;
+		FfmpegOpts   ffm_opts;
 	};
 
 	// App command-line options and args
