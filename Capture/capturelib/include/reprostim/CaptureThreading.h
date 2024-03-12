@@ -137,10 +137,10 @@ namespace reprostim {
 	void WorkerThread<T, U>::stop() {
 		m_terminated = true;
 		for (int i = 0; i < 10; i++) {
-			SLEEP_MS(100);
 			if (!m_running) {
 				break;
 			}
+			SLEEP_MS(100);
 		}
 	}
 

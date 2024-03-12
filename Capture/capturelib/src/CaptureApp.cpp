@@ -33,6 +33,13 @@ namespace reprostim {
 		audioEnabled = true;
 	}
 
+	CaptureApp::~CaptureApp() {
+		if( pRepromonQueue ) {
+			pRepromonQueue->stop();
+		}
+		pRepromonQueue = nullptr;
+	}
+
 	SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
 		if( cfg.session_logger_enabled ) {
 			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
@@ -240,6 +247,15 @@ namespace reprostim {
 		if( res2!=EX_OK ) {
 			// problem with system configuration and installed packages
 			return res2;
+		}
+
+		// start repromon queue
+		if( cfg.repromon_opts.enabled ) {
+			pRepromonQueue = std::make_unique<RepromonQueue>(RepromonParams{
+				cfg.repromon_opts
+			});
+			_VERBOSE("Start repromon queue");
+			pRepromonQueue->start();
 		}
 
 		// calculated options

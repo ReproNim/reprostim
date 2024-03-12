@@ -6,6 +6,7 @@ add_executable(${PROJECT_NAME}
     TestCaptureLib.cpp
     TestCaptureLog.cpp
     TestCaptureThreading.cpp
+    TestCaptureRepromon.cpp
     TestCaptureApp.cpp
 )
 

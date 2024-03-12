@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "reprostim/CaptureLib.h"
 #include "reprostim/CaptureThreading.h"
+#include "reprostim/CaptureRepromon.h"
 #include "yaml-cpp/yaml.h"
 
 namespace reprostim {
@@ -26,17 +27,6 @@ namespace reprostim {
 		std::string n_threads;
 		std::string a_enc;
 		std::string out_fmt;
-	};
-
-	// repromon options from config.yaml repromon_opts:
-	struct RepromonOpts {
-		bool          enabled = false;
-		std::string   api_base_url;
-		std::string   api_key;
-		int           data_provider_id;
-		int           device_id;
-		int           message_category_id;
-		int           message_level_id;
 	};
 
 	// App configuration loaded from config.yaml, for
@@ -80,6 +70,9 @@ namespace reprostim {
 		AppOpts   opts;
 		AppConfig cfg;
 
+		// repromon message queue
+		std::unique_ptr<RepromonQueue>  pRepromonQueue;
+
 		// session runtime data
 		std::string               configHash;
 		std::string               frameRate;
@@ -99,6 +92,8 @@ namespace reprostim {
 
 	public:
 		CaptureApp();
+		~CaptureApp();
+
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		void listDevices();
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);

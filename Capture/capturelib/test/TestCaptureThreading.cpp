@@ -52,9 +52,9 @@ TEST_CASE("TestCaptureThreading_WorkerThread",
 	TestWorkerThread::deleteInstance(p);
 }
 
-// test TestTaskQueueThread
-TEST_CASE("TestCaptureThreading_TaskQueueThread",
-		  "[capturelib][CaptureThreading][TaskQueueThread]") {
+// test TestTaskQueue
+TEST_CASE("TestCaptureThreading_TaskQueue",
+		  "[capturelib][CaptureThreading][TaskQueue]") {
 	TestTaskQueue q("zzz");
 
 	TestTask taskA = {"taskA", 200};

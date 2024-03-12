@@ -9,6 +9,7 @@ configure_file(${PROJECT_SOURCE_DIR}/include/reprostim/CaptureVer.h.in
 add_library(${PROJECT_NAME} STATIC
         src/CaptureLib.cpp
         src/CaptureLog.cpp
+        src/CaptureRepromon.cpp
         src/CaptureApp.cpp
         include/reprostim/CaptureVer.h.in
 )
