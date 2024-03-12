@@ -18,6 +18,10 @@ set(CAPTURE_VERSION_MINOR 0)
 set(CAPTURE_VERSION_PATCH 0)
 set(CAPTURE_VERSION_BUILD 0)
 set(CAPTURE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+# Set CAPTURE_BUILD_TYPE to "Release" if it's empty or an empty string
+if(NOT CAPTURE_BUILD_TYPE OR CAPTURE_BUILD_TYPE STREQUAL "")
+    set(CAPTURE_BUILD_TYPE "Release")
+endif()
 
 # load version from version.txt file if any
 if(EXISTS ${CAPTURE_VERSION_FILE})
