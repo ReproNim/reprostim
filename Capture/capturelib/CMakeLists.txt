@@ -30,5 +30,6 @@ target_link_libraries(${PROJECT_NAME}
             v4l2
             yaml-cpp
             spdlog
+            curl
             fmt
         )

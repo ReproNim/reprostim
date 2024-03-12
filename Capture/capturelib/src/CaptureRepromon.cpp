@@ -1,4 +1,6 @@
 #include "reprostim/CaptureRepromon.h"
+#include <curl/curl.h>
+#include <nlohmann/json.hpp>
 
 namespace reprostim {
 
