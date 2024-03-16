@@ -198,7 +198,7 @@ namespace reprostim {
 	}
 
 	template<typename T, typename U>
-	inline void TaskQueue<T, U>::doTask(const U &task) {
+	void TaskQueue<T, U>::doTask(const U &task) {
 		// provide own template specialization
 		_INFO("TaskQueue::doTask: not implemented: ");
 	}
@@ -217,7 +217,7 @@ namespace reprostim {
 	}
 
 	template<typename T, typename U>
-	inline void TaskQueue<T, U>::run() {
+	void TaskQueue<T, U>::run() {
 		U task;
 		while (true) {
 			{

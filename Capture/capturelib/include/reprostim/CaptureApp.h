@@ -9,6 +9,13 @@
 
 namespace reprostim {
 
+	#ifndef _NOTIFY_REPROMON
+	#define _NOTIFY_REPROMON(...) if (fRepromonEnabled) { \
+    	RepromonMessage msg = { __VA_ARGS__ };            \
+		pRepromonQueue->push(msg);                        \
+	}
+	#endif // _NOTIFY_REPROMON
+
 	struct FfmpegOpts {
 		std::string a_fmt;
 		std::string a_nchan;
@@ -72,6 +79,7 @@ namespace reprostim {
 
 		// repromon message queue
 		std::unique_ptr<RepromonQueue>  pRepromonQueue;
+		bool                            fRepromonEnabled;
 
 		// session runtime data
 		std::string               configHash;

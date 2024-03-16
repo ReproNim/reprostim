@@ -87,6 +87,9 @@ template<>
 void FfmpegThread ::run() {
 	_SESSION_LOG_BEGIN(getParams().pLogger);
 
+	bool fRepromonEnabled = getParams().fRepromonEnabled;
+	RepromonQueue* pRepromonQueue = getParams().pRepromonQueue;
+
 	std::thread::id tid= std::this_thread::get_id();
 	_VERBOSE("FfmpegThread start [" << tid << "]: " << getParams().cmd);
 
@@ -113,6 +116,11 @@ void FfmpegThread ::run() {
 	// terminate session logs
 	_VERBOSE("FfmpegThread leave [" << tid << "]: " << getParams().cmd);
 	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
+	_NOTIFY_REPROMON(
+		REPROMON_INFO,
+		getParams().appName + " session " + getParams().start_ts +
+		" end, saved to " + std::filesystem::path(outVideoFile2).filename().string()
+	);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -257,14 +265,30 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 
 	SessionLogger_ptr pLogger = createSessionLogger("session_logger_" + start_ts, outVideoFile + ".log");
 	_SESSION_LOG_BEGIN(pLogger);
+	_NOTIFY_REPROMON(
+		REPROMON_INFO,
+		appName + " session " + start_ts + " begin, " +
+		std::to_string(vssCur.cx) + "x" + std::to_string(vssCur.cy) + ", " + frameRate + " fps",
+		{
+			{"serial", targetVideoDev.serial},
+			{"vDev", targetVideoDev.name},
+			{"start_ts", start_ts},
+			{"cx", vssCur.cx},
+			{"cy", vssCur.cy},
+			{"frameRate", frameRate}
+		}
+	);
 	_VERBOSE("Created session logger: session_logger_" << start_ts);
 	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
+			appName,
 			ffmpg,
 			opts.out_fmt,
 			outPath,
 			outVideoFile,
 			start_ts,
-			pLogger
+			pLogger,
+			fRepromonEnabled,
+			pRepromonQueue.get() // NOTE: unsafe ownership
 	});
 
 	m_ffmpegExec.schedule(pt);

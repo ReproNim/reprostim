@@ -39,6 +39,8 @@ repromon_opts:
   api_base_url: "https://localhost:9095/api/1"
   # specify repromon api key directly or via env macro ${REPROMON_API_KEY}
   api_key: "${REPROMON_API_KEY}"
+  # specify SSL certificate verification is required, default is true
+  verify_ssl_cert: false
   # specify repromon data provider (REPROSTIM=2, NOISSEUR=5)
   data_provider_id: 2
   # specify used MRI device (DBIC=1)

@@ -176,6 +176,7 @@ namespace reprostim {
 					return false;
 				}
 			}
+			opts.verify_ssl_cert = node["verify_ssl_cert"].as<bool>();
 			opts.data_provider_id = node["data_provider_id"].as<int>();
 			opts.device_id = node["device_id"].as<int>();
 			opts.message_category_id = node["message_category_id"].as<int>();
@@ -199,11 +200,19 @@ namespace reprostim {
 	void CaptureApp::onUsbDevArrived(const std::string& devPath) {
 		_INFO("Connected USB device: " << devPath);
 		disconnDevRemove(devPath);
+		_NOTIFY_REPROMON(
+			REPROMON_INFO,
+			appName + " USB device connected: " + devPath
+		);
 	}
 
 	void CaptureApp::onUsbDevLeft(const std::string& devPath) {
 		_INFO("Disconnected USB device: " << devPath);
 		disconnDevAdd(devPath);
+		_NOTIFY_REPROMON(
+			REPROMON_INFO,
+			appName + " USB device disconnected: " + devPath
+		);
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -252,11 +261,14 @@ namespace reprostim {
 
 		// start repromon queue
 		if( cfg.repromon_opts.enabled ) {
+			fRepromonEnabled = true;
 			pRepromonQueue = std::make_unique<RepromonQueue>(RepromonParams{
 				cfg.repromon_opts
 			});
 			_VERBOSE("Start repromon queue");
 			pRepromonQueue->start();
+		} else {
+			fRepromonEnabled = false;
 		}
 
 		// calculated options
@@ -301,6 +313,8 @@ namespace reprostim {
 			_ERROR("Failed register USB device hot plug callback");
 			hasHotplug = false;
 		}
+
+		_NOTIFY_REPROMON(REPROMON_INFO, appName + " started, v" + CAPTURE_VERSION_STRING);
 
 		do {
 			SLEEP_SEC(1);
@@ -433,6 +447,9 @@ namespace reprostim {
 		} while (fRun && !isSysBreakExec());
 
 		onCaptureStop("Program terminated");
+
+		_NOTIFY_REPROMON(REPROMON_INFO, appName + " terminated");
+
 
 		if( hasHotplug ) {
 			MWUSBUnRegisterHotPlug();
