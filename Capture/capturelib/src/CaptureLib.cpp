@@ -413,8 +413,8 @@ namespace reprostim {
 		std::stringstream ss;
 		ss << std::put_time(std::localtime(&tsAsTimeT), "%Y-%m-%dT%H:%M:%S");
 		// put also microseconds up to 6 digits
-		auto tsAsUs = std::chrono::duration_cast<std::chrono::microseconds>(ts.time_since_epoch()) % 1000000;
-		ss << '.' << std::setw(6) << std::setfill('0') << tsAsUs.count();
+		auto nowUs = std::chrono::duration_cast<std::chrono::microseconds>(ts.time_since_epoch()) % 1000000;
+		ss << '.' << std::setw(6) << std::setfill('0') << nowUs.count();
 		return ss.str();
 	}
 
