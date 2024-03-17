@@ -9,9 +9,12 @@
 
 namespace reprostim {
 
+	// Macros to define message to be sent to repromon system
 	#ifndef _NOTIFY_REPROMON
 	#define _NOTIFY_REPROMON(...) if (fRepromonEnabled) { \
     	RepromonMessage msg = { __VA_ARGS__ };            \
+        if( msg.event_on.empty() ) { msg.event_on = getTimeIsoStr(); } \
+        if( msg.registered_on.empty() ) { msg.registered_on = getTimeIsoStr(); } \
 		pRepromonQueue->push(msg);                        \
 	}
 	#endif // _NOTIFY_REPROMON

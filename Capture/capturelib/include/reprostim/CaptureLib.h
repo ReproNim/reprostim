@@ -34,6 +34,18 @@
 #define SLEEP_SEC(sec) SLEEP_MS(static_cast<int>(sec*1000))
 #endif
 
+// define timestamp "type" in reprostim terms and precision
+// because in C++ there is no normal stable built-in timestamp
+// type ATM
+#ifndef TIMESTAMP
+#define TIMESTAMP std::chrono::system_clock::time_point
+#endif
+
+// current TIMESTAMP value
+#ifndef TS_NOW
+#define TS_NOW() std::chrono::system_clock::now()
+#endif
+
 
 #define EX_SYS_BREAK_EXEC		140	/* custom exit code when execution broken by Ctrl+C, SIGINT or similar events */
 #define EX_CONFIG_RELOAD		141	/* custom exit code when config.yaml file changed */
@@ -119,7 +131,14 @@ namespace reprostim {
 	// NOTE: uses by-value result
 	VDevPath getVideoDevicePathBySerial(const std::string &pattern, const std::string &serial);
 
-	std::string getTimeStr();
+	// Date-time format historically used in reprostim
+	// e.g. "2024.03.02.12.33.08.006"
+	std::string getTimeStr(const TIMESTAMP &ts = TS_NOW());
+
+	// ISO 8601 date-time string conversion with microseconds
+	// precision and "no time-zone" information
+	// e.g. "2024-03-17T17:13:53.478287"
+	std::string getTimeIsoStr(const TIMESTAMP &ts = TS_NOW());
 
 	bool isSysBreakExec();
 
@@ -153,7 +172,5 @@ namespace reprostim {
 				std::chrono::system_clock::now().time_since_epoch()
 		).count();
 	}
-
-
 }
 #endif //REPROSTIM_CAPTURELIB_H

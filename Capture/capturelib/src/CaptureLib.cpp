@@ -386,26 +386,35 @@ namespace reprostim {
 		return res;
 	}
 
-	std::string getTimeStr() {
-		// Use chrono for high resolution time
-		auto now = std::chrono::system_clock::now();
-		auto nowAsTimeT = std::chrono::system_clock::to_time_t(now);
-		auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) %
-					 1000; // extract milliseconds
+	std::string getTimeStr(const TIMESTAMP &ts) {
+		auto tsAsTimeT = std::chrono::system_clock::to_time_t(ts);
+		auto tsAsMs = std::chrono::duration_cast<std::chrono::milliseconds>(ts.time_since_epoch()) %
+					  1000; // extract milliseconds
 
 		// Convert to local time
-		tm *ltm = localtime(&nowAsTimeT);
+		tm *ltm = localtime(&tsAsTimeT);
 
 		// Prepare the string stream for formatting
 		std::stringstream ss;
 		ss << 1900 + ltm->tm_year << '.'
-		   << std::setw(2) << std::setfill('0') << 1 + ltm->tm_mon << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_mday << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_hour << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_min << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_sec << '.'
-		   << std::setw(3) << std::setfill('0') << nowMs.count();  // add milliseconds
+		   << std::setw(2) << std::setfill('0') << std::to_string(1 + ltm->tm_mon) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_mday) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_hour) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_min) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_sec) << '.'
+		   << std::setw(3) << std::setfill('0') << std::to_string(tsAsMs.count());  // add milliseconds
 
+		return ss.str();
+	}
+
+	// ISO 8601 date-time string conversion
+	std::string getTimeIsoStr(const TIMESTAMP &ts) {
+		auto tsAsTimeT = std::chrono::system_clock::to_time_t(ts);
+		std::stringstream ss;
+		ss << std::put_time(std::localtime(&tsAsTimeT), "%Y-%m-%dT%H:%M:%S");
+		// put also microseconds up to 6 digits
+		auto tsAsUs = std::chrono::duration_cast<std::chrono::microseconds>(ts.time_since_epoch()) % 1000000;
+		ss << '.' << std::setw(6) << std::setfill('0') << tsAsUs.count();
 		return ss.str();
 	}
 

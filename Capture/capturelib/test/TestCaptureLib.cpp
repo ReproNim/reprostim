@@ -20,12 +20,27 @@ TEST_CASE("TestCaptureLib_add",
 TEST_CASE("TestCaptureLib_getTimeStr",
 		  "[capturelib][getTimeStr]") {
 	std::string ts = getTimeStr();
+	INFO("ts: " << ts);
 	REQUIRE(ts.length() == 23);
 
 	std::regex pattern(R"(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})");
 
 	std::smatch match;
 	ts = getTimeStr();
+	REQUIRE(std::regex_search(ts, match, pattern));
+}
+
+TEST_CASE("TestCaptureLib_getTimeIsoStr",
+		  "[capturelib][getTimeIsoStr]") {
+	std::string ts = getTimeIsoStr();
+	INFO("ts: " << ts);
+	REQUIRE(ts.length() == 26);
+
+	std::regex pattern(R"(\d{4}\-\d{2}\-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{6})");
+
+	std::smatch match;
+	ts = getTimeIsoStr();
+	INFO("ts: " << ts);
 	REQUIRE(std::regex_search(ts, match, pattern));
 }
 

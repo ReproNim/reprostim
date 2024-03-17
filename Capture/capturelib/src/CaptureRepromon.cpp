@@ -65,8 +65,6 @@ namespace reprostim {
 				queue.getParams().opts.verify_ssl_cert
 		};
 
-		// TODO: calc event_on and registered_on
-
 		repromonSendMessage(cfg,
 				msg.study,
 				queue.getParams().opts.message_category_id,
