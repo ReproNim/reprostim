@@ -62,7 +62,7 @@ namespace reprostim {
 		return EX_OK;
 	}
 
-	std::string chiToString(MWCAP_CHANNEL_INFO &info) {
+	std::string chiToString(const MWCAP_CHANNEL_INFO &info) {
 		std::ostringstream s;
 		s << "MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
 		s << ", productID=" << info.wProductID;
@@ -596,27 +596,28 @@ namespace reprostim {
 		return "?.?.?";
 	}
 
- 	AudioVolume parseAudioVolume(std::string text) {
+ 	AudioVolume parseAudioVolume(const std::string text) {
+		std::string sVol = text;
 		AudioVolume av;
 		av.unit = VolumeLevelUnit::RAW;
-		av.label = text;
-		if(text.empty()) {
+		av.label = sVol;
+		if(sVol.empty()) {
 			throw std::runtime_error("empty text");
 		}
 
-		if( text.ends_with('%') && text.length()>1 ) {
-			text = text.substr(0, text.length() - 1);
+		if(sVol.ends_with('%') && sVol.length() > 1 ) {
+			sVol = sVol.substr(0, sVol.length() - 1);
 			av.unit = VolumeLevelUnit::PERCENT;
 		}
 
-		if( (text.ends_with("db") || text.ends_with("dB")) && text.length()>2 ) {
-			text = text.substr(0, text.length() - 2);
+		if((sVol.ends_with("db") || sVol.ends_with("dB")) && sVol.length() > 2 ) {
+			sVol = sVol.substr(0, sVol.length() - 2);
 			av.unit = VolumeLevelUnit::DB;
 		}
 
 		size_t pos = 0;
-		av.level = std::stof(text, &pos);
-		if( pos<text.length() ) {
+		av.level = std::stof(sVol, &pos);
+		if(pos < sVol.length() ) {
 			throw std::runtime_error("Usupported volume level value "+av.label);
 		}
 
@@ -764,7 +765,7 @@ namespace reprostim {
 		s_nSysBreakExec = fBreak ? 1 : 0;
 	}
 
-	std::string vdToString(VideoDevice &vd) {
+	std::string vdToString(const VideoDevice &vd) {
 		std::ostringstream s;
 		s << vd.name << ", S/N=" << vd.serial << ", channelIndex=" << vd.channelIndex;
 		return s.str();
