@@ -41,6 +41,8 @@ namespace reprostim {
 		std::string  study;
 		std::string  event_on;
 		std::string  registered_on;
+
+		friend std::ostream& operator<<(std::ostream& os, const RepromonMessage& msg);
 	};
 
 	// Repromon message queue
@@ -53,6 +55,17 @@ namespace reprostim {
 	template<>
 	inline void RepromonQueue::doTask(const RepromonMessage &msg) {
 		repromonQueueDoTask(*this, msg);
+	}
+
+	// Repromon message to string stream operator
+	inline std::ostream& operator<<(std::ostream& os, const RepromonMessage& msg) {
+		os << "RepromonMessage(level=" << msg.level <<
+		   ", description=" << msg.description <<
+		   ", payload=" << msg.payload <<
+		   ", study=" << msg.study <<
+		   ", event_on=" << msg.event_on <<
+		   ", registered_on=" << msg.registered_on << ")";
+		return os;
 	}
 
 } // reprostim

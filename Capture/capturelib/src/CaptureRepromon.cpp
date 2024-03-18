@@ -48,12 +48,9 @@ namespace reprostim {
 
 	// Queue message handler implementation
 	void repromonQueueDoTask(RepromonQueue &queue, const RepromonMessage &msg) {
-		_VERBOSE("RepromonQueue::doTask() enter: ");
-		_INFO("Repromon message: "
-					  << "api_base_url=" << queue.getParams().opts.api_base_url
-					  << ", description=" << msg.description
-					  << ", payload=" << msg.payload
-					  << ", ...");
+		_VERBOSE("RepromonQueue::doTask() enter");
+		_VERBOSE("RepromonQueue msg=" << msg);
+
 		if( msg.level<queue.getParams().opts.message_level_id ) {
 			_VERBOSE("Repromon message: skip level=" << std::to_string(msg.level));
 		}
@@ -76,6 +73,6 @@ namespace reprostim {
 				msg.event_on,
 				msg.registered_on
 		);
-		_VERBOSE("RepromonQueue::doTask() leave: ");
+		_VERBOSE("RepromonQueue::doTask() leave");
 	}
 }

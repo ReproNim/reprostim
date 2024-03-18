@@ -27,12 +27,14 @@ namespace reprostim {
 
 	RestResult restCall(const RestConfig &restConfig, const RestMethod &restMethod) {
 		RestResult rr = { 0, "", "" };
+		CURL *curl = nullptr;
+		struct curl_slist *headers = nullptr;
+		std::string url = "";
+		_VERBOSE("Rest call: " << restConfig << ", " << restMethod);
 		try {
-			CURL *curl = curl_easy_init();
+			curl = curl_easy_init();
 
 			if (curl) {
-				// Set request headers
-				struct curl_slist *headers = nullptr;
 				if( !restMethod.contentType.empty() ) {
 					headers = curl_slist_append(headers, ("Content-Type: " + restMethod.contentType).c_str());
 				}
@@ -68,8 +70,8 @@ namespace reprostim {
 					}
 				}
 
-				std::string url = ourl.str();
-				_INFO("url: " << url);
+				url = ourl.str();
+				_VERBOSE("Rest url: " << url);
 
 				// Configure libcurl options
 				curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -116,29 +118,42 @@ namespace reprostim {
 					curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
 					rr.httpCode = httpCode;
 					if (httpCode == 200) {
-						_INFO("Rest method " << restMethod.name << " executed successfully");
-						_INFO("Rest method " << restMethod.name << " response: " << response_data);
+						_VERBOSE("Rest method \"" << restMethod.name << "\" executed successfully");
 						rr.data = response_data;
 					} else {
-						rr.error = "Rest method " + restMethod.name + " failed, HTTP status code: " +
+						rr.error = "Rest method \"" + restMethod.name + "\" failed, HTTP status code: " +
 								   std::to_string(httpCode) + ", response: " + response_data;
-						_ERROR(rr.error);
-						rr.error = response_data;
+						rr.data = response_data;
 					}
 				} else {
-					rr.error = "Rest method " + restMethod.name +
-							   " HTTP request failure: " + curl_easy_strerror(res);
-					_ERROR(rr.error);
+					rr.error = "Rest method \"" + restMethod.name +
+							   "\" HTTP request failure: " + curl_easy_strerror(res);
 				}
-
-				// Cleanup
-				curl_slist_free_all(headers);
-				curl_easy_cleanup(curl);
 			}
 		} catch (const std::exception &ex) {
-			rr.error = "Rest method " + restMethod.name +
-					   " unhandled error: " + ex.what();
+			rr.error = "Rest method \"" + restMethod.name +
+					   "\" unhandled error: " + ex.what();
+		}
+
+		// cleanup
+		if( headers ) {
+			curl_slist_free_all(headers);
+			headers = nullptr;
+		}
+
+		if( curl ) {
+			curl_easy_cleanup(curl);
+			curl = nullptr;
+		}
+
+		_VERBOSE("Rest call result: " << rr);
+
+		if( !rr.error.empty() ) {
 			_ERROR(rr.error);
+			_ERROR("  - " << rr);
+			_ERROR("  - url=" << url);
+			_ERROR("  - " << restConfig);
+			_ERROR("  - " << restMethod);
 		}
 		return rr;
 	}
