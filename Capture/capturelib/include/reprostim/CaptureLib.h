@@ -146,7 +146,7 @@ namespace reprostim {
 
 	std::string mwcSdkVersion();
 
-	AudioVolume parseAudioVolume(const std::string text2);
+	AudioVolume parseAudioVolume(const std::string text);
 
 	void safeMWCloseChannel(HCHANNEL &hChannel);
 
@@ -172,5 +172,21 @@ namespace reprostim {
 				std::chrono::system_clock::now().time_since_epoch()
 		).count();
 	}
+
+	inline std::ostream& operator<<(std::ostream& os, const MWCAP_CHANNEL_INFO &chi) {
+		os << chiToString(chi);
+		return os;
+	}
+
+	inline std::ostream& operator<<(std::ostream& os, const MWCAP_VIDEO_SIGNAL_STATUS &vss) {
+		os << vssToString(vss);
+		return os;
+	}
+
+	inline std::ostream& operator<<(std::ostream& os, const VideoDevice &vd) {
+		os << vdToString(vd);
+		return os;
+	}
+
 }
 #endif //REPROSTIM_CAPTURELIB_H

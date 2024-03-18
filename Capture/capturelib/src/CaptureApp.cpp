@@ -338,7 +338,7 @@ namespace reprostim {
 				continue;
 			}
 
-			_VERBOSE("Found target device: " << vdToString(targetVideoDev));
+			_VERBOSE("Found target device: " << targetVideoDev);
 
 			char wPath[256] = {0};
 			if(MWGetDevicePath(targetVideoDev.channelIndex, wPath) == MW_SUCCEEDED ) {
@@ -358,7 +358,7 @@ namespace reprostim {
 			frameRate = vssFrameRate(vssCur);
 
 			// just dump current video signal status
-			_VERBOSE(vssToString(vssCur) << ". frameRate=" << frameRate);
+			_VERBOSE(vssCur << ". frameRate=" << frameRate);
 
 			if (  ( vssCur.cx > 0 ) && ( vssCur.cx  < 9999 ) && (vssCur.cy > 0) && (vssCur.cy < 9999)) {
 				if (recording == 0) {

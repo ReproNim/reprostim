@@ -130,7 +130,7 @@ namespace reprostim {
 			MWCAP_CHANNEL_INFO info;
 			mwRes = MWGetChannelInfoByIndex(i, &info);
 
-			_VERBOSE("Found device on channel " << i << ". " << chiToString(info));
+			_VERBOSE("Found device on channel " << i << ". " << info);
 
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
 				if (!serialNumber.empty()) {
