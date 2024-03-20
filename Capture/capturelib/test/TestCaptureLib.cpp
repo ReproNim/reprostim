@@ -17,6 +17,28 @@ TEST_CASE("TestCaptureLib_add",
 	REQUIRE(add(3, 5) == 8);
 }
 
+// expandMacros test
+TEST_CASE("TestCaptureLib_expandMacros",
+		  "[capturelib][expandMacros]") {
+	std::string result = "";
+	result = expandMacros("Hello, ${name}!", {
+			{"name", "world"}
+	});
+	REQUIRE(result == "Hello, world!");
+
+	result = expandMacros("Hello, {name} ${name} {name}!", {
+			{"name", "world"}
+	});
+
+	REQUIRE(result == "Hello, world world world!");
+
+	result = expandMacros("Hello, {unknown} {name}!", {
+			{"name", "world"}
+	});
+
+	REQUIRE(result == "Hello, ?unknown? world!");
+}
+
 TEST_CASE("TestCaptureLib_getTimeStr",
 		  "[capturelib][getTimeStr]") {
 	std::string ts = getTimeStr();
@@ -27,6 +49,20 @@ TEST_CASE("TestCaptureLib_getTimeStr",
 
 	std::smatch match;
 	ts = getTimeStr();
+	REQUIRE(std::regex_search(ts, match, pattern));
+}
+
+// getTimeFormatStr test
+TEST_CASE("TestCaptureLib_getTimeFormatStr",
+		  "[capturelib][getTimeFormatStr]") {
+	std::string ts = getTimeFormatStr(CURRENT_TIMESTAMP(), "%Y-%m-%d %H:%M:%S");
+	INFO("ts: " << ts);
+	REQUIRE(ts.length() == 19);
+
+	std::regex pattern(R"(\d{4}\-\d{2}\-\d{2}\s\d{2}\:\d{2}\:\d{2})");
+
+	std::smatch match;
+	ts = getTimeFormatStr();
 	REQUIRE(std::regex_search(ts, match, pattern));
 }
 
@@ -43,6 +79,36 @@ TEST_CASE("TestCaptureLib_getTimeIsoStr",
 	INFO("ts: " << ts);
 	REQUIRE(std::regex_search(ts, match, pattern));
 }
+
+// getTimeMonthStr test
+TEST_CASE("TestCaptureLib_getTimeMonthStr",
+		  "[capturelib][getTimeMonthStr]") {
+	std::string ts = getTimeMonthStr();
+	INFO("ts: " << ts);
+	REQUIRE(ts.length() == 2);
+
+	std::regex pattern(R"(\d{2})");
+
+	std::smatch match;
+	ts = getTimeMonthStr();
+	REQUIRE(std::regex_search(ts, match, pattern));
+}
+
+
+// getTimeYearStr test
+TEST_CASE("TestCaptureLib_getTimeYearStr",
+		  "[capturelib][getTimeYearStr]") {
+	std::string ts = getTimeYearStr();
+	INFO("ts: " << ts);
+	REQUIRE(ts.length() == 4);
+
+	std::regex pattern(R"(\d{4})");
+
+	std::smatch match;
+	ts = getTimeYearStr();
+	REQUIRE(std::regex_search(ts, match, pattern));
+}
+
 
 // test for isSysBreakExec
 TEST_CASE("TestCaptureLib_isSysBreakExec",

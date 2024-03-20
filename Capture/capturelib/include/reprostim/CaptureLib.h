@@ -34,13 +34,6 @@
 #define SLEEP_SEC(sec) SLEEP_MS(static_cast<int>(sec*1000))
 #endif
 
-// define timestamp "type" in reprostim terms and precision
-// because in C++ there is no normal stable built-in timestamp
-// type ATM
-#ifndef TIMESTAMP
-#define TIMESTAMP std::chrono::system_clock::time_point
-#endif
-
 // current TIMESTAMP value
 #ifndef CURRENT_TIMESTAMP
 #define CURRENT_TIMESTAMP() std::chrono::system_clock::now()
@@ -60,6 +53,17 @@ namespace reprostim {
 		PERCENT = 1,
 		DB      = 2 // not supported yet
 	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// Typedefs
+
+	// Define std::string to std::string dictionary type
+	using SDict = std::unordered_map<std::string, std::string>;
+
+	// define timestamp type in reprostim terms and precision
+	// because in C++ there is no normal stable built-in timestamp
+	// type ATM
+	using Timestamp = std::chrono::system_clock::time_point;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Structs
@@ -110,6 +114,8 @@ namespace reprostim {
 					 int maxResLen = -1,
 					 std::function<bool()> isTerminated = [](){ return false; });
 
+	std::string expandMacros(const std::string &text, const SDict &dict);
+
 	bool findTargetVideoDevice(const std::string &serialNumber, VideoDevice &vd);
 
 	// returns audio device ALSA path and sound card ALSA name
@@ -133,12 +139,16 @@ namespace reprostim {
 
 	// Date-time format historically used in reprostim
 	// e.g. "2024.03.02.12.33.08.006"
-	std::string getTimeStr(const TIMESTAMP &ts = CURRENT_TIMESTAMP());
+	std::string getTimeStr(const Timestamp &ts = CURRENT_TIMESTAMP());
+
+	// Format date/time with strftime-like pattern
+	std::string getTimeFormatStr(const Timestamp &ts = CURRENT_TIMESTAMP(),
+								 const std::string &format = "%Y-%m-%d %H:%M:%S");
 
 	// ISO 8601 date-time string conversion with microseconds
 	// precision and "no time-zone" information
 	// e.g. "2024-03-17T17:13:53.478287"
-	std::string getTimeIsoStr(const TIMESTAMP &ts = CURRENT_TIMESTAMP());
+	std::string getTimeIsoStr(const Timestamp &ts = CURRENT_TIMESTAMP());
 
 	bool isSysBreakExec();
 
@@ -171,6 +181,16 @@ namespace reprostim {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(
 				std::chrono::system_clock::now().time_since_epoch()
 		).count();
+	}
+
+	// get std::string representation of time year in format "YYYY"
+	inline std::string getTimeYearStr(const Timestamp &ts = CURRENT_TIMESTAMP()) {
+		return getTimeFormatStr(ts, "%Y");
+	}
+
+	// get std::string representation of time month in format "MM"
+	inline std::string getTimeMonthStr(const Timestamp &ts = CURRENT_TIMESTAMP()) {
+		return getTimeFormatStr(ts, "%m");
 	}
 
 	inline std::ostream& operator<<(std::ostream& os, const MWCAP_CHANNEL_INFO &chi) {

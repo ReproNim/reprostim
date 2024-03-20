@@ -108,6 +108,33 @@ namespace reprostim {
 		return result;
 	}
 
+	// Expand macros like {key} or ${key} in text using dict
+	std::string expandMacros(const std::string &text, const SDict &dict) {
+		std::string s = text;
+		std::regex re(R"(\$?\{(\w+)\})");
+		std::smatch m;
+
+		int n = 0;
+		while (std::regex_search(s, m, re)) {
+			auto key = m[1].str();
+			auto it = dict.find(key);
+			if (it != dict.end()) {
+				s = m.prefix().str() + it->second + m.suffix().str();
+				//result.replace(matches.position(), matches.length(), it->second);
+			} else {
+				// Handle missing parameter error
+				_ERROR("Invalid macros parameter: " << key << " in " << text);
+				s = m.prefix().str() + "?" + key + "?" + m.suffix().str();
+				//s.replace(m.position(), m.length(), "?" + paramName + "?");
+			}
+			if( n++ > 28 ) {
+				_ERROR("Too many macros replacements, possible infinite loop: " << n);
+				break;
+			}
+		}
+		return s;
+	}
+
 	bool findTargetVideoDevice(const std::string &serialNumber,
 							   VideoDevice &vd) {
 		vd.channelIndex = -1;
@@ -386,7 +413,7 @@ namespace reprostim {
 		return res;
 	}
 
-	std::string getTimeStr(const TIMESTAMP &ts) {
+	std::string getTimeStr(const Timestamp &ts) {
 		auto tsAsTimeT = std::chrono::system_clock::to_time_t(ts);
 		auto tsAsMs = std::chrono::duration_cast<std::chrono::milliseconds>(ts.time_since_epoch()) %
 					  1000; // extract milliseconds
@@ -407,11 +434,19 @@ namespace reprostim {
 		return ss.str();
 	}
 
-	// ISO 8601 date-time string conversion
-	std::string getTimeIsoStr(const TIMESTAMP &ts) {
+	std::string getTimeFormatStr(const Timestamp &ts,
+								 const std::string &format) {
 		auto tsAsTimeT = std::chrono::system_clock::to_time_t(ts);
 		std::stringstream ss;
-		ss << std::put_time(std::localtime(&tsAsTimeT), "%Y-%m-%dT%H:%M:%S");
+		ss << std::put_time(std::localtime(&tsAsTimeT), format.c_str());
+		return ss.str();
+	}
+
+	// ISO 8601 date-time string conversion
+	std::string getTimeIsoStr(const Timestamp &ts) {
+		std::stringstream ss;
+		ss << getTimeFormatStr(ts, "%Y-%m-%dT%H:%M:%S");
+
 		// put also microseconds up to 6 digits
 		auto nowUs = std::chrono::duration_cast<std::chrono::microseconds>(ts.time_since_epoch()) % 1000000;
 		ss << '.' << std::setw(6) << std::setfill('0') << nowUs.count();
