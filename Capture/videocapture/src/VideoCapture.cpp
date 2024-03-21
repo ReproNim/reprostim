@@ -139,7 +139,6 @@ void VideoCaptureApp::onCaptureStart() {
 	startRecording(vssCur.cx,
 				  vssCur.cy,
 				  frameRate,
-				  opts.outPath,
 				  targetVideoDevPath,
 				  targetAudioInDevPath);
 	recording = 1;
@@ -151,10 +150,11 @@ void VideoCaptureApp::onCaptureStart() {
 
 void VideoCaptureApp::onCaptureStop(const std::string& message) {
 	if ( recording > 0 ) {
-		std::string stop_str = getTimeStr();
-		stopRecording(start_ts, opts.outPath);
+		Timestamp tsStop = CURRENT_TIMESTAMP();
+		std::string stop_ts = getTimeStr(tsStop);
+		stopRecording(start_ts, outPath);
 		recording = 0;
-		_INFO(stop_str << " " << message);
+		_INFO(stop_ts << " " << message);
 	}
 }
 
@@ -162,7 +162,7 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	const std::string HELP_STR = "Usage: reprostim-videocapture -d <path> [-o <path> | -h | -v ]\n\n"
 								 "\t-d <path>\t$REPROSTIM_HOME directory (not optional)\n"
 								 "\t-o <path>\tOutput directory where to save recordings (optional)\n"
-								 "\t         \tDefaults to $REPROSTIM_HOME/Videos\n"
+								 "\t         \tDefaults to $REPROSTIM_HOME/Videos/{year}/{month}\n"
 								 "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
 								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
 								 "\t-v, --verbose\n"
@@ -192,7 +192,7 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	while ((c = getopt_long(argc, argv, "o:c:d:hvVl", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
-				if(optarg) opts.outPath = optarg;
+				if(optarg) opts.outPathTempl = optarg;
 				break;
 			case 'c':
 				if(optarg) opts.configPath = optarg;
@@ -228,15 +228,19 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	}
 
 	// Set output directory if not specified on input
-	if( opts.outPath.empty() ) {
-		opts.outPath = opts.homePath + "/Videos";
+	if( opts.outPathTempl.empty() ) {
+		opts.outPathTempl = opts.homePath + "/Videos/{year}/{month}";
 	}
 	return EX_OK;
 }
 
 void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRate,
-		const std::string& outPath, const std::string& v_dev, const std::string& a_dev) {
-	start_ts = getTimeStr();
+		const std::string& v_dev, const std::string& a_dev) {
+	tsStart = CURRENT_TIMESTAMP();
+	start_ts = getTimeStr(tsStart);
+	outPath = createOutPath();
+	_INFO("    <> Current output path         ===> " << outPath);
+
 	char ffmpg[PATH_MAX_LEN] = {0};
 	const FfmpegOpts& opts = cfg.ffm_opts;
 	std::string a_dev2 = a_dev;
@@ -301,7 +305,6 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::stri
 	_INFO("stop record says: " << ffmpid.c_str());
 	while ( ffmpid.length() > 0 ) {
 		_INFO("<> PID of ffmpeg\t===> " << ffmpid.c_str());
-		std::string stop_ts = getTimeStr();
 		std::string killCmd = "kill -9 " + ffmpid;
 		system(killCmd.c_str());
 		//

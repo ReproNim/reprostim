@@ -2,6 +2,7 @@
 #define CAPTURE_CAPTUREAPP_H
 
 #include <unistd.h>
+#include <optional>
 #include "reprostim/CaptureLib.h"
 #include "reprostim/CaptureThreading.h"
 #include "reprostim/CaptureRepromon.h"
@@ -56,7 +57,7 @@ namespace reprostim {
 	struct AppOpts {
 		std::string configPath;
 		std::string homePath;
-		std::string outPath;
+		std::string outPathTempl;
 		bool        verbose = false;
 	};
 
@@ -87,8 +88,11 @@ namespace reprostim {
 		// session runtime data
 		std::string               configHash;
 		std::string               frameRate;
-		std::string               init_ts;
+		std::string               outPath;
 		int                       recording;
+		Timestamp                 tsInit;
+		std::string               init_ts;
+		Timestamp                 tsStart;
 		std::string               start_ts;
 		MWCAP_VIDEO_SIGNAL_STATUS vssCur; // current video signal status
 		MWCAP_VIDEO_SIGNAL_STATUS vssPrev; // previous video signal status
@@ -105,6 +109,7 @@ namespace reprostim {
 		CaptureApp();
 		~CaptureApp();
 
+		std::string createOutPath(const std::optional<Timestamp> &ts = std::nullopt, bool fCreateDir = true);
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		void listDevices();
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);

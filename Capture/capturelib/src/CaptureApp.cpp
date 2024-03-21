@@ -40,6 +40,27 @@ namespace reprostim {
 		pRepromonQueue = nullptr;
 	}
 
+	std::string CaptureApp::createOutPath(const std::optional<Timestamp> &ts, bool fCreateDir) {
+		const Timestamp &ts2 = ts.value_or(tsStart);
+
+		std::string s = expandMacros(
+				opts.outPathTempl,
+				{
+					{"year",  getTimeYearStr(ts2)  },
+					{"month", getTimeMonthStr(ts2) }
+				});
+
+		_VERBOSE("Expanded out path template: " << s);
+
+		if( fCreateDir ) {
+			_VERBOSE("Create output path: " << s);
+			if( !checkOutDir(s) ) {
+				_ERROR("ERROR[009]: Failed create output path: " << opts.outPathTempl << " -> " << s);
+			}
+		}
+		return s;
+	}
+
 	SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
 		if( cfg.session_logger_enabled ) {
 			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
@@ -49,7 +70,7 @@ namespace reprostim {
 						  cfg.session_logger_pattern);
 			std::string ver = appName + " " + CAPTURE_VERSION_STRING;
 			pLogger->info("Session logging begin   : " + ver + ", " + name
-			              + ", start_ts="+start_ts);
+						  + ", start_ts=" + start_ts);
 			pLogger->info("        Video device    : " + targetVideoDevPath +
 				", S/N: " + targetVideoDev.serial + ", " + targetVideoDev.name +
 				", bus info: " + targetBusInfo);
@@ -246,10 +267,13 @@ namespace reprostim {
 			return EX_CONFIG;
 		}
 
-		_VERBOSE("Output path: " << opts.outPath);
-		if( !checkOutDir(opts.outPath) ) {
+		_VERBOSE("Output path template: " << opts.outPathTempl);
+		// just test generic outPath
+		std::string testOutPath = createOutPath(CURRENT_TIMESTAMP(), false);
+		_VERBOSE("Test output path: " << testOutPath);
+		if( !checkOutDir(testOutPath) ) {
 			// invalid output path
-			_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
+			_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPathTempl << " -> " << testOutPath);
 			return EX_CANTCREAT;
 		}
 
@@ -286,9 +310,10 @@ namespace reprostim {
 
 		MW_RESULT mr = MW_SUCCEEDED;
 
-		init_ts = getTimeStr();
-		_INFO(init_ts << ": <><><> Starting " << appName <<  " " << CAPTURE_VERSION_STRING << " <><><>");
-		_INFO("    <> Saving output to            ===> " << opts.outPath);
+		tsInit = CURRENT_TIMESTAMP();
+		init_ts = getTimeStr(tsInit);
+		_INFO(init_ts << ": <><><> Starting " << appName << " " << CAPTURE_VERSION_STRING << " <><><>");
+		_INFO("    <> Saving output to            ===> " << opts.outPathTempl);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
 														 << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto"));
 		if( audioEnabled ) {
