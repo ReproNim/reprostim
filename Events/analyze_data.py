@@ -59,6 +59,8 @@ for day_df in days_df:
         nrows=nrows,
         )
 
+    repeats_detected = False
+
     for ix, hour in enumerate(hours):
         print(f"\tProcessing data for hour {hour}, ix={ix}.")
 
@@ -78,14 +80,19 @@ for day_df in days_df:
 
         # Highlight repeats
         hour_df["repetition"] = np.nan
+        hour_df["old_index"] = hour_df.index
 
         for action in actions:
             hour_action_df = hour_df.loc[hour_df['action'] == action]
             hour_action_df = hour_action_df.reset_index()
             for i in range(1, len(hour_action_df)):
                 if hour_action_df.loc[i, 'state'] == hour_action_df.loc[i-1, 'state']:
-                    #print("haha")
-                    hour_action_df.loc[i, 'repetition'] = 1
+                    this_entry_in_hour_df = hour_action_df.loc[i, "old_index"]
+                    hour_df.loc[this_entry_in_hour_df, 'repetition'] = 1
+
+        #if repeats_dected:
+        #    print("\t\tRepeats detected:")
+        #print(hour_df.loc[hour_df["repetition"] == 1]),
 
         axi = axs[ix]
 
@@ -111,12 +118,12 @@ for day_df in days_df:
         #    )
 
         axi.vlines(
-            hour_action_df.loc[hour_action_df["repetition"] == 1]["client_time_iso"],
+            hour_df.loc[hour_df["repetition"] == 1]["client_time_iso"],
             ymin=0,
             ymax=1,
             #hour_action_df.loc[hour_action_df["repetition"] == 1],
             color='tab:red',
-            linewidth=2,
+            linewidth=1,
             alpha=0.5,
             )
         #axi.plot(
