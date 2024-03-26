@@ -5,7 +5,7 @@ import matplotlib.dates as md
 from matplotlib import rcParams
 
 # content-invariant style
-rcParams['figure.dpi'] = 600
+rcParams['figure.dpi'] = 300
 
 # load
 df = pd.read_csv("data.csv", index_col="client_time_iso")
@@ -43,7 +43,7 @@ for day_df in days_df:
     nrows = len(hours)
 
     # figure size in inches
-    rcParams['figure.figsize'] = 80, nrows*5
+    rcParams['figure.figsize'] = 50, nrows*4
 
     fig, axs = plt.subplots(
         ncols=1,
@@ -51,8 +51,8 @@ for day_df in days_df:
         )
 
     # Same order in all figures
-    #actions = df["action"].unique()
-    #hue_order = sorted(actions)
+    actions = df["action"].unique()
+    hue_order = sorted(actions)
 
 
     for ix, hour in enumerate(hours):
@@ -68,15 +68,22 @@ for day_df in days_df:
             palette="tab10",
             linewidth=.5,
             ax=axi,
-            #hue_order=hue_order,
+            hue_order=hue_order,
         )
 
         axi.set_xlim(
             hour_df["client_time_iso"].min(),
             hour_df["client_time_iso"].max(),
             )
-        axi.xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S.%f'))
+        #axi.xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S.%f'))
+        # Don't print femtoseconds
+        axi.xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S'))
 
     plt.title(date)
-    plt.savefig(date + ".png")
+
+    # Remove large padding:
+    plt.savefig(date+".png",
+        pad_inches=.05,
+        bbox_inches='tight'
+        )
     plt.close()
