@@ -62,7 +62,7 @@ namespace reprostim {
 		return EX_OK;
 	}
 
-	std::string chiToString(MWCAP_CHANNEL_INFO &info) {
+	std::string chiToString(const MWCAP_CHANNEL_INFO &info) {
 		std::ostringstream s;
 		s << "MWCAP_CHANNEL_INFO: faimilyID=" << info.wFamilyID;
 		s << ", productID=" << info.wProductID;
@@ -108,6 +108,33 @@ namespace reprostim {
 		return result;
 	}
 
+	// Expand macros like {key} or ${key} in text using dict
+	std::string expandMacros(const std::string &text, const SDict &dict) {
+		std::string s = text;
+		std::regex re(R"(\$?\{(\w+)\})");
+		std::smatch m;
+
+		int n = 0;
+		while (std::regex_search(s, m, re)) {
+			auto key = m[1].str();
+			auto it = dict.find(key);
+			if (it != dict.end()) {
+				s = m.prefix().str() + it->second + m.suffix().str();
+				//result.replace(matches.position(), matches.length(), it->second);
+			} else {
+				// Handle missing parameter error
+				_ERROR("Invalid macros parameter: " << key << " in " << text);
+				s = m.prefix().str() + "?" + key + "?" + m.suffix().str();
+				//s.replace(m.position(), m.length(), "?" + paramName + "?");
+			}
+			if( n++ > 28 ) {
+				_ERROR("Too many macros replacements, possible infinite loop: " << n);
+				break;
+			}
+		}
+		return s;
+	}
+
 	bool findTargetVideoDevice(const std::string &serialNumber,
 							   VideoDevice &vd) {
 		vd.channelIndex = -1;
@@ -130,7 +157,7 @@ namespace reprostim {
 			MWCAP_CHANNEL_INFO info;
 			mwRes = MWGetChannelInfoByIndex(i, &info);
 
-			_VERBOSE("Found device on channel " << i << ". " << chiToString(info));
+			_VERBOSE("Found device on channel " << i << ". " << info);
 
 			if (strcmp(info.szFamilyName, "USB Capture") == 0) {
 				if (!serialNumber.empty()) {
@@ -386,26 +413,43 @@ namespace reprostim {
 		return res;
 	}
 
-	std::string getTimeStr() {
-		// Use chrono for high resolution time
-		auto now = std::chrono::system_clock::now();
-		auto nowAsTimeT = std::chrono::system_clock::to_time_t(now);
-		auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) %
-					 1000; // extract milliseconds
+	std::string getTimeStr(const Timestamp &ts) {
+		auto tsAsTimeT = std::chrono::system_clock::to_time_t(ts);
+		auto tsAsMs = std::chrono::duration_cast<std::chrono::milliseconds>(ts.time_since_epoch()) %
+					  1000; // extract milliseconds
 
 		// Convert to local time
-		tm *ltm = localtime(&nowAsTimeT);
+		tm *ltm = localtime(&tsAsTimeT);
 
 		// Prepare the string stream for formatting
 		std::stringstream ss;
 		ss << 1900 + ltm->tm_year << '.'
-		   << std::setw(2) << std::setfill('0') << 1 + ltm->tm_mon << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_mday << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_hour << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_min << '.'
-		   << std::setw(2) << std::setfill('0') << ltm->tm_sec << '.'
-		   << std::setw(3) << std::setfill('0') << nowMs.count();  // add milliseconds
+		   << std::setw(2) << std::setfill('0') << std::to_string(1 + ltm->tm_mon) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_mday) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_hour) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_min) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_sec) << '.'
+		   << std::setw(3) << std::setfill('0') << std::to_string(tsAsMs.count());  // add milliseconds
 
+		return ss.str();
+	}
+
+	std::string getTimeFormatStr(const Timestamp &ts,
+								 const std::string &format) {
+		auto tsAsTimeT = std::chrono::system_clock::to_time_t(ts);
+		std::stringstream ss;
+		ss << std::put_time(std::localtime(&tsAsTimeT), format.c_str());
+		return ss.str();
+	}
+
+	// ISO 8601 date-time string conversion
+	std::string getTimeIsoStr(const Timestamp &ts) {
+		std::stringstream ss;
+		ss << getTimeFormatStr(ts, "%Y-%m-%dT%H:%M:%S");
+
+		// put also microseconds up to 6 digits
+		auto nowUs = std::chrono::duration_cast<std::chrono::microseconds>(ts.time_since_epoch()) % 1000000;
+		ss << '.' << std::setw(6) << std::setfill('0') << nowUs.count();
 		return ss.str();
 	}
 
@@ -587,27 +631,28 @@ namespace reprostim {
 		return "?.?.?";
 	}
 
- 	AudioVolume parseAudioVolume(std::string text) {
+ 	AudioVolume parseAudioVolume(const std::string text) {
+		std::string sVol = text;
 		AudioVolume av;
 		av.unit = VolumeLevelUnit::RAW;
-		av.label = text;
-		if(text.empty()) {
+		av.label = sVol;
+		if(sVol.empty()) {
 			throw std::runtime_error("empty text");
 		}
 
-		if( text.ends_with('%') && text.length()>1 ) {
-			text = text.substr(0, text.length() - 1);
+		if(sVol.ends_with('%') && sVol.length() > 1 ) {
+			sVol = sVol.substr(0, sVol.length() - 1);
 			av.unit = VolumeLevelUnit::PERCENT;
 		}
 
-		if( (text.ends_with("db") || text.ends_with("dB")) && text.length()>2 ) {
-			text = text.substr(0, text.length() - 2);
+		if((sVol.ends_with("db") || sVol.ends_with("dB")) && sVol.length() > 2 ) {
+			sVol = sVol.substr(0, sVol.length() - 2);
 			av.unit = VolumeLevelUnit::DB;
 		}
 
 		size_t pos = 0;
-		av.level = std::stof(text, &pos);
-		if( pos<text.length() ) {
+		av.level = std::stof(sVol, &pos);
+		if(pos < sVol.length() ) {
 			throw std::runtime_error("Usupported volume level value "+av.label);
 		}
 
@@ -755,7 +800,7 @@ namespace reprostim {
 		s_nSysBreakExec = fBreak ? 1 : 0;
 	}
 
-	std::string vdToString(VideoDevice &vd) {
+	std::string vdToString(const VideoDevice &vd) {
 		std::ostringstream s;
 		s << vd.name << ", S/N=" << vd.serial << ", channelIndex=" << vd.channelIndex;
 		return s.str();

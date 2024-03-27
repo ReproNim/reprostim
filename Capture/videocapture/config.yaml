@@ -31,6 +31,27 @@ session_logger_level: "DEBUG"
 session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
 
 #
+# Specify ReproNim/repromon options
+#
+repromon_opts:
+  # to enable repromon set "enabled" to "true"
+  enabled: false
+  api_base_url: "https://localhost:9095/api/1"
+  # specify repromon api key directly or via env macro ${REPROMON_API_KEY}
+  api_key: "${REPROMON_API_KEY}"
+  # specify SSL certificate verification is required, default is true
+  verify_ssl_cert: false
+  # specify repromon data provider (REPROSTIM=2, NOISSEUR=5)
+  data_provider_id: 2
+  # specify used MRI device (DBIC=1)
+  device_id: 1
+  # specify repromon message category (FEEDBACK=1)
+  message_category_id: 1
+  # specify repromon logger level (INFO=1, WARN=2, ERROR=3)
+  message_level_id: 1
+
+
+#
 # Video capture ffmpeg recording options
 #
 ffm_opts:
@@ -50,7 +71,7 @@ ffm_opts:
   # Optionally, specify "a_vol" to set audio volume level
   # for "line-in" and "hdmi" audio inputs
   # use (0% - 100%) to set volume level in percentage
-  # or integer number to set volume level in device raw uints
+  # or integer number to set volume level in device raw units
   #
   a_vol:
     line-in: "95%"

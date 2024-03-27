@@ -24,11 +24,13 @@ ScreenCaptureApp::~ScreenCaptureApp() {
 }
 
 void ScreenCaptureApp::onCaptureStart() {
-	start_ts = getTimeStr();
+	tsStart = CURRENT_TIMESTAMP();
+	start_ts = getTimeStr(tsStart);
+	outPath = createOutPath();
 	g_activeSessionId.fetch_add(1);
 	int sessionId = g_activeSessionId;
 	SessionLogger_ptr pLogger = createSessionLogger("session_" + std::to_string(sessionId),
-													opts.outPath + "/" + start_ts + "_.log");
+													outPath + "/" + start_ts + "_.log");
 	_SESSION_LOG_BEGIN(pLogger);
 	_INFO("Start recording snapshots in session " << sessionId);
 	SLEEP_MS(200);
@@ -38,7 +40,7 @@ void ScreenCaptureApp::onCaptureStart() {
 			sessionId,
 			vssCur.cx, vssCur.cy,
 			m_scOpts.threshold,
-			opts.outPath,
+			outPath,
 			targetVideoDevPath,
 			m_scOpts.dump_raw,
 			m_scOpts.interval_ms,
@@ -107,7 +109,7 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	while ((c = getopt_long(argc, argv, "o:c:d:hvVl", longOpts, nullptr)) != -1) {
 		switch (c) {
 			case 'o':
-				if (optarg) opts.outPath = optarg;
+				if (optarg) opts.outPathTempl = optarg;
 				break;
 			case 'c':
 				if (optarg) opts.configPath = optarg;
@@ -144,8 +146,8 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	}
 
 	// Set output directory if not specified on input
-	if( opts.outPath.empty() ) {
-		opts.outPath = opts.homePath + "/Screens";
+	if( opts.outPathTempl.empty() ) {
+		opts.outPathTempl = opts.homePath + "/Screens";
 	}
 	return EX_OK;
 }

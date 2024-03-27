@@ -20,7 +20,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt update
-        sudo apt install -y libyaml-cpp-dev libspdlog-dev catch2 libasound2-dev libv4l-dev libudev-dev libopencv-dev cmake g++
+        sudo apt install -y libyaml-cpp-dev libspdlog-dev catch2 libasound2-dev libv4l-dev libudev-dev libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
 
     - name: Build
       run: |
