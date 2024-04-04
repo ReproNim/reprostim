@@ -176,6 +176,9 @@ For more information refer to item #14 from Magewell FAQ on https://www.magewell
     Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
     move it to the directory "/etc/udev/rules.d", and then restart your computer.
 
+NOTE: Also make sure that no other processes like ffmpeg, vlc, etc are using this video device, as
+it can accidentally produce the same error message ERROR[003].
+
 ### 1) Identify the USB Device:
 
 This is optional step, only for information purposes:
