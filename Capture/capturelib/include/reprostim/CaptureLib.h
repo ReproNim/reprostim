@@ -34,6 +34,11 @@
 #define SLEEP_SEC(sec) SLEEP_MS(static_cast<int>(sec*1000))
 #endif
 
+// current TIMESTAMP value
+#ifndef CURRENT_TIMESTAMP
+#define CURRENT_TIMESTAMP() std::chrono::system_clock::now()
+#endif
+
 
 #define EX_SYS_BREAK_EXEC		140	/* custom exit code when execution broken by Ctrl+C, SIGINT or similar events */
 #define EX_CONFIG_RELOAD		141	/* custom exit code when config.yaml file changed */
@@ -48,6 +53,17 @@ namespace reprostim {
 		PERCENT = 1,
 		DB      = 2 // not supported yet
 	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// Typedefs
+
+	// Define std::string to std::string dictionary type
+	using SDict = std::unordered_map<std::string, std::string>;
+
+	// define timestamp type in reprostim terms and precision
+	// because in C++ there is no normal stable built-in timestamp
+	// type ATM
+	using Timestamp = std::chrono::system_clock::time_point;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Structs
@@ -92,11 +108,13 @@ namespace reprostim {
 
 	int checkSystem();
 
-	std::string chiToString(MWCAP_CHANNEL_INFO &info);
+	std::string chiToString(const MWCAP_CHANNEL_INFO &info);
 
 	std::string exec(const std::string &cmd, bool showStdout = false,
 					 int maxResLen = -1,
 					 std::function<bool()> isTerminated = [](){ return false; });
+
+	std::string expandMacros(const std::string &text, const SDict &dict);
 
 	bool findTargetVideoDevice(const std::string &serialNumber, VideoDevice &vd);
 
@@ -119,7 +137,18 @@ namespace reprostim {
 	// NOTE: uses by-value result
 	VDevPath getVideoDevicePathBySerial(const std::string &pattern, const std::string &serial);
 
-	std::string getTimeStr();
+	// Date-time format historically used in reprostim
+	// e.g. "2024.03.02.12.33.08.006"
+	std::string getTimeStr(const Timestamp &ts = CURRENT_TIMESTAMP());
+
+	// Format date/time with strftime-like pattern
+	std::string getTimeFormatStr(const Timestamp &ts = CURRENT_TIMESTAMP(),
+								 const std::string &format = "%Y-%m-%d %H:%M:%S");
+
+	// ISO 8601 date-time string conversion with microseconds
+	// precision and "no time-zone" information
+	// e.g. "2024-03-17T17:13:53.478287"
+	std::string getTimeIsoStr(const Timestamp &ts = CURRENT_TIMESTAMP());
 
 	bool isSysBreakExec();
 
@@ -127,16 +156,16 @@ namespace reprostim {
 
 	std::string mwcSdkVersion();
 
-	AudioVolume parseAudioVolume(std::string text);
+	AudioVolume parseAudioVolume(const std::string text);
 
-	void safeMWCloseChannel(HCHANNEL&hChannel);
+	void safeMWCloseChannel(HCHANNEL &hChannel);
 
 	void setAudioInVolumeByCard(const std::string &alsaCardName,
 								const std::unordered_map<std::string, AudioVolume> &mapNameVolume);
 
 	void setSysBreakExec(bool fBreak);
 
-	std::string vdToString(VideoDevice &vd);
+	std::string vdToString(const VideoDevice &vd);
 
 	// Video signal status helpers
 	std::string vssFrameRate(const MWCAP_VIDEO_SIGNAL_STATUS &vss);
@@ -154,6 +183,30 @@ namespace reprostim {
 		).count();
 	}
 
+	// get std::string representation of time year in format "YYYY"
+	inline std::string getTimeYearStr(const Timestamp &ts = CURRENT_TIMESTAMP()) {
+		return getTimeFormatStr(ts, "%Y");
+	}
+
+	// get std::string representation of time month in format "MM"
+	inline std::string getTimeMonthStr(const Timestamp &ts = CURRENT_TIMESTAMP()) {
+		return getTimeFormatStr(ts, "%m");
+	}
+
+	inline std::ostream& operator<<(std::ostream& os, const MWCAP_CHANNEL_INFO &chi) {
+		os << chiToString(chi);
+		return os;
+	}
+
+	inline std::ostream& operator<<(std::ostream& os, const MWCAP_VIDEO_SIGNAL_STATUS &vss) {
+		os << vssToString(vss);
+		return os;
+	}
+
+	inline std::ostream& operator<<(std::ostream& os, const VideoDevice &vd) {
+		os << vdToString(vd);
+		return os;
+	}
 
 }
 #endif //REPROSTIM_CAPTURELIB_H

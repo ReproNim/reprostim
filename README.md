@@ -123,7 +123,7 @@ subjects.
 
 On Debian
 
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev cmake g++
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
 
 ## Build
 
@@ -175,6 +175,9 @@ For more information refer to item #14 from Magewell FAQ on https://www.magewell
 
     Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
     move it to the directory "/etc/udev/rules.d", and then restart your computer.
+
+NOTE: Also make sure that no other processes like ffmpeg, vlc, etc are using this video device, as
+it can accidentally produce the same error message ERROR[003].
 
 ### 1) Identify the USB Device:
 

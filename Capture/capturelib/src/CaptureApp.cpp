@@ -33,6 +33,34 @@ namespace reprostim {
 		audioEnabled = true;
 	}
 
+	CaptureApp::~CaptureApp() {
+		if( pRepromonQueue ) {
+			pRepromonQueue->stop();
+		}
+		pRepromonQueue = nullptr;
+	}
+
+	std::string CaptureApp::createOutPath(const std::optional<Timestamp> &ts, bool fCreateDir) {
+		const Timestamp &ts2 = ts.value_or(tsStart);
+
+		std::string s = expandMacros(
+				opts.outPathTempl,
+				{
+					{"year",  getTimeYearStr(ts2)  },
+					{"month", getTimeMonthStr(ts2) }
+				});
+
+		_VERBOSE("Expanded out path template: " << s);
+
+		if( fCreateDir ) {
+			_VERBOSE("Create output path: " << s);
+			if( !checkOutDir(s) ) {
+				_ERROR("ERROR[009]: Failed create output path: " << opts.outPathTempl << " -> " << s);
+			}
+		}
+		return s;
+	}
+
 	SessionLogger_ptr CaptureApp::createSessionLogger(const std::string& name, const std::string& filePath) {
 		if( cfg.session_logger_enabled ) {
 			SessionLogger_ptr pLogger = std::make_shared<FileLogger>();
@@ -42,7 +70,7 @@ namespace reprostim {
 						  cfg.session_logger_pattern);
 			std::string ver = appName + " " + CAPTURE_VERSION_STRING;
 			pLogger->info("Session logging begin   : " + ver + ", " + name
-			              + ", start_ts="+start_ts);
+						  + ", start_ts=" + start_ts);
 			pLogger->info("        Video device    : " + targetVideoDevPath +
 				", S/N: " + targetVideoDev.serial + ", " + targetVideoDev.name +
 				", bus info: " + targetBusInfo);
@@ -149,6 +177,32 @@ namespace reprostim {
 			opts.a_enc = node["a_enc"].as<std::string>();
 			opts.out_fmt = node["out_fmt"].as<std::string>();
 		}
+
+		// load repromon_opts
+		if( doc["repromon_opts"] ) {
+			YAML::Node node = doc["repromon_opts"];
+			RepromonOpts& opts = cfg.repromon_opts;
+			opts.enabled = node["enabled"].as<bool>();
+			opts.api_base_url = node["api_base_url"].as<std::string>();
+			opts.api_key = node["api_key"].as<std::string>();
+			if( opts.enabled && opts.api_key=="${REPROMON_API_KEY}" ) {
+				const char* envApiKey = std::getenv("REPROMON_API_KEY");
+				if( envApiKey!=nullptr ) {
+					opts.api_key = envApiKey;
+					_VERBOSE("Expanded repromon api_key: " << opts.api_key);
+				} else {
+					_ERROR("Failed expand repromon api_key in config.yaml, "
+						   "env variable not found: "
+						   << opts.api_key);
+					return false;
+				}
+			}
+			opts.verify_ssl_cert = node["verify_ssl_cert"].as<bool>();
+			opts.data_provider_id = node["data_provider_id"].as<int>();
+			opts.device_id = node["device_id"].as<int>();
+			opts.message_category_id = node["message_category_id"].as<int>();
+			opts.message_level_id = node["message_level_id"].as<int>();
+		}
 		return this->onLoadConfig(cfg, pathConfig, doc);
 	}
 
@@ -167,11 +221,19 @@ namespace reprostim {
 	void CaptureApp::onUsbDevArrived(const std::string& devPath) {
 		_INFO("Connected USB device: " << devPath);
 		disconnDevRemove(devPath);
+		_NOTIFY_REPROMON(
+			REPROMON_INFO,
+			appName + " USB device connected: " + devPath
+		);
 	}
 
 	void CaptureApp::onUsbDevLeft(const std::string& devPath) {
 		_INFO("Disconnected USB device: " << devPath);
 		disconnDevAdd(devPath);
+		_NOTIFY_REPROMON(
+			REPROMON_INFO,
+			appName + " USB device disconnected: " + devPath
+		);
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -181,6 +243,7 @@ namespace reprostim {
 
 	void CaptureApp::printVersion() {
 		_INFO(appName << " " << CAPTURE_VERSION_STRING);
+		_INFO(" Build Type : " << CAPTURE_BUILD_TYPE);
 		_INFO(" Build Date : " << CAPTURE_VERSION_DATE);
 		_INFO(" Build Tag  : " << CAPTURE_VERSION_TAG);
 	}
@@ -204,10 +267,13 @@ namespace reprostim {
 			return EX_CONFIG;
 		}
 
-		_VERBOSE("Output path: " << opts.outPath);
-		if( !checkOutDir(opts.outPath) ) {
+		_VERBOSE("Output path template: " << opts.outPathTempl);
+		// just test generic outPath
+		std::string testOutPath = createOutPath(CURRENT_TIMESTAMP(), false);
+		_VERBOSE("Test output path: " << testOutPath);
+		if( !checkOutDir(testOutPath) ) {
 			// invalid output path
-			_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPath);
+			_ERROR("ERROR[009]: Failed create/locate output path: " << opts.outPathTempl << " -> " << testOutPath);
 			return EX_CANTCREAT;
 		}
 
@@ -215,6 +281,18 @@ namespace reprostim {
 		if( res2!=EX_OK ) {
 			// problem with system configuration and installed packages
 			return res2;
+		}
+
+		// start repromon queue
+		if( cfg.repromon_opts.enabled ) {
+			fRepromonEnabled = true;
+			pRepromonQueue = std::make_unique<RepromonQueue>(RepromonParams{
+				cfg.repromon_opts
+			});
+			_VERBOSE("Start repromon queue");
+			pRepromonQueue->start();
+		} else {
+			fRepromonEnabled = false;
 		}
 
 		// calculated options
@@ -232,9 +310,10 @@ namespace reprostim {
 
 		MW_RESULT mr = MW_SUCCEEDED;
 
-		init_ts = getTimeStr();
-		_INFO(init_ts << ": <><><> Starting " << appName <<  " " << CAPTURE_VERSION_STRING << " <><><>");
-		_INFO("    <> Saving output to            ===> " << opts.outPath);
+		tsInit = CURRENT_TIMESTAMP();
+		init_ts = getTimeStr(tsInit);
+		_INFO(init_ts << ": <><><> Starting " << appName << " " << CAPTURE_VERSION_STRING << " <><><>");
+		_INFO("    <> Saving output to            ===> " << opts.outPathTempl);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
 														 << ", S/N=" << (cfg.has_device_serial_number?cfg.device_serial_number:"auto"));
 		if( audioEnabled ) {
@@ -260,6 +339,8 @@ namespace reprostim {
 			hasHotplug = false;
 		}
 
+		_NOTIFY_REPROMON(REPROMON_INFO, appName + " started, v" + CAPTURE_VERSION_STRING);
+
 		do {
 			SLEEP_SEC(1);
 
@@ -282,7 +363,7 @@ namespace reprostim {
 				continue;
 			}
 
-			_VERBOSE("Found target device: " << vdToString(targetVideoDev));
+			_VERBOSE("Found target device: " << targetVideoDev);
 
 			char wPath[256] = {0};
 			if(MWGetDevicePath(targetVideoDev.channelIndex, wPath) == MW_SUCCEEDED ) {
@@ -302,7 +383,7 @@ namespace reprostim {
 			frameRate = vssFrameRate(vssCur);
 
 			// just dump current video signal status
-			_VERBOSE(vssToString(vssCur) << ". frameRate=" << frameRate);
+			_VERBOSE(vssCur << ". frameRate=" << frameRate);
 
 			if (  ( vssCur.cx > 0 ) && ( vssCur.cx  < 9999 ) && (vssCur.cy > 0) && (vssCur.cy < 9999)) {
 				if (recording == 0) {
@@ -391,6 +472,9 @@ namespace reprostim {
 		} while (fRun && !isSysBreakExec());
 
 		onCaptureStop("Program terminated");
+
+		_NOTIFY_REPROMON(REPROMON_INFO, appName + " terminated");
+
 
 		if( hasHotplug ) {
 			MWUSBUnRegisterHotPlug();

@@ -9,6 +9,8 @@ configure_file(${PROJECT_SOURCE_DIR}/include/reprostim/CaptureVer.h.in
 add_library(${PROJECT_NAME} STATIC
         src/CaptureLib.cpp
         src/CaptureLog.cpp
+        src/CaptureRest.cpp
+        src/CaptureRepromon.cpp
         src/CaptureApp.cpp
         include/reprostim/CaptureVer.h.in
 )
@@ -29,5 +31,6 @@ target_link_libraries(${PROJECT_NAME}
             v4l2
             yaml-cpp
             spdlog
+            curl
             fmt
         )

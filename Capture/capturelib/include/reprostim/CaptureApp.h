@@ -2,11 +2,23 @@
 #define CAPTURE_CAPTUREAPP_H
 
 #include <unistd.h>
+#include <optional>
 #include "reprostim/CaptureLib.h"
 #include "reprostim/CaptureThreading.h"
+#include "reprostim/CaptureRepromon.h"
 #include "yaml-cpp/yaml.h"
 
 namespace reprostim {
+
+	// Macros to define message to be sent to repromon system
+	#ifndef _NOTIFY_REPROMON
+	#define _NOTIFY_REPROMON(...) if (fRepromonEnabled) { \
+    	RepromonMessage msg = { __VA_ARGS__ };            \
+        if( msg.event_on.empty() ) { msg.event_on = getTimeIsoStr(); } \
+        if( msg.registered_on.empty() ) { msg.registered_on = getTimeIsoStr(); } \
+		pRepromonQueue->push(msg);                        \
+	}
+	#endif // _NOTIFY_REPROMON
 
 	struct FfmpegOpts {
 		std::string a_fmt;
@@ -31,20 +43,21 @@ namespace reprostim {
 	// App configuration loaded from config.yaml, for
 	// historical reasons keep names in Python style
 	struct AppConfig {
-		std::string device_serial_number;
-		bool        has_device_serial_number = false;
-		bool        session_logger_enabled = false;
-		LogLevel    session_logger_level = LogLevel::OFF;
-		std::string session_logger_pattern;
-		std::string video_device_path_pattern;
-		FfmpegOpts  ffm_opts;
+		std::string  device_serial_number;
+		bool         has_device_serial_number = false;
+		bool         session_logger_enabled = false;
+		LogLevel     session_logger_level = LogLevel::OFF;
+		std::string  session_logger_pattern;
+		std::string  video_device_path_pattern;
+		RepromonOpts repromon_opts;
+		FfmpegOpts   ffm_opts;
 	};
 
 	// App command-line options and args
 	struct AppOpts {
 		std::string configPath;
 		std::string homePath;
-		std::string outPath;
+		std::string outPathTempl;
 		bool        verbose = false;
 	};
 
@@ -68,11 +81,18 @@ namespace reprostim {
 		AppOpts   opts;
 		AppConfig cfg;
 
+		// repromon message queue
+		std::unique_ptr<RepromonQueue>  pRepromonQueue;
+		bool                            fRepromonEnabled;
+
 		// session runtime data
 		std::string               configHash;
 		std::string               frameRate;
-		std::string               init_ts;
+		std::string               outPath;
 		int                       recording;
+		Timestamp                 tsInit;
+		std::string               init_ts;
+		Timestamp                 tsStart;
 		std::string               start_ts;
 		MWCAP_VIDEO_SIGNAL_STATUS vssCur; // current video signal status
 		MWCAP_VIDEO_SIGNAL_STATUS vssPrev; // previous video signal status
@@ -87,6 +107,9 @@ namespace reprostim {
 
 	public:
 		CaptureApp();
+		~CaptureApp();
+
+		std::string createOutPath(const std::optional<Timestamp> &ts = std::nullopt, bool fCreateDir = true);
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		void listDevices();
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
