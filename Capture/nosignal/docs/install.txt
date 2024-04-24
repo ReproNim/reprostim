@@ -1,0 +1,20 @@
+ cd ~/nosignal
+ python3 -m venv venv
+ ./venv/bin/pip install poetry
+
+./venv/bin/poetry --version
+>> Poetry (version 1.8.2)
+
+ # set in project venv in poetry
+./venv/bin/poetry config virtualenvs.create false
+./venv/bin/poetry config virtualenvs.in-project true
+
+# install poetry and run test
+./venv/bin/poetry env use ./venv/bin/python
+./venv/bin/poetry install
+
+./venv/bin/poetry build
+
+./venv/bin/poetry run nosignal --help
+
+

@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "reprostim"
+version = "1.0.0"
+description = ""
+authors = ["Vadim Melnik <vmelnik@docsultant.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1.7"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.4.2"
+pytest-cov = "^4.1.0"
+httpx = "^0.25.0"
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "DEBUG"
+addopts = "--tb=short"
+filterwarnings = [
+    "error",
+]
+
+
+[build-system]
+requires = ["poetry>=1.0"]
+build-backend = "poetry.masonry.api"
+
+[tool.poetry.scripts]
+nosignal = "reprostim.nosignal:main"
+
+[tool.codespell]
+skip = '.git,*.pdf,*.svg'
+#
+# ignore-words-list = ''
