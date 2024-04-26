@@ -11,6 +11,7 @@
 
 # install poetry and run test
 ./venv/bin/poetry env use ./venv/bin/python
+./venv/bin/poetry update
 ./venv/bin/poetry install
 
 ./venv/bin/poetry build
