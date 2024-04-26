@@ -115,6 +115,13 @@ void FfmpegThread ::run() {
 
 	// terminate session logs
 	_VERBOSE("FfmpegThread leave [" << tid << "]: " << getParams().cmd);
+	json jm = {
+			{"type", "session_end"},
+			{"ts", getTimeStr()},
+			{"message", "ffmpeg thread terminated"},
+			{"start_ts", getParams().start_ts}
+	};
+	_METADATA_LOG(jm);
 	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
 	_NOTIFY_REPROMON(
 		REPROMON_INFO,
@@ -149,10 +156,21 @@ void VideoCaptureApp::onCaptureStart() {
 }
 
 void VideoCaptureApp::onCaptureStop(const std::string& message) {
+	//_INFO("onCaptureStop");
 	if ( recording > 0 ) {
 		Timestamp tsStop = CURRENT_TIMESTAMP();
 		std::string stop_ts = getTimeStr(tsStop);
-		stopRecording(start_ts, outPath);
+
+		json jm = {
+				{"type", "capture_stop"},
+				{"ts", getTimeStr()},
+				{"message", message},
+				{"start_ts", start_ts},
+				{"stop_ts", stop_ts}
+		};
+		_METADATA_LOG(jm);
+
+		stopRecording(start_ts, outPath, message);
 		recording = 0;
 		_INFO(stop_ts << " " << message);
 	}
@@ -269,6 +287,20 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 
 	SessionLogger_ptr pLogger = createSessionLogger("session_logger_" + start_ts, outVideoFile + ".log");
 	_SESSION_LOG_BEGIN(pLogger);
+	json jm = {
+			{"type", "session_begin"},
+			{"ts", getTimeStr()},
+			{"version", CAPTURE_VERSION_STRING},
+			{"appName", appName},
+			{"serial", targetVideoDev.serial},
+			{"vDev", targetVideoDev.name},
+			{"aDev", targetAudioInDev.alsaDeviceName},
+			{"start_ts", start_ts},
+			{"cx", cx},
+			{"cy", cy},
+			{"frameRate", frameRate}
+	};
+	_METADATA_LOG(jm);
 	_NOTIFY_REPROMON(
 		REPROMON_INFO,
 		appName + " session " + start_ts + " begin, " +
@@ -298,7 +330,9 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	m_ffmpegExec.schedule(pt);
 }
 
-void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::string& vpath) {
+void VideoCaptureApp::stopRecording(const std::string& start_ts,
+									const std::string& vpath,
+									const std::string& message) {
 	std::string out_fmt = cfg.ffm_opts.out_fmt;
 	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
 	std::string ffmpid = exec("pidof ffmpeg");

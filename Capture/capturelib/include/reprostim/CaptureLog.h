@@ -54,6 +54,19 @@
 #define _SESSION_LOG_WARN(expr) if( tl_pSessionLogger && tl_pSessionLogger->isWarnEnabled() ) { std::ostringstream _stm_expr; _stm_expr << expr;  tl_pSessionLogger->warn(_stm_expr.str()); }
 #endif
 
+#ifndef _METADATA_MAGIC_BEGIN
+#define _METADATA_MAGIC_BEGIN "REPROSTIM-METADATA-JSON: "
+#endif
+
+#ifndef _METADATA_MAGIC_END
+#define _METADATA_MAGIC_END " :REPROSTIM-METADATA-JSON"
+#endif
+
+#ifndef _METADATA_LOG
+#define _METADATA_LOG(data) _INFO(_METADATA_MAGIC_BEGIN << data << _METADATA_MAGIC_END);
+#endif
+
+
 namespace reprostim {
 
 	/////////////////////////////////////////////////////////////////////

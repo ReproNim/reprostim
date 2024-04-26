@@ -30,7 +30,9 @@ private:
 
 	void startRecording(int cx, int cy, const std::string& frameRate,
 							   const std::string& v_dev, const std::string& a_dev);
-	void stopRecording(const std::string& start_ts, const std::string& vpath);
+	void stopRecording(const std::string& start_ts,
+					   const std::string& vpath,
+					   const std::string& message);
 public:
 	VideoCaptureApp();
 	~VideoCaptureApp();
