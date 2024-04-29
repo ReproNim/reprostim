@@ -66,6 +66,9 @@
 #define _METADATA_LOG(data) _INFO(_METADATA_MAGIC_BEGIN << data << _METADATA_MAGIC_END);
 #endif
 
+#ifndef _FILE_LOGGER_NAME
+#define _FILE_LOGGER_NAME "logger"
+#endif
 
 namespace reprostim {
 
@@ -84,6 +87,8 @@ namespace reprostim {
 	// Functions
 
 	LogLevel parseLogLevel(const std::string &level);
+	void     registerFileLogger(const std::string &name, const std::string &filePath, int level = LogLevel::DEBUG);
+	void     unregisterFileLogger(const std::string &name);
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Classes

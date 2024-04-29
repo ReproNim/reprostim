@@ -11,6 +11,7 @@ namespace reprostim {
 
 	volatile int g_verbose = 0;
 	thread_local SessionLogger_ptr tl_pSessionLogger = nullptr;
+	std::shared_ptr<spdlog::logger> g_pGlobalLogger = nullptr;
 
 	LogLevel parseLogLevel(const std::string &level) {
 		if( level == "DEBUG" ) {
@@ -34,6 +35,51 @@ namespace reprostim {
 			}
 			return LogLevel::OFF;
 		}
+	}
+
+	void registerFileLogger(const std::string &name, const std::string &filePath, int level)
+	{
+		// Create a logger with two sinks: stdout and file
+		auto console_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
+		auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filePath, true);
+
+		// Create a logger with the two sinks
+		auto logger = std::make_shared<spdlog::logger>(name,
+													   spdlog::sinks_init_list{console_sink, file_sink});
+
+		// Set the logging level
+		switch( level ) {
+			case LogLevel::DEBUG:
+				logger->set_level(spdlog::level::debug);
+				break;
+			case LogLevel::INFO:
+				logger->set_level(spdlog::level::info);
+				break;
+			case LogLevel::WARN:
+				logger->set_level(spdlog::level::warn);
+				break;
+			case LogLevel::ERROR:
+				logger->set_level(spdlog::level::err);
+				break;
+			default:
+				logger->set_level(spdlog::level::off);
+				break;
+		}
+
+		// Register the logger globally
+		spdlog::register_logger(logger);
+
+		// Redirect stdout to the file
+		freopen(filePath.c_str(), "w", stdout);
+		freopen(filePath.c_str(), "w", stderr);
+		//logger->sinks().push_back(console_sink);
+		g_pGlobalLogger = logger;
+	}
+
+	void unregisterFileLogger(const std::string &name)
+	{
+		spdlog::drop(name);
+		g_pGlobalLogger = nullptr;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////
