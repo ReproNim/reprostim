@@ -115,6 +115,13 @@ void FfmpegThread ::run() {
 
 	// terminate session logs
 	_VERBOSE("FfmpegThread leave [" << tid << "]: " << getParams().cmd);
+	json jm = {
+			{"type", "session_end"},
+			{"ts", getTimeStr()},
+			{"message", "ffmpeg thread terminated"},
+			{"start_ts", getParams().start_ts}
+	};
+	_METADATA_LOG(jm);
 	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
 	_NOTIFY_REPROMON(
 		REPROMON_INFO,
@@ -149,10 +156,21 @@ void VideoCaptureApp::onCaptureStart() {
 }
 
 void VideoCaptureApp::onCaptureStop(const std::string& message) {
+	//_INFO("onCaptureStop");
 	if ( recording > 0 ) {
 		Timestamp tsStop = CURRENT_TIMESTAMP();
 		std::string stop_ts = getTimeStr(tsStop);
-		stopRecording(start_ts, outPath);
+
+		json jm = {
+				{"type", "capture_stop"},
+				{"ts", getTimeStr()},
+				{"message", message},
+				{"start_ts", start_ts},
+				{"stop_ts", stop_ts}
+		};
+		_METADATA_LOG(jm);
+
+		stopRecording(start_ts, outPath, message);
 		recording = 0;
 		_INFO(stop_ts << " " << message);
 	}
@@ -165,6 +183,8 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tDefaults to $REPROSTIM_HOME/Videos/{year}/{month}\n"
 								 "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
 								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
+								 "\t-f <path>\tPath to file for stdout/stderr logs (optional)\n"
+								 "\t         \tDefaults to console output\n"
 								 "\t-v, --verbose\n"
 								 "\t         \tVerbose, provides detailed information to stdout\n"
 								 "\t-V, --version\n"
@@ -186,10 +206,11 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{"verbose", no_argument, nullptr, 'v'},
 			{"version", no_argument, nullptr, 'V'},
 			{"list-devices", no_argument, nullptr, 'l'},
+			{"file-log", required_argument, nullptr, 'f'},
 			{nullptr, 0, nullptr, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "o:c:d:hvVl", longOpts, nullptr)) != -1) {
+	while ((c = getopt_long(argc, argv, "o:c:d:f:hvVl", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
 				if(optarg) opts.outPathTempl = optarg;
@@ -212,6 +233,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			case 'V':
 				printVersion();
 				return 1;
+			case 'f':
+				registerFileLogger(_FILE_LOGGER_NAME, optarg);
+				break;
 		}
 	}
 
@@ -269,6 +293,20 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 
 	SessionLogger_ptr pLogger = createSessionLogger("session_logger_" + start_ts, outVideoFile + ".log");
 	_SESSION_LOG_BEGIN(pLogger);
+	json jm = {
+			{"type", "session_begin"},
+			{"ts", getTimeStr()},
+			{"version", CAPTURE_VERSION_STRING},
+			{"appName", appName},
+			{"serial", targetVideoDev.serial},
+			{"vDev", targetVideoDev.name},
+			{"aDev", targetAudioInDev.alsaDeviceName},
+			{"start_ts", start_ts},
+			{"cx", cx},
+			{"cy", cy},
+			{"frameRate", frameRate}
+	};
+	_METADATA_LOG(jm);
 	_NOTIFY_REPROMON(
 		REPROMON_INFO,
 		appName + " session " + start_ts + " begin, " +
@@ -298,7 +336,9 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	m_ffmpegExec.schedule(pt);
 }
 
-void VideoCaptureApp::stopRecording(const std::string& start_ts, const std::string& vpath) {
+void VideoCaptureApp::stopRecording(const std::string& start_ts,
+									const std::string& vpath,
+									const std::string& message) {
 	std::string out_fmt = cfg.ffm_opts.out_fmt;
 	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
 	std::string ffmpid = exec("pidof ffmpeg");

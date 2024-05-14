@@ -82,6 +82,8 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tDefaults to $REPROSTIM_HOME/Screens\n"
 								 "\t-c <path>\tPath to configuration config.yaml file (optional)\n"
 								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
+								 "\t-f <path>\tPath to file for stdout/stderr logs (optional)\n"
+								 "\t         \tDefaults to console output\n"
 								 "\t-v, --verbose\n"
 								 "\t         \tVerbose, provides detailed information to stdout\n"
 								 "\t-l, --list-devices\n"
@@ -103,10 +105,11 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{"verbose", no_argument, nullptr, 'v'},
 			{"version", no_argument, nullptr, 'V'},
 			{"list-devices", no_argument, nullptr, 'l'},
+			{"file-log", required_argument, nullptr, 'f'},
 			{nullptr, 0, nullptr, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "o:c:d:hvVl", longOpts, nullptr)) != -1) {
+	while ((c = getopt_long(argc, argv, "o:c:d:f:hvVl", longOpts, nullptr)) != -1) {
 		switch (c) {
 			case 'o':
 				if (optarg) opts.outPathTempl = optarg;
@@ -129,6 +132,9 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			case 'V':
 				printVersion();
 				return 1;
+			case 'f':
+				registerFileLogger(_FILE_LOGGER_NAME, optarg);
+				break;
 		}
 	}
 
