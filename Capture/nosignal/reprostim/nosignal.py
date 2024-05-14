@@ -232,7 +232,7 @@ def main(ctx, path: str, log_level, step: int,
     temp_path: str = None
 
     res = find_no_signal(path, step, number_of_checks, show_progress)
-    if res.is_truncated is not None:
+    if res.is_truncated:
         logger.error(f"ERROR          : Trunctated video detected.")
 
     if res.is_truncated and auto_fix:
