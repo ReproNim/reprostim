@@ -33,6 +33,7 @@ class VideoInfo(BaseModel):
 
     def __str__(self):
         return (f"VideoInfo({self.width}x{self.height}, fps={self.fps}, "
+                f"is_truncated={self.is_truncated}, "
                 f"frames_count={self.frames_count}, "
                 f"scanned_count={self.scanned_count}, "
                 f"nosignal_count={self.nosignal_count}, "
@@ -82,7 +83,8 @@ def main_exit(code: int) -> int:
 
 def find_no_signal(video_path: str, step: int = 1,
                    number_of_checks: int = 0,
-                   show_progress_sec: float = 0.0) -> VideoInfo:
+                   show_progress_sec: float = 0.0,
+                   check_first_frames: int = 0) -> VideoInfo:
     vi: VideoInfo = VideoInfo(fps=0, width=0, height=0,
                               is_truncated=False,
                               frames_count=0, nosignal_count=0,
@@ -91,6 +93,11 @@ def find_no_signal(video_path: str, step: int = 1,
     if step < 1:
         vi.error = "Step must be greater than 0";
         return vi
+
+    if check_first_frames > 0 and number_of_checks > 0:
+        logger.warning(f"check_first_frames value specified, "
+                       f"ignore number_of_checks({number_of_checks}) value.")
+        number_of_checks = 0
 
     if number_of_checks < 0:
         vi.error = "Number of checks must be 0 or greater than 0"
@@ -135,9 +142,10 @@ def find_no_signal(video_path: str, step: int = 1,
     pos_last_frame: int = pos_first_frame + frame_count
 
     if pos_first_frame > pos_last_frame:
-        vi.error = f"Invalid frame range: {pos_first_frame} - {pos_last_frame}"
         vi.is_truncated = True
-        return vi
+        if check_first_frames == 0:
+            vi.error = f"Invalid frame range: {pos_first_frame} - {pos_last_frame}"
+            return vi
 
     pos_cur_frame: int = pos_first_frame
     pos_next_frame: int = pos_cur_frame
@@ -160,6 +168,11 @@ def find_no_signal(video_path: str, step: int = 1,
             break
         scan_counter += 1
 
+        # break if check_first_frames is set and reached
+        if check_first_frames > 0 and scan_counter >= check_first_frames:
+            logger.debug(f"check_first_frames={check_first_frames} reached")
+            break
+
         # set next frame position
         if number_of_checks > 0:
             pos_next_frame = pos_first_frame + int(frame_count * scan_counter / number_of_checks)
@@ -176,7 +189,7 @@ def find_no_signal(video_path: str, step: int = 1,
         pos_cur_frame = pos_next_frame
 
     logger.debug(f"pos_frame={pos_cur_frame}")
-    vi.frames_count = pos_cur_frame
+    vi.frames_count = scan_counter if vi.is_truncated else pos_cur_frame
     vi.nosignal_count = nosignal_counter
     vi.scanned_count = scan_counter
     if scan_counter > 0:
@@ -212,11 +225,19 @@ def find_no_signal(video_path: str, step: int = 1,
               help='Specify the interval for showing progress, '
                    'default is 1.0 seconds. When set to 0 or less,'
                    'progress is not shown.')
-@click.option('--auto-fix', default=False, is_flag=True,
-              help='Automatically fix truncated video when detected'
-                   'before nosignal check. Default is False.'
-                   'To check if video is truncated, use '
-                   'mediainfo -i <video_file> | grep "IsTruncated"')
+@click.option('--truncated', type=click.Choice(['exit2', 'fixup', 'check5'],
+                                               case_sensitive=False),
+              default='exit2',
+              help='\b\nSpecify behavior on truncated video detection:\n \n'
+                   ' [exit2] -  exit with error code 2, default value.\n'
+                   ' [fixup] -  use ffmpeg to fix the video by copying\n'
+                   '            it into a temporary location with\n'
+                   '            "ffmpeg -i <video_file> -c copy <video_fixed>"\n'
+                   '            command.\n'
+                   ' [check5] - check for nosignal first 5 frames only in\n'
+                   '            truncated video.\n \n'
+                   'To check if video is truncated, use:\n'
+                   '            mediainfo -i <video_file> | grep "IsTruncated"')
 @click.option('--threshold', default=0.01, type=float,
               help='Specify the threshold for nosignal frames, default is '
                    '0.01 which means 1% of the totally checked frames.')
@@ -224,7 +245,7 @@ def find_no_signal(video_path: str, step: int = 1,
 def main(ctx, path: str, log_level, step: int,
          number_of_checks: int,
          show_progress: float,
-         auto_fix: bool,
+         truncated: str,
          threshold: float):
     logger.setLevel(log_level)
     logger.debug("nosignal.py tool")
@@ -233,16 +254,23 @@ def main(ctx, path: str, log_level, step: int,
 
     temp_path: str = None
 
-    res = find_no_signal(path, step, number_of_checks, show_progress)
+    res = find_no_signal(path, step, number_of_checks, show_progress, 0)
     if res.is_truncated:
-        logger.error(f"ERROR          : Trunctated video detected.")
+        logger.error(f"ERROR          : Truncated video detected.")
 
-    if res.is_truncated and auto_fix:
+    if res.is_truncated and truncated == "exit2":
+        return main_exit(2)
+
+    if res.is_truncated and truncated == "fixup":
         logger.info("TRUNCATED VIDEO: Attempting to fix the truncated video.")
         temp_path = tempfile.mktemp(suffix="_nosignal_fixed.mkv")
         logger.info(f"Copying video to temporary file: {temp_path}")
         auto_fix_video(path, temp_path)
-        res = find_no_signal(temp_path, step, number_of_checks, show_progress)
+        res = find_no_signal(temp_path, step, number_of_checks, show_progress, 0)
+
+    if res.is_truncated and truncated == "check5":
+        logger.info("TRUNCATED VIDEO: Checking first 5 frames only.")
+        res = find_no_signal(path, step, number_of_checks, show_progress, 5)
 
     if res.error is not None:
         logger.error(f"ERROR          : {res.error}")
