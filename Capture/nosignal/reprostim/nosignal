@@ -52,12 +52,20 @@ upper_rainbow = np.array([30, 255, 255])
 
 def auto_fix_video(video_path: str, temp_path: str):
     logger.info(f"Run mediainfo to get video information: mediainfo -i {video_path}")
-    #subprocess.run("echo Run mediainfo", check=True,
-    #               shell=True, capture_output=True, text=True)
-    #subprocess.run(f"mediainfo -i {video_path}", check=True,
-    #               shell=True, capture_output=True, text=True)
-    #subprocess.run(["ffmpeg", "-i", video_path, "-c", "copy", temp_path])
-    logger.info("TODO: Implement auto-fix for truncated video.")
+    res = subprocess.run(f"mediainfo -i {video_path}", check=True,
+                         shell=True, capture_output=True, text=True)
+    logger.info(f"[exit code] : {res.returncode}")
+    logger.info(f"[stdout]    : {res.stdout}")
+    logger.info(f"[stderr]    : {res.stderr}")
+
+    logger.info(f"Run fixup ffmpeg : ffmpeg -i {video_path} -c copy {temp_path}")
+    res = subprocess.run(f"ffmpeg -i {video_path} -c copy {temp_path}",
+                         check=True, shell=True, capture_output=True,
+                         text=True)
+    logger.info(f"[exit code] : {res.returncode}")
+    logger.info(f"[stdout]    : {res.stdout}")
+    logger.info(f"[stderr]    : {res.stderr}")
+    logger.info("Video fixup completed.")
 
 
 def has_rainbow(frame):
