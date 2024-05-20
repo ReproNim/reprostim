@@ -43,7 +43,7 @@ Capture uses CMake as build system. To build the project, run the following comm
     cmake ..
     make
 
-## Install
+## Installation
 
 To install the project, once the build done, run the following command:
 
@@ -51,8 +51,8 @@ To install the project, once the build done, run the following command:
 
     sudo cmake --install build
 
-It will copy all necessary files to the /usr/local/bin location (reprostim-videocapture,
-reprostim-screencapture, nosignal).
+It will copy all necessary files to the `/usr/local/bin` location (`reprostim-videocapture`,
+`reprostim-screencapture`, `reprostim-nosignal`).
 
 ## Project Structure
 

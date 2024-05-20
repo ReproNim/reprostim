@@ -67,7 +67,9 @@ add_subdirectory(videocapture)
 if(EXISTS "${CMAKE_SOURCE_DIR}/nosignal/reprostim/nosignal")
     # Install the optional file to /usr/local/bin
     install(FILES "${CMAKE_SOURCE_DIR}/nosignal/reprostim/nosignal"
-            DESTINATION ${CAPTURE_INSTALL_DIR})
+            DESTINATION ${CAPTURE_INSTALL_DIR}
+            RENAME reprostim-nosignal
+    )
 else()
     message(STATUS "Python 'nosignal' script not found.")
 endif()
