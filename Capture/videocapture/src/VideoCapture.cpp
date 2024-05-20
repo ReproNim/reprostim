@@ -187,8 +187,10 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tDefaults to console output\n"
 								 "\t-v, --verbose\n"
 								 "\t         \tVerbose, provides detailed information to stdout\n"
-								 "\t-V, --version\n"
-								 "\t         \tPrint version information\n"
+								 "\t-V\n"
+								 "\t         \tPrint version number only\n"
+								 "\t--version\n"
+								 "\t         \tPrint expanded version information\n"
 								 "\t-l, --list-devices\n"
 								 "\t         \tList devices, only audio is supported\n"
 								 "\t-h, --help\n"
@@ -204,7 +206,7 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	struct option longOpts[] = {
 			{"help", no_argument, nullptr, 'h'},
 			{"verbose", no_argument, nullptr, 'v'},
-			{"version", no_argument, nullptr, 'V'},
+			{"version", no_argument, nullptr, 1000},
 			{"list-devices", no_argument, nullptr, 'l'},
 			{"file-log", required_argument, nullptr, 'f'},
 			{nullptr, 0, nullptr, 0}
@@ -230,6 +232,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			case 'v':
 				opts.verbose = true;
 				break;
+			case 1000:
+				printVersion(true);
+				return 1;
 			case 'V':
 				printVersion();
 				return 1;
