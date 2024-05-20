@@ -52,6 +52,7 @@
 #include <thread>
 #include <sysexits.h>
 #include <getopt.h>
+#include <csignal>
 #include "VideoCapture.h"
 
 using namespace reprostim;
@@ -64,6 +65,25 @@ inline std::string buildVideoFile(
 		const std::string& name,
 		const std::string& out_fmt) {
 	return std::filesystem::path(outPath) / (name + "." + out_fmt);
+}
+
+bool killProc(const std::string& procName,
+			  int sig = SIGKILL,
+			  float timeoutSec = 1.5,
+			  bool waitInCycle = true) {
+	std::string pid = exec("pidof " + procName);
+	_INFO(procName+" pid: " << pid.c_str());
+	while ( pid.length() > 0 ) {
+		_INFO("<> PID of " << procName <<"\t===> " << pid.c_str());
+		std::string killCmd = "kill -" + std::to_string(sig) + " " + pid;
+		system(killCmd.c_str());
+		//
+		SLEEP_SEC(timeoutSec); // Allow time for process to stop
+		pid = exec("pidof " + procName);
+		if( !waitInCycle )
+			break;
+	}
+	return pid.length()==0?true:false;
 }
 
 std::string renameVideoFile(
@@ -346,15 +366,14 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 									const std::string& message) {
 	std::string out_fmt = cfg.ffm_opts.out_fmt;
 	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
-	std::string ffmpid = exec("pidof ffmpeg");
-	_INFO("stop record says: " << ffmpid.c_str());
-	while ( ffmpid.length() > 0 ) {
-		_INFO("<> PID of ffmpeg\t===> " << ffmpid.c_str());
-		std::string killCmd = "kill -9 " + ffmpid;
-		system(killCmd.c_str());
-		//
-		SLEEP_SEC(1.5); // Allow time for ffmpeg to stop
-		ffmpid = exec("pidof ffmpeg");
+
+	_INFO("stop record says: " << "terminating ffmpeg with SIGINT");
+	if( !killProc("ffmpeg", SIGINT, 5, false) ) {
+		_INFO("stop record says: " << "terminating ffmpeg with SIGTERM");
+		if( !killProc("ffmpeg", SIGTERM, 1.5, false) ) {
+			_INFO("stop record says: " << "terminating ffmpeg with SIGKILL");
+			killProc("ffmpeg", SIGKILL, 1.5, true);
+		}
 	}
 
 	_SESSION_LOG_END();
