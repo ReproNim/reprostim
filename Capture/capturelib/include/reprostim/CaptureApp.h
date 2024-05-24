@@ -119,7 +119,7 @@ namespace reprostim {
 		virtual void onUsbDevArrived(const std::string& devPath);
 		virtual void onUsbDevLeft(const std::string& devPath);
 		virtual int  parseOpts(AppOpts& opts, int argc, char* argv[]);
-		void printVersion();
+		void printVersion(bool fExpanded = false);
 		int  run(int argc, char* argv[]);
 	};
 

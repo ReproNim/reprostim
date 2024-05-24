@@ -11,6 +11,10 @@ add_executable(${PROJECT_NAME}
 # Copy config.yaml to out folder as well
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.yaml ${CMAKE_CURRENT_BINARY_DIR}/config.yaml COPYONLY)
 
+# Install the executable to /usr/local/bin
+install(TARGETS reprostim-screencapture
+        RUNTIME DESTINATION ${CAPTURE_INSTALL_DIR})
+
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 

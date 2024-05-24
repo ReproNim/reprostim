@@ -51,6 +51,9 @@ execute_process(
 set(ARCH x64)
 set(MWCAPTURE_SDK_HOME 3rdparty/MWCapture_SDK_Linux-3_3_1_1313)
 
+# capture utilities installation directory
+set(CAPTURE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+
 # Add MWCapture SDK include/lib paths
 include_directories(${MWCAPTURE_SDK_HOME}/Include)
 link_directories(${MWCAPTURE_SDK_HOME}/Lib/${ARCH})
@@ -59,6 +62,17 @@ link_directories(${MWCAPTURE_SDK_HOME}/Lib/${ARCH})
 add_subdirectory(capturelib)
 add_subdirectory(screencapture)
 add_subdirectory(videocapture)
+
+# Optionally install nosignal Python script
+if(EXISTS "${CMAKE_SOURCE_DIR}/nosignal/reprostim/nosignal")
+    # Install the optional file to /usr/local/bin
+    install(FILES "${CMAKE_SOURCE_DIR}/nosignal/reprostim/nosignal"
+            DESTINATION ${CAPTURE_INSTALL_DIR}
+            RENAME reprostim-nosignal
+    )
+else()
+    message(STATUS "Python 'nosignal' script not found.")
+endif()
 
 # Add tests optionally
 if(CTEST_ENABLED)
@@ -75,3 +89,6 @@ if(CTEST_ENABLED)
 else()
     message(STATUS "CTests are DISABLED")
 endif()
+
+# Output addition install information
+install(CODE "message(STATUS \"Installing ReproStim ${CAPTURE_VERSION_STRING} to: ${CAPTURE_INSTALL_DIR}\")")

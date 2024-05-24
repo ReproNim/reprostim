@@ -242,11 +242,15 @@ namespace reprostim {
 		return EX_OK;
 	}
 
-	void CaptureApp::printVersion() {
-		_INFO(appName << " " << CAPTURE_VERSION_STRING);
-		_INFO(" Build Type : " << CAPTURE_BUILD_TYPE);
-		_INFO(" Build Date : " << CAPTURE_VERSION_DATE);
-		_INFO(" Build Tag  : " << CAPTURE_VERSION_TAG);
+	void CaptureApp::printVersion(bool fExpanded) {
+		if( fExpanded ) {
+			_INFO(appName << " " << CAPTURE_VERSION_STRING);
+			_INFO(" Build Type : " << CAPTURE_BUILD_TYPE);
+			_INFO(" Build Date : " << CAPTURE_VERSION_DATE);
+			_INFO(" Build Tag  : " << CAPTURE_VERSION_TAG);
+		} else {
+			_INFO(CAPTURE_VERSION_STRING);
+		}
 	}
 
 	int CaptureApp::run(int argc, char* argv[]) {
