@@ -39,7 +39,7 @@ def log(rec):
 
 log(mkrec(event="started"))
 
-win = visual.Window(fullscr=True,screen=0)
+win = visual.Window(fullscr=True, screen=int(sys.argv[2]))
 win.mouseVisible = False # hides the mouse pointer 
 
 log(mkrec(event="started"))
