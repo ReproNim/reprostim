@@ -618,6 +618,65 @@ namespace reprostim {
 		} while (snd_card_next(&card) >= 0 && card >= 0);
 	}
 
+	void listVideoDevices() {
+		_VERBOSE("listVideoDevices()")
+		const int MAX_CAPTURE = 16;
+		MW_RESULT mr = MW_SUCCEEDED;
+
+		BOOL fInit = MWCaptureInitInstance();
+		if( !fInit )
+			_ERROR("Failed MWCaptureInitInstance");
+
+		for(int k = 0; k<1; k++) {
+			SLEEP_MS(1);
+			mr = MWRefreshDevice();
+			if (mr != MW_SUCCEEDED)
+			_ERROR("Failed MWRefreshDevice: " << mr);
+
+			int n = MWGetChannelCount();
+			MWCAP_CHANNEL_INFO mci;
+			MWCAP_VIDEO_SIGNAL_STATUS vss;
+
+			for (int i = 0; i < n; i++) {
+				mr = MWGetChannelInfoByIndex(i, &mci);
+				if (mr != MW_SUCCEEDED) {
+					_ERROR("Failed MWGetChannelInfoByIndex[" << std::to_string(i) << "]: " << mr);
+					continue;
+				}
+				_INFO("Channel [" << std::to_string(i) << "]: " << mci);
+
+				char wPath[256] = {0};
+				if (MWGetDevicePath(i, wPath) == MW_SUCCEEDED) {
+					_INFO("  Device instance path: " << wPath);
+				} else {
+					_ERROR("Failed MWGetDevicePath[" << std::to_string(i) << "]");
+					continue;
+				}
+
+				HCHANNEL hChannel = MWOpenChannelByPath(wPath);
+				if (hChannel == NULL) {
+					_ERROR("Failed MWOpenChannelByPath[" << std::to_string(i) << "]");
+					continue;
+				}
+
+				MWGetChannelInfo(hChannel, &mci);
+				_INFO("Channel [" << std::to_string(i) << "]: " << mci);
+
+				MWGetVideoSignalStatus(hChannel, &vss);
+				_INFO("  Video Signal Status: " << vss);
+
+				safeMWCloseChannel(hChannel);
+
+				if (i >= MAX_CAPTURE) {
+					_ERROR("Max capture limit reached: " << std::to_string(MAX_CAPTURE));
+					break;
+				}
+			}
+		}
+
+		MWCaptureExitInstance();
+	}
+
 	std::string mwcSdkVersion() {
 		BYTE bMajor = 0;
 		BYTE bMinor = 0;

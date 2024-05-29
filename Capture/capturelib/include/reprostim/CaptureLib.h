@@ -154,6 +154,8 @@ namespace reprostim {
 
 	void listAudioDevices();
 
+	void listVideoDevices();
+
 	std::string mwcSdkVersion();
 
 	AudioVolume parseAudioVolume(const std::string text);

@@ -95,7 +95,7 @@ namespace reprostim {
 		printVersion();
 		_INFO(" ");
 		_INFO("[List of available Video devices]:");
-		_INFO("  N/A in this version.");
+		listVideoDevices();
 		_INFO(" ");
 		if( audioEnabled ) {
 			_INFO("[List of available Audio devices]:");
