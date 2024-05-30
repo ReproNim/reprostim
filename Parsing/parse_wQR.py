@@ -35,7 +35,7 @@ def finalize_record():
     global record
     record['frame_end'] = iframe
     record['time_end'] = 'TODO'
-    print(json.dumps(record))
+    print(json.dumps(record), flush=True)
     record = None
 
 while True:
