@@ -111,7 +111,7 @@ namespace reprostim {
 
 		std::string createOutPath(const std::optional<Timestamp> &ts = std::nullopt, bool fCreateDir = true);
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
-		void listDevices();
+		void listDevices(const std::string& devices);
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);

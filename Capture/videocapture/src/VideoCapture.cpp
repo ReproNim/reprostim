@@ -211,8 +211,13 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tPrint version number only\n"
 								 "\t--version\n"
 								 "\t         \tPrint expanded version information\n"
-								 "\t-l, --list-devices\n"
-								 "\t         \tList devices, only audio is supported\n"
+								 "\t-l, --list-devices <devices>\n"
+								 "\t         \tList connected capture devices information.\n"
+								 "\t         \tSupported <devices> values:\n"
+								 "\t         \t  all   : list all available information\n"
+								 "\t         \t  audio : list only audio devices information\n"
+								 "\t         \t  video : list only video devices information\n"
+								 "\t         \tDefault value is \"all\"\n"
 								 "\t-h, --help\n"
 								 "\t         \tPrint this help string\n";
 
@@ -227,7 +232,7 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{"help", no_argument, nullptr, 'h'},
 			{"verbose", no_argument, nullptr, 'v'},
 			{"version", no_argument, nullptr, 1000},
-			{"list-devices", no_argument, nullptr, 'l'},
+			{"list-devices", optional_argument, nullptr, 'l'},
 			{"file-log", required_argument, nullptr, 'f'},
 			{nullptr, 0, nullptr, 0}
 	};
@@ -246,8 +251,16 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			case 'h':
 				_INFO(HELP_STR);
 				return 1;
-			case 'l':
-				listDevices();
+			case 'l': {
+					std::string devices = "all";
+					if (optarg) {
+						devices = std::string(optarg);
+					} else if (optind < argc && argv[optind][0] != '-') {
+						devices = std::string(argv[optind]);
+						optind++;
+					}
+					listDevices(devices);
+				}
 				return 1;
 			case 'v':
 				opts.verbose = true;
