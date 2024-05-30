@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from pyzbar.pyzbar import decode, ZBarSymbol
 import moviepy.editor as ed
 import sys
@@ -21,18 +23,21 @@ runNum = None
 
 #for f in vid.iter_frames(with_times=True):
 
-for t in np.arange(0,vid.duration,.05):
+# TODO: just use tqdm for progress indication
+for t in np.arange(0, vid.duration, .05):
 
     f = vid.get_frame(t)
 
-    if np.mod(t,10) == 0:
-        print(t)
+    # import pdb; pdb.set_trace()
+    if True: # np.mod(t,10) == 0:
+        print(f"t={t} {np.std(f)}")
     
     cod = decode(f, symbols=[ZBarSymbol.QRCODE])
     if len(cod)>0:
         data = eval(eval(str(cod[0].data)).decode('utf-8'))
 
         if ('runStart' in data) and (not inRun):
+            # TODO: use logger directed to stderr
             print("found start: {}".format(t))
             acqNum = data['acqNum']
             runNum = data['runNum']
