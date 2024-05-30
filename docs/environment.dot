@@ -70,24 +70,6 @@ digraph graphname {
         color=red;
         margin=10;
 
-        per[
-            label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
-                    <TR><TD ROWSPAN="4">Personal Computer</TD></TR>
-                    <TR>
-                        <TD PORT="vga">VGA</TD>
-                    </TR>
-                    <TR>
-                        <TD PORT="aux">AUX</TD>
-                    </TR>
-                    <TR>
-                        <TD PORT="usb">USB</TD>
-                    </TR>
-				</TABLE>>
-                fillcolor=none;
-                shape=none;
-                color="#DDDDDD",
-        ];
-
         mrm[label="         MRI Monitor        ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
         mri[
             label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
@@ -130,6 +112,31 @@ digraph graphname {
         ];
     }
 
+	subgraph experimenter {
+        label="Experimenter";
+        fontcolor="#22AA22";
+        color="#22AA22";
+        margin=10;
+
+        per[
+            label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+                    <TR><TD ROWSPAN="4">Personal Computer</TD></TR>
+                    <TR>
+                        <TD PORT="vga">VGA</TD>
+                    </TR>
+                    <TR>
+                        <TD PORT="aux">AUX</TD>
+                    </TR>
+                    <TR>
+                        <TD PORT="usb">USB</TD>
+                    </TR>
+				</TABLE>>
+                fillcolor=none;
+                shape=none;
+                color="#DDDDDD",
+        ];
+	}
+
     mri:dvi:n -> mrm[constraint=false];
     per:vga -> vid;
     per:aux:e -> hea;
@@ -149,11 +156,11 @@ digraph graphname {
     aud:usb -> dat:w;
     dat -> ale[weight=3];
     //{ rank=same; op1; op2; }
-    { rank=same; aud; rec; dis; pac; eve}
+//yohdisabled    { rank=same; aud; rec; dis; pac; eve}
     //{ rank=same; aud; rec; dis; pac; vid; hea; res }
     //{ rank=same; aud; rec; dis; pac; hea; vid; res}
     //{ rank=same; mri; pac; }
-    { rank=same; ntp; dat; bid; }
+//yohdisabled    { rank=same; ntp; dat; bid; }
     //{ rank=same; dvi; aux; vga; }
     //{ rank=same; per; mri; mrm; vid; hea; res; }
     //{ rank=same; cluster_subject; cluster_operator; }
