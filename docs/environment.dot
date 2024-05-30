@@ -57,6 +57,7 @@ digraph graphname {
                 <TR>
                     <TD PORT="a">Response Collector<BR/><FONT COLOR="#999999">(Current Designs)</FONT></TD>
                     <TD PORT="ttl">Parallel<BR/>TTL</TD>
+					<TD PORT="usb">Parallel<BR/>USB</TD>
                 </TR>
             </TABLE>>
             fillcolor=none;
@@ -71,14 +72,17 @@ digraph graphname {
 
         per[
             label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
-                    <TR><TD ROWSPAN="3">Personal Computer</TD></TR>
+                    <TR><TD ROWSPAN="4">Personal Computer</TD></TR>
                     <TR>
                         <TD PORT="vga">VGA</TD>
                     </TR>
                     <TR>
                         <TD PORT="aux">AUX</TD>
                     </TR>
-                </TABLE>>
+                    <TR>
+                        <TD PORT="usb">USB</TD>
+                    </TR>
+				</TABLE>>
                 fillcolor=none;
                 shape=none;
                 color="#DDDDDD",
@@ -129,6 +133,7 @@ digraph graphname {
     mri:dvi:n -> mrm[constraint=false];
     per:vga -> vid;
     per:aux:e -> hea;
+	rec:usb -> per:usb;
     mri:optic -> rec:a;
     res:optic -> rec:a;
     rec:ttl -> eve;
