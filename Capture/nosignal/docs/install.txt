@@ -6,7 +6,7 @@
 >> Poetry (version 1.8.2)
 
  # set in project venv in poetry
-./venv/bin/poetry config virtualenvs.create false
+./venv/bin/poetry config virtualenvs.create true
 ./venv/bin/poetry config virtualenvs.in-project true
 
 # install poetry and run test
