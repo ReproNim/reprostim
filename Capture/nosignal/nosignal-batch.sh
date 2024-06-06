@@ -2,8 +2,24 @@
 # chmod +x ns_05.sh
 
 # Define external variables
-NOSIGNAL_ARGS="--number-of-checks 5 --truncated check5"
-#NOSIGNAL_ARGS="--number-of-checks 5 --truncated fixup"
+#NOSIGNAL_ARGS="--number-of-checks 5 --truncated check5"
+NOSIGNAL_ARGS="--number-of-checks 100 --truncated fixup --invalid-timing fixup --threshold 0.5"
+
+print_help() {
+    echo "Usage: $0 <DIRECTORY>"
+    echo
+    echo "Arguments:"
+    echo "  <DIRECTORY>  The directory containing the .mkv files to process."
+    echo
+    echo "Example:"
+    echo "  $0 /data/repronim/reprostim-reproiner/Videos/2024/05"
+}
+
+# Check if the DIRECTORY parameter is provided
+if [ -z "$1" ]; then
+    print_help
+    exit 1
+fi
 
 
 # log all to file
@@ -13,7 +29,8 @@ LOG_FILE="ns_$LOG_TIMESTAMP.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 
-DIRECTORY="/data/repronim/reprostim-reproiner/Videos/2024/05"
+#DIRECTORY="/data/repronim/reprostim-reproiner/Videos/2024/05"
+DIRECTORY="$1"
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 echo "[$TIMESTAMP] Processing nosignal batch:"
