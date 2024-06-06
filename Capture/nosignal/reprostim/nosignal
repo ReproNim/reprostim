@@ -23,6 +23,7 @@ class VideoInfo(BaseModel):
     fps: float = Field(..., description="Frames per second (FPS)")
     width: int = Field(..., description="Video frame width")
     height: int = Field(..., description="Video frame height")
+    is_invalid_timing: bool = Field(False, description="Is video with invalid duration/timing")
     is_truncated: bool = Field(False, description="Is video truncated")
     frames_count: int = Field(..., description="Total number of frames")
     nosignal_count: int = Field(..., description="Total number of nosignal "
@@ -58,7 +59,7 @@ def auto_fix_video(video_path: str, temp_path: str):
     logger.info(f"[stdout]    : {res.stdout}")
     logger.info(f"[stderr]    : {res.stderr}")
 
-    logger.info(f"Run fixup ffmpeg : ffmpeg -i {video_path} -c copy {temp_path}")
+    logger.info(f"Run fixup ffmpeg : ffmpeg -i {video_path} -an -c copy {temp_path}")
     res = subprocess.run(f"ffmpeg -i {video_path} -c copy {temp_path}",
                          check=True, shell=True, capture_output=True,
                          text=True)
@@ -94,6 +95,7 @@ def find_no_signal(video_path: str, step: int = 1,
                    show_progress_sec: float = 0.0,
                    check_first_frames: int = 0) -> VideoInfo:
     vi: VideoInfo = VideoInfo(fps=0, width=0, height=0,
+                              is_invalid_timing=False,
                               is_truncated=False,
                               frames_count=0, nosignal_count=0,
                               nosignal_rate=0.0, scanned_count=0)
@@ -127,6 +129,8 @@ def find_no_signal(video_path: str, step: int = 1,
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_width: int = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height: int = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    duration_sec: float = frame_count / fps if fps > 0 else -1.0
+    logger.debug(f"duration_sec={duration_sec}")
     vi.width = frame_width
     vi.height = frame_height
     vi.fps = round(fps, 2)
@@ -153,6 +157,12 @@ def find_no_signal(video_path: str, step: int = 1,
         vi.is_truncated = True
         if check_first_frames == 0:
             vi.error = f"Invalid frame range: {pos_first_frame} - {pos_last_frame}"
+            return vi
+
+    if duration_sec < 0 or duration_sec > 2*24*60*60:
+        vi.is_invalid_timing = True
+        if check_first_frames == 0:
+            vi.error = f"Invalid video duration: {duration_sec} seconds"
             return vi
 
     pos_cur_frame: int = pos_first_frame
@@ -240,12 +250,23 @@ def find_no_signal(video_path: str, step: int = 1,
                    ' [exit2] -  exit with error code 2, default value.\n'
                    ' [fixup] -  use ffmpeg to fix the video by copying\n'
                    '            it into a temporary location with\n'
-                   '            "ffmpeg -i <video_file> -c copy <video_fixed>"\n'
+                   '            "ffmpeg -i <video_file> -an -c copy <video_fixed>"\n'
                    '            command.\n'
                    ' [check5] - check for nosignal first 5 frames only in\n'
                    '            truncated video.\n \n'
                    'To check if video is truncated, use:\n'
                    '            mediainfo -i <video_file> | grep "IsTruncated"')
+@click.option('--invalid-timing', type=click.Choice(['exit3', 'fixup', 'check5'],
+                                               case_sensitive=False),
+              default='exit3',
+              help='\b\nSpecify behavior on video with invalid duration:\n \n'
+                   ' [exit3] -  exit with error code 3, default value.\n'
+                   ' [fixup] -  use ffmpeg to fix the video by copying\n'
+                   '            it into a temporary location with\n'
+                   '            "ffmpeg -i <video_file> -an -c copy <video_fixed>"\n'
+                   '            command.\n'
+                   ' [check5] - check for nosignal first 5 frames only in\n'
+                   '            truncated video.\n \n')
 @click.option('--threshold', default=0.01, type=float,
               help='Specify the threshold for nosignal frames, default is '
                    '0.01 which means 1% of the totally checked frames.')
@@ -254,6 +275,7 @@ def main(ctx, path: str, log_level, step: int,
          number_of_checks: int,
          show_progress: float,
          truncated: str,
+         invalid_timing: str,
          threshold: float):
     logger.setLevel(log_level)
     logger.debug("nosignal.py tool")
@@ -263,25 +285,44 @@ def main(ctx, path: str, log_level, step: int,
     temp_path: str = None
 
     res = find_no_signal(path, step, number_of_checks, show_progress, 0)
-    if res.is_truncated:
-        logger.error(f"ERROR          : Truncated video detected.")
-
-    if res.is_truncated and truncated == "exit2":
-        return main_exit(2)
-
-    if res.is_truncated and truncated == "fixup":
-        logger.info("TRUNCATED VIDEO: Attempting to fix the truncated video.")
-        temp_path = tempfile.mktemp(suffix="_nosignal_fixed.mkv")
-        logger.info(f"Copying video to temporary file: {temp_path}")
-        auto_fix_video(path, temp_path)
-        res = find_no_signal(temp_path, step, number_of_checks, show_progress, 0)
-
-    if res.is_truncated and truncated == "check5":
-        logger.info("TRUNCATED VIDEO: Checking first 5 frames only.")
-        res = find_no_signal(path, step, number_of_checks, show_progress, 5)
 
     if res.error is not None:
         logger.error(f"ERROR          : {res.error}")
+
+    # process truncated video if any
+    if res.is_truncated:
+        logger.error(f"ERROR          : Truncated video detected.")
+
+        if truncated == "exit2":
+            return main_exit(2)
+
+        if truncated == "fixup":
+            logger.info("TRUNCATED VIDEO: Attempting to fix the truncated video.")
+            temp_path = tempfile.mktemp(suffix="_nosignal_fixed.mkv")
+            logger.info(f"Copying video to temporary file: {temp_path}")
+            auto_fix_video(path, temp_path)
+            res = find_no_signal(temp_path, step, number_of_checks, show_progress, 0)
+
+        if truncated == "check5":
+            logger.info("TRUNCATED VIDEO: Checking first 5 frames only.")
+            res = find_no_signal(path, step, number_of_checks, show_progress, 5)
+
+    elif res.is_invalid_timing:
+        logger.error(f"ERROR          : Invaild video timing/duration detected.")
+
+        if invalid_timing == "exit3":
+            return main_exit(3)
+
+        if invalid_timing == "fixup":
+            logger.info("INVALID TIMING : Attempting to fix the video duration.")
+            temp_path = tempfile.mktemp(suffix="_nosignal_fixed.mkv")
+            logger.info(f"Copying video to temporary file: {temp_path}")
+            auto_fix_video(path, temp_path)
+            res = find_no_signal(temp_path, step, number_of_checks, show_progress, 0)
+
+        if invalid_timing == "check5":
+            logger.info("INVALID TIMING : Checking first 5 frames only.")
+            res = find_no_signal(path, step, number_of_checks, show_progress, 5)
 
     # delete temp_path if exists
     if temp_path is not None and os.path.exists(temp_path):
