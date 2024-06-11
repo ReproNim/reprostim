@@ -50,6 +50,11 @@ ts = time.time()
 lower_rainbow = np.array([0, 50, 50])
 upper_rainbow = np.array([30, 255, 255])
 
+# Specify nosignal grid size (8 bands) for custom algorithm
+grid_rows: int = 6
+grid_cols: int = 8
+grid_colors = [[None for _ in range(grid_cols)] for _ in range(grid_rows)]
+
 
 def auto_fix_video(video_path: str, temp_path: str):
     logger.info(f"Run mediainfo to get video information: mediainfo -i {video_path}")
@@ -69,6 +74,13 @@ def auto_fix_video(video_path: str, temp_path: str):
     logger.info("Video fixup completed.")
 
 
+# Function to calculate opencv2 color difference
+def calc_color_diff(color1, color2):
+    b1, g1, r1 = color1.astype(np.int32)
+    b2, g2, r2 = color2.astype(np.int32)
+    return abs(r1 - r2) + abs(g1 - g2) + abs(b1 - b2)
+
+
 def has_rainbow(frame):
     # Convert frame to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -79,6 +91,61 @@ def has_rainbow(frame):
     # logger.debug(f"pixel_count={pixel_count}")
     # If a significant number of rainbow pixels are detected, return True
     return pixel_count > 10000  # Adjust threshold as needed
+
+
+# match nosignal grid colors using custom algorithm
+# based on reference image sample
+def has_rainbow2(frame):
+    height, width, _ = frame.shape
+    cy = height // grid_rows
+    cx = width // grid_cols
+    n = grid_rows * grid_cols
+    diff = 0
+    for i in range(grid_rows):
+        for j in range(grid_cols):
+            x = int(j * cx + cx // 2)
+            y = int(i * cy + cy // 2)
+            clr1 = grid_colors[i][j]
+            clr2 = frame[y, x]
+            diff = diff + calc_color_diff(clr1, clr2)
+
+    diff = diff / n
+    logger.debug(f"diff={diff}")
+    # NOTE: tune the threshold value as needed
+    return diff < 35
+
+
+def init_grid_colors(ref_image_path: str):
+    # Load reference image
+    image = cv2.imread(ref_image_path)
+
+    # Get the dimensions of the image
+    height, width, _ = image.shape
+
+    # Calculate the height and width of grid cell
+    cell_height = height // grid_rows
+    cell_width = width // grid_cols
+
+    # Loop over the grid
+    for i in range(grid_rows):
+        for j in range(grid_cols):
+            # Calculate the center of each region
+            x = int(j * cell_width + cell_width // 2)
+            y = int(i * cell_height + cell_height // 2)
+
+            # Get the pixel color at the center
+            # opencv use (row, column) coordinates
+            clr = image[y, x]
+
+            # Store the color in the 2D list
+            grid_colors[i][j] = clr
+
+    # dump the grid colors
+    logger.debug("Nosignal reference grid colors:")
+    for i, row in enumerate(grid_colors):
+        for j, color in enumerate(row):
+            b, g, r = color.astype(np.int32)  # OpenCV stores colors as BGR
+            logger.debug(f" grid_colors[{i+1}, {j+1}] : RGB({r}, {g}, {b})")
 
 
 def main_exit(code: int) -> int:
@@ -184,6 +251,19 @@ def find_no_signal(video_path: str, step: int = 1,
         if ret is False:
             logger.debug(f"Failed reading frame {pos_cur_frame}")
             break
+
+        # for some rare videos, opencv continues to read frames even after the end of video
+        # e.g. Videos/2024/03/2024.03.18.14.39.38.336_2024.03.18.14.44.02.541.mkv
+        # to fix this cases, just break the loop
+        if pos_cur_frame > pos_last_frame:
+            logger.debug(f"Failed reading frame sequencer, pos_cur_frame={pos_cur_frame} > pos_last_frame={pos_last_frame}")
+            break
+
+        # also double check number_of_checks for similar cases
+        if 0 < number_of_checks <= scan_counter:
+            logger.debug(f"Failed reading frame, number_of_checks={number_of_checks} limit reached")
+            break
+
         scan_counter += 1
 
         # break if check_first_frames is set and reached
@@ -197,7 +277,7 @@ def find_no_signal(video_path: str, step: int = 1,
         else:
             pos_next_frame = pos_cur_frame + step
 
-        if has_rainbow(frame):
+        if has_rainbow2(frame):
             logger.debug("rainbow-yes")
             nosignal_counter = nosignal_counter + 1
             nosignal_frames.append(pos_cur_frame)
@@ -283,6 +363,9 @@ def main(ctx, path: str, log_level, step: int,
     logger.debug(f"path={path}")
 
     temp_path: str = None
+
+    logger.debug("Initializing grid colors...")
+    init_grid_colors("data/nosignal.png")
 
     res = find_no_signal(path, step, number_of_checks, show_progress, 0)
 
