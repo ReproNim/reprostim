@@ -1,13 +1,19 @@
+#!/usr/bin/env python
+
+import json
 from pyzbar.pyzbar import decode, ZBarSymbol
-import moviepy.editor as ed
+import cv2
 import sys
 import numpy as np
 import time
 
 starttime = time.time()
+cap = cv2.VideoCapture(sys.argv[1])
 
-vid = ed.VideoFileClip(sys.argv[1])
-
+# Check if the video opened successfully
+if not cap.isOpened():
+    print("Error: Could not open video.", file=sys.stderr)
+    sys.exit(1)
 
 clips = []
 qrData = {}
@@ -21,44 +27,51 @@ runNum = None
 
 #for f in vid.iter_frames(with_times=True):
 
-for t in np.arange(0,vid.duration,.05):
+# TODO: just use tqdm for progress indication
+iframe = 0
+record = None
 
-    f = vid.get_frame(t)
+def finalize_record():
+    global record
+    record['frame_end'] = iframe
+    record['time_end'] = 'TODO'
+    print(json.dumps(record), flush=True)
+    record = None
 
-    if np.mod(t,10) == 0:
-        print(t)
+while True:
+    iframe += 1
+    ret, frame = cap.read()
+    if not ret:
+        break
     
+    f = np.mean(frame, axis=2)  # poor man greyscale from RGB
+
+    if np.mod(iframe,50) == 0:
+        print(f"iframe={iframe} {np.std(f)}", file=sys.stderr)
+    
+#    if np.std(f) > 10:
+#        cv2.imwrite('grayscale_image.png', f)
+#        import pdb; pdb.set_trace()
+
     cod = decode(f, symbols=[ZBarSymbol.QRCODE])
-    if len(cod)>0:
+    if len(cod) > 0:
+        assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
         data = eval(eval(str(cod[0].data)).decode('utf-8'))
-
-        if ('runStart' in data) and (not inRun):
-            print("found start: {}".format(t))
-            acqNum = data['acqNum']
-            runNum = data['runNum']
-
-            vv = vid.subclip(t-.1, t+.1)
-            for ff in vv.iter_frames(with_times=True):
-                cod = decode(ff[1], symbols=[ZBarSymbol.QRCODE])
-                if len(cod)>0:
-                    clip_start = t-.1+ff[0]
-                    inRun = True
-                    break
-            print("found start: {}".format(clip_start))
-        if ('runEnd' in data) and inRun:
-            print("found run end: {}".format(t))
-            vv = vid.subclip(t-.1, t+.1)
-            for ff in vv.iter_frames(with_times=True):
-                cod = decode(ff[1], symbols=[ZBarSymbol.QRCODE])
-                if len(cod)>0:
-                    clips.append({'clip_times':(clip_start,t-.1+ff[0]),
-                                    'acqNum':acqNum, 'runNum':runNum})
-                    inRun = False
-                    clip_start = acqNum = runNum =None
-                    break
+        if record is not None:
+            if data == record['data']:
+                # we are still in the same QR code record
+                continue
+            # It is a different QR code! we need to finalize current one
+            finalize_record()
+        # We just got beginning of the QR code!
+        record = {
+            'frame_start': iframe,
+            'time_start': "TODO-figureout",
+            'data' : data
+        }
+    else:
+        if record:
+            finalize_record()
  
-
-
-print(clips)
-print(time.time() - starttime)
-
+if record:
+    finalize_record()
