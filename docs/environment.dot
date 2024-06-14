@@ -1,51 +1,58 @@
 digraph graphname {
     //newrank=true;
-//    size="14,8";
-    graph [fontname = "sans", margin=0, splines=spline];
+    //    size="14,8";
+    graph [
+           fontname = "sans", margin=0, splines=spline,
+           // pad="1",
+           nodesep="1",
+           ranksep="1.5"
+           ];
     rankdir="TB";
     node [fontname = "sans", style=filled];
     edge [fontname = "sans", color=gray50];
     ntp[label="      NTP Server      ", shape=none, fillcolor="#90B0FF", color=none, fontcolor=gray95]
+
+    // mag for "magewell"
     mag1[
-        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96" COLOR="white">
                 <TR>
                     <TD PORT="usb">USB</TD>
- 				    <TD PORT="a">Audio/Video Converter #1<br/>(for ReproStim)</TD>
-					<TD PORT="aux">AUX</TD>
+                    <TD PORT="a">Audio/Video Converter #1<br/>(for ReproStim)</TD>
                     <TD PORT="dvi">DVI</TD>
-                </TR>
+                    <TD PORT="aux">AUX</TD>
+                 </TR>
             </TABLE>>
-            fillcolor=none;
-            shape=none;
-            color="#DDDDDD",
+            fillcolor="white";
+            shape=box;
+            color="#00FF00",
     ];
     eve[
-        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96" COLOR="white">
                 <TR>
                     <TD PORT="usb">USB</TD>
-					<TD> MicroPython<br/>Event Recorder     </TD>
+                    <TD> MicroPython <br/>Event Recorder</TD>
                 </TR>
-            </TABLE>>
-            fillcolor=none;
-            shape=none;
-            color="#DDDDDD",
+            </TABLE>>;
+            fillcolor="white";
+            shape=box;
+            color="#00FF00",
     ];
     dat[label="Data Capture Server", shape=none, fillcolor="#90B0FF", color=none, fontcolor=gray95];
     dat[
-        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" COLOR="white">
                 <TR>
+                    <TD PORT="usb">USB</TD>
                     <TD PORT="a"> ReproIn-er<BR/>(Meta)data Capture Server</TD>
                     <TD PORT="eth">ETH</TD>
-					<TD PORT="usb">USB</TD>
                 </TR>
-            </TABLE>>
+            </TABLE>>;
             fillcolor="#90B0FF";
-            shape=none;
-            color=gray95,
+            shape=box;
+            color="#00FF00",
     ];
 
-	// shape=box, color="#BBBBBB", fillcolor=grey93];
-	pac[label=" PACS Server ", shape=none, fillcolor="#90B0FF", color=none, fontcolor=gray95];
+    // shape=box, color="#BBBBBB", fillcolor=grey93];
+    pac[label=" PACS Server ", shape=none, fillcolor="#90B0FF", color=none, fontcolor=gray95];
 //    pac[
 //        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
 //                <TR>
@@ -53,35 +60,39 @@ digraph graphname {
 //                    <TD PORT="eth">ETH</TD>
 //                </TR>
 //            </TABLE>>
-//            fillcolor=none;
+//            fillcolor="white";
 //            shape=none;
 //            color="#DDDDDD",
 //    ];
-    bid[label="ReproIn Server\n(BIDS Converter)", shape=none, fillcolor="#90B0FF", color=none, fontcolor=gray95];
-		// shape=box, color="#BBBBBB", fillcolor=grey93];
+    bid[label="ReproIn Server\n(BIDS Converter)", shape=box, fillcolor="#90B0FF", color="#00FF00", fontcolor=gray95];
+        // shape=box, color="#BBBBBB", fillcolor=grey93];
     mag2[
-        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
+        label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96" COLOR="white">
                 <TR>
                     <TD PORT="a">Audio/Video Converter #2<br/>(for con/noisseur)</TD>
                     <TD PORT="aux">AUX</TD>
                     <TD PORT="dvi">DVI</TD>
-                    <TD PORT="usb">USB</TD>
-                </TR>
+                    <TD PORT="usb">USB</TD> // swap of usb and dvi leads to jump
+
+                    </TR>
+                    
             </TABLE>>
-            fillcolor=none;
-            shape=none;
-            color="#DDDDDD",
+            fillcolor="white";
+            shape=box;
+            color="#00FF00",
     ];
     rec[
         label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
                 <TR>
                     <TD PORT="a">Response Collector<BR/><FONT COLOR="#999999">(Current Designs, Birch)</FONT></TD>
                     <TD PORT="ttl">36 PIN<BR/>TTL</TD>
-					<TD PORT="usb">USB</TD>
-					<TD PORT="eth">ETH</TD>
+                    <TD PORT="optictrig">Optic<BR/>Trigger</TD>
+                    <TD PORT="opticresp">Optic<BR/>Responses</TD>
+                    <TD PORT="usb">USB</TD>
+                    <TD PORT="eth">ETH</TD>
                 </TR>
-            </TABLE>>
-            fillcolor=none;
+            </TABLE>>;
+            fillcolor="white";
             shape=none;
             color="#DDDDDD",
     ];
@@ -91,26 +102,24 @@ digraph graphname {
         color=red;
         margin=10;
 
-        mrm[label="         MRI Monitor        ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+        mrm[label="MRI Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+
         mri[
-            label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
-                    <TR><TD ROWSPAN="4">      MRI System     <BR/><FONT COLOR="#999999">(Siemens)</FONT></TD></TR>
-                    <TR>
-                        <TD PORT="optic">optic</TD>
-                    </TR>
-                    <TR>
-                        <TD PORT="eth">ETH</TD>
-                    </TR>
-					<TR>
-                        <TD PORT="dvi">DVI</TD>
-                    </TR>
-					</TABLE>>
-                fillcolor=none,
-                shape=none,
-                color="#DDDDDD",
+            label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" COLOR="white">
+            <TR><TD COLSPAN="3">MRI System</TD></TR>
+            <TR>
+            <TD PORT="optic">optic</TD>
+            <TD PORT="dvi">DVI</TD>
+            <TD PORT="eth">ETH</TD>
+            </TR>
+            </TABLE>>;
+            fillcolor="#90B0FF";
+            shape=box;
+            color="#DDDDDD";
         ];
-        ale[label="         Alert Monitor        ", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
-    }
+        ale[label="Metadata Entry and Alert\nDesktop", shape=none, fillcolor="#90B0FF", color=none, fontcolor=gray95];
+        dvisplit[label="DVI\nSplitter", shape=oval, style=dashed, color="#00FF00"];
+}
 
     subgraph cluster_subject {
         label="Subject";
@@ -127,13 +136,13 @@ digraph graphname {
                         <TD PORT="optic">optic</TD>
                     </TR>
                 </TABLE>>
-                fillcolor=none;
+                fillcolor="white";
                 shape=none;
                 color="#DDDDDD",
         ];
     }
 
-	subgraph cluster_experimenter {
+    subgraph cluster_experimenter {
         label="Experimenter";
         fontcolor="#22AA22";
         color="#22AA22";
@@ -143,67 +152,81 @@ digraph graphname {
             label =<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="grey96">
             <TR>
               <TD PORT="usb">USB</TD>
-			  <TD ROWSPAN="2">Experimenter<br/>Laptop</TD>
-              <TD PORT="vga">VGA</TD>
- 		    </TR>
-			<TR>
+              <TD ROWSPAN="2">Experimenter<br/>Laptop</TD>
               <TD PORT="eth">ETH</TD>
+          </TR>
+            <TR>
+              <TD PORT="vga">VGA</TD>
               <TD PORT="aux">AUX</TD>
               </TR>
-			  </TABLE>>
-                fillcolor=none;
+              </TABLE>>
+                fillcolor="white";
                 shape=none;
                 color="#DDDDDD",
         ];
-	}
 
-	srm[label="Scanner Room Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
+    srm[label="Scanner Room Monitor", shape=box, color="#DDDDDD", fillcolor=grey96, fontcolor="#AAAAAA"];
 
-	vgasplit[label="VGA\nSplitter", shape=oval, style=dashed];
-	auxsplit[label="Audio\nSplitter", shape=oval, style=dashed];
+   }
 
-    mri:dvi -> mrm[//constraint=false,
-				   color="#228822"];
 
-	per:vga -> vgasplit[color="#228822", weight=15];
-	vgasplit -> srm[color="#228822"];
+    subgraph cluster_legend {
+        label="ReproFlow Legend";
+        fontcolor="black";
+        color="#22AA22";
+        margin=10;
+
+        reproadd[label="ReproNim added", shape=box, color="#00FF00", fillcolor=white];
+        server[label="Server/Desktop", shape=box, color="white", fillcolor="#90B0FF"];
+
+    }
+
+    vgasplit[label="VGA\nSplitter", shape=oval, style=dashed, color="#00FF00"];
+    auxsplit[label="Audio\nSplitter", shape=oval, style=dashed, color="#00FF00"];
+
+    mri:dvi -> dvisplit[color="#228822"];
+    dvisplit -> mrm[//constraint=false,
+                   color="#228822"];
+    dvisplit -> mag2:dvi[color="#228822"];
+
+    per:vga -> vgasplit[label="Video Stimuli", color="#228822", fontcolor="#228822"];
+    vgasplit -> srm[color="#228822"];
     vgasplit -> vid[color="#228822"];
     vgasplit -> mag1:dvi[color="#228822",
-					 ];
+                     ];
 
-	per:aux -> auxsplit[color="#228822", weight=15];
+    per:aux -> auxsplit[label="Audio Stimuli", color="#228822", fontcolor="#228822"];
     auxsplit -> hea[color="#228822"];
     auxsplit -> mag1:aux[color="#228822"];
 
-	rec:usb -> per:usb;
-	dat:eth -> rec:eth[label="NTP", color="#5588FF", fontcolor="#5588FF"];
-	rec:eth -> dat:eth[label="events", color="#5588FF", fontcolor="#5588FF"];
-    mri:optic -> rec:a;
-    res:optic -> rec:a;
-    rec:ttl -> eve;
+    rec:usb -> per:usb[label="events\n(trigger pulse,\nresponses)"];
+    dat:eth -> rec:eth[label="NTP", color="#5588FF", fontcolor="#5588FF"];
+    rec:eth -> dat:eth[label="events", color="#5588FF", fontcolor="#5588FF"];
+    mri:optic -> rec:optictrig[label="trigger pulse" color="#FFC1C3" fontcolor="#FFC1C3"];
+    res:optic -> rec:opticresp[label="responses" color="#FFC1C3" fontcolor="#FFC1C3" dir=both, arrowtail=dot];
+    rec:ttl -> eve[label="events\n(trigger pulse,\nresponses)"];
     eve:usb -> dat:usb;
-    mri:dvi -> mag2:dvi[color="#228822"];
-    mri:eth -> pac[color="#5588FF", fontcolor="#5588FF"];
-    pac:e -> bid[color="#5588FF", fontcolor="#5588FF"];
-    dat:eth -> bid[label="events, stimuli", color="#5588FF", fontcolor="#5588FF"];
+    mri:eth -> pac:w[color="#5588FF", fontcolor="#5588FF"];
+    pac:e -> bid:w[color="#5588FF", fontcolor="#5588FF"];
+    dat:eth -> bid[label="events,\nstimuli", color="#5588FF", fontcolor="#5588FF"];
     mag2:usb -> dat:usb;
     ntp -> dat:eth[label="NTP",
-			   color="#5588FF", fontcolor="#5588FF"];
-    mag1:usb -> dat:usb:s;
-    dat:eth -> ale:e[label="ReproMon alerts",
-				   color="#5588FF", fontcolor="#5588FF"];
-	bid -> per:eth[label="BIDS Dataset (eventually)", color="#5588FF", fontcolor="#5588FF"];
-	ntp -> per:eth[label="NTP",
-			   color="#5588FF", fontcolor="#5588FF", style="dotted"];
+               color="#5588FF", fontcolor="#5588FF"];
+    mag1:usb -> dat:usb;
+    dat:eth -> ale[//label="ReproMon alerts",
+                   color="#5588FF", fontcolor="#5588FF"];
+    bid -> per:eth[label="BIDS Dataset", color="#5588FF", fontcolor="#5588FF"];
+    ntp -> per:eth[label="NTP",
+               color="#5588FF", fontcolor="#5588FF", style="dotted"];
     //{ rank=same; op1; op2; }
 //    { rank=same; mag1; rec; mag2; pac; eve}
     //{ rank=same; mag1; rec; mag2; pac; vid; hea; res }
     //{ rank=same; mag1; rec; mag2; pac; hea; vid; res}
     //{ rank=same; mri; pac; }
-	//    { rank=same; ntp; dat; bid; }
-	{ rank=same; pac; ntp; bid; }
-	{ rank=same; eve; rec; }
-	{ rank=same; mag1; per; }  // laptop and recording nearby
+    //    { rank=same; ntp; dat; bid; }
+    { rank=same; pac; ntp; bid; }
+//    { rank=same; eve; rec; }
+    { rank=same; mag1; per; }  // laptop and recording nearby
     //{ rank=same; dvi; aux; vga; }
     //{ rank=same; per; mri; mrm; vid; hea; res; }
     //{ rank=same; cluster_subject; cluster_operator; }
