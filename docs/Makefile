@@ -1,2 +1,7 @@
-environment.png: environment.dot
-	dot -Tpng environment.dot -o environment.png
+all: environment.png environment.svg
+
+%.png: %.dot
+	dot -Tpng "$<" -o "$@"
+
+%.svg: %.dot
+	dot -Tsvg "$<" -o "$@"
