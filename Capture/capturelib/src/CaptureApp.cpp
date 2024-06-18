@@ -91,15 +91,25 @@ namespace reprostim {
 		return nullptr;
 	}
 
-	void CaptureApp::listDevices() {
+	void CaptureApp::listDevices(const std::string& devices) {
 		printVersion();
-		_INFO(" ");
-		_INFO("[List of available Video devices]:");
-		_INFO("  N/A in this version.");
-		_INFO(" ");
-		if( audioEnabled ) {
+		if( !(devices == "all" || devices == "audio" || devices == "video") ) {
+			_ERROR("Invalid device type: " << devices << ", must be 'all', 'audio' or 'video'");
+			return;
+		}
+		if( devices=="all" || devices=="video" ) {
+			_INFO(" ");
+			_INFO("[List of available Video devices]:");
+			listVideoDevices();
+		}
+		if( devices=="all" || devices=="audio" ) {
+			_INFO(" ");
 			_INFO("[List of available Audio devices]:");
-			listAudioDevices();
+			if (audioEnabled) {
+				listAudioDevices();
+			} else {
+				_INFO("Audio capture is disabled in " << appName);
+			}
 		}
 	}
 
