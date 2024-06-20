@@ -152,6 +152,7 @@ int ScreenCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 				return 1;
 			case 'f':
 				registerFileLogger(_FILE_LOGGER_NAME, optarg);
+				setLogPattern(LogPattern::FULL);
 				break;
 		}
 	}
