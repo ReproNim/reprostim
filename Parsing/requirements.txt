@@ -1,1 +1,5 @@
-pyzbar
+pyzbar>=0.1.9
+opencv-python>=4.9.0.80
+numpy>=1.26.4
+click>=8.1.7
+

@@ -125,6 +125,11 @@ On Debian
 
     apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
 
+"Parsing/parse_wQR.py" script requires in zbar to be installed as well:
+
+    apt-get install -y libzbar0
+
+
 ## Build
 
     cd Capture
