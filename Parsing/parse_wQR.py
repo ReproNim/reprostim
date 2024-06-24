@@ -17,6 +17,7 @@ logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.INFO)
 logger.debug(f"name={__name__}")
 
+record = None
 
 def finalize_record(iframe):
     global record
@@ -26,14 +27,14 @@ def finalize_record(iframe):
     record = None
 
 
-def do_parse(path_video: str):
+def do_parse(path_video: str) -> int:
     starttime = time.time()
     cap = cv2.VideoCapture(path_video)
 
     # Check if the video opened successfully
     if not cap.isOpened():
-        print("Error: Could not open video.", file=sys.stderr)
-        sys.exit(1)
+        logger.error("Error: Could not open video.")
+        return 1
 
     clips = []
     qrData = {}
@@ -49,6 +50,7 @@ def do_parse(path_video: str):
 
     # TODO: just use tqdm for progress indication
     iframe = 0
+    global record
     record = None
 
     while True:
@@ -115,4 +117,5 @@ def main(ctx, path: str, log_level):
 
 if __name__ == "__main__":
     code = main()
+    sys.exit(code)
 
