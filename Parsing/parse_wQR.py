@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 from pyzbar.pyzbar import decode, ZBarSymbol
 import cv2
@@ -16,6 +18,12 @@ logger = logging.getLogger(__name__)
 logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.INFO)
 logger.debug(f"name={__name__}")
+
+
+# Define class for video time info
+class VideoTimeInfo(BaseModel):
+    start_time: datetime = Field(..., description="Start time of the video")
+    end_time: datetime = Field(..., description="End time of the video")
 
 
 # Define the data model for the QR record
