@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-
+from pydantic import BaseModel, Field
 from pyzbar.pyzbar import decode, ZBarSymbol
 import cv2
 import sys
@@ -17,13 +17,29 @@ logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.INFO)
 logger.debug(f"name={__name__}")
 
+# Define the data model for the QR record
+class QrRecord(BaseModel):
+    frame_start: int = Field(..., description="Frame number where QR code starts")
+    frame_end: int = Field(None, description="Frame number where QR code ends")
+    time_start: str = Field(..., description="Time where QR code starts")
+    time_end: str = Field(None, description="Time where QR code ends")
+    data: dict = Field(..., description="QR code data")
+
+    def __str__(self):
+        return (f"QrRecord( frames=[{self.frame_start}...{self.frame_end}], "
+                f"time=[{self.time_start}..{self.time_end}], "
+                f"data={self.data})"
+                )
+
+
 record = None
+
 
 def finalize_record(iframe):
     global record
     record['frame_end'] = iframe
     record['time_end'] = 'TODO'
-    print(json.dumps(record), flush=True)
+    logger.info(f"QR: {json.dumps(record)}")
     record = None
 
 
@@ -36,6 +52,15 @@ def do_parse(path_video: str) -> int:
         logger.error("Error: Could not open video.")
         return 1
 
+    # dump video metadata
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_width: int = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height: int = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    duration_sec: float = frame_count / fps if fps > 0 else -1.0
+    logger.info(f"Video infomrmation: resolution={frame_width}x{frame_height}, fps={str(fps)}, "
+                f"frames count={str(frame_count)}, duration={str(duration_sec)} sec")
+
     clips = []
     qrData = {}
 
@@ -44,7 +69,6 @@ def do_parse(path_video: str) -> int:
     clip_start = None
     acqNum = None
     runNum = None
-
 
     #for f in vid.iter_frames(with_times=True):
 
@@ -61,28 +85,31 @@ def do_parse(path_video: str) -> int:
 
         f = np.mean(frame, axis=2)  # poor man greyscale from RGB
 
-        if np.mod(iframe,50) == 0:
-            print(f"iframe={iframe} {np.std(f)}", file=sys.stderr)
+        if np.mod(iframe, 50) == 0:
+            logger.info(f"iframe={iframe} {np.std(f)}")
 
-    #    if np.std(f) > 10:
-    #        cv2.imwrite('grayscale_image.png', f)
-    #        import pdb; pdb.set_trace()
+        #    if np.std(f) > 10:
+        #        cv2.imwrite('grayscale_image.png', f)
+        #        import pdb; pdb.set_trace()
 
         cod = decode(f, symbols=[ZBarSymbol.QRCODE])
         if len(cod) > 0:
+            logger.debug("Found QR code: " + str(cod));
             assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
             data = eval(eval(str(cod[0].data)).decode('utf-8'))
             if record is not None:
                 if data == record['data']:
                     # we are still in the same QR code record
+                    logger.debug(f"Same QR code: continue")
                     continue
                 # It is a different QR code! we need to finalize current one
                 finalize_record(iframe)
             # We just got beginning of the QR code!
+            logger.debug("New QR code: " + str(data))
             record = {
                 'frame_start': iframe,
                 'time_start': "TODO-figureout",
-                'data' : data
+                'data': data
             }
         else:
             if record:
@@ -118,4 +145,3 @@ def main(ctx, path: str, log_level):
 if __name__ == "__main__":
     code = main()
     sys.exit(code)
-
