@@ -17,6 +17,7 @@ logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.INFO)
 logger.debug(f"name={__name__}")
 
+
 # Define the data model for the QR record
 class QrRecord(BaseModel):
     frame_start: int = Field(..., description="Frame number where QR code starts")
@@ -26,21 +27,17 @@ class QrRecord(BaseModel):
     data: dict = Field(..., description="QR code data")
 
     def __str__(self):
-        return (f"QrRecord( frames=[{self.frame_start}...{self.frame_end}], "
+        return (f"QrRecord(frames=[{self.frame_start}...{self.frame_end}], "
                 f"time=[{self.time_start}..{self.time_end}], "
                 f"data={self.data})"
                 )
 
 
-record = None
-
-
-def finalize_record(iframe):
-    global record
-    record['frame_end'] = iframe
-    record['time_end'] = 'TODO'
-    logger.info(f"QR: {json.dumps(record)}")
-    record = None
+def finalize_record(record: QrRecord, iframe: int) -> QrRecord:
+    record.frame_end = iframe
+    record.time_end = 'TODO'
+    logger.info(f"QR: {str(record)}")
+    return None
 
 
 def do_parse(path_video: str) -> int:
@@ -58,7 +55,7 @@ def do_parse(path_video: str) -> int:
     frame_width: int = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height: int = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     duration_sec: float = frame_count / fps if fps > 0 else -1.0
-    logger.info(f"Video infomrmation: resolution={frame_width}x{frame_height}, fps={str(fps)}, "
+    logger.info(f"Video information: resolution={frame_width}x{frame_height}, fps={str(fps)}, "
                 f"frames count={str(frame_count)}, duration={str(duration_sec)} sec")
 
     clips = []
@@ -73,9 +70,8 @@ def do_parse(path_video: str) -> int:
     #for f in vid.iter_frames(with_times=True):
 
     # TODO: just use tqdm for progress indication
-    iframe = 0
-    global record
-    record = None
+    iframe: int = 0
+    record: QrRecord = None
 
     while True:
         iframe += 1
@@ -98,25 +94,24 @@ def do_parse(path_video: str) -> int:
             assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
             data = eval(eval(str(cod[0].data)).decode('utf-8'))
             if record is not None:
-                if data == record['data']:
+                if data == record.data:
                     # we are still in the same QR code record
                     logger.debug(f"Same QR code: continue")
                     continue
                 # It is a different QR code! we need to finalize current one
-                finalize_record(iframe)
+                record = finalize_record(record, iframe)
             # We just got beginning of the QR code!
             logger.debug("New QR code: " + str(data))
-            record = {
-                'frame_start': iframe,
-                'time_start': "TODO-figureout",
-                'data': data
-            }
+            record = QrRecord(frame_start=iframe, frame_end=-1,
+                              time_start="TODO-figureout",
+                              time_end="",
+                              data=data)
         else:
             if record:
-                finalize_record(iframe)
+                record = finalize_record(record, iframe)
 
     if record:
-        finalize_record(iframe)
+        record = finalize_record(record, iframe)
 
 
 @click.command(help='Utility to parse video and locate integrated '
