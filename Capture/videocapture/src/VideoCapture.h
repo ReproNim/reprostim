@@ -17,6 +17,7 @@ struct FfmpegParams {
 	const std::string       outPath;
 	const std::string       outVideoFile;
 	const std::string       start_ts;
+	const Timestamp         tsStart;
 	const SessionLogger_ptr pLogger;
 	const bool              fRepromonEnabled;
 	RepromonQueue*          pRepromonQueue;

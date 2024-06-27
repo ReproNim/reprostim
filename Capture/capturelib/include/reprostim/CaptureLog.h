@@ -4,12 +4,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Macros
 
+#ifndef _LOG_EXPR
+#define _LOG_EXPR(expr, level) buildLogPrefix(getLogPattern(), level) << expr
+#endif
+
 #ifndef _ERROR
-#define _ERROR(expr) std::cerr << expr << std::endl; _SESSION_LOG_ERROR(expr)
+#define _ERROR(expr) std::cerr << _LOG_EXPR(expr, LogLevel::ERROR) << std::endl; _SESSION_LOG_ERROR(expr)
 #endif
 
 #ifndef _INFO
-#define _INFO(expr) std::cout << expr << std::endl; _SESSION_LOG_INFO(expr)
+#define _INFO(expr) std::cout << _LOG_EXPR(expr, LogLevel::INFO) << std::endl; _SESSION_LOG_INFO(expr)
 #endif
 
 #ifndef _INFO_RAW
@@ -17,7 +21,7 @@
 #endif
 
 #ifndef _VERBOSE
-#define _VERBOSE(expr) if( isVerbose() ) { std::cout << expr << std::endl; _SESSION_LOG_DEBUG(expr); }
+#define _VERBOSE(expr) if( isVerbose() ) { std::cout << _LOG_EXPR(expr, LogLevel::DEBUG) << std::endl; _SESSION_LOG_DEBUG(expr); }
 #endif
 
 // Session logger related macros
@@ -83,12 +87,18 @@ namespace reprostim {
 		ERROR = 4
 	};
 
+	enum LogPattern:int {
+		SIMPLE   = 0, // just simple log line
+		FULL     = 1  // detailed log line with timestamp, thread info, log level etc
+	};
+
 	////////////////////////////////////////////////////////////////////////////////
 	// Functions
 
-	LogLevel parseLogLevel(const std::string &level);
-	void     registerFileLogger(const std::string &name, const std::string &filePath, int level = LogLevel::DEBUG);
-	void     unregisterFileLogger(const std::string &name);
+	std::string buildLogPrefix(LogPattern pattern, LogLevel level);
+	LogLevel    parseLogLevel(const std::string &level);
+	void        registerFileLogger(const std::string &name, const std::string &filePath, int level = LogLevel::DEBUG);
+	void        unregisterFileLogger(const std::string &name);
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Classes
@@ -173,7 +183,8 @@ namespace reprostim {
 	//////////////////////////////////////////////////////////////////////////
 	// Global variables
 
-	extern volatile int g_verbose;
+	extern volatile LogPattern g_logPattern;
+	extern volatile int        g_verbose;
 
 	// global TLS variable to hold local session logger
 	extern thread_local SessionLogger_ptr tl_pSessionLogger;
@@ -181,8 +192,16 @@ namespace reprostim {
 	//////////////////////////////////////////////////////////////////////////
 	// Inline functions
 
+	inline LogPattern getLogPattern() {
+		return g_logPattern;
+	}
+
 	inline bool isVerbose() {
 		return g_verbose>0;
+	}
+
+	inline void setLogPattern(LogPattern pattern) {
+		g_logPattern = pattern;
 	}
 
 	inline void setVerbose(bool verbose) {
