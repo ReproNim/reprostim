@@ -89,13 +89,13 @@ for acqNum in range(ntrials):
     tflip, tflip_str = get_times()
     rec['time_flip'] = tflip
     rec['time_flip_formatted'] = tflip_str
-    log(rec)
     core.wait(0.5)
     fixation.draw()
     win.flip()
     toff, toff_str = get_times()
     rec['prior_time_off'] = toff
     rec['prior_time_off_str'] = toff_str
+    log(rec)
     if 'q' in keys:
         break
 
