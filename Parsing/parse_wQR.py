@@ -39,18 +39,23 @@ class VideoTimeInfo(BaseModel):
 class QrRecord(BaseModel):
     frame_start: int = Field(None, description="Frame number where QR code starts")
     frame_end: int = Field(None, description="Frame number where QR code ends")
-    start_time: Optional[str] = Field(None, description="Time where QR code starts")
-    end_time: Optional[str] = Field(None, description="Time where QR code ends")
-    start_pos_sec: Optional[float] = Field(None, description="Position in seconds "
+    isotime_start: Optional[str] = Field(None, description="ISO datetime where QR "
+                                                           "code starts")
+    isotime_end: Optional[str] = Field(None, description="ISO datetime where QR "
+                                                         "code ends")
+    time_start: Optional[float] = Field(None, description="Position in seconds "
                                                              "where QR code starts")
-    end_pos_sec: Optional[float] = Field(None, description="Position in seconds "
+    time_end: Optional[float] = Field(None, description="Position in seconds "
                                                            "where QR code ends")
+    duration: Optional[float] = Field(None, description="Duration of the QR code "
+                                                        "in seconds")
     data: Optional[dict] = Field(None, description="QR code data")
 
     def __str__(self):
         return (f"QrRecord(frames=[{self.frame_start}, {self.frame_end}], "
-                f"pos=[{self.start_pos_sec}, {self.end_pos_sec} sec], "
-                f"start_time={self.start_time}, end_time={self.end_time}], "
+                f"times=[{self.time_start}, {self.time_end} sec], "
+                f"duration={self.duration} sec, "
+                f"isotimes=[{self.isotime_start}, {self.isotime_end}], "
                 f"data={self.data})"
                 )
 
@@ -122,19 +127,20 @@ def finalize_record(vti: VideoTimeInfo,
                     pos_sec: float) -> QrRecord:
     record.frame_end = iframe
     # Note: unclear should we also use last frame duration or not
-    record.end_time = calc_time(vti.start_time, pos_sec)
-    record.end_pos_sec = pos_sec
+    record.isotime_end = calc_time(vti.start_time, pos_sec)
+    record.time_end = pos_sec
+    record.duration = record.time_end - record.time_start
     logger.info(f"QR: {str(record)}")
     # dump times
     event_time = get_iso_time(record.data['time_formatted'])
     keys_time = get_iso_time(record.data['keys_time_str'])
-    logger.info(f" - QR code time : {record.start_time}")
-    logger.info(f" - Event time   : "
+    logger.info(f" - QR code isotime : {record.isotime_start}")
+    logger.info(f" - Event isotime   : "
                 f"{event_time} / "
-                f"dt={(event_time - record.start_time).total_seconds()} sec")
-    logger.info(f" - Keys time    : "
+                f"dt={(event_time - record.isotime_start).total_seconds()} sec")
+    logger.info(f" - Keys isotime    : "
                 f"{keys_time} / "
-                f"dt={(keys_time - record.start_time).total_seconds()} sec")
+                f"dt={(keys_time - record.isotime_start).total_seconds()} sec")
     return None
 
 
@@ -221,9 +227,9 @@ def do_parse(path_video: str) -> int:
             logger.debug("New QR code: " + str(data))
             record = QrRecord()
             record.frame_start = iframe
-            record.start_time = calc_time(vti.start_time, pos_sec)
-            record.end_time = ""
-            record.start_pos_sec = pos_sec
+            record.isotime_start = calc_time(vti.start_time, pos_sec)
+            record.isotime_end = ""
+            record.time_start = pos_sec
             record.data = data
         else:
             if record:
