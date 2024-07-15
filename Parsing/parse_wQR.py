@@ -166,18 +166,18 @@ def finalize_record(ps: ParseSummary,
     logger.info(f" - Keys isotime    : "
                 f"{keys_time} / "
                 f"dt={(keys_time - record.isotime_start).total_seconds()} sec")
-    print(record.json())
+    #print(record.json())
     ps.qr_count += 1
-    return None
+    return record
 
 
-def do_parse(path_video: str) -> int:
+def do_parse(path_video: str):
     ps: ParseSummary = ParseSummary()
 
     vti: VideoTimeInfo = get_video_time_info(path_video)
     if not vti.success:
         logger.error(f"Failed parse file name time patter, error: {vti.error}")
-        return 1
+        return
 
     logger.info(f"Video start time : {vti.start_time}")
     logger.info(f"Video end time   : {vti.end_time}")
@@ -189,7 +189,7 @@ def do_parse(path_video: str) -> int:
     # Check if the video opened successfully
     if not cap.isOpened():
         logger.error("Error: Could not open video.")
-        return 1
+        return
 
     # dump video metadata
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -260,7 +260,8 @@ def do_parse(path_video: str) -> int:
                     logger.debug(f"Same QR code: continue")
                     continue
                 # It is a different QR code! we need to finalize current one
-                record = finalize_record(ps, vti, record, iframe, pos_sec)
+                yield finalize_record(ps, vti, record, iframe, pos_sec)
+                record = None
             # We just got beginning of the QR code!
             logger.debug("New QR code: " + str(data))
             record = QrRecord()
@@ -271,14 +272,17 @@ def do_parse(path_video: str) -> int:
             record.data = data
         else:
             if record:
-                record = finalize_record(ps, vti, record, iframe, pos_sec)
+                yield finalize_record(ps, vti, record, iframe, pos_sec)
+                record = None
 
     if record:
-        record = finalize_record(ps, vti, record, iframe, pos_sec)
+        yield finalize_record(ps, vti, record, iframe, pos_sec)
+        record = None
 
     ps.exit_code = 0
     ps.parsing_duration = round(time.time() - dt, 1)
-    print(ps.json())
+    yield ps
+    #print(ps.json())
 
 
 @click.command(help='Utility to parse video and locate integrated '
@@ -300,7 +304,8 @@ def main(ctx, path: str, log_level):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    do_parse(path)
+    for item in do_parse(path):
+        print(item.json())
     return 0
 
 
