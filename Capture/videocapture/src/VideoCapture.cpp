@@ -93,7 +93,7 @@ std::string renameVideoFile(
 		const std::string& out_fmt,
 		const std::string& message) {
 	std::string stop_ts = getTimeStr();
-	std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "_" + stop_ts, out_fmt);
+	std::string outVideoFile2 = buildVideoFile(outPath, start_ts + "--" + stop_ts, out_fmt);
 	if( std::filesystem::exists(outVideoFile) ) {
 		_INFO(message << " Saving video " << outVideoFile2);
 		rename(outVideoFile.c_str(), outVideoFile2.c_str());
@@ -315,7 +315,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	const FfmpegOpts& opts = cfg.ffm_opts;
 	std::string a_dev2 = a_dev;
 	if( a_dev2.find("-i ")!=0 ) a_dev2 = "-i " + a_dev2;
-	std::string outVideoFile = buildVideoFile(outPath, start_ts + "_", opts.out_fmt);
+	std::string outVideoFile = buildVideoFile(outPath, start_ts + "--", opts.out_fmt);
 	sprintf(
 			ffmpg,
 			"ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
@@ -390,7 +390,7 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 									const std::string& vpath,
 									const std::string& message) {
 	std::string out_fmt = cfg.ffm_opts.out_fmt;
-	std::string oldname = buildVideoFile(vpath, start_ts + "_", out_fmt);
+	std::string oldname = buildVideoFile(vpath, start_ts + "--", out_fmt);
 
 	_INFO("stop record says: " << "terminating ffmpeg with SIGINT");
 	if( !killProc("ffmpeg", SIGINT, 5, false) ) {

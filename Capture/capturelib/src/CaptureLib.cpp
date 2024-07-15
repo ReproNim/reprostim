@@ -425,7 +425,7 @@ namespace reprostim {
 		std::stringstream ss;
 		ss << 1900 + ltm->tm_year << '.'
 		   << std::setw(2) << std::setfill('0') << std::to_string(1 + ltm->tm_mon) << '.'
-		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_mday) << '.'
+		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_mday) << '-'
 		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_hour) << '.'
 		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_min) << '.'
 		   << std::setw(2) << std::setfill('0') << std::to_string(ltm->tm_sec) << '.'
