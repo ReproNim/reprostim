@@ -45,7 +45,7 @@ TEST_CASE("TestCaptureLib_getTimeStr",
 	INFO("ts: " << ts);
 	REQUIRE(ts.length() == 23);
 
-	std::regex pattern(R"(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})");
+	std::regex pattern(R"(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})");
 
 	std::smatch match;
 	ts = getTimeStr();
