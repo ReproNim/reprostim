@@ -17,11 +17,9 @@ import time
 import click
 
 # initialize the logger
+# Note: all logs goes to stderr
 logger = logging.getLogger(__name__)
-logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-stm_error = logging.StreamHandler(sys.stderr)
-stm_error.setLevel(logging.ERROR)
-logging.getLogger().addHandler(stm_error)
+logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
 
 
@@ -39,9 +37,9 @@ class VideoTimeInfo(BaseModel):
 class QrRecord(BaseModel):
     frame_start: int = Field(None, description="Frame number where QR code starts")
     frame_end: int = Field(None, description="Frame number where QR code ends")
-    isotime_start: Optional[str] = Field(None, description="ISO datetime where QR "
+    isotime_start: Optional[datetime] = Field(None, description="ISO datetime where QR "
                                                            "code starts")
-    isotime_end: Optional[str] = Field(None, description="ISO datetime where QR "
+    isotime_end: Optional[datetime] = Field(None, description="ISO datetime where QR "
                                                          "code ends")
     time_start: Optional[float] = Field(None, description="Position in seconds "
                                                              "where QR code starts")
@@ -141,6 +139,7 @@ def finalize_record(vti: VideoTimeInfo,
     logger.info(f" - Keys isotime    : "
                 f"{keys_time} / "
                 f"dt={(keys_time - record.isotime_start).total_seconds()} sec")
+    print(record.json())
     return None
 
 
@@ -228,7 +227,7 @@ def do_parse(path_video: str) -> int:
             record = QrRecord()
             record.frame_start = iframe
             record.isotime_start = calc_time(vti.start_time, pos_sec)
-            record.isotime_end = ""
+            record.isotime_end = None
             record.time_start = pos_sec
             record.data = data
         else:
