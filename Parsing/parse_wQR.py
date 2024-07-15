@@ -32,6 +32,32 @@ class VideoTimeInfo(BaseModel):
     duration_sec: Optional[float] = Field(None, description="Duration of the video "
                                                             "in seconds")
 
+# Define model for parsing summary info
+class ParseSummary(BaseModel):
+    qr_count: Optional[int] = Field(0, description="Number of QR codes found")
+    parsing_duration: Optional[float] = Field(0.0, description="Duration of the "
+                                                     "parsing in seconds")
+    # exit code
+    exit_code: Optional[int] = Field(-1, description="Number of QR codes found")
+    video_full_path: Optional[str] = Field(None, description="Full path "
+                                                            "to the video file")
+    video_file_name: Optional[str] = Field(None, description="Name of the "
+                                                            "video file")
+    video_isotime_start: Optional[datetime] = Field(None, description="ISO datetime "
+                                                                      "video started")
+    video_isotime_end: Optional[datetime] = Field(None, description="ISO datetime "
+                                                                    "video ended")
+    video_duration: Optional[float] = Field(None, description="Duration of the video "
+                                                              "in seconds")
+    video_frame_width: Optional[int] = Field(None, description="Width of the "
+                                                               "video frame in px")
+    video_frame_height: Optional[int] = Field(None, description="Height of the "
+                                                                "video frame in px")
+    video_frame_rate: Optional[float] = Field(None, description="Frame rate of the "
+                                                               "video in FPS")
+    video_frame_count: Optional[int] = Field(None, description="Number of frames "
+                                                               "in video file")
+
 
 # Define the data model for the QR record
 class QrRecord(BaseModel):
@@ -120,7 +146,8 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
     return res
 
 
-def finalize_record(vti: VideoTimeInfo,
+def finalize_record(ps: ParseSummary,
+                    vti: VideoTimeInfo,
                     record: QrRecord, iframe: int,
                     pos_sec: float) -> QrRecord:
     record.frame_end = iframe
@@ -140,10 +167,13 @@ def finalize_record(vti: VideoTimeInfo,
                 f"{keys_time} / "
                 f"dt={(keys_time - record.isotime_start).total_seconds()} sec")
     print(record.json())
+    ps.qr_count += 1
     return None
 
 
 def do_parse(path_video: str) -> int:
+    ps: ParseSummary = ParseSummary()
+
     vti: VideoTimeInfo = get_video_time_info(path_video)
     if not vti.success:
         logger.error(f"Failed parse file name time patter, error: {vti.error}")
@@ -153,7 +183,7 @@ def do_parse(path_video: str) -> int:
     logger.info(f"Video end time   : {vti.end_time}")
     logger.info(f"Video duration   : {vti.duration_sec} sec")
 
-    starttime = time.time()
+    dt = time.time()
     cap = cv2.VideoCapture(path_video)
 
     # Check if the video opened successfully
@@ -172,6 +202,15 @@ def do_parse(path_video: str) -> int:
     logger.info(f"    - frame rate : {str(fps)} FPS")
     logger.info(f"    - duration   : {str(duration_sec)} sec")
     logger.info(f"    - frame count: {str(frame_count)}")
+    ps.video_frame_rate = fps
+    ps.video_frame_width = frame_width
+    ps.video_frame_height = frame_height
+    ps.video_frame_count = frame_count
+    ps.video_duration = duration_sec
+    ps.video_isotime_start = vti.start_time
+    ps.video_isotime_end = vti.end_time
+    ps.video_full_path = path_video
+    ps.video_file_name = os.path.basename(path_video)
 
     if abs(duration_sec - vti.duration_sec) > 120.0:
         logger.error(f"Video duration significant mismatch (real/file name):"
@@ -221,7 +260,7 @@ def do_parse(path_video: str) -> int:
                     logger.debug(f"Same QR code: continue")
                     continue
                 # It is a different QR code! we need to finalize current one
-                record = finalize_record(vti, record, iframe, pos_sec)
+                record = finalize_record(ps, vti, record, iframe, pos_sec)
             # We just got beginning of the QR code!
             logger.debug("New QR code: " + str(data))
             record = QrRecord()
@@ -232,10 +271,14 @@ def do_parse(path_video: str) -> int:
             record.data = data
         else:
             if record:
-                record = finalize_record(vti, record, iframe, pos_sec)
+                record = finalize_record(ps, vti, record, iframe, pos_sec)
 
     if record:
-        record = finalize_record(vti, record, iframe, pos_sec)
+        record = finalize_record(ps, vti, record, iframe, pos_sec)
+
+    ps.exit_code = 0
+    ps.parsing_duration = round(time.time() - dt, 1)
+    print(ps.json())
 
 
 @click.command(help='Utility to parse video and locate integrated '
