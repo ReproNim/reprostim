@@ -5,6 +5,7 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta
+from re import match
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -69,21 +70,31 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
                                        start_time=None, end_time=None)
     # Define the regex pattern for the timestamp and file extension
     # (either .mkv or .mp4)
-    pattern = (r'^(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})'
+    pattern1 = (r'^(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})'
                r'_(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$')
+
+    # add support for new file format
+    pattern2 = (r'^(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})'
+               r'\-\-(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$')
 
     file_name: str = os.path.basename(path_video)
     logger.info(f"Video file name  : {file_name}")
 
-    match = re.match(pattern, file_name)
-    if not match:
-        res.error = "Filename does not match the required pattern."
-        return res
+    ts_format = ""
+    match1: str = re.match(pattern1, file_name)
+    if match1:
+        # Define the format for datetime parsing
+        ts_format = "%Y.%m.%d.%H.%M.%S.%f"
+    else:
+        match1 = re.match(pattern2, file_name)
+        if match1:
+            # Define the format for datetime parsing
+            ts_format = "%Y.%m.%d-%H.%M.%S.%f"
+        else:
+            res.error = "Filename does not match the required pattern."
+            return res
 
-    start_ts, end_ts, extension = match.groups()
-
-    # Define the format for datetime parsing
-    ts_format = "%Y.%m.%d.%H.%M.%S.%f"
+    start_ts, end_ts, extension = match1.groups()
 
     try:
         # Parse the timestamps
