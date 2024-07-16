@@ -34,7 +34,7 @@ class VideoTimeInfo(BaseModel):
 
 # Define model for parsing summary info
 class ParseSummary(BaseModel):
-    kind: Optional[str] = Field("ParseSummary", description="JSON record kind/class")
+    type: Optional[str] = Field("ParseSummary", description="JSON record type/class")
     qr_count: Optional[int] = Field(0, description="Number of QR codes found")
     parsing_duration: Optional[float] = Field(0.0, description="Duration of the "
                                                      "parsing in seconds")
@@ -62,7 +62,7 @@ class ParseSummary(BaseModel):
 
 # Define the data model for the QR record
 class QrRecord(BaseModel):
-    kind: Optional[str] = Field("QrRecord", description="JSON record kind/class")
+    type: Optional[str] = Field("QrRecord", description="JSON record type/class")
     index: Optional[int] = Field(None, description="Zero-based i    ndex of the QR code")
     frame_start: Optional[int] = Field(None, description="Frame number where QR code starts")
     frame_end: Optional[int] = Field(None, description="Frame number where QR code ends")
