@@ -138,11 +138,11 @@ void FfmpegThread ::run() {
 	Timestamp ts = CURRENT_TIMESTAMP();
 	json jm = {
 			{"type", "session_end"},
-			{"ts", getTimeStr(ts)},
-			{"ts_iso", getTimeIsoStr(ts)},
+			{"json_ts", getTimeStr(ts)},
+			{"json_isotime", getTimeIsoStr(ts)},
 			{"message", "ffmpeg thread terminated"},
-			{"start_ts", getParams().start_ts},
-			{"start_ts_iso", getTimeIsoStr(getParams().tsStart)}
+			{"cap_ts_start", getParams().start_ts},
+			{"cap_isotime_start", getTimeIsoStr(getParams().tsStart)}
 	};
 	_METADATA_LOG(jm);
 	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
@@ -187,13 +187,13 @@ void VideoCaptureApp::onCaptureStop(const std::string& message) {
 		Timestamp ts = CURRENT_TIMESTAMP();
 		json jm = {
 				{"type", "capture_stop"},
-				{"ts", getTimeStr(ts)},
-				{"ts_iso", getTimeIsoStr(ts)},
+				{"json_ts", getTimeStr(ts)},
+				{"json_isotime", getTimeIsoStr(ts)},
 				{"message", message},
-				{"start_ts", start_ts},
-				{"start_ts_iso", getTimeIsoStr(tsStart)},
-				{"stop_ts", stop_ts},
-				{"stop_ts_iso", getTimeIsoStr(tsStop)}
+				{"cap_ts_start", start_ts},
+				{"cap_isotime_start", getTimeIsoStr(tsStart)},
+				{"cap_ts_stop", stop_ts},
+				{"cap_isotime_stop", getTimeIsoStr(tsStop)}
 		};
 		_METADATA_LOG(jm);
 
@@ -342,15 +342,15 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	Timestamp ts = CURRENT_TIMESTAMP();
 	json jm = {
 			{"type", "session_begin"},
-			{"ts", getTimeStr(ts)},
-			{"ts_iso", getTimeIsoStr(ts)},
+			{"json_ts", getTimeStr(ts)},
+			{"json_isotime", getTimeIsoStr(ts)},
 			{"version", CAPTURE_VERSION_STRING},
 			{"appName", appName},
 			{"serial", targetVideoDev.serial},
 			{"vDev", targetVideoDev.name},
 			{"aDev", targetAudioInDev.alsaDeviceName},
-			{"start_ts", start_ts},
-			{"start_ts_iso", getTimeIsoStr(tsStart)},
+			{"cap_ts_start", start_ts},
+			{"cap_isotime_start", getTimeIsoStr(tsStart)},
 			{"cx", cx},
 			{"cy", cy},
 			{"frameRate", frameRate}
