@@ -34,6 +34,7 @@ class VideoTimeInfo(BaseModel):
 
 # Define model for parsing summary info
 class ParseSummary(BaseModel):
+    kind: Optional[str] = Field("ParseSummary", description="JSON record kind/class")
     qr_count: Optional[int] = Field(0, description="Number of QR codes found")
     parsing_duration: Optional[float] = Field(0.0, description="Duration of the "
                                                      "parsing in seconds")
@@ -61,8 +62,10 @@ class ParseSummary(BaseModel):
 
 # Define the data model for the QR record
 class QrRecord(BaseModel):
-    frame_start: int = Field(None, description="Frame number where QR code starts")
-    frame_end: int = Field(None, description="Frame number where QR code ends")
+    kind: Optional[str] = Field("QrRecord", description="JSON record kind/class")
+    index: Optional[int] = Field(None, description="Zero-based i    ndex of the QR code")
+    frame_start: Optional[int] = Field(None, description="Frame number where QR code starts")
+    frame_end: Optional[int] = Field(None, description="Frame number where QR code ends")
     isotime_start: Optional[datetime] = Field(None, description="ISO datetime where QR "
                                                            "code starts")
     isotime_end: Optional[datetime] = Field(None, description="ISO datetime where QR "
@@ -155,6 +158,7 @@ def finalize_record(ps: ParseSummary,
     record.isotime_end = calc_time(vti.start_time, pos_sec)
     record.time_end = pos_sec
     record.duration = record.time_end - record.time_start
+    record.index = ps.qr_count
     logger.info(f"QR: {str(record)}")
     # dump times
     event_time = get_iso_time(record.data['time_formatted'])
