@@ -39,6 +39,7 @@ namespace reprostim {
 		}
 		pRepromonQueue = nullptr;
 		unregisterFileLogger(_FILE_LOGGER_NAME);
+		setLogPattern(LogPattern::SIMPLE);
 	}
 
 	std::string CaptureApp::createOutPath(const std::optional<Timestamp> &ts, bool fCreateDir) {

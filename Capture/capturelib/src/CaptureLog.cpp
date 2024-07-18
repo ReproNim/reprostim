@@ -1,6 +1,10 @@
 
 #include <iostream>
 #include <filesystem>
+
+// make log level to be upper case, can be also placed under include/spdlog/tweakme.h
+#define SPDLOG_LEVEL_NAMES  { "TRACE", "DEBUG", "INFO",  "WARN", "ERROR", "CRITICAL", "OFF" };
+
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include "reprostim/CaptureLib.h"
@@ -9,9 +13,51 @@ namespace fs = std::filesystem;
 
 namespace reprostim {
 
+	volatile LogPattern g_logPattern = LogPattern::SIMPLE; // set default log pattern
 	volatile int g_verbose = 0;
 	thread_local SessionLogger_ptr tl_pSessionLogger = nullptr;
 	std::shared_ptr<spdlog::logger> g_pGlobalLogger = nullptr;
+
+	std::string buildLogPrefix(LogPattern pattern, LogLevel level) {
+		if( pattern != LogPattern::FULL ) {
+			return "";
+		}
+
+		std::stringstream ss;
+		const Timestamp &ts = CURRENT_TIMESTAMP();
+
+		ss << getTimeFormatStr(ts, "%Y-%m-%d %H:%M:%S");
+
+		// put also ms precision
+		auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(ts.time_since_epoch()) % 1000;
+		ss << '.' << std::setw(3) << std::setfill('0') << nowMs.count();
+
+		// add log level
+		switch( level ) {
+			case LogLevel::DEBUG:
+				ss << " [DEBUG]";
+				break;
+			case LogLevel::INFO:
+				ss << " [INFO]";
+				break;
+			case LogLevel::WARN:
+				ss << " [WARN]";
+				break;
+			case LogLevel::ERROR:
+				ss << " [ERROR]";
+				break;
+			default:
+				ss << " [UNKNOWN]";
+				break;
+		}
+
+		// add thread id
+		//std::thread::id thread_id = std::this_thread::get_id();
+		ss << " [" << spdlog::details::os::thread_id() << "]";
+
+		ss << " ";
+		return ss.str();
+	}
 
 	LogLevel parseLogLevel(const std::string &level) {
 		if( level == "DEBUG" ) {
