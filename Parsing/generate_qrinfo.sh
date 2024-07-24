@@ -1,0 +1,54 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  echo "Script to generate QR info JSONL data and logs for ReproNim session with parse_wQR.py tool"
+  echo "Usage: $0 <session_dir>"
+  exit 1
+fi
+
+# Set SESSION_DIR to the first command-line argument
+SESSION_DIR=$1
+IN_DIR=$SESSION_DIR/reprostim-videos
+OUT_DIR=$SESSION_DIR/timing-reprostim-videos
+LOG_LEVEL=DEBUG
+
+echo "Generating QR info reprostim videos in session: $SESSION_DIR"
+echo "Session reprostim video directory: $IN_DIR"
+echo "QR info and logs will be saved to: $OUT_DIR"
+
+# Create the out directory if it does not exist
+if [ ! -d "$OUT_DIR" ]; then
+  mkdir -p "$OUT_DIR"
+  echo "Created directory: $OUT_DIR"
+fi
+
+# Count the number of .mkv files
+total_files=$(ls "$IN_DIR"/*.mkv 2>/dev/null | wc -l | xargs)
+echo "Total *.mkv files count: $total_files"
+counter=1
+
+# Iterate over .mkv files in IN_DIR
+for file in "$IN_DIR"/*.mkv;
+do
+  base_name=$(basename "$file" .mkv)
+  echo "Processing $counter/$total_files : $file..."
+  # this is normal video parsing:
+  #./parse_wQR.py --log-level $LOG_LEVEL $file >$OUT_DIR/$base_name.qrinfo.jsonl 2>$OUT_DIR/$base_name.qrinfo.log
+
+  # but we have invalid videos, so cleanup it first
+  tmp_mkv_file=$OUT_DIR/$base_name.mkv
+  echo "Generating tmp *.mkv file $tmp_mkv_file..."
+  ffmpeg -i $file -an -c copy $tmp_mkv_file
+  ./parse_wQR.py --log-level $LOG_LEVEL $tmp_mkv_file >$OUT_DIR/$base_name.qrinfo.jsonl 2>$OUT_DIR/$base_name.qrinfo.log
+  if [ -e "tmp_mkv_file" ]; then
+    echo "Deleting tmp *.mkv file: tmp_mkv_file"
+    rm "$out_file"
+  fi
+
+  counter=$((counter + 1))
+done
+
+# Generate QR info
+#echo "Generating QR info data..."
+#./parse_wQR.py --log-level $LOG_LEVEL $SESSION_DIR >$OUT_DIR/dump_qrinfo.jsonl 2>$OUT_DIR/dump_qrinfo.log
+#echo "dump_qrinfo.py exit code: $?"
