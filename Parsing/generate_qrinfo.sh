@@ -40,9 +40,9 @@ do
   echo "Generating tmp *.mkv file $tmp_mkv_file..."
   ffmpeg -i $file -an -c copy $tmp_mkv_file
   ./parse_wQR.py --log-level $LOG_LEVEL $tmp_mkv_file >$OUT_DIR/$base_name.qrinfo.jsonl 2>$OUT_DIR/$base_name.qrinfo.log
-  if [ -e "tmp_mkv_file" ]; then
-    echo "Deleting tmp *.mkv file: tmp_mkv_file"
-    rm "$out_file"
+  if [ -e "$tmp_mkv_file" ]; then
+    echo "Deleting tmp *.mkv file: $tmp_mkv_file"
+    rm "$tmp_mkv_file"
   fi
 
   counter=$((counter + 1))
