@@ -60,7 +60,7 @@ win.flip()
 
 spd = 0.500 # Stimulus Presentation Duration
 soa = 6.000 # Stimulus Onset Asynchrony
-ntrials = 30
+ntrials = 300
 iwt = 5 # Initial Wait Time between scanner trigger and first stimulus
 
 stim_images = []
