@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import qrcode
 from psychopy import visual, core, event, clock
 import glob
