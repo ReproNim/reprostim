@@ -4,7 +4,6 @@ from psychopy import visual, core, event, clock
 import glob
 import numpy as np
 from time import time
-import dbic
 import sys
 import os
 import json
