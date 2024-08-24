@@ -65,14 +65,13 @@ git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-inst
 
 /opt/psychopy-installer/psychopy_linux_installer.sh --install_dir=/opt/psychopy --psychopy_version=2024.1.4 --bids_version=2023.2.0 --python_version=3.10.14 --wxpython_version=4.2.1 -v -f
 
-test "$(getent passwd reproin)" \
-|| useradd --no-user-group --create-home --shell /bin/bash reproin
+/opt/psychopy/psychopy_*/bin/pip install qrcode
 
+bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'
 
-su - reproin
+bash -c 'b=$(ls /opt/psychopy/psychopy_*/bin/python3); echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'
 
 # Save specification to JSON.
-su - root
 printf '{ \
   "pkg_manager": "apt", \
   "existing_users": [ \
@@ -151,23 +150,34 @@ printf '{ \
       } \
     }, \
     { \
-      "name": "user", \
+      "name": "run", \
       "kwds": { \
-        "user": "reproin" \
+        "command": "/opt/psychopy/psychopy_*/bin/pip install qrcode" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "bash -c '"'"'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'"'"'" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "bash -c '"'"'b=$\(ls /opt/psychopy/psychopy_*/bin/python3\); echo -e \\"#!/bin/sh\\\\n$b \\\\\\"\\\\$@\\\\\\"\\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'"'"'" \
       } \
     }, \
     { \
       "name": "entrypoint", \
       "kwds": { \
         "args": [ \
-          "/neurodocker/startup.sh" \
+          "python3" \
         ] \
       } \
     } \
   ] \
 }' > /.reproenv.json
-su - reproin
 # End saving to specification to JSON.
 
 %runscript
-/neurodocker/startup.sh
+python3

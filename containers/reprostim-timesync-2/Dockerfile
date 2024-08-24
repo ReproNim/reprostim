@@ -56,13 +56,12 @@ RUN apt-get update -qq \
            && rm -rf /var/lib/apt/lists/*
 RUN git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout 21b1ac36ee648e00cc3b68fd402c1e826270dad6
 RUN /opt/psychopy-installer/psychopy_linux_installer.sh --install_dir=/opt/psychopy --psychopy_version=2024.1.4 --bids_version=2023.2.0 --python_version=3.10.14 --wxpython_version=4.2.1 -v -f
-RUN test "$(getent passwd reproin)" \
-    || useradd --no-user-group --create-home --shell /bin/bash reproin
-USER reproin
-ENTRYPOINT ["/neurodocker/startup.sh"]
+RUN /opt/psychopy/psychopy_*/bin/pip install qrcode
+RUN bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'
+RUN bash -c 'b=$(ls /opt/psychopy/psychopy_*/bin/python3); echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'
+ENTRYPOINT ["python3"]
 
 # Save specification to JSON.
-USER root
 RUN printf '{ \
   "pkg_manager": "apt", \
   "existing_users": [ \
@@ -141,20 +140,31 @@ RUN printf '{ \
       } \
     }, \
     { \
-      "name": "user", \
+      "name": "run", \
       "kwds": { \
-        "user": "reproin" \
+        "command": "/opt/psychopy/psychopy_*/bin/pip install qrcode" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "bash -c '"'"'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'"'"'" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "bash -c '"'"'b=$\(ls /opt/psychopy/psychopy_*/bin/python3\); echo -e \\"#!/bin/sh\\\\n$b \\\\\\"\\\\$@\\\\\\"\\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'"'"'" \
       } \
     }, \
     { \
       "name": "entrypoint", \
       "kwds": { \
         "args": [ \
-          "/neurodocker/startup.sh" \
+          "python3" \
         ] \
       } \
     } \
   ] \
 }' > /.reproenv.json
-USER reproin
 # End saving to specification to JSON.
