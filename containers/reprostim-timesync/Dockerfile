@@ -30,9 +30,11 @@ RUN apt-get update -qq \
            && apt-get install -y -q --no-install-recommends \
                   build-essential \
                   curl \
+                  git \
                   gnupg \
                   less \
                   libasound2-dev \
+                  libcanberra-gtk3-module \
                   libgtk-3-dev \
                   libusb-1.0-0-dev \
                   libwxgtk-media3.2-dev \
@@ -46,53 +48,20 @@ RUN apt-get update -qq \
                   python3 \
                   python3-pip \
                   strace \
+                  sudo \
                   time \
                   tree \
                   vim \
                   wget \
            && rm -rf /var/lib/apt/lists/*
-ENV CONDA_DIR="/opt/miniconda-py311_24.5.0-0" \
-    PATH="/opt/miniconda-py311_24.5.0-0/bin:$PATH"
-RUN apt-get update -qq \
-    && apt-get install -y -q --no-install-recommends \
-           bzip2 \
-           ca-certificates \
-           curl \
-    && rm -rf /var/lib/apt/lists/* \
-    # Install dependencies.
-    && export PATH="/opt/miniconda-py311_24.5.0-0/bin:$PATH" \
-    && echo "Downloading Miniconda installer ..." \
-    && conda_installer="/tmp/miniconda.sh" \
-    && curl -fsSL -o "$conda_installer" https://repo.continuum.io/miniconda/Miniconda3-py311_24.5.0-0-Linux-x86_64.sh \
-    && bash "$conda_installer" -b -p /opt/miniconda-py311_24.5.0-0 \
-    && rm -f "$conda_installer" \
-    # Prefer packages in conda-forge
-    && conda config --system --prepend channels conda-forge \
-    # Packages in lower-priority channels not considered if a package with the same
-    # name exists in a higher priority channel. Can dramatically speed up installations.
-    # Conda recommends this as a default
-    # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html
-    && conda config --set channel_priority strict \
-    && conda config --system --set auto_update_conda false \
-    && conda config --system --set show_channel_urls true \
-    # Enable `conda activate`
-    && conda init bash \
-    && conda install -y  --name base \
-           "conda-forge::qrcode" \
-    && bash -c "source activate base \
-    &&   python -m pip install --no-cache-dir  \
-             "psychopy" \
-             "psychtoolbox"" \
-    # Clean up
-    && sync && conda clean --all --yes && sync \
-    && rm -rf ~/.cache/pip/*
-RUN test "$(getent passwd reproin)" \
-    || useradd --no-user-group --create-home --shell /bin/bash reproin
-USER reproin
-ENTRYPOINT ["/neurodocker/startup.sh"]
+RUN git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout 21b1ac36ee648e00cc3b68fd402c1e826270dad6
+RUN /opt/psychopy-installer/psychopy_linux_installer.sh --install_dir=/opt/psychopy --psychopy_version=2024.1.4 --bids_version=2023.2.0 --python_version=3.10.14 --wxpython_version=4.2.1 -v -f
+RUN /opt/psychopy/psychopy_*/bin/pip install qrcode
+RUN bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'
+RUN bash -c 'b=$(ls /opt/psychopy/psychopy_*/bin/python3); echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'
+ENTRYPOINT ["python3"]
 
 # Save specification to JSON.
-USER root
 RUN printf '{ \
   "pkg_manager": "apt", \
   "existing_users": [ \
@@ -125,10 +94,13 @@ RUN printf '{ \
         "pkgs": [ \
           "build-essential", \
           "pkg-config", \
+          "git", \
+          "sudo", \
           "libgtk-3-dev", \
           "libwxgtk3.2-dev", \
           "libwxgtk-media3.2-dev", \
           "libwxgtk-webview3.2-dev", \
+          "libcanberra-gtk3-module", \
           "libusb-1.0-0-dev", \
           "portaudio19-dev", \
           "libasound2-dev", \
@@ -152,37 +124,47 @@ RUN printf '{ \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "apt-get update -qq \\\\\\n    && apt-get install -y -q --no-install-recommends \\\\\\n           build-essential \\\\\\n           curl \\\\\\n           gnupg \\\\\\n           less \\\\\\n           libasound2-dev \\\\\\n           libgtk-3-dev \\\\\\n           libusb-1.0-0-dev \\\\\\n           libwxgtk-media3.2-dev \\\\\\n           libwxgtk-webview3.2-dev \\\\\\n           libwxgtk3.2-dev \\\\\\n           ncdu \\\\\\n           pigz \\\\\\n           pkg-config \\\\\\n           portaudio19-dev \\\\\\n           procps \\\\\\n           python3 \\\\\\n           python3-pip \\\\\\n           strace \\\\\\n           time \\\\\\n           tree \\\\\\n           vim \\\\\\n           wget \\\\\\n    && rm -rf /var/lib/apt/lists/*" \
-      } \
-    }, \
-    { \
-      "name": "env", \
-      "kwds": { \
-        "CONDA_DIR": "/opt/miniconda-py311_24.5.0-0", \
-        "PATH": "/opt/miniconda-py311_24.5.0-0/bin:$PATH" \
+        "command": "apt-get update -qq \\\\\\n    && apt-get install -y -q --no-install-recommends \\\\\\n           build-essential \\\\\\n           curl \\\\\\n           git \\\\\\n           gnupg \\\\\\n           less \\\\\\n           libasound2-dev \\\\\\n           libcanberra-gtk3-module \\\\\\n           libgtk-3-dev \\\\\\n           libusb-1.0-0-dev \\\\\\n           libwxgtk-media3.2-dev \\\\\\n           libwxgtk-webview3.2-dev \\\\\\n           libwxgtk3.2-dev \\\\\\n           ncdu \\\\\\n           pigz \\\\\\n           pkg-config \\\\\\n           portaudio19-dev \\\\\\n           procps \\\\\\n           python3 \\\\\\n           python3-pip \\\\\\n           strace \\\\\\n           sudo \\\\\\n           time \\\\\\n           tree \\\\\\n           vim \\\\\\n           wget \\\\\\n    && rm -rf /var/lib/apt/lists/*" \
       } \
     }, \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "apt-get update -qq\\napt-get install -y -q --no-install-recommends \\\\\\n    bzip2 \\\\\\n    ca-certificates \\\\\\n    curl\\nrm -rf /var/lib/apt/lists/*\\n# Install dependencies.\\nexport PATH=\\"/opt/miniconda-py311_24.5.0-0/bin:$PATH\\"\\necho \\"Downloading Miniconda installer ...\\"\\nconda_installer=\\"/tmp/miniconda.sh\\"\\ncurl -fsSL -o \\"$conda_installer\\" https://repo.continuum.io/miniconda/Miniconda3-py311_24.5.0-0-Linux-x86_64.sh\\nbash \\"$conda_installer\\" -b -p /opt/miniconda-py311_24.5.0-0\\nrm -f \\"$conda_installer\\"\\n# Prefer packages in conda-forge\\nconda config --system --prepend channels conda-forge\\n# Packages in lower-priority channels not considered if a package with the same\\n# name exists in a higher priority channel. Can dramatically speed up installations.\\n# Conda recommends this as a default\\n# https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html\\nconda config --set channel_priority strict\\nconda config --system --set auto_update_conda false\\nconda config --system --set show_channel_urls true\\n# Enable `conda activate`\\nconda init bash\\nconda install -y  --name base \\\\\\n    \\"conda-forge::qrcode\\"\\nbash -c \\"source activate base\\n  python -m pip install --no-cache-dir  \\\\\\n      \\"psychopy\\" \\\\\\n      \\"psychtoolbox\\"\\"\\n# Clean up\\nsync && conda clean --all --yes && sync\\nrm -rf ~/.cache/pip/*" \
+        "command": "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout 21b1ac36ee648e00cc3b68fd402c1e826270dad6" \
       } \
     }, \
     { \
-      "name": "user", \
+      "name": "run", \
       "kwds": { \
-        "user": "reproin" \
+        "command": "/opt/psychopy-installer/psychopy_linux_installer.sh --install_dir=/opt/psychopy --psychopy_version=2024.1.4 --bids_version=2023.2.0 --python_version=3.10.14 --wxpython_version=4.2.1 -v -f" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "/opt/psychopy/psychopy_*/bin/pip install qrcode" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "bash -c '"'"'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'"'"'" \
+      } \
+    }, \
+    { \
+      "name": "run", \
+      "kwds": { \
+        "command": "bash -c '"'"'b=$\(ls /opt/psychopy/psychopy_*/bin/python3\); echo -e \\"#!/bin/sh\\\\n$b \\\\\\"\\\\$@\\\\\\"\\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'"'"'" \
       } \
     }, \
     { \
       "name": "entrypoint", \
       "kwds": { \
         "args": [ \
-          "/neurodocker/startup.sh" \
+          "python3" \
         ] \
       } \
     } \
   ] \
 }' > /.reproenv.json
-USER reproin
 # End saving to specification to JSON.
