@@ -119,7 +119,7 @@ void FfmpegThread ::run() {
 	// NOTE: in future improve async subprocess execution with reworked exec API.
 	try {
 		exec(getParams().cmd,
-			 true, 48,
+			 true, !getParams().fTopLogFfmpeg, 48,
 			 [this]() { return isTerminated(); }
 		);
 	} catch(std::exception& e) {
@@ -380,7 +380,8 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			tsStart,
 			pLogger,
 			fRepromonEnabled,
-			pRepromonQueue.get() // NOTE: unsafe ownership
+			pRepromonQueue.get(), // NOTE: unsafe ownership
+			false
 	});
 
 	m_ffmpegExec.schedule(pt);

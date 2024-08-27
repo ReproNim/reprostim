@@ -21,6 +21,7 @@ struct FfmpegParams {
 	const SessionLogger_ptr pLogger;
 	const bool              fRepromonEnabled;
 	RepromonQueue*          pRepromonQueue;
+	const bool              fTopLogFfmpeg;
 };
 
 using FfmpegThread = WorkerThread<FfmpegParams>;

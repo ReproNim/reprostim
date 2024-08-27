@@ -111,7 +111,7 @@ namespace reprostim {
 	std::string chiToString(const MWCAP_CHANNEL_INFO &info);
 
 	std::string exec(const std::string &cmd, bool showStdout = false,
-					 int maxResLen = -1,
+					 bool sessionLogOnly = false, int maxResLen = -1,
 					 std::function<bool()> isTerminated = [](){ return false; });
 
 	std::string expandMacros(const std::string &text, const SDict &dict);
