@@ -21,6 +21,7 @@ struct FfmpegParams {
 	const SessionLogger_ptr pLogger;
 	const bool              fRepromonEnabled;
 	RepromonQueue*          pRepromonQueue;
+	const bool              fTopLogFfmpeg;
 };
 
 using FfmpegThread = WorkerThread<FfmpegParams>;
@@ -28,6 +29,7 @@ using FfmpegThread = WorkerThread<FfmpegParams>;
 class VideoCaptureApp: public CaptureApp {
 private:
 	SingleThreadExecutor<FfmpegThread> m_ffmpegExec;
+	bool                               m_fTopLogFfmpeg;
 
 	void startRecording(int cx, int cy, const std::string& frameRate,
 							   const std::string& v_dev, const std::string& a_dev);

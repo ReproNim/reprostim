@@ -80,6 +80,7 @@ namespace reprostim {
 
 	std::string exec(const std::string &cmd,
 					 bool showStdout,
+					 bool sessionLogOnly,
 					 int maxResLen,
 					 std::function<bool()> isTerminated
 					 ) {
@@ -95,7 +96,11 @@ namespace reprostim {
 				result += buffer.data();
 			}
 			if (showStdout) {
-				_INFO_RAW(buffer.data());
+				if( sessionLogOnly ) {
+					_SESSION_LOG_INFO(buffer.data());
+				} else {
+					_INFO_RAW(buffer.data());
+				}
 				fflush(stdout); // force output
 			}
 		}
