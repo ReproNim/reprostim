@@ -212,6 +212,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \tDefaults to $REPROSTIM_HOME/config.yaml\n"
 								 "\t-f <path>\tPath to file for stdout/stderr logs (optional)\n"
 								 "\t         \tDefaults to console output\n"
+								 "\t-t       \tSend ffmpeg logs to the top-level main logger.Can be\n"
+								 "\t         \tuseful for debugging and  to have  all  logs in  the\n"
+								 "\t         \tsingle place\n"
 								 "\t-v, --verbose\n"
 								 "\t         \tVerbose, provides detailed information to stdout\n"
 								 "\t-V\n"
@@ -244,7 +247,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{nullptr, 0, nullptr, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "o:c:d:f:hvVl", longOpts, nullptr)) != -1) {
+	m_fTopLogFfmpeg = false;
+
+	while ((c = getopt_long(argc, argv, "o:c:d:f:hvVlt", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
 				if(optarg) opts.outPathTempl = optarg;
@@ -281,6 +286,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			case 'f':
 				registerFileLogger(_FILE_LOGGER_NAME, optarg);
 				setLogPattern(LogPattern::FULL);
+				break;
+			case 't':
+				m_fTopLogFfmpeg = true;
 				break;
 		}
 	}
@@ -381,7 +389,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			pLogger,
 			fRepromonEnabled,
 			pRepromonQueue.get(), // NOTE: unsafe ownership
-			false
+			m_fTopLogFfmpeg
 	});
 
 	m_ffmpegExec.schedule(pt);
