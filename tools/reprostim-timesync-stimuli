@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-import qrcode
-from psychopy import visual, core, event, clock
-import glob
-import numpy as np
 from time import time
+t0 = time()
+
+import glob
 import sys
 import os
 import json
 from datetime import datetime
+
+import qrcode
+from psychopy import visual, core, event, clock
+import numpy as np
 
 
 logfn = sys.argv[1]
@@ -15,10 +18,12 @@ logfn = sys.argv[1]
 if os.path.exists(logfn):
     raise RuntimeError(f"Log file {logfn} already exists")
 
+def get_iso_time(t):
+    return datetime.fromtimestamp(t).astimezone().isoformat()
 
 def get_times():
     t = time()
-    return t, datetime.fromtimestamp(t).astimezone().isoformat()
+    return t, get_iso_time(t)
 
 
 def mkrec(**kwargs):
@@ -37,12 +42,11 @@ f = open(logfn, "w")
 def log(rec):
     f.write(json.dumps(rec).rstrip() + os.linesep)
 
-log(mkrec(event="started"))
-
 win = visual.Window(fullscr=True, screen=int(sys.argv[2]))
 win.mouseVisible = False # hides the mouse pointer 
 
-log(mkrec(event="started"))
+log(mkrec(event="started", start_time=t0, start_time_formatted=get_iso_time(t0)))
+
 message = visual.TextStim(win, text="""Waiting for scanner trigger.\nInstructions
         for Participant...""")
 message.draw()
