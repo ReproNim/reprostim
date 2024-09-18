@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from time import time
+from time import time, sleep
 t0 = time()
 
 import glob
@@ -11,6 +11,10 @@ from datetime import datetime
 import qrcode
 from psychopy import visual, core, event, clock
 import numpy as np
+
+# 'interval'
+mode = 'interval'; # 'event'
+interval = 2
 
 
 logfn = sys.argv[1]
@@ -32,7 +36,10 @@ def mkrec(**kwargs):
         "logfn": logfn,
         "time": t,
         "time_formatted": tstr,
+        "mode": mode,
     })
+    if mode == 'interval':
+        kwargs['interval'] = interval
     return kwargs
 
 # print(json.dumps(mkrec(blah=123), indent=4))
@@ -68,8 +75,11 @@ iwt = 5 # Initial Wait Time between scanner trigger and first stimulus
 
 stim_images = []
 stim_names = []
+keys = []  # None received/expected
 
 clk = clock.Clock()
+t_start = time()
+
 for acqNum in range(ntrials):
 
     rec = mkrec(
@@ -77,8 +87,21 @@ for acqNum in range(ntrials):
         acqNum=acqNum
     )
 
-    print("Waiting for an event")
-    keys = event.waitKeys(maxWait=120) # keyList=['5'])
+    if mode == 'event':
+        print("Waiting for an event")
+        keys = event.waitKeys(maxWait=120) # keyList=['5'])
+    elif mode == 'interval': 
+        target_time = t_start + acqNum * interval
+        to_wait = target_time - time()
+        # sleep some part of it if long enough
+        if to_wait >= .2:
+            sleep(to_wait * 0.7)
+        # busy loop without sleep to not miss it
+        while time() < target_time:
+            pass
+    else:
+        raise ValueError(mode)
+
     rec['keys'] = keys
     tkeys, tkeys_str = get_times()
     rec["keys_time"] = tkeys
