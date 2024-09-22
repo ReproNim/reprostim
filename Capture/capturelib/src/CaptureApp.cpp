@@ -218,6 +218,9 @@ namespace reprostim {
 		return this->onLoadConfig(cfg, pathConfig, doc);
 	}
 
+	void CaptureApp::onCaptureIdle() {
+	}
+
 	void CaptureApp::onCaptureStart() {
 		_INFO("TODO: onCaptureStart");
 	}
@@ -462,7 +465,8 @@ namespace reprostim {
 				else {
 					if( !vssEquals(vssCur, vssPrev) ) {
 						onCaptureStop(":\tStopped recording because something changed.");
-					}
+					} else
+						onCaptureIdle(); // hook to check capture cycle
 				}
 			}
 			else {

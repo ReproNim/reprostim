@@ -41,6 +41,7 @@ public:
 	~VideoCaptureApp();
 
 	//
+	void onCaptureIdle() override;
 	void onCaptureStart() override;
 	void onCaptureStop(const std::string& message) override;
 	int  parseOpts(AppOpts& opts, int argc, char* argv[]) override;

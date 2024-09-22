@@ -113,6 +113,7 @@ namespace reprostim {
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		void listDevices(const std::string& devices);
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
+		virtual void onCaptureIdle();
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);
 		virtual bool onLoadConfig(AppConfig& cfg, const std::string& pathConfig, YAML::Node doc);

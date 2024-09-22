@@ -165,6 +165,20 @@ VideoCaptureApp::~VideoCaptureApp() {
 	m_ffmpegExec.shutdown();
 }
 
+void VideoCaptureApp::onCaptureIdle() {
+	if ( recording==1 ) {
+		FfmpegThread *pt = m_ffmpegExec.getCurrentThread();
+		if ( pt!=nullptr && !pt->isRunning() ) {
+			if (!isSysBreakExec() ) {
+				_INFO("Restart Recording: Ffmpeg thread terminated, while capture is still in progress");
+				onCaptureStart();
+			} else {
+				_INFO("Skip Restart Recording");
+			}
+		}
+	}
+}
+
 void VideoCaptureApp::onCaptureStart() {
 	startRecording(vssCur.cx,
 				  vssCur.cy,
