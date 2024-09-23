@@ -58,6 +58,24 @@
 using namespace reprostim;
 
 ////////////////////////////////////////////////////////////////////////////
+// Static variables
+
+// store last activity of ffmpeg recording thread in currentTimeMs time
+std::atomic<long long> s_ffmpegKeepAliveTs{0};
+
+////////////////////////////////////////////////////////////////////////////
+// Macros / constants
+
+#ifndef _FFMPEG_KEEP_ALIVE
+#define _FFMPEG_KEEP_ALIVE() s_ffmpegKeepAliveTs.store(reprostim::currentTimeMs())
+#endif
+
+// 1 minute time-out for ffmpeg thread to auto-recover
+#ifndef _FFMPEG_RECOVERY_TIMEOUT_MS
+#define _FFMPEG_RECOVERY_TIMEOUT_MS 60000
+#endif
+
+////////////////////////////////////////////////////////////////////////////
 //
 
 inline std::string buildVideoFile(
@@ -106,6 +124,7 @@ std::string renameVideoFile(
 template<>
 void FfmpegThread ::run() {
 	_SESSION_LOG_BEGIN(getParams().pLogger);
+	_FFMPEG_KEEP_ALIVE();
 
 	bool fRepromonEnabled = getParams().fRepromonEnabled;
 	RepromonQueue* pRepromonQueue = getParams().pRepromonQueue;
@@ -120,13 +139,18 @@ void FfmpegThread ::run() {
 	try {
 		exec(getParams().cmd,
 			 true, !getParams().fTopLogFfmpeg, 48,
-			 [this]() { return isTerminated(); }
+			 [this]() {
+				 _FFMPEG_KEEP_ALIVE();
+				 return isTerminated();
+			}
 		);
 	} catch(std::exception& e) {
 		_ERROR("FfmpegThread unhandled exception: " << e.what());
+		_FFMPEG_KEEP_ALIVE();
 	}
 	_VERBOSE("FfmpegThread terminating [" << tid << "]: " << getParams().cmd);
 
+	_FFMPEG_KEEP_ALIVE();
 	std::string outVideoFile2 = renameVideoFile(getParams().outVideoFile,
 					getParams().outPath,
 					getParams().start_ts,
@@ -146,11 +170,13 @@ void FfmpegThread ::run() {
 	};
 	_METADATA_LOG(jm);
 	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
+	_FFMPEG_KEEP_ALIVE();
 	_NOTIFY_REPROMON(
 		REPROMON_INFO,
 		getParams().appName + " session " + getParams().start_ts +
 		" end, saved to " + std::filesystem::path(outVideoFile2).filename().string()
 	);
+	_FFMPEG_KEEP_ALIVE();
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -170,10 +196,15 @@ void VideoCaptureApp::onCaptureIdle() {
 		FfmpegThread *pt = m_ffmpegExec.getCurrentThread();
 		if ( pt!=nullptr && !pt->isRunning() ) {
 			if (!isSysBreakExec() ) {
-				_INFO("Restart Recording: Ffmpeg thread terminated, while capture is still in progress");
-				onCaptureStart();
+				long long ts = s_ffmpegKeepAliveTs.load() + _FFMPEG_RECOVERY_TIMEOUT_MS;
+				if ( reprostim::currentTimeMs() > ts ) {
+					_INFO("Restart Recording: Ffmpeg thread terminated, restarting capture");
+					onCaptureStart();
+				} else {
+					_INFO("Skip Restart Recording, waiting for recovery timeout");
+				}
 			} else {
-				_INFO("Skip Restart Recording");
+				_INFO("Skip Restart Recording, system break/shutdown activity detected");
 			}
 		}
 	}
