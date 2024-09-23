@@ -199,7 +199,7 @@ void VideoCaptureApp::onCaptureIdle() {
 				long long ts = s_ffmpegKeepAliveTs.load() + _FFMPEG_RECOVERY_TIMEOUT_MS;
 				if ( reprostim::currentTimeMs() > ts ) {
 					_INFO("Restart Recording: Ffmpeg thread terminated, restarting capture");
-					onCaptureStart();
+					onCaptureStartInternal(true);
 				} else {
 					_INFO("Skip Restart Recording, waiting for recovery timeout");
 				}
@@ -210,17 +210,22 @@ void VideoCaptureApp::onCaptureIdle() {
 	}
 }
 
-void VideoCaptureApp::onCaptureStart() {
+void VideoCaptureApp::onCaptureStartInternal(bool fRecovery) {
 	startRecording(vssCur.cx,
-				  vssCur.cy,
-				  frameRate,
-				  targetVideoDevPath,
-				  targetAudioInDevPath);
+				   vssCur.cy,
+				   frameRate,
+				   targetVideoDevPath,
+				   targetAudioInDevPath,
+				   fRecovery);
 	recording = 1;
 	_INFO(start_ts << ":\tStarted Recording: ");
 	_INFO("Apct Rat: " << vssCur.cx << "x" << vssCur.cy);
 	_INFO("FR: " << frameRate);
 	SLEEP_SEC(5);
+}
+
+void VideoCaptureApp::onCaptureStart() {
+	onCaptureStartInternal(false);
 }
 
 void VideoCaptureApp::onCaptureStop(const std::string& message) {
@@ -358,7 +363,7 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 }
 
 void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRate,
-		const std::string& v_dev, const std::string& a_dev) {
+		const std::string& v_dev, const std::string& a_dev, bool fRecovery) {
 	tsStart = CURRENT_TIMESTAMP();
 	start_ts = getTimeStr(tsStart);
 	outPath = createOutPath();
@@ -406,7 +411,8 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			{"cap_isotime_start", getTimeIsoStr(tsStart)},
 			{"cx", cx},
 			{"cy", cy},
-			{"frameRate", frameRate}
+			{"frameRate", frameRate},
+			{"autoRecovery", fRecovery}
 	};
 	_METADATA_LOG(jm);
 	_NOTIFY_REPROMON(

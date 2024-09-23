@@ -31,8 +31,11 @@ private:
 	SingleThreadExecutor<FfmpegThread> m_ffmpegExec;
 	bool                               m_fTopLogFfmpeg;
 
+	void onCaptureStartInternal(bool fRecovery	= false);
+
 	void startRecording(int cx, int cy, const std::string& frameRate,
-							   const std::string& v_dev, const std::string& a_dev);
+							   const std::string& v_dev, const std::string& a_dev,
+							   bool fRecovery);
 	void stopRecording(const std::string& start_ts,
 					   const std::string& vpath,
 					   const std::string& message);
