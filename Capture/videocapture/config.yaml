@@ -31,6 +31,15 @@ session_logger_level: "DEBUG"
 session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
 
 #
+# Specify con/duct options to execute ffmpeg command
+#
+conduct_opts:
+    # to enable con/duct set "enabled" to "true"
+    enabled: false
+    # cmd template
+    cmd: "TODO"
+
+#
 # Specify ReproNim/repromon options
 #
 repromon_opts:

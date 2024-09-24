@@ -20,6 +20,12 @@ namespace reprostim {
 	}
 	#endif // _NOTIFY_REPROMON
 
+	// optional con/duct options
+	struct ConductOpts {
+		bool enabled = false;
+		std::string cmd;
+	};
+
 	struct FfmpegOpts {
 		std::string a_fmt;
 		std::string a_nchan;
@@ -49,6 +55,7 @@ namespace reprostim {
 		LogLevel     session_logger_level = LogLevel::OFF;
 		std::string  session_logger_pattern;
 		std::string  video_device_path_pattern;
+		ConductOpts  conduct_opts;
 		RepromonOpts repromon_opts;
 		FfmpegOpts   ffm_opts;
 	};

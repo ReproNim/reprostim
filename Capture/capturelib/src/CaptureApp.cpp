@@ -190,6 +190,14 @@ namespace reprostim {
 			opts.out_fmt = node["out_fmt"].as<std::string>();
 		}
 
+		// load conduct_opts
+		if( doc["conduct_opts"] ) {
+			YAML::Node node = doc["conduct_opts"];
+			ConductOpts& opts = cfg.conduct_opts;
+			opts.enabled = node["enabled"].as<bool>();
+			opts.cmd = node["cmd"].as<std::string>();
+		}
+
 		// load repromon_opts
 		if( doc["repromon_opts"] ) {
 			YAML::Node node = doc["repromon_opts"];
