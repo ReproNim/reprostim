@@ -37,7 +37,8 @@ conduct_opts:
     # to enable con/duct set "enabled" to "true"
     enabled: false
     # cmd template
-    cmd: "TODO"
+    #cmd: "echo '${ffmpeg_cmd}'"
+    cmd: "duct --sample-interval 10 --report-interval 60 ${ffmpeg_cmd}"
 
 #
 # Specify ReproNim/repromon options

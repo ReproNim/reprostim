@@ -132,6 +132,7 @@ void FfmpegThread ::run() {
 	std::thread::id tid= std::this_thread::get_id();
 	_VERBOSE("FfmpegThread start [" << tid << "]: " << getParams().cmd);
 
+	_INFO("ffmpeg_cmd: " << getParams().ffmpeg_cmd);
 	_INFO(getParams().start_ts << ": <SYSTEMCALL> " << getParams().cmd);
 	//system(cmd);
 
@@ -428,9 +429,20 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			{"frameRate", frameRate}
 		}
 	);
+
+	std::string cmd = ffmpg;
+	const ConductOpts& conduct_opts = cfg.conduct_opts;
+	if (conduct_opts.enabled) {
+		_VERBOSE("Expand con/duct macros...");
+		cmd = expandMacros(conduct_opts.cmd, {
+				{"ffmpeg_cmd", ffmpg}
+		});
+		_INFO("Con/duct command: " << cmd);
+	}
 	_VERBOSE("Created session logger: session_logger_" << start_ts);
 	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
 			appName,
+			cmd,
 			ffmpg,
 			opts.out_fmt,
 			outPath,

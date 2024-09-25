@@ -13,6 +13,7 @@ using namespace reprostim;
 struct FfmpegParams {
 	const std::string       appName;
 	const std::string       cmd;
+	const std::string       ffmpeg_cmd;
 	const std::string       outExt;
 	const std::string       outPath;
 	const std::string       outVideoFile;
