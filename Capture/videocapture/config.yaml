@@ -35,10 +35,12 @@ session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
 #
 conduct_opts:
     # to enable con/duct set "enabled" to "true"
-    enabled: false
+    enabled: true
     # cmd template
     #cmd: "echo '${ffmpeg_cmd}'"
-    cmd: "duct --sample-interval 10 --report-interval 60 ${ffmpeg_cmd}"
+    cmd: "${duct_bin} -l NONE -p ${prefix} -c none --sample-interval 10 --report-interval 60 ${ffmpeg_cmd}"
+    # specify con/duct tool path/etc
+    duct_bin: "duct"
 
 #
 # Specify ReproNim/repromon options

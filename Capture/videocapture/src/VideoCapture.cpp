@@ -434,7 +434,11 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	const ConductOpts& conduct_opts = cfg.conduct_opts;
 	if (conduct_opts.enabled) {
 		_VERBOSE("Expand con/duct macros...");
+		std::string prefix = outVideoFile + ".duct_";
 		cmd = expandMacros(conduct_opts.cmd, {
+				{"duct_bin", conduct_opts.duct_bin},
+				{"start_ts", start_ts},
+				{"prefix", prefix},
 				{"ffmpeg_cmd", ffmpg}
 		});
 		_INFO("Con/duct command: " << cmd);

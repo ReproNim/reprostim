@@ -22,8 +22,9 @@ namespace reprostim {
 
 	// optional con/duct options
 	struct ConductOpts {
-		bool enabled = false;
-		std::string cmd;
+		bool         enabled = false;
+		std::string  cmd;
+		std::string  duct_bin;
 	};
 
 	struct FfmpegOpts {
@@ -130,6 +131,9 @@ namespace reprostim {
 		void printVersion(bool fExpanded = false);
 		int  run(int argc, char* argv[]);
 	};
+
+	// methods
+	int checkConduct(const ConductOpts& opts);
 
 	// inline methods
 
