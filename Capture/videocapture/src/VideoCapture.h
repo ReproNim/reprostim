@@ -23,6 +23,7 @@ struct FfmpegParams {
 	const bool              fRepromonEnabled;
 	RepromonQueue*          pRepromonQueue;
 	const bool              fTopLogFfmpeg;
+	const std::string       duct_prefix;
 };
 
 using FfmpegThread = WorkerThread<FfmpegParams>;

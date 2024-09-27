@@ -104,6 +104,22 @@ bool killProc(const std::string& procName,
 	return pid.length()==0?true:false;
 }
 
+void renameConductFiles(const std::string &old_prefix, const std::string &new_prefix) {
+	std::string o1 = old_prefix + "info.json";
+	std::string n1 = new_prefix + "info.json";
+	std::string o2 = old_prefix + "usage.json";
+	std::string n2 = new_prefix + "usage.json";
+
+	if( std::filesystem::exists(o1) ) {
+		_INFO("Renaming con/duct info : " << o1 << " -> " << n1);
+		rename(o1.c_str(), n1.c_str());
+	}
+	if( std::filesystem::exists(o2) ) {
+		_INFO("Renaming con/duct usage: " << o2 << " -> " << n2);
+		rename(o2.c_str(), n2.c_str());
+	}
+}
+
 std::string renameVideoFile(
 		const std::string& outVideoFile,
 		const std::string& outPath,
@@ -177,6 +193,7 @@ void FfmpegThread ::run() {
 		getParams().appName + " session " + getParams().start_ts +
 		" end, saved to " + std::filesystem::path(outVideoFile2).filename().string()
 	);
+	renameConductFiles(getParams().duct_prefix, outVideoFile2+".duct_");
 	_FFMPEG_KEEP_ALIVE();
 }
 
@@ -432,13 +449,13 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 
 	std::string cmd = ffmpg;
 	const ConductOpts& conduct_opts = cfg.conduct_opts;
+	std::string duct_prefix = outVideoFile + ".duct_";
 	if (conduct_opts.enabled) {
 		_VERBOSE("Expand con/duct macros...");
-		std::string prefix = outVideoFile + ".duct_";
 		cmd = expandMacros(conduct_opts.cmd, {
 				{"duct_bin", conduct_opts.duct_bin},
 				{"start_ts", start_ts},
-				{"prefix", prefix},
+				{"prefix", duct_prefix},
 				{"ffmpeg_cmd", ffmpg}
 		});
 		_INFO("Con/duct command: " << cmd);
@@ -456,7 +473,8 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			pLogger,
 			fRepromonEnabled,
 			pRepromonQueue.get(), // NOTE: unsafe ownership
-			m_fTopLogFfmpeg
+			m_fTopLogFfmpeg,
+			duct_prefix
 	});
 
 	m_ffmpegExec.schedule(pt);
