@@ -11,6 +11,11 @@ On Debian:
 
     apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
 
+Optionally, in case con/duct tool is used:
+
+    apt-get install -y python3-pip
+    pip install con-duct
+
 Project requirements:
    - OS Linux
    - g++ (C++20)
@@ -29,6 +34,8 @@ Project requirements:
      - catch2
      - v4l-utils
      - ffmpeg
+     - pip+con/duct (optional)
+
  
 
 
