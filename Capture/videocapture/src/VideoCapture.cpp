@@ -179,6 +179,7 @@ void FfmpegThread ::run() {
 	Timestamp ts = CURRENT_TIMESTAMP();
 	json jm = {
 			{"type", "session_end"},
+			{"version", CAPTURE_VERSION_STRING},
 			{"json_ts", getTimeStr(ts)},
 			{"json_isotime", getTimeIsoStr(ts)},
 			{"message", "ffmpeg thread terminated"},
@@ -255,6 +256,7 @@ void VideoCaptureApp::onCaptureStop(const std::string& message) {
 		Timestamp ts = CURRENT_TIMESTAMP();
 		json jm = {
 				{"type", "capture_stop"},
+				{"version", CAPTURE_VERSION_STRING},
 				{"json_ts", getTimeStr(ts)},
 				{"json_isotime", getTimeIsoStr(ts)},
 				{"message", message},
@@ -418,6 +420,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	Timestamp ts = CURRENT_TIMESTAMP();
 	json jm = {
 			{"type", "session_begin"},
+			{"version", CAPTURE_VERSION_STRING},
 			{"json_ts", getTimeStr(ts)},
 			{"json_isotime", getTimeIsoStr(ts)},
 			{"version", CAPTURE_VERSION_STRING},
