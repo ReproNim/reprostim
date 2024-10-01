@@ -7,16 +7,19 @@ USB Capture devices and save it to a file. It is a part of the ReproStim project
 
 ## Dependencies
 
-On Debian:
+### On Debian:
 
     apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
 
-Optionally, in case con/duct tool is used:
+Optionally, in case `con/duct` tool is used and `conduct_opts.enabled` is set to true in reprostim-videocapture `config.yaml`:
 
     apt-get install -y python3-pip
+    python3 -m venv venv
+    source venv/bin/activate
     pip install con-duct
+    duct --version
 
-Project requirements:
+### Project requirements:
    - OS Linux
    - g++ (C++20)
    - CMake 3.10+
