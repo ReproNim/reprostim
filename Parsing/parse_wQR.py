@@ -5,6 +5,7 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
 from re import match
 from typing import Optional
 
@@ -21,6 +22,15 @@ import click
 logger = logging.getLogger(__name__)
 logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
+
+# Define class video info details
+class InfoSummary(BaseModel):
+    path: Optional[str] = Field(None, description="Video file path")
+    rate_mbpm: Optional[float] = Field(0.0, description="Video file 'byterate' "
+                                                            "in MB per minute.")
+    duration_sec: Optional[float] = Field(0.0, description="Duration of the video "
+                                                            "in seconds")
+    size_mb: Optional[float] = Field(0.0, description="Video file size in MB.")
 
 
 # Define class for video time info
@@ -175,12 +185,44 @@ def finalize_record(ps: ParseSummary,
     return record
 
 
+def do_info_file(path: str):
+    logger.info(f"do_info_file({path})")
+    vti: VideoTimeInfo = get_video_time_info(path)
+    if not vti.success:
+        logger.error(f"Failed parse file name time pattern, error: {vti.error}")
+        return
+    o: InfoSummary = InfoSummary()
+    o.path = path
+    o.duration_sec = round(vti.duration_sec, 1)
+    size: float = os.path.getsize(path)
+    o.size_mb = round(size/(1000*1000), 1)
+    if o.duration_sec>0.0001:
+        o.rate_mbpm = round(size*60/(o.duration_sec*1000*1000), 1)
+    return o
+
+
+def do_info(path: str):
+    p = Path(path)
+    if p.is_file():
+        yield do_info_file(path)
+    elif p.is_dir():
+        logger.info(f"Processing video directory: {path}")
+        for root, _, files in os.walk(path):
+            for file in files:
+                if file.endswith('.mkv'):
+                    yield do_info_file(os.path.join(root, file))
+            # Uncomment to visit only top-level dir
+            # break
+    else:
+        logger.error(f"Path not found: {path}")
+
+
 def do_parse(path_video: str):
     ps: ParseSummary = ParseSummary()
 
     vti: VideoTimeInfo = get_video_time_info(path_video)
     if not vti.success:
-        logger.error(f"Failed parse file name time patter, error: {vti.error}")
+        logger.error(f"Failed parse file name time pattern, error: {vti.error}")
         return
 
     logger.info(f"Video start time : {vti.start_time}")
@@ -292,13 +334,21 @@ def do_parse(path_video: str):
 @click.command(help='Utility to parse video and locate integrated '
                     'QR time codes.')
 @click.argument('path', type=click.Path(exists=True))
+@click.option('--mode', default='PARSE',
+              type=click.Choice(['PARSE', 'INFO']),
+              help='Specify execution mode. Default is "PARSE", '
+                   'normal execution. '
+                   'Use "INFO" to dump video file info like duration, '
+                   'bitrate, file size etc, (in this case '
+                   '"path" argument specifies video file or directory '
+                   'containing video files).')
 @click.option('--log-level', default='INFO',
               type=click.Choice(['DEBUG', 'INFO',
                                  'WARNING', 'ERROR',
                                  'CRITICAL']),
               help='Set the logging level')
 @click.pass_context
-def main(ctx, path: str, log_level):
+def main(ctx, path: str, mode: str, log_level):
     logger.setLevel(log_level)
     logger.debug("parse_wQR.py tool")
     logger.debug(f"Working dir      : {os.getcwd()}")
@@ -308,8 +358,14 @@ def main(ctx, path: str, log_level):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    for item in do_parse(path):
-        print(item.json())
+    if mode=="PARSE":
+        for item in do_parse(path):
+            print(item.model_dump_json())
+    elif mode=="INFO":
+        for item in do_info(path):
+            print(item.model_dump_json())
+    else:
+        logger.error(f"Unknown mode: {mode}")
     return 0
 
 
