@@ -102,7 +102,7 @@ ffm_opts:
   #
   #v_dev: "/dev/video4"
   v_dev: "auto"
-  v_enc: "-c:v libx264 -flush_packets 1 -preset ultrafast -crf 18 -tune zerolatency -b:v 2M -maxrate 2M -bufsize 4M -vf setpts=PTS-STARTPTS"
+  v_enc: "-c:v libx264 -flush_packets 1 -preset ultrafast -crf 18 -tune zerolatency -b:v 8M -maxrate 8M -bufsize 16M -vf setpts=PTS-STARTPTS"
   pix_fmt: ""
   #pix_fmt: "-pix_fmt yuv420p"
   n_threads: "-threads 4"
