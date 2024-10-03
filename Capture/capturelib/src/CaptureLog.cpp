@@ -87,7 +87,7 @@ namespace reprostim {
 	{
 		// Create a logger with two sinks: stdout and file
 		auto console_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
-		auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filePath, true);
+		auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filePath, false);
 
 		// Create a logger with the two sinks
 		auto logger = std::make_shared<spdlog::logger>(name,
@@ -116,8 +116,8 @@ namespace reprostim {
 		spdlog::register_logger(logger);
 
 		// Redirect stdout to the file
-		freopen(filePath.c_str(), "w", stdout);
-		freopen(filePath.c_str(), "w", stderr);
+		freopen(filePath.c_str(), "a", stdout);
+		freopen(filePath.c_str(), "a", stderr);
 		//logger->sinks().push_back(console_sink);
 		g_pGlobalLogger = logger;
 	}

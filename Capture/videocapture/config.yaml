@@ -31,6 +31,18 @@ session_logger_level: "DEBUG"
 session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
 
 #
+# Specify con/duct options to execute ffmpeg command
+#
+conduct_opts:
+    # to enable con/duct set "enabled" to "true"
+    enabled: true
+    # cmd template
+    #cmd: "echo '${ffmpeg_cmd}'"
+    cmd: "${duct_bin} -l NONE -p ${prefix} -c none --sample-interval 10 --report-interval 60 ${ffmpeg_cmd}"
+    # specify con/duct tool path/etc
+    duct_bin: "duct"
+
+#
 # Specify ReproNim/repromon options
 #
 repromon_opts:
@@ -90,10 +102,9 @@ ffm_opts:
   #
   #v_dev: "/dev/video4"
   v_dev: "auto"
-  v_enc: "-c:v libx264 -flush_packets 1"
-  #v_enc: "-c:v libx264 -preset veryslow -crf 0"
+  v_enc: "-c:v libx264 -flush_packets 1 -preset ultrafast -crf 18 -tune zerolatency -b:v 8M -maxrate 8M -bufsize 16M -vf setpts=PTS-STARTPTS"
   pix_fmt: ""
   #pix_fmt: "-pix_fmt yuv420p"
-  n_threads: ""
-  a_enc: "-acodec aac"
+  n_threads: "-threads 4"
+  a_enc: "-acodec aac -af asetpts=PTS-STARTPTS"
   out_fmt: "mkv"

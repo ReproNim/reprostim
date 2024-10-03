@@ -20,6 +20,13 @@ namespace reprostim {
 	}
 	#endif // _NOTIFY_REPROMON
 
+	// optional con/duct options
+	struct ConductOpts {
+		bool         enabled = false;
+		std::string  cmd;
+		std::string  duct_bin;
+	};
+
 	struct FfmpegOpts {
 		std::string a_fmt;
 		std::string a_nchan;
@@ -49,6 +56,7 @@ namespace reprostim {
 		LogLevel     session_logger_level = LogLevel::OFF;
 		std::string  session_logger_pattern;
 		std::string  video_device_path_pattern;
+		ConductOpts  conduct_opts;
 		RepromonOpts repromon_opts;
 		FfmpegOpts   ffm_opts;
 	};
@@ -113,6 +121,7 @@ namespace reprostim {
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		void listDevices(const std::string& devices);
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
+		virtual void onCaptureIdle();
 		virtual void onCaptureStart();
 		virtual void onCaptureStop(const std::string& message);
 		virtual bool onLoadConfig(AppConfig& cfg, const std::string& pathConfig, YAML::Node doc);
@@ -122,6 +131,9 @@ namespace reprostim {
 		void printVersion(bool fExpanded = false);
 		int  run(int argc, char* argv[]);
 	};
+
+	// methods
+	int checkConduct(const ConductOpts& opts);
 
 	// inline methods
 

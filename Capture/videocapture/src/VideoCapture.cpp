@@ -58,6 +58,24 @@
 using namespace reprostim;
 
 ////////////////////////////////////////////////////////////////////////////
+// Static variables
+
+// store last activity of ffmpeg recording thread in currentTimeMs time
+std::atomic<long long> s_ffmpegKeepAliveTs{0};
+
+////////////////////////////////////////////////////////////////////////////
+// Macros / constants
+
+#ifndef _FFMPEG_KEEP_ALIVE
+#define _FFMPEG_KEEP_ALIVE() s_ffmpegKeepAliveTs.store(reprostim::currentTimeMs())
+#endif
+
+// 1 minute time-out for ffmpeg thread to auto-recover
+#ifndef _FFMPEG_RECOVERY_TIMEOUT_MS
+#define _FFMPEG_RECOVERY_TIMEOUT_MS 60000
+#endif
+
+////////////////////////////////////////////////////////////////////////////
 //
 
 inline std::string buildVideoFile(
@@ -86,6 +104,22 @@ bool killProc(const std::string& procName,
 	return pid.length()==0?true:false;
 }
 
+void renameConductFiles(const std::string &old_prefix, const std::string &new_prefix) {
+	std::string o1 = old_prefix + "info.json";
+	std::string n1 = new_prefix + "info.json";
+	std::string o2 = old_prefix + "usage.json";
+	std::string n2 = new_prefix + "usage.json";
+
+	if( std::filesystem::exists(o1) ) {
+		_INFO("Renaming con/duct info : " << o1 << " -> " << n1);
+		rename(o1.c_str(), n1.c_str());
+	}
+	if( std::filesystem::exists(o2) ) {
+		_INFO("Renaming con/duct usage: " << o2 << " -> " << n2);
+		rename(o2.c_str(), n2.c_str());
+	}
+}
+
 std::string renameVideoFile(
 		const std::string& outVideoFile,
 		const std::string& outPath,
@@ -106,6 +140,7 @@ std::string renameVideoFile(
 template<>
 void FfmpegThread ::run() {
 	_SESSION_LOG_BEGIN(getParams().pLogger);
+	_FFMPEG_KEEP_ALIVE();
 
 	bool fRepromonEnabled = getParams().fRepromonEnabled;
 	RepromonQueue* pRepromonQueue = getParams().pRepromonQueue;
@@ -113,6 +148,7 @@ void FfmpegThread ::run() {
 	std::thread::id tid= std::this_thread::get_id();
 	_VERBOSE("FfmpegThread start [" << tid << "]: " << getParams().cmd);
 
+	_INFO("ffmpeg_cmd: " << getParams().ffmpeg_cmd);
 	_INFO(getParams().start_ts << ": <SYSTEMCALL> " << getParams().cmd);
 	//system(cmd);
 
@@ -120,13 +156,18 @@ void FfmpegThread ::run() {
 	try {
 		exec(getParams().cmd,
 			 true, !getParams().fTopLogFfmpeg, 48,
-			 [this]() { return isTerminated(); }
+			 [this]() {
+				 _FFMPEG_KEEP_ALIVE();
+				 return isTerminated();
+			}
 		);
 	} catch(std::exception& e) {
 		_ERROR("FfmpegThread unhandled exception: " << e.what());
+		_FFMPEG_KEEP_ALIVE();
 	}
 	_VERBOSE("FfmpegThread terminating [" << tid << "]: " << getParams().cmd);
 
+	_FFMPEG_KEEP_ALIVE();
 	std::string outVideoFile2 = renameVideoFile(getParams().outVideoFile,
 					getParams().outPath,
 					getParams().start_ts,
@@ -138,6 +179,7 @@ void FfmpegThread ::run() {
 	Timestamp ts = CURRENT_TIMESTAMP();
 	json jm = {
 			{"type", "session_end"},
+			{"version", CAPTURE_VERSION_STRING},
 			{"json_ts", getTimeStr(ts)},
 			{"json_isotime", getTimeIsoStr(ts)},
 			{"message", "ffmpeg thread terminated"},
@@ -146,11 +188,14 @@ void FfmpegThread ::run() {
 	};
 	_METADATA_LOG(jm);
 	_SESSION_LOG_END_CLOSE_RENAME(outVideoFile2 + ".log");
+	_FFMPEG_KEEP_ALIVE();
 	_NOTIFY_REPROMON(
 		REPROMON_INFO,
 		getParams().appName + " session " + getParams().start_ts +
 		" end, saved to " + std::filesystem::path(outVideoFile2).filename().string()
 	);
+	renameConductFiles(getParams().duct_prefix, outVideoFile2+".duct_");
+	_FFMPEG_KEEP_ALIVE();
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -165,17 +210,41 @@ VideoCaptureApp::~VideoCaptureApp() {
 	m_ffmpegExec.shutdown();
 }
 
-void VideoCaptureApp::onCaptureStart() {
+void VideoCaptureApp::onCaptureIdle() {
+	if ( recording==1 ) {
+		FfmpegThread *pt = m_ffmpegExec.getCurrentThread();
+		if ( pt!=nullptr && !pt->isRunning() ) {
+			if (!isSysBreakExec() ) {
+				long long ts = s_ffmpegKeepAliveTs.load() + _FFMPEG_RECOVERY_TIMEOUT_MS;
+				if ( reprostim::currentTimeMs() > ts ) {
+					_INFO("Restart Recording: Ffmpeg thread terminated, restarting capture");
+					onCaptureStartInternal(true);
+				} else {
+					_INFO("Skip Restart Recording, waiting for recovery timeout");
+				}
+			} else {
+				_INFO("Skip Restart Recording, system break/shutdown activity detected");
+			}
+		}
+	}
+}
+
+void VideoCaptureApp::onCaptureStartInternal(bool fRecovery) {
 	startRecording(vssCur.cx,
-				  vssCur.cy,
-				  frameRate,
-				  targetVideoDevPath,
-				  targetAudioInDevPath);
+				   vssCur.cy,
+				   frameRate,
+				   targetVideoDevPath,
+				   targetAudioInDevPath,
+				   fRecovery);
 	recording = 1;
 	_INFO(start_ts << ":\tStarted Recording: ");
 	_INFO("Apct Rat: " << vssCur.cx << "x" << vssCur.cy);
 	_INFO("FR: " << frameRate);
 	SLEEP_SEC(5);
+}
+
+void VideoCaptureApp::onCaptureStart() {
+	onCaptureStartInternal(false);
 }
 
 void VideoCaptureApp::onCaptureStop(const std::string& message) {
@@ -187,6 +256,7 @@ void VideoCaptureApp::onCaptureStop(const std::string& message) {
 		Timestamp ts = CURRENT_TIMESTAMP();
 		json jm = {
 				{"type", "capture_stop"},
+				{"version", CAPTURE_VERSION_STRING},
 				{"json_ts", getTimeStr(ts)},
 				{"json_isotime", getTimeIsoStr(ts)},
 				{"message", message},
@@ -313,7 +383,7 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 }
 
 void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRate,
-		const std::string& v_dev, const std::string& a_dev) {
+		const std::string& v_dev, const std::string& a_dev, bool fRecovery) {
 	tsStart = CURRENT_TIMESTAMP();
 	start_ts = getTimeStr(tsStart);
 	outPath = createOutPath();
@@ -350,6 +420,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	Timestamp ts = CURRENT_TIMESTAMP();
 	json jm = {
 			{"type", "session_begin"},
+			{"version", CAPTURE_VERSION_STRING},
 			{"json_ts", getTimeStr(ts)},
 			{"json_isotime", getTimeIsoStr(ts)},
 			{"version", CAPTURE_VERSION_STRING},
@@ -361,7 +432,8 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			{"cap_isotime_start", getTimeIsoStr(tsStart)},
 			{"cx", cx},
 			{"cy", cy},
-			{"frameRate", frameRate}
+			{"frameRate", frameRate},
+			{"autoRecovery", fRecovery}
 	};
 	_METADATA_LOG(jm);
 	_NOTIFY_REPROMON(
@@ -377,9 +449,24 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			{"frameRate", frameRate}
 		}
 	);
+
+	std::string cmd = ffmpg;
+	const ConductOpts& conduct_opts = cfg.conduct_opts;
+	std::string duct_prefix = outVideoFile + ".duct_";
+	if (conduct_opts.enabled) {
+		_VERBOSE("Expand con/duct macros...");
+		cmd = expandMacros(conduct_opts.cmd, {
+				{"duct_bin", conduct_opts.duct_bin},
+				{"start_ts", start_ts},
+				{"prefix", duct_prefix},
+				{"ffmpeg_cmd", ffmpg}
+		});
+		_INFO("Con/duct command: " << cmd);
+	}
 	_VERBOSE("Created session logger: session_logger_" << start_ts);
 	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
 			appName,
+			cmd,
 			ffmpg,
 			opts.out_fmt,
 			outPath,
@@ -389,7 +476,8 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			pLogger,
 			fRepromonEnabled,
 			pRepromonQueue.get(), // NOTE: unsafe ownership
-			m_fTopLogFfmpeg
+			m_fTopLogFfmpeg,
+			duct_prefix
 	});
 
 	m_ffmpegExec.schedule(pt);

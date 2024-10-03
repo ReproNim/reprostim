@@ -8,6 +8,24 @@
 
 namespace reprostim {
 
+	int checkConduct(const ConductOpts& opts) {
+		if (!opts.enabled) {
+			_VERBOSE("Conduct monitoring is disabled");
+			return EX_OK;
+		}
+		std::string cmd = opts.duct_bin + " --version";
+		std::string res = exec(cmd);
+		if (res.empty() || !res.starts_with("duct ")) {
+			_ERROR("con/duct utility not found. Please make sure it's installed with 'pip install con-duct'");
+			_ERROR("  and configured correctly in config.yaml -> conduct_opts -> duct_bin .");
+			_ERROR("  COMMAND : " << cmd);
+			_ERROR("  RESULT  : " << res);
+			return EX_UNAVAILABLE;
+		}
+		_VERBOSE("con/duct utility found: " << res);
+		return EX_OK;
+	}
+
 	void signalHandler(int signum) {
 		//_INFO("Signal received: " << signum);
 		if (signum == SIGINT) {
@@ -190,6 +208,15 @@ namespace reprostim {
 			opts.out_fmt = node["out_fmt"].as<std::string>();
 		}
 
+		// load conduct_opts
+		if( doc["conduct_opts"] ) {
+			YAML::Node node = doc["conduct_opts"];
+			ConductOpts& opts = cfg.conduct_opts;
+			opts.enabled = node["enabled"].as<bool>();
+			opts.cmd = node["cmd"].as<std::string>();
+			opts.duct_bin = node["duct_bin"].as<std::string>();
+		}
+
 		// load repromon_opts
 		if( doc["repromon_opts"] ) {
 			YAML::Node node = doc["repromon_opts"];
@@ -216,6 +243,9 @@ namespace reprostim {
 			opts.message_level_id = node["message_level_id"].as<int>();
 		}
 		return this->onLoadConfig(cfg, pathConfig, doc);
+	}
+
+	void CaptureApp::onCaptureIdle() {
 	}
 
 	void CaptureApp::onCaptureStart() {
@@ -297,6 +327,12 @@ namespace reprostim {
 		if( res2!=EX_OK ) {
 			// problem with system configuration and installed packages
 			return res2;
+		}
+
+		const int res3 = checkConduct(cfg.conduct_opts);
+		if( res3!=EX_OK ) {
+			// problem with con/duct configuration or installation
+			return res3;
 		}
 
 		// start repromon queue
@@ -462,7 +498,8 @@ namespace reprostim {
 				else {
 					if( !vssEquals(vssCur, vssPrev) ) {
 						onCaptureStop(":\tStopped recording because something changed.");
-					}
+					} else
+						onCaptureIdle(); // hook to check capture cycle
 				}
 			}
 			else {

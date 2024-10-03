@@ -1,0 +1,11 @@
+Notes for analysis on the video sizes recorded by reprostim-videocapture utility with command like below:
+
+(venv) @typhon:~/reprostim/Parsing$ ./parse_wQR.py --mode=INFO /data/repronim/reprostim-reproiner/Videos/2024/07
+
+Before changes recorded mkv video file size was around        :  2-7   MB /minute.
+After changes with bitrate 2Mb the video file size was around :  15-19 MB /minute.
+
+So most likely the video size is increased in 4 times+ after applied changes in the second half of Sep 2024.
+
+Since Oct 2, 2024 we increased the ffmpeg bitrate limits to 8Mb from 2Mb, but at this moment don't have statistics yet
+on the video sizes.
