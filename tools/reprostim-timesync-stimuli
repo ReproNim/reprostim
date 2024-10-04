@@ -9,11 +9,15 @@ import json
 from datetime import datetime
 
 import qrcode
+from psychopy import prefs
+prefs.hardware['audioLib'] = ['ptb', 'pyo','pygame']
+from psychopy import sound
 from psychopy import visual, core, event, clock
+
 import numpy as np
 
 # 'interval'
-mode = 'interval'; # 'event'
+mode = 'event'
 interval = 2
 
 
@@ -41,6 +45,19 @@ def mkrec(**kwargs):
     if mode == 'interval':
         kwargs['interval'] = interval
     return kwargs
+
+
+from psychopy import sound, core
+
+# Function to play a beep at a specific frequency and duration
+def play_beep(frequency, duration, volume=1.0):
+    # Create a sound object with the specified frequency
+    beep = sound.Sound(frequency, secs=duration, volume=volume)
+    beep.play()
+    sound_time = get_times()
+    core.wait(duration)  # Wait for the beep to finish
+    return sound_time
+
 
 # print(json.dumps(mkrec(blah=123), indent=4))
 
@@ -80,6 +97,7 @@ keys = []  # None received/expected
 clk = clock.Clock()
 t_start = time()
 
+
 for acqNum in range(ntrials):
 
     rec = mkrec(
@@ -101,7 +119,12 @@ for acqNum in range(ntrials):
             pass
     else:
         raise ValueError(mode)
-
+   
+    freq = 2000 + (100*acqNum)
+    beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
+    beep.play()
+    rec['sound_time'] = get_times()
+    rec['sound_freq'] = freq
     rec['keys'] = keys
     tkeys, tkeys_str = get_times()
     rec["keys_time"] = tkeys
