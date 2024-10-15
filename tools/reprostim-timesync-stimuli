@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# TODO: review https://psychopy.org/api/sound/playback.html and possibly use PTB's 
+# facilities in PsychoPy for precise audio placement in time.
+#
 from time import time, sleep
 t0 = time()
 
