@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+# A simple script to ensure that birch has SD card mounted
+#
+mount=/mnt/td
+ssh birch "mount | grep -q -e '$mount\>'" || { echo "BIRCH does not have $mount mounted"; exit 1; }
