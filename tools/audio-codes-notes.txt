@@ -1,0 +1,39 @@
+[Install]
+
+ python3 -m venv venv
+ source venv/bin/activate
+ pip install -r audio-codes-requirements.txt
+
+ On MacOS:
+  brew install portaudio
+  pip install pyaudio
+
+
+[TODO]
+
+ Review `psychopy` and sound API and possibly use PTB's
+ facilities in PsychoPy for precise audio placement in time:
+   https://www.psychopy.org/download.html
+   https://psychopy.org/api/sound/playback.html
+
+---
+[Summary]
+    - `PyDub` allows you to generate simple tones easily.
+    -  FSK modulation can be achieved using `numpy` and
+    `scipy` to create varying frequency tones based on
+    binary input.
+    - Optionally `DTMF` encoding is implemented using
+    predefined frequency pairs, and you can detect
+    DTMF tones by analyzing the audio input.
+
+    - Chirp SDK:
+      Chirp.io / https://www.sonos.com/en/home
+      https://github.com/chirp
+
+    - GNU Radio - can be used to encode/modulate/demodulate.
+      https://www.gnuradio.org/
+      Supports Frequency Shift Keying (FSK),
+      Phase Shift Keying (PSK), or Amplitude Modulation (AM).
+
+    - `reedsolo` can be used for ECC (Error Correction Codes).
+
