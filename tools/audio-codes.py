@@ -1,11 +1,13 @@
 import logging
 import sys
 import time
+from datetime import datetime
 
 import numpy as np
 import sounddevice as sd
 from scipy.io.wavfile import write
 from scipy.io import wavfile
+from reedsolo import RSCodec
 
 logger = logging.getLogger(__name__)
 logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
@@ -28,7 +30,7 @@ def bit_enumerator(data):
             for i in range(7, -1, -1):  # Iterate from MSB to LSB
                 yield (byte >> i) & 1  # Extract and yield the bit
     else:
-        raise TypeError("Data must be either a string or bytes.")
+        raise TypeError("Data must be either a string or bytes. Got: " + str(type(data)))
 
 
 # Convert a list of bits to bytes
@@ -76,17 +78,26 @@ def list_audio_devices():
     logger.debug(f"default out : {default_device[1]}")
 
 
-# class representing audio data frame
-# where the first byte is CRC-8 checksum
-# second byte is the length of the data
-# and the rest is the data itself
+# Class representing audio data frame in big-endian
+# format and encoded with Reed-Solomon error correction
+# where the frame is structured as follows:
+#  - 1st byte is CRC-8 checksum
+#  - 2nd byte is the length of the data
+#  - 3+ and the rest is the data itself
 class AudioFrame:
     def __init__(self):
         self.value: bytes = b''
         self.length: int = 0
         self.crc8: int = 0
+        self.use_ecc: bool = True
+        self.rsc = RSCodec(4)
 
     def decode(self, data: bytes):
+        if self.use_ecc:
+            dec, dec_full, errata_pos_all = self.rsc.decode(data)
+            data = bytes(dec)
+
+        #logger.debug(f"decoded data  : {data}")
         self.crc8 = data[0]
         self.length = data[1]
         self.value = data[2:]
@@ -95,28 +106,64 @@ class AudioFrame:
             raise ValueError(f"CRC-8 checksum mismatch: {self.crc8} <-> {n}")
 
     def encode(self) -> bytes:
-        # encode the frame as bytes in big-endian order
-        # where the first byte is CRC-8 checksum
-        # second byte is the length of the data
-        # and the rest is the data itself
-        return bytes([self.crc8, self.length]) + self.value
+        logger.debug("size info")
+        logger.debug(f"  - data      : {len(self.value)} bytes, {self.value}")
+        b: bytes = bytes([self.crc8, self.length]) + self.value
+        logger.debug(f"  - frame     : {len(b)} bytes, {b}")
+        if self.use_ecc:
+            b = bytes(self.rsc.encode(b))
+            logger.debug(f"  - ecc       : {len(b)} bytes, {b}")
+        return b
+
+    def get_bytes(self) -> bytes:
+        return self.value
+
+    def get_str(self) -> str:
+        return self.value.decode("utf-8")
 
     def get_uint16(self) -> int:
+        if len(self.value) != 2:
+            raise ValueError(f"Data length for uint16 must be 2 bytes, "
+                             f"but was {len(self.value)}")
         return int.from_bytes(self.value, 'big')
 
+    def get_uint32(self) -> int:
+        if len(self.value) != 4:
+            raise ValueError(f"Data length for uint32 must be 4 bytes, "
+                             f"but was {len(self.value)}")
+        return int.from_bytes(self.value, 'big')
+
+    def get_uint64(self) -> int:
+        if len(self.value) != 8:
+            raise ValueError(f"Data length for uint64 must be 8 bytes, "
+                             f"but was {len(self.value)}")
+        return int.from_bytes(self.value, 'big')
+
+    def set_bytes(self, data: bytes):
+        self.value = data
+        self.length = len(data)
+        self.crc8 = crc8(data)
+
+    def set_str(self, s: str):
+        self.set_bytes(s.encode("utf-8"))
+
     def set_uint16(self, i: int):
-        self.value = i.to_bytes(2, 'big')
-        self.length = 2
-        self.crc8 = crc8(self.value)
+        self.set_bytes(i.to_bytes(2, 'big'))
+
+    def set_uint32(self, i: int):
+        self.set_bytes(i.to_bytes(4, 'big'))
+
+    def set_uint64(self, i: int):
+        self.set_bytes(i.to_bytes(8, 'big'))
 
 
-# class to generate/parse QR-like code with FSK modulation
+# Class to generate/parse QR-like codes with FSK modulation
 class AudioFsk:
     def __init__(self,
                  f1=1000,
                  f0=5000,
                  sample_rate=44100,
-                 duration=0.0078,
+                 duration=0.0070,
                  volume=0.75
                  ):
         self.f1 = f1
@@ -274,9 +321,36 @@ def parse_beep_2():
     af: AudioFrame = AudioFrame()
     af.decode(detected_data)
     u16 = af.get_uint16()
-    logger.debug(f'parsed data   : {detected_data}')
+    ab: bytes = af.get_bytes()
+    logger.debug(f'detected data : {detected_data}')
+    logger.debug(f'parsed bytes  : count={len(ab)}, {ab}')
     logger.debug(f'parsed uint16 : {u16}')
     logger.debug("parse_beep_2() done")
+
+def beep_3():
+    logger.debug("beep_3()")
+    af: AudioFsk = AudioFsk()
+    data = AudioFrame()
+    s: str = "Hello World! "+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logger.debug(f"encoded str   : {s}")
+    data.set_str(s)
+    af.play(data)
+    logger.debug("save audio as : beep_003.wav...")
+    af.save(data, 'beep_003.wav')
+    logger.debug("beep_3() done")
+
+def parse_beep_3():
+    logger.debug("parse_beep_3()")
+    af: AudioFsk = AudioFsk()
+    detected_data = af.parse('beep_003.wav')
+    af: AudioFrame = AudioFrame()
+    af.decode(detected_data)
+    ab = af.get_bytes()
+    s = af.get_str()
+    logger.debug(f'detected data : {detected_data}')
+    logger.debug(f'parsed bytes  : count={len(ab)}, {ab}')
+    logger.debug(f'parsed str    : {s}')
+    logger.debug("parse_beep_3() done")
 
 
 def main():
@@ -288,6 +362,10 @@ def main():
     beep_2()
     logger.debug("----------------------------------------------------")
     parse_beep_2()
+    logger.debug("----------------------------------------------------")
+    beep_3()
+    logger.debug("----------------------------------------------------")
+    parse_beep_3()
     logger.debug("audio-codes.py done")
 
 
