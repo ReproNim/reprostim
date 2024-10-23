@@ -13,6 +13,7 @@ using namespace reprostim;
 struct FfmpegParams {
 	const std::string       appName;
 	const std::string       cmd;
+	const std::string       ffmpeg_cmd;
 	const std::string       outExt;
 	const std::string       outPath;
 	const std::string       outVideoFile;
@@ -22,6 +23,7 @@ struct FfmpegParams {
 	const bool              fRepromonEnabled;
 	RepromonQueue*          pRepromonQueue;
 	const bool              fTopLogFfmpeg;
+	const std::string       duct_prefix;
 };
 
 using FfmpegThread = WorkerThread<FfmpegParams>;
@@ -31,8 +33,11 @@ private:
 	SingleThreadExecutor<FfmpegThread> m_ffmpegExec;
 	bool                               m_fTopLogFfmpeg;
 
+	void onCaptureStartInternal(bool fRecovery	= false);
+
 	void startRecording(int cx, int cy, const std::string& frameRate,
-							   const std::string& v_dev, const std::string& a_dev);
+							   const std::string& v_dev, const std::string& a_dev,
+							   bool fRecovery);
 	void stopRecording(const std::string& start_ts,
 					   const std::string& vpath,
 					   const std::string& message);
@@ -41,6 +46,7 @@ public:
 	~VideoCaptureApp();
 
 	//
+	void onCaptureIdle() override;
 	void onCaptureStart() override;
 	void onCaptureStop(const std::string& message) override;
 	int  parseOpts(AppOpts& opts, int argc, char* argv[]) override;
