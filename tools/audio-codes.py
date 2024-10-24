@@ -8,9 +8,14 @@ import sounddevice as sd
 from scipy.io.wavfile import write
 from scipy.io import wavfile
 from reedsolo import RSCodec
+from psychopy import core, sound, prefs
+
 
 logger = logging.getLogger(__name__)
-logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
+handler = logging.StreamHandler(sys.stderr)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+handler.setFormatter(formatter)
+logging.getLogger().addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 # audio barcode/qr helper functions
@@ -352,6 +357,17 @@ def parse_beep_3():
     logger.debug(f'parsed str    : {s}')
     logger.debug("parse_beep_3() done")
 
+def beep_4():
+    logger.debug("beep_4()")
+    logger.debug("play sound with psychopy ptb")
+    snd = sound.Sound('D', secs=0.5, stereo=True)
+    #snd = sound.Sound('beep_003.wav')
+
+    snd.play()
+    core.wait(snd.duration)
+    logger.debug(f'Sound "{snd.sound}" has finished playing.')
+
+
 
 def main():
     logger.debug("----------------------------------------------------")
@@ -366,6 +382,8 @@ def main():
     beep_3()
     logger.debug("----------------------------------------------------")
     parse_beep_3()
+    logger.debug("----------------------------------------------------")
+    beep_4()
     logger.debug("audio-codes.py done")
 
 
