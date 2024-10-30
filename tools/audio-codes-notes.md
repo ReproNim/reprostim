@@ -1,0 +1,111 @@
+# Audio Codes Notes
+
+## Installation
+
+```
+ python3.10 -m venv venv
+ source venv/bin/activate
+ pip install --upgrade pip
+ pip install -r audio-codes-requirements.txt
+```
+
+ On MacOS:
+```
+  brew install portaudio
+  pip install pyaudio
+```
+
+ On Linux:
+```
+  sudo apt-get install portaudio19-dev
+```
+
+## TODO:
+
+ Review `psychopy` and sound API and possibly use PTB's
+ facilities in PsychoPy for precise audio placement in time:
+   https://www.psychopy.org/download.html
+   https://psychopy.org/api/sound/playback.html
+
+ Look at watermark in audio.
+
+## PsychoPy, Sound, PTB
+
+### On MacOS:
+
+Note: PsychoPy (2024.2.3) current requirements limits/suggests
+      to Python version 3.10.
+
+Download and install the standalone package:
+PsychoPy 2024.2.3 modern (py3.10)
+https://github.com/psychopy/psychopy/releases/download/2024.2.3/StandalonePsychoPy-2024.2.3-macOS-py3.10.dmg
+
+Run PsychoPy and check the sound settings that `pbt` is
+set as `Audio Library`.
+
+Make sure Python 3.10 is installed and venv is explicitly created with it:
+```
+   python3.10 -m venv venv
+   source venv/bin/activate
+   pip install --upgrade pip
+   pip install -r audio-codes-requirements.txt
+```
+
+Note: first time PsychoPy is run, it may takes a long time to setup audio
+       download additional dependencies.
+
+### On Linux (Ubuntu 22.04):
+
+Create some folder for `psychopy` installation and init Python 3.10 venv:
+```
+   python3.10 -m venv venv
+   source venv/bin/activate
+```
+Then fetch a wxPython wheel for your platform from:
+https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ and
+download it locally to your machine.
+In my case it was `https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-22.04/wxPython-4.2.1-cp310-cp310-linux_x86_64.whl`
+downloaded to `wxPython/wxPython-4.2.1-cp310-cp310-linux_x86_64.whl` .
+
+Install sound dependencies (1st one may fail):
+```
+   sudo apt-get install libusb-1.0-0-dev portaudio19-dev libasound2-dev
+   pip install psychtoolbox
+```
+
+Install wxPython in `venv` with, e.g.:
+```
+   pip install wxPython/wxPython-4.2.1-cp310-cp310-linux_x86_64.whl
+```
+
+Then install `psychopy`:
+```
+   pip install psychopy
+```
+
+Run psychopy:
+```
+   psychopy
+```
+
+
+## Summary
+  - `PyDub` allows you to generate simple tones easily.
+  -  FSK modulation can be achieved using `numpy` and
+  `scipy` to create varying frequency tones based on
+  binary input.
+  - Optionally `DTMF` encoding is implemented using
+  predefined frequency pairs, and you can detect
+  DTMF tones by analyzing the audio input.
+
+  - Chirp SDK:
+    Chirp.io / https://www.sonos.com/en/home
+    https://github.com/chirp
+
+  - GNU Radio - can be used to encode/modulate/demodulate.
+    https://www.gnuradio.org/
+    Supports Frequency Shift Keying (FSK),
+    Phase Shift Keying (PSK), or Amplitude Modulation (AM).
+
+  - `reedsolo` can be used for ECC (Error Correction Codes).
+
