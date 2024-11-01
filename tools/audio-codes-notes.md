@@ -153,6 +153,28 @@ Failure: No such entity
 Failure: No such entity
 ```
 
+## NeuroDebian/Singularity
+
+On Linux (Ubuntu 22.04) :
+
+Was unable to install `singularity-container` from `neurodebian` repository after multiple attempts, so finally upgraded Linux 22.04 to 24.04.
+
+
+On Linux (Ubuntu 24.04) :
+
+```
+wget -O- http://neuro.debian.net/lists/noble.de-m.libre | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+sudo apt-key adv --recv-keys --keyserver hkps://keyserver.ubuntu.com 0xA5D32F012649A5A9
+
+sudo apt-get update
+
+sudo apt-get install singularity-container
+```
+
+```
+singularity --version
+  singularity-ce version 4.1.1
+```
 
 ## Summary
   - `PyDub` allows you to generate simple tones easily.
