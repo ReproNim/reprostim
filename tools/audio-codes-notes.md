@@ -33,7 +33,7 @@
 
 ### On MacOS:
 
-Note: PsychoPy (2024.2.3) current requirements limits/suggests
+NOTE: PsychoPy (2024.2.3) current requirements limits/suggests
       to Python version 3.10.
 
 Download and install the standalone package:
@@ -51,7 +51,7 @@ Make sure Python 3.10 is installed and venv is explicitly created with it:
    pip install -r audio-codes-requirements.txt
 ```
 
-Note: first time PsychoPy is run, it may takes a long time to setup audio
+NOTE: first time PsychoPy is run, it may takes a long time to setup audio
        download additional dependencies.
 
 ### On Linux (Ubuntu 22.04):
@@ -88,7 +88,7 @@ Run psychopy:
    psychopy
 ```
 
-Note: PsychoPy PTB sound was non tested on Ubuntu 22.04, due to upgrade to 24.04.
+NOTE: PsychoPy PTB sound was non tested on Ubuntu 22.04, due to upgrade to 24.04.
 
 ### On Linux (Ubuntu 24.04):
 
@@ -110,7 +110,7 @@ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python get-pip.py
 ```
 
-Then installed `wxPython` it can take up to 1 hour to compile it (there is no pre-buuilt wheels for Ubuntu 24.04 ATM):
+Then installed `wxPython` it can take up to 1 hour to compile it (there is no pre-built wheels for Ubuntu 24.04 ATM):
 
 ```
 sudo apt update
