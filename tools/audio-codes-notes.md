@@ -88,6 +88,71 @@ Run psychopy:
    psychopy
 ```
 
+Note: PsychoPy PTB sound was non tested on Ubuntu 22.04, due to upgrade to 24.04.
+
+### On Linux (Ubuntu 24.04):
+
+Somehow was unable to run `python3.10` directly so installed it manually together with venv:
+
+```
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.10
+sudo apt install python3.10-venv
+```
+
+After this `python3.10` failed to create `venv` so used following commans to create it:
+
+```
+python3.10 -m venv --without-pip venv
+source venv/bin/activate
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python get-pip.py
+```
+
+Then installed `wxPython` it can take up to 1 hour to compile it (there is no pre-buuilt wheels for Ubuntu 24.04 ATM):
+
+```
+sudo apt update
+sudo apt install python3-dev python3-pip libgtk-3-dev
+pip install wxPython
+```
+
+Finally installed `psychopy`:
+
+```
+pip install psychopy
+```
+
+Applied security fix for audio scripts user, by adding current user to `audio` group:
+
+```
+sudo usermod -a -G audio $USER
+```
+
+and to adjust real-time permissions by creating a file `/etc/security/limits.d/99-realtime.conf` 
+
+```
+sudo vi /etc/security/limits.d/99-realtime.conf
+```
+
+with the following content:
+
+```
+@audio   -  rtprio     99
+@audio   -  memlock    unlimited
+```
+
+Then rebooted the system.
+
+NOTE: PsychoPy PTB still doesn't work on Ubuntu 24.04 and script produces error, TBD:
+
+```
+[DEBUG] play sound with psychopy ptb
+Failure: No such entity
+Failure: No such entity
+```
+
 
 ## Summary
   - `PyDub` allows you to generate simple tones easily.
