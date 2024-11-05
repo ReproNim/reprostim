@@ -5,11 +5,21 @@
 from time import time, sleep
 t0 = time()
 
+import logging
 import glob
 import sys
 import os
 import json
 from datetime import datetime
+
+# setup logging
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler(sys.stderr)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+handler.setFormatter(formatter)
+logging.getLogger().addHandler(handler)
+logger.setLevel(logging.DEBUG)
+logger.info("reprostim-timesync-stimuli script started")
 
 import qrcode
 from psychopy import prefs
@@ -24,17 +34,28 @@ mode = 'event'
 interval = 2
 
 
+# setup file JSON logger
 logfn = sys.argv[1]
 # logfn = "../data/{0}/run{1}_logfile.csv".format(acqNum, runNum)
 if os.path.exists(logfn):
+    logger.error(f"Log file {logfn} already exists")
     raise RuntimeError(f"Log file {logfn} already exists")
+
+
+#######################################################
+# Functions
 
 def get_iso_time(t):
     return datetime.fromtimestamp(t).astimezone().isoformat()
 
+
 def get_times():
     t = time()
     return t, get_iso_time(t)
+
+
+def log(rec):
+    f.write(json.dumps(rec).rstrip() + os.linesep)
 
 
 def mkrec(**kwargs):
@@ -50,10 +71,9 @@ def mkrec(**kwargs):
     return kwargs
 
 
-from psychopy import sound, core
-
 # Function to play a beep at a specific frequency and duration
 def play_beep(frequency, duration, volume=1.0):
+    logger.debug(f'play_beep({frequency}, duration={duration}, volume={volume})')
     # Create a sound object with the specified frequency
     beep = sound.Sound(frequency, secs=duration, volume=volume)
     beep.play()
@@ -62,12 +82,13 @@ def play_beep(frequency, duration, volume=1.0):
     return sound_time
 
 
+#######################################################
+# Main script code
+
+logger.info("main script started")
 # print(json.dumps(mkrec(blah=123), indent=4))
 
 f = open(logfn, "w")
-
-def log(rec):
-    f.write(json.dumps(rec).rstrip() + os.linesep)
 
 win = visual.Window(fullscr=True, screen=int(sys.argv[2]))
 win.mouseVisible = False # hides the mouse pointer 
@@ -100,8 +121,12 @@ keys = []  # None received/expected
 clk = clock.Clock()
 t_start = time()
 
+logger.debug(f"warming time: {(t_start-t0):.6f} sec")
+logger.debug(f"mode: {mode}, interval: {interval}")
+logger.info(f"starting loop with {ntrials} trials...")
 
 for acqNum in range(ntrials):
+    logger.debug(f"trial {acqNum}")
 
     rec = mkrec(
         event="trigger",
@@ -153,3 +178,5 @@ for acqNum in range(ntrials):
         break
 
 f.close()
+logger.info("main script finished")
+logger.info("reprostim-timesync-stimuli script finished")
