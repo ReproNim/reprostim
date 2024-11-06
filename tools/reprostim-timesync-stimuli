@@ -82,6 +82,21 @@ def play_beep(frequency, duration, volume=1.0):
     return sound_time
 
 
+def beep_4():
+    logger.debug("beep_4()")
+
+    #prefs.hardware['audioLib'] = ['sounddevice']
+    prefs.hardware['audioLib'] = ['ptb']
+    #prefs.hardware['audioDevice'] = 'HDA Intel PCH: ALC892 Digital (hw:0,1)'
+    logger.debug("play sound with psychopy ptb")
+    snd = sound.Sound('D', secs=120.0, stereo=True)
+    #snd = sound.Sound('beep_003.wav')
+
+    snd.play()
+    core.wait(snd.duration)
+    logger.debug(f'Sound "{snd.sound}" has finished playing.')
+
+
 #######################################################
 # Main script code
 
@@ -122,7 +137,8 @@ clk = clock.Clock()
 t_start = time()
 
 logger.debug(f"warming time: {(t_start-t0):.6f} sec")
-play_beep(480, 120, 1.0)
+#play_beep(480, 120, 1.0)
+beep_4()
 logger.debug(f"mode: {mode}, interval: {interval}")
 logger.info(f"starting loop with {ntrials} trials...")
 
