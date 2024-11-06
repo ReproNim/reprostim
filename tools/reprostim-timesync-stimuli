@@ -122,8 +122,11 @@ clk = clock.Clock()
 t_start = time()
 
 logger.debug(f"warming time: {(t_start-t0):.6f} sec")
+play_beep(480, 120, 1.0)
 logger.debug(f"mode: {mode}, interval: {interval}")
 logger.info(f"starting loop with {ntrials} trials...")
+
+
 
 for acqNum in range(ntrials):
     logger.debug(f"trial {acqNum}")
