@@ -71,3 +71,29 @@ singularity exec ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/repr
 Where `REPROSTIM_PATH` is the local clone of https://github.com/ReproNim/reprostim repository.
 
 Last script parameter is the display ID, which is `1` in this case.  
+
+### D. Update Singularity Container Locally (Optionally)
+
+Optionally, you can update the container locally for development 
+and debugging purposes (with overlay):
+
+```
+singularity overlay create --size 1024 overlay.img
+sudo singularity exec --overlay overlay.img repronim-psychopy--2024.1.4.sing bash
+```
+As sample install some package:
+
+```
+apt-get update
+apt-get install pulseaudio-utils
+pactl
+exit
+```
+
+And now run the script with overlay:
+
+```
+singularity exec -B /run/user/321 --overlay overlay.img ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
+``` 
+
+Where `/run/user/321` is sample external pulseaudio device path bound to the container.
