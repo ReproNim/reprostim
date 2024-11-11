@@ -96,4 +96,9 @@ And now run the script with overlay:
 singularity exec -B /run/user/321 --overlay overlay.img ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 ``` 
 
-Where `/run/user/321` is sample external pulseaudio device path bound to the container.
+Where `/run/user/321` is sample external pulseaudio device path bound to the container. Usually 
+when you run the script w/o binding it will report error like:
+
+```
+Failed to create secure directory (/run/user/321/pulse): No such file or directory
+``` 
