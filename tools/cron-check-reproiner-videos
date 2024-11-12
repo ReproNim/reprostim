@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# A simple script to ensure that we have at least one video file from today
+#
+prefix="/mnt/btrfs/@datafs/reprostim/Videos/$(date +%Y)/$(date +%m)/$(date +%Y.%m.%d)"
+ssh reproiner "ls -ld $prefix*" | grep -q .
+# || { echo "No files for $prefix"; exit 1; }
+
