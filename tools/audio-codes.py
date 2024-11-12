@@ -3,12 +3,24 @@ import sys
 import time
 from datetime import datetime
 
+# NOTE: Early initialization of audio prefs is required otherwise
+# use ~/.psychopy3/userPrefs.cfg [hardware] section, or load directly from
+# some customPrefs.cfg file with prefs.loadFromFile API.
+from psychopy import prefs
+
+#prefs.hardware['audioDevice'] = 'HDA Intel PCH: ALC892 Digital (hw:0,1)'
+#prefs.hardware['audioLib'] = ['PTB']
+prefs.hardware['audioLib'] = ['sounddevice']
+#
+
 import numpy as np
 import sounddevice as sd
 from scipy.io.wavfile import write
 from scipy.io import wavfile
 from reedsolo import RSCodec
+
 from psychopy import core, sound, prefs
+from psychtoolbox import audio
 
 
 logger = logging.getLogger(__name__)
@@ -74,13 +86,22 @@ def crc8(data: bytes, polynomial: int = 0x31, init_value: int = 0x00) -> int:
 
 def list_audio_devices():
     logger.debug("list_audio_devices()")
+
+    logger.debug("[psychopy]")
+    logger.debug(f"audioLib     : {prefs.hardware['audioLib']}")
+    logger.debug(f"audioDevice  : {prefs.hardware['audioDevice']}")
+
+    logger.debug("[sounddevice]")
     devices = sd.query_devices()  # Query all devices
     for i, device in enumerate(devices):
         logger.debug(f"device [{i}]  : {device['name']}")
-
     default_device = sd.default.device  # Get the current default input/output devices
     logger.debug(f"default in  : {default_device[0]}")
     logger.debug(f"default out : {default_device[1]}")
+
+    logger.debug("[psytoolbox]")
+    for i, device in enumerate(audio.get_devices()):
+        logger.debug(f"device [{i}]  : {device}")
 
 
 # Class representing audio data frame in big-endian
@@ -359,9 +380,10 @@ def parse_beep_3():
 
 def beep_4():
     logger.debug("beep_4()")
-    logger.debug("play sound with psychopy ptb")
-    snd = sound.Sound('D', secs=0.5, stereo=True)
-    #snd = sound.Sound('beep_003.wav')
+
+    logger.debug(f"play sound with psychopy {prefs.hardware['audioLib']}")
+    #snd = sound.Sound('D', secs=500.0, stereo=True)
+    snd = sound.Sound('beep_003.wav')
 
     snd.play()
     core.wait(snd.duration)
