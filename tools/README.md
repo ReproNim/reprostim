@@ -15,8 +15,8 @@ sudo apt-get update
 sudo apt-get install singularity-container
 ```
 
-```
-singularity --version
+```shell
+$ singularity --version
   singularity-ce version 4.1.1
 ```
 
