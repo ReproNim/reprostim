@@ -93,7 +93,7 @@ exit
 And now run the script with overlay:
 
 ```
-singularity exec -B /run/user/321/pulse:/run/user/321/pulse --overlay overlay.img ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
+singularity exec -B /run/user/$(id -u)/pulse --overlay overlay.img ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 ``` 
 
 Where `/run/user/321/pulse` is sample external pulseaudio device path bound to the container. Usually 
