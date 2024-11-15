@@ -6,7 +6,7 @@
 
 #### On Linux (Ubuntu 24.04) :
 
-```
+```shell
 wget -O- http://neuro.debian.net/lists/noble.de-m.libre | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
 sudo apt-key adv --recv-keys --keyserver hkps://keyserver.ubuntu.com 0xA5D32F012649A5A9
 
