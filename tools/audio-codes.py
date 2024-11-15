@@ -8,10 +8,17 @@ from datetime import datetime
 # some customPrefs.cfg file with prefs.loadFromFile API.
 from psychopy import prefs
 
+#prefs.general['audioLib'] = 'sounddevice'
 #prefs.hardware['audioDevice'] = 'HDA Intel PCH: ALC892 Digital (hw:0,1)'
 #prefs.hardware['audioLib'] = ['PTB']
 prefs.hardware['audioLib'] = ['sounddevice']
 #
+
+# provide psychopy logs
+from psychopy import logging as pl
+#pl.console.setLevel(pl.NOTSET)
+pl.console.setLevel(pl.DEBUG)
+
 
 import numpy as np
 import sounddevice as sd
@@ -23,12 +30,14 @@ from psychopy import core, sound, prefs
 from psychtoolbox import audio
 
 
+# init std logger
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stderr)
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
 logging.getLogger().addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
 
 # audio barcode/qr helper functions
 
@@ -102,6 +111,12 @@ def list_audio_devices():
     logger.debug("[psytoolbox]")
     for i, device in enumerate(audio.get_devices()):
         logger.debug(f"device [{i}]  : {device}")
+
+    logger.debug("[psychopy.backend_ptb]")
+    # TODO: investigate why only single out device listed from
+    # USB capture but defult one is not shown
+    # logger.debug(sound.backend_ptb.getDevices())
+
 
 
 # Class representing audio data frame in big-endian
@@ -382,7 +397,7 @@ def beep_4():
     logger.debug("beep_4()")
 
     logger.debug(f"play sound with psychopy {prefs.hardware['audioLib']}")
-    #snd = sound.Sound('D', secs=500.0, stereo=True)
+    #snd = sound.Sound('D', secs=10.0, stereo=True)
     snd = sound.Sound('beep_003.wav')
 
     snd.play()
