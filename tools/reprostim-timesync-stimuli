@@ -16,6 +16,11 @@ from psychopy import prefs
 #prefs.hardware['audioLib'] = ['ptb', 'pyo','pygame']
 prefs.hardware['audioLib'] = ['sounddevice']
 
+# provide psychopy logs
+from psychopy import logging as pl
+#pl.console.setLevel(pl.NOTSET)
+pl.console.setLevel(pl.DEBUG)
+
 
 # setup logging
 logger = logging.getLogger(__name__)
