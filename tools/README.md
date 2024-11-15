@@ -59,13 +59,13 @@ It should return `x11`. If not, switch to X11:
 Make sure the current directory is one under singularity container 
 path created in the previous step B:
 
-```
+```shell
 cd ./containers/images/repronim
 ```
 
 Run the script:
 
-```
+```shell
 singularity exec ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 ``` 
 Where `REPROSTIM_PATH` is the local clone of https://github.com/ReproNim/reprostim repository.
@@ -77,13 +77,13 @@ Last script parameter is the display ID, which is `1` in this case.
 Optionally, you can update the container locally for development 
 and debugging purposes (with overlay):
 
-```
-singularity overlay create --size 1024 overlay.img
-sudo singularity exec --overlay overlay.img repronim-psychopy--2024.1.4.sing bash
+```shell
+singularity overlay create --size 1024 repronim-psychopy--2024.1.4.overlay
+sudo singularity exec --overlay repronim-psychopy--2024.1.4.overlay repronim-psychopy--2024.1.4.sing bash
 ```
 As sample install some package:
 
-```
+```shell
 apt-get update
 apt-get install pulseaudio-utils
 pactl
@@ -92,20 +92,22 @@ exit
 
 And now run the script with overlay:
 
-```
-singularity exec -B /run/user/$(id -u)/pulse --overlay overlay.img ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
+```shell
+singularity exec -B /run/user/$(id -u)/pulse --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native --overlay ./repronim-psychopy--2024.1.4.overlay ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 ``` 
 
 Where `/run/user/321/pulse` is sample external pulseaudio device path bound to the container. Usually 
 when you run the script w/o binding it will report error like:
 
-```
+```shell
 Failed to create secure directory (/run/user/321/pulse): No such file or directory
 ``` 
 
 NOTE: Make sure `PULSE_SERVER` is specified in the container environment and 
 points to the host pulseaudio server. e.g.:
 
-```
+```shell
 export PULSE_SERVER=unix:/run/user/321/pulse/native
---env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native
+```
+
+TODO: Also limit container resource -c
