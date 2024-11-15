@@ -108,4 +108,4 @@ points to the host pulseaudio server. e.g.:
 
 ```
 export PULSE_SERVER=unix:/run/user/321/pulse/native
-```
+--env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native
