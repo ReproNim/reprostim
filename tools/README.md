@@ -78,8 +78,14 @@ Optionally, you can update the container locally for development
 and debugging purposes (with overlay):
 
 ```shell
-singularity overlay create --size 1024 repronim-psychopy--2024.1.4.overlay
-sudo singularity exec --overlay repronim-psychopy--2024.1.4.overlay repronim-psychopy--2024.1.4.sing bash
+singularity overlay create \
+  --size 1024 \
+  repronim-psychopy--2024.1.4.overlay
+  
+sudo singularity exec \
+  --overlay repronim-psychopy--2024.1.4.overlay \
+  repronim-psychopy--2024.1.4.sing \
+  bash
 ```
 As sample install some package:
 
@@ -93,7 +99,15 @@ exit
 And now run the script with overlay:
 
 ```shell
-singularity exec -B /run/user/$(id -u)/pulse --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native --overlay ./repronim-psychopy--2024.1.4.overlay ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
+singularity exec \
+  --cleanenv --contain \
+  -B /run/user/$(id -u)/pulse \
+  -B ${REPROSTIM_PATH} \
+  --env DISPLAY=$DISPLAY \
+  --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
+  --overlay ./repronim-psychopy--2024.1.4.overlay \
+  ./repronim-psychopy--2024.1.4.sing \
+  ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 ``` 
 
 Where `/run/user/321/pulse` is sample external pulseaudio device path bound to the container. Usually 
