@@ -118,8 +118,14 @@ TODO: Also limit container resource -c
 cd ~/Projects/Dartmouth/branches/datalad/containers/images/repronim
 export REPROSTIM_PATH=~/Projects/Dartmouth/branches/reprostim 
 
-singularity overlay create --size 1024 repronim-psychopy--2024.1.4.overlay
-sudo singularity exec --overlay repronim-psychopy--2024.1.4.overlay repronim-psychopy--2024.1.4.sing bash
+singularity overlay create \
+  --size 1024 \
+  repronim-psychopy--2024.1.4.overlay
+  
+sudo singularity exec \
+  --overlay repronim-psychopy--2024.1.4.overlay \
+  repronim-psychopy--2024.1.4.sing \
+  bash
 
 # execute in shell
 apt-get update
@@ -128,11 +134,22 @@ pactl
 exit
 
 # make sure all python packages are installed
-sudo singularity exec --overlay repronim-psychopy--2024.1.4.overlay repronim-psychopy--2024.1.4.sing python3 -m pip install pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice 
+sudo singularity exec \
+  --overlay repronim-psychopy--2024.1.4.overlay \
+  repronim-psychopy--2024.1.4.sing \
+  python3 -m pip install pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice 
 
 # and run the script
 rm output.log
-singularity exec -B /run/user/$(id -u)/pulse --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native --overlay ./repronim-psychopy--2024.1.4.overlay ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
+singularity exec \
+  --cleanenv --contain \
+  -B /run/user/$(id -u)/pulse \
+  -B ${REPROSTIM_PATH} \
+  --env DISPLAY=$DISPLAY \
+  --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
+  --overlay ./repronim-psychopy--2024.1.4.overlay \
+  ./repronim-psychopy--2024.1.4.sing \
+  ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 
 ```
 
