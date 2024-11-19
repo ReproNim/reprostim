@@ -124,8 +124,6 @@ points to the host pulseaudio server. e.g.:
 export PULSE_SERVER=unix:/run/user/321/pulse/native
 ```
 
-TODO: Also limit container resource -c
-
 #### Dev Notes (for local PC altogether)
 
 ```shell
