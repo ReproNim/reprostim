@@ -90,16 +90,16 @@ def play_beep(frequency, duration, volume=1.0):
 #######################################################
 # Main script code
 
-def do_beep():
+def do_beep(duration: float):
     logger.debug("do_beep()")
 
-    logger.debug(f"Play sound with psychopy {prefs.hardware['audioLib']}")
-    snd = sound.Sound('A', secs=120.0, stereo=True)
+    snd = sound.Sound('A', secs=duration, stereo=True)
     #snd = sound.Sound('beep_003.wav')
 
+    logger.debug(f"Play sound '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
     snd.play()
     core.wait(snd.duration)
-    logger.debug(f'Sound "{snd.sound}" has finished playing.')
+    logger.debug(f"Sound '{snd.sound}' has finished playing.")
 
 
 def do_init(logfn: str) -> bool:
@@ -109,12 +109,13 @@ def do_init(logfn: str) -> bool:
     return True
 
 
-def do_main(mode: Mode, logfn: str, display: int, interval: float) -> int:
+def do_main(mode: Mode, logfn: str, display: int,
+            duration: float, interval: float) -> int:
     logger.info("main script started")
     # print(json.dumps(mkrec(blah=123), indent=4))
 
     if mode == Mode.BEEP:
-        do_beep()
+        do_beep(duration)
         return 0
 
     f = open(logfn, "w")
@@ -227,6 +228,8 @@ def do_main(mode: Mode, logfn: str, display: int, interval: float) -> int:
               help='Output log file name.')
 @click.option('-d', '--display', default=1, type=int,
               help='Display number as an integer (default: 1).')
+@click.option('-d', '--duration', default=2, type=float,
+              help='Specifies script duration in seconds.')
 @click.option('-i', '--interval', default=2, type=float,
               help='Specifies interval value (default: 2.0).')
 @click.option('--log-level', default='DEBUG',
@@ -236,7 +239,7 @@ def do_main(mode: Mode, logfn: str, display: int, interval: float) -> int:
               help='Set the logging level')
 @click.pass_context
 def main(ctx, mode: str, output: str, display: int,
-         interval: float,
+         duration: float, interval: float,
          log_level):
     logger.setLevel(log_level)
     # psychopy has similar logging levels like
@@ -244,12 +247,14 @@ def main(ctx, mode: str, output: str, display: int,
     #pl.console.setLevel(log_level)
     logger.debug("reprostim-timesync-stimuli script started")
     logger.debug(f"  Started on : {datetime.now()}")
-    logger.debug(f"  Mode       : {mode}")
-    logger.debug(f"  Output     : {output}")
-    logger.debug(f"  Display    : {display}")
+    logger.debug(f"    mode     : {mode}")
+    logger.debug(f"    output   : {output}")
+    logger.debug(f"    display  : {display}")
+    logger.debug(f"    duration : {duration}")
+    logger.debug(f"    interval : {interval}")
     if not do_init(output):
         return -1
-    return do_main(mode, output, display, interval)
+    return do_main(mode, output, display, duration, interval)
 
 
 if __name__ == '__main__':
