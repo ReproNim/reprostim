@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-# TODO: review https://psychopy.org/api/sound/playback.html and possibly use PTB's 
-# facilities in PsychoPy for precise audio placement in time.
-#
 from time import time, sleep
 t0 = time()
 
+import click
+from enum import Enum
 import logging
 import glob
 import sys
@@ -38,17 +37,13 @@ from psychopy import sound
 
 import numpy as np
 
-# 'interval'
-mode = 'event'
-interval = 2
 
-
-# setup file JSON logger
-logfn = sys.argv[1]
-# logfn = "../data/{0}/run{1}_logfile.csv".format(acqNum, runNum)
-if os.path.exists(logfn):
-    logger.error(f"Log file {logfn} already exists")
-    raise RuntimeError(f"Log file {logfn} already exists")
+#######################################################
+# Constants
+class Mode(str, Enum):
+    EVENT = "event"
+    INTERVAL = "interval"
+    BEEP = "beep"
 
 
 #######################################################
@@ -67,7 +62,7 @@ def log(rec):
     f.write(json.dumps(rec).rstrip() + os.linesep)
 
 
-def mkrec(**kwargs):
+def mkrec(mode, interval, **kwargs):
     t, tstr = get_times()
     kwargs.update({
         "logfn": logfn,
@@ -91,11 +86,15 @@ def play_beep(frequency, duration, volume=1.0):
     return sound_time
 
 
-def beep_4():
-    logger.debug("beep_4()")
 
-    logger.debug(f"play sound with psychopy {prefs.hardware['audioLib']}")
-    snd = sound.Sound('D', secs=120.0, stereo=True)
+#######################################################
+# Main script code
+
+def do_beep():
+    logger.debug("do_beep()")
+
+    logger.debug(f"Play sound with psychopy {prefs.hardware['audioLib']}")
+    snd = sound.Sound('A', secs=120.0, stereo=True)
     #snd = sound.Sound('beep_003.wav')
 
     snd.play()
@@ -103,105 +102,158 @@ def beep_4():
     logger.debug(f'Sound "{snd.sound}" has finished playing.')
 
 
-#######################################################
-# Main script code
-
-logger.info("main script started")
-# print(json.dumps(mkrec(blah=123), indent=4))
-
-f = open(logfn, "w")
-
-win = visual.Window(fullscr=True, screen=int(sys.argv[2]))
-win.mouseVisible = False # hides the mouse pointer 
-
-log(mkrec(event="started", start_time=t0, start_time_formatted=get_iso_time(t0)))
-
-message = visual.TextStim(win, text="""Waiting for scanner trigger.\nInstructions
-        for Participant...""")
-message.draw()
-
-fixation = visual.TextStim(win, text='+')
-reproinMessage = visual.TextStim(win, text="", pos=(0, -.7),
-        height=.05)
-
-win.flip()
+def do_init(logfn: str) -> bool:
+    if os.path.exists(logfn):
+        logger.error(f"Log file {logfn} already exists")
+        return False
+    return True
 
 
-fixation.draw()  # Change properties of existing stim
-win.flip()
+def do_main(mode: Mode, logfn: str, display: int, interval: float) -> int:
+    logger.info("main script started")
+    # print(json.dumps(mkrec(blah=123), indent=4))
 
-spd = 0.500 # Stimulus Presentation Duration
-soa = 6.000 # Stimulus Onset Asynchrony
-ntrials = 300
-iwt = 5 # Initial Wait Time between scanner trigger and first stimulus
+    if mode == Mode.BEEP:
+        do_beep()
+        return 0
 
-stim_images = []
-stim_names = []
-keys = []  # None received/expected
+    f = open(logfn, "w")
 
-clk = clock.Clock()
-t_start = time()
+    win = visual.Window(fullscr=True, screen=display)
+    win.mouseVisible = False # hides the mouse pointer
 
-logger.debug(f"warming time: {(t_start-t0):.6f} sec")
-#play_beep(480, 120, 1.0)
-beep_4()
-logger.debug(f"mode: {mode}, interval: {interval}")
-logger.info(f"starting loop with {ntrials} trials...")
+    log(mkrec(mode, interval,
+              event="started", start_time=t0, start_time_formatted=get_iso_time(t0)))
 
+    message = visual.TextStim(win, text="""Waiting for scanner trigger.\nInstructions
+            for Participant...""")
+    message.draw()
 
+    fixation = visual.TextStim(win, text='+')
+    reproinMessage = visual.TextStim(win, text="", pos=(0, -.7),
+            height=.05)
 
-for acqNum in range(ntrials):
-    logger.debug(f"trial {acqNum}")
-
-    rec = mkrec(
-        event="trigger",
-        acqNum=acqNum
-    )
-
-    if mode == 'event':
-        print("Waiting for an event")
-        keys = event.waitKeys(maxWait=120) # keyList=['5'])
-    elif mode == 'interval': 
-        target_time = t_start + acqNum * interval
-        to_wait = target_time - time()
-        # sleep some part of it if long enough
-        if to_wait >= .2:
-            sleep(to_wait * 0.7)
-        # busy loop without sleep to not miss it
-        while time() < target_time:
-            pass
-    else:
-        raise ValueError(mode)
-   
-    freq = 2000 + (100*acqNum)
-    beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
-    beep.play()
-    rec['sound_time'] = get_times()
-    rec['sound_freq'] = freq
-    rec['keys'] = keys
-    tkeys, tkeys_str = get_times()
-    rec["keys_time"] = tkeys
-    rec["keys_time_str"] = tkeys_str
-    qr = visual.ImageStim(win,
-                          qrcode.make(json.dumps(rec)),
-                          pos=(0, 0)
-                          )
-    qr.size = qr.size *1 
-    qr.draw()
     win.flip()
-    tflip, tflip_str = get_times()
-    rec['time_flip'] = tflip
-    rec['time_flip_formatted'] = tflip_str
-    core.wait(0.5)
-    fixation.draw()
-    win.flip()
-    toff, toff_str = get_times()
-    rec['prior_time_off'] = toff
-    rec['prior_time_off_str'] = toff_str
-    log(rec)
-    if 'q' in keys:
-        break
 
-f.close()
-logger.info("main script finished")
-logger.info("reprostim-timesync-stimuli script finished")
+
+    fixation.draw()  # Change properties of existing stim
+    win.flip()
+
+    spd = 0.500 # Stimulus Presentation Duration
+    soa = 6.000 # Stimulus Onset Asynchrony
+    ntrials = 300
+    iwt = 5 # Initial Wait Time between scanner trigger and first stimulus
+
+    stim_images = []
+    stim_names = []
+    keys = []  # None received/expected
+
+    clk = clock.Clock()
+    t_start = time()
+
+    logger.debug(f"warming time: {(t_start-t0):.6f} sec")
+    #play_beep(480, 120, 1.0)
+    beep_4()
+    logger.debug(f"mode: {mode}, interval: {interval}")
+    logger.info(f"starting loop with {ntrials} trials...")
+
+
+
+    for acqNum in range(ntrials):
+        logger.debug(f"trial {acqNum}")
+
+        rec = mkrec(
+            mode,
+            interval,
+            event="trigger",
+            acqNum=acqNum
+        )
+
+        if mode == Mode.EVENT:
+            print("Waiting for an event")
+            keys = event.waitKeys(maxWait=120) # keyList=['5'])
+        elif mode == Mode.INTERVAL:
+            target_time = t_start + acqNum * interval
+            to_wait = target_time - time()
+            # sleep some part of it if long enough
+            if to_wait >= .2:
+                sleep(to_wait * 0.7)
+            # busy loop without sleep to not miss it
+            while time() < target_time:
+                pass
+        else:
+            raise ValueError(mode)
+
+        freq = 2000 + (100*acqNum)
+        beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
+        beep.play()
+        rec['sound_time'] = get_times()
+        rec['sound_freq'] = freq
+        rec['keys'] = keys
+        tkeys, tkeys_str = get_times()
+        rec["keys_time"] = tkeys
+        rec["keys_time_str"] = tkeys_str
+        qr = visual.ImageStim(win,
+                              qrcode.make(json.dumps(rec)),
+                              pos=(0, 0)
+                              )
+        qr.size = qr.size *1
+        qr.draw()
+        win.flip()
+        tflip, tflip_str = get_times()
+        rec['time_flip'] = tflip
+        rec['time_flip_formatted'] = tflip_str
+        core.wait(0.5)
+        fixation.draw()
+        win.flip()
+        toff, toff_str = get_times()
+        rec['prior_time_off'] = toff
+        rec['prior_time_off_str'] = toff_str
+        log(rec)
+        if 'q' in keys:
+            break
+
+    f.close()
+    logger.info("main script finished")
+    logger.info("reprostim-timesync-stimuli script finished")
+
+
+@click.command(help='PsychoPy reprostim-timesync-stimuli script.')
+@click.option('-m', '--mode', type=click.Choice([mode.value for mode in Mode],
+                                                case_sensitive=False),
+              default=Mode.EVENT,
+              help='Mode of operation: event, interval, or beep.')
+@click.option('-o', '--output', default="output.log", type=str,
+              help='Output log file name.')
+@click.option('-d', '--display', default=1, type=int,
+              help='Display number as an integer (default: 1).')
+@click.option('-i', '--interval', default=2, type=float,
+              help='Specifies interval value (default: 2.0).')
+@click.option('--log-level', default='DEBUG',
+              type=click.Choice(['DEBUG', 'INFO',
+                                 'WARNING', 'ERROR',
+                                 'CRITICAL']),
+              help='Set the logging level')
+@click.pass_context
+def main(ctx, mode: str, output: str, display: int,
+         interval: float,
+         log_level):
+    logger.setLevel(log_level)
+    # psychopy has similar logging levels like
+    # default logging module
+    #pl.console.setLevel(log_level)
+    logger.debug("reprostim-timesync-stimuli script started")
+    logger.debug(f"  Started on : {datetime.now()}")
+    logger.debug(f"  Mode       : {mode}")
+    logger.debug(f"  Output     : {output}")
+    logger.debug(f"  Display    : {display}")
+    if not do_init(output):
+        return -1
+    return do_main(mode, output, display, interval)
+
+
+if __name__ == '__main__':
+    code = main()
+    logger.info(f"Exit on   : {datetime.now()}")
+    logger.info(f"Exit code : {code}")
+    sys.exit(code)
