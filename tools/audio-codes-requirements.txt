@@ -11,3 +11,4 @@ pyaudio>=0.2.14
 reedsolo>=1.7.0
 psychopy
 psychopy-sounddevice
+qrcode
