@@ -58,11 +58,11 @@ def get_times():
     return t, get_iso_time(t)
 
 
-def log(rec):
+def log(f, rec):
     f.write(json.dumps(rec).rstrip() + os.linesep)
 
 
-def mkrec(mode, interval, **kwargs):
+def mkrec(mode, logfn, interval, **kwargs):
     t, tstr = get_times()
     kwargs.update({
         "logfn": logfn,
@@ -110,9 +110,9 @@ def do_init(logfn: str) -> bool:
 
 
 def do_main(mode: Mode, logfn: str, display: int,
-            duration: float, interval: float) -> int:
+            ntrials: int, duration: float, interval: float) -> int:
     logger.info("main script started")
-    # print(json.dumps(mkrec(blah=123), indent=4))
+    # print(json.dumps(mkrec(mode, logfn, interval, blah=123), indent=4))
 
     if mode == Mode.BEEP:
         do_beep(duration)
@@ -123,7 +123,7 @@ def do_main(mode: Mode, logfn: str, display: int,
     win = visual.Window(fullscr=True, screen=display)
     win.mouseVisible = False # hides the mouse pointer
 
-    log(mkrec(mode, interval,
+    log(f, mkrec(mode, logfn, interval,
               event="started", start_time=t0, start_time_formatted=get_iso_time(t0)))
 
     message = visual.TextStim(win, text="""Waiting for scanner trigger.\nInstructions
@@ -142,7 +142,6 @@ def do_main(mode: Mode, logfn: str, display: int,
 
     spd = 0.500 # Stimulus Presentation Duration
     soa = 6.000 # Stimulus Onset Asynchrony
-    ntrials = 300
     iwt = 5 # Initial Wait Time between scanner trigger and first stimulus
 
     stim_images = []
@@ -153,11 +152,7 @@ def do_main(mode: Mode, logfn: str, display: int,
     t_start = time()
 
     logger.debug(f"warming time: {(t_start-t0):.6f} sec")
-    #play_beep(480, 120, 1.0)
-    beep_4()
-    logger.debug(f"mode: {mode}, interval: {interval}")
     logger.info(f"starting loop with {ntrials} trials...")
-
 
 
     for acqNum in range(ntrials):
@@ -165,6 +160,7 @@ def do_main(mode: Mode, logfn: str, display: int,
 
         rec = mkrec(
             mode,
+            logfn,
             interval,
             event="trigger",
             acqNum=acqNum
@@ -185,11 +181,11 @@ def do_main(mode: Mode, logfn: str, display: int,
         else:
             raise ValueError(mode)
 
-        freq = 2000 + (100*acqNum)
-        beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
-        beep.play()
+        #freq = 2000 + (100*acqNum)
+        #beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
+        #beep.play()
         rec['sound_time'] = get_times()
-        rec['sound_freq'] = freq
+        #rec['sound_freq'] = freq
         rec['keys'] = keys
         tkeys, tkeys_str = get_times()
         rec["keys_time"] = tkeys
@@ -210,7 +206,7 @@ def do_main(mode: Mode, logfn: str, display: int,
         toff, toff_str = get_times()
         rec['prior_time_off'] = toff
         rec['prior_time_off_str'] = toff_str
-        log(rec)
+        log(f, rec)
         if 'q' in keys:
             break
 
@@ -228,6 +224,8 @@ def do_main(mode: Mode, logfn: str, display: int,
               help='Output log file name.')
 @click.option('-d', '--display', default=1, type=int,
               help='Display number as an integer (default: 1).')
+@click.option('-t', '--trials', default=300, type=int,
+              help='Specifies number of trials.')
 @click.option('-d', '--duration', default=2, type=float,
               help='Specifies script duration in seconds.')
 @click.option('-i', '--interval', default=2, type=float,
@@ -238,7 +236,9 @@ def do_main(mode: Mode, logfn: str, display: int,
                                  'CRITICAL']),
               help='Set the logging level')
 @click.pass_context
-def main(ctx, mode: str, output: str, display: int,
+def main(ctx, mode: str,
+         output: str, display: int,
+         trials: int,
          duration: float, interval: float,
          log_level):
     logger.setLevel(log_level)
@@ -254,7 +254,8 @@ def main(ctx, mode: str, output: str, display: int,
     logger.debug(f"    interval : {interval}")
     if not do_init(output):
         return -1
-    return do_main(mode, output, display, duration, interval)
+    return do_main(mode, output, display,
+                   trials, duration, interval)
 
 
 if __name__ == '__main__':
