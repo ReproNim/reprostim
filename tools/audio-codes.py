@@ -42,7 +42,7 @@ logger.setLevel(logging.DEBUG)
 # audio barcode/qr helper functions
 
 def bit_enumerator(data):
-    if isinstance(data, AudioFrame):
+    if isinstance(data, DataMessage):
         data = data.encode()
     if isinstance(data, str):
         # If data is a string, iterate over each character
@@ -119,13 +119,13 @@ def list_audio_devices():
 
 
 
-# Class representing audio data frame in big-endian
+# Class representing audio data message in big-endian
 # format and encoded with Reed-Solomon error correction
-# where the frame is structured as follows:
+# where the message is structured as follows:
 #  - 1st byte is CRC-8 checksum
 #  - 2nd byte is the length of the data
 #  - 3+ and the rest is the data itself
-class AudioFrame:
+class DataMessage:
     def __init__(self):
         self.value: bytes = b''
         self.length: int = 0
@@ -150,7 +150,7 @@ class AudioFrame:
         logger.debug("size info")
         logger.debug(f"  - data      : {len(self.value)} bytes, {self.value}")
         b: bytes = bytes([self.crc8, self.length]) + self.value
-        logger.debug(f"  - frame     : {len(b)} bytes, {b}")
+        logger.debug(f"  - message   : {len(b)} bytes, {b}")
         if self.use_ecc:
             b = bytes(self.rsc.encode(b))
             logger.debug(f"  - ecc       : {len(b)} bytes, {b}")
@@ -344,7 +344,7 @@ def beep_2():
     data = b'\x00\x00\x00\x00'
     data = b'\xFF\xFF\xFF\xFF'
     data = b'\xF1\xF2\xF3\xF4'
-    data = AudioFrame()
+    data = DataMessage()
     n = 0xA001
     n = 1234
     logger.debug(f"encoded uint16: {n}")
@@ -359,7 +359,7 @@ def parse_beep_2():
     logger.debug("parse_beep_2()")
     af: AudioFsk = AudioFsk()
     detected_data = af.parse('beep_002.wav')
-    af: AudioFrame = AudioFrame()
+    af: DataMessage = DataMessage()
     af.decode(detected_data)
     u16 = af.get_uint16()
     ab: bytes = af.get_bytes()
@@ -371,7 +371,7 @@ def parse_beep_2():
 def beep_3():
     logger.debug("beep_3()")
     af: AudioFsk = AudioFsk()
-    data = AudioFrame()
+    data = DataMessage()
     s: str = "Hello World! "+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.debug(f"encoded str   : {s}")
     data.set_str(s)
@@ -384,7 +384,7 @@ def parse_beep_3():
     logger.debug("parse_beep_3()")
     af: AudioFsk = AudioFsk()
     detected_data = af.parse('beep_003.wav')
-    af: AudioFrame = AudioFrame()
+    af: DataMessage = DataMessage()
     af.decode(detected_data)
     ab = af.get_bytes()
     s = af.get_str()
