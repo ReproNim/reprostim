@@ -40,9 +40,14 @@ import numpy as np
 
 #######################################################
 # Constants
+
+# Enum for the mode of the script operation
 class Mode(str, Enum):
+    # Listen for keyboard events to show codes
     EVENT = "event"
+    # Show codes at regular intervals
     INTERVAL = "interval"
+    # Just play a beep
     BEEP = "beep"
 
 
@@ -53,13 +58,27 @@ def get_iso_time(t):
     return datetime.fromtimestamp(t).astimezone().isoformat()
 
 
+def get_output_file_name(prefix: str,
+                         start_ts: datetime,
+                         end_ts: datetime=None) -> str:
+    start_str: str = get_ts_str(start_ts)
+    end_str: str = get_ts_str(end_ts) if end_ts else ""
+    return f"{prefix}{start_str}--{end_str}.log"
+
 def get_times():
     t = time()
     return t, get_iso_time(t)
 
 
+def get_ts_str(ts: datetime) -> str:
+    ts_format = "%Y.%m.%d-%H.%M.%S.%f"
+    return f"{ts.strftime(ts_format)[:-3]}"
+
+
 def log(f, rec):
-    f.write(json.dumps(rec).rstrip() + os.linesep)
+    s = json.dumps(rec).rstrip()
+    f.write(s + os.linesep)
+    logger.debug(f"LOG {s}")
 
 
 def mkrec(mode, logfn, interval, **kwargs):
@@ -116,7 +135,7 @@ def do_init(logfn: str) -> bool:
     return True
 
 
-def do_main(mode: Mode, logfn: str, display: int,
+def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             ntrials: int, duration: float, interval: float) -> int:
     logger.info("main script started")
     # print(json.dumps(mkrec(mode, logfn, interval, blah=123), indent=4))
@@ -188,15 +207,19 @@ def do_main(mode: Mode, logfn: str, display: int,
                 sleep(to_wait * 0.7)
             # busy loop without sleep to not miss it
             while time() < target_time:
-                pass
+                sleep(0) # pass CPU to other threads
         else:
             raise ValueError(mode)
 
-        #freq = 2000 + (100*acqNum)
-        #beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
-        #beep.play()
-        rec['sound_time'] = get_times()
-        #rec['sound_freq'] = freq
+        if not mute:
+            #freq = 2000 + (100*acqNum)
+            #beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
+            #beep.play()
+            sound_time, sound_time_str = get_times()
+            rec['sound_time'] = sound_time
+            rec['sound_time_str'] = sound_time_str
+            rec['sound_data'] = acqNum
+
         rec['keys'] = keys
         tkeys, tkeys_str = get_times()
         rec["keys_time"] = tkeys
@@ -218,12 +241,12 @@ def do_main(mode: Mode, logfn: str, display: int,
         rec['prior_time_off'] = toff
         rec['prior_time_off_str'] = toff_str
         log(f, rec)
-        if 'q' in keys:
+        if 'q' in keys or 'escape' in keys:
             break
 
     f.close()
     logger.info("main script finished")
-    logger.info("reprostim-timesync-stimuli script finished")
+    return 0
 
 
 @click.command(help='PsychoPy reprostim-timesync-stimuli script.')
@@ -235,6 +258,8 @@ def do_main(mode: Mode, logfn: str, display: int,
               help='Output log file name prefix.')
 @click.option('-d', '--display', default=1, type=int,
               help='Display number as an integer (default: 1).')
+@click.option('-m', '--mute', is_flag=True, default=False,
+              help="Disable sound codes generation (default is False).")
 @click.option('-t', '--trials', default=300, type=int,
               help='Specifies number of trials.')
 @click.option('-d', '--duration', default=2, type=float,
@@ -250,6 +275,7 @@ def do_main(mode: Mode, logfn: str, display: int,
 def main(ctx, mode: str,
          output_prefix: str,
          display: int,
+         mute: bool,
          trials: int,
          duration: float,
          interval: float,
@@ -258,23 +284,38 @@ def main(ctx, mode: str,
     # psychopy has similar logging levels like
     # default logging module
     #pl.console.setLevel(log_level)
-    started_on: datetime = datetime.now()
+    start_ts: datetime = datetime.now()
     logger.debug("reprostim-timesync-stimuli script started")
-    logger.debug(f"  Started on : {started_on}")
+    logger.debug(f"  Started on : {start_ts}")
     logger.debug(f"    mode     : {mode}")
     logger.debug(f"    prefix   : {output_prefix}")
     logger.debug(f"    display  : {display}")
+    logger.debug(f"    mute     : {mute}")
     logger.debug(f"    duration : {duration}")
     logger.debug(f"    interval : {interval}")
 
-    ts_format = "%Y.%m.%d-%H.%M.%S.%f"
-    output: str = f"{output_prefix}{started_on.strftime(ts_format)}.log"
+    output: str = get_output_file_name(output_prefix, start_ts)
     logger.debug(f"    output   : {output}")
 
     if not do_init(output):
+        logger.error()
         return -1
-    return do_main(mode, output, display,
+
+    res = do_main(mode, output, display, mute,
                    trials, duration, interval)
+
+    end_ts: datetime = datetime.now()
+    logger.debug(f"  Finished on: {end_ts}")
+
+    # rename log file if any
+    output2: str = get_output_file_name(output_prefix, start_ts, end_ts)
+    if os.path.exists(output):
+        os.rename(output, output2)
+        logger.info(f"Output log renamed: {output} -> {output2}")
+
+    logger.info(f"reprostim-timesync-stimuli script finished: {res}")
+    return res
+
 
 
 if __name__ == '__main__':
