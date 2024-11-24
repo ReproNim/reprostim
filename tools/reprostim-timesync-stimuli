@@ -33,7 +33,7 @@ logger.info("reprostim-timesync-stimuli script started")
 import qrcode
 from psychopy import visual, core, event, clock
 from psychopy import sound
-
+from psychopy.hardware import keyboard
 
 import numpy as np
 
@@ -85,7 +85,14 @@ def play_beep(frequency, duration, volume=1.0):
     core.wait(duration)  # Wait for the beep to finish
     return sound_time
 
-
+def check_keys(max_wait: float=0) -> list[str]:
+    keys: list[str]
+    if max_wait > 0:
+        keys = event.waitKeys(maxWait=max_wait)
+    else:
+        keys = event.getKeys()
+    logger.debug(f"keys={keys}")
+    return keys if keys else []
 
 #######################################################
 # Main script code
@@ -148,6 +155,8 @@ def do_main(mode: Mode, logfn: str, display: int,
     stim_names = []
     keys = []  # None received/expected
 
+    #kb = keyboard.Keyboard()
+
     clk = clock.Clock()
     t_start = time()
 
@@ -168,8 +177,10 @@ def do_main(mode: Mode, logfn: str, display: int,
 
         if mode == Mode.EVENT:
             print("Waiting for an event")
-            keys = event.waitKeys(maxWait=120) # keyList=['5'])
+            keys = check_keys(120) # keyList=['5'])
         elif mode == Mode.INTERVAL:
+            #keys = kb.getKeys(waitRelease=False)
+            keys = check_keys()
             target_time = t_start + acqNum * interval
             to_wait = target_time - time()
             # sleep some part of it if long enough
@@ -220,8 +231,8 @@ def do_main(mode: Mode, logfn: str, display: int,
                                                 case_sensitive=False),
               default=Mode.EVENT,
               help='Mode of operation: event, interval, or beep.')
-@click.option('-o', '--output', default="output.log", type=str,
-              help='Output log file name.')
+@click.option('-o', '--output-prefix', default="output_", type=str,
+              help='Output log file name prefix.')
 @click.option('-d', '--display', default=1, type=int,
               help='Display number as an integer (default: 1).')
 @click.option('-t', '--trials', default=300, type=int,
@@ -237,21 +248,29 @@ def do_main(mode: Mode, logfn: str, display: int,
               help='Set the logging level')
 @click.pass_context
 def main(ctx, mode: str,
-         output: str, display: int,
+         output_prefix: str,
+         display: int,
          trials: int,
-         duration: float, interval: float,
+         duration: float,
+         interval: float,
          log_level):
     logger.setLevel(log_level)
     # psychopy has similar logging levels like
     # default logging module
     #pl.console.setLevel(log_level)
+    started_on: datetime = datetime.now()
     logger.debug("reprostim-timesync-stimuli script started")
-    logger.debug(f"  Started on : {datetime.now()}")
+    logger.debug(f"  Started on : {started_on}")
     logger.debug(f"    mode     : {mode}")
-    logger.debug(f"    output   : {output}")
+    logger.debug(f"    prefix   : {output_prefix}")
     logger.debug(f"    display  : {display}")
     logger.debug(f"    duration : {duration}")
     logger.debug(f"    interval : {interval}")
+
+    ts_format = "%Y.%m.%d-%H.%M.%S.%f"
+    output: str = f"{output_prefix}{started_on.strftime(ts_format)}.log"
+    logger.debug(f"    output   : {output}")
+
     if not do_init(output):
         return -1
     return do_main(mode, output, display,
