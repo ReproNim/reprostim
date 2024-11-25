@@ -5,20 +5,11 @@ t0 = time()
 import click
 from enum import Enum
 import logging
-import glob
 import sys
 import os
 import json
 from datetime import datetime
-
-from psychopy import prefs
-#prefs.hardware['audioLib'] = ['ptb', 'pyo','pygame']
-prefs.hardware['audioLib'] = ['sounddevice']
-
-# provide psychopy logs
-from psychopy import logging as pl
-#pl.console.setLevel(pl.NOTSET)
-pl.console.setLevel(pl.DEBUG)
+import qrcode
 
 
 # setup logging
@@ -30,16 +21,24 @@ logging.getLogger().addHandler(handler)
 logger.setLevel(logging.DEBUG)
 logger.info("reprostim-timesync-stimuli script started")
 
-import qrcode
-from psychopy import visual, core, event, clock
-from psychopy import sound
-from psychopy.hardware import keyboard
+# setup psychopy logs
+from psychopy import logging as pl
+#pl.console.setLevel(pl.NOTSET)
+pl.console.setLevel(pl.DEBUG)
 
-import numpy as np
+
+from psychopy import visual, core, event, clock
+#from psychopy.hardware import keyboard
 
 
 #######################################################
 # Constants
+
+# Enum for the audio libs
+class AudioLib(str, Enum):
+    SOUNDDEVICE = "sounddevice"
+    PTB = "ptb"
+
 
 # Enum for the mode of the script operation
 class Mode(str, Enum):
@@ -49,6 +48,8 @@ class Mode(str, Enum):
     INTERVAL = "interval"
     # Just play a beep
     BEEP = "beep"
+    # List audio/video devices
+    DEVICES = "devices"
 
 
 #######################################################
@@ -94,16 +95,6 @@ def mkrec(mode, logfn, interval, **kwargs):
     return kwargs
 
 
-# Function to play a beep at a specific frequency and duration
-def play_beep(frequency, duration, volume=1.0):
-    logger.debug(f'play_beep({frequency}, duration={duration}, volume={volume})')
-    # Create a sound object with the specified frequency
-    beep = sound.Sound(frequency, secs=duration, volume=volume)
-    beep.play()
-    sound_time = get_times()
-    core.wait(duration)  # Wait for the beep to finish
-    return sound_time
-
 def check_keys(max_wait: float=0) -> list[str]:
     keys: list[str]
     if max_wait > 0:
@@ -113,20 +104,19 @@ def check_keys(max_wait: float=0) -> list[str]:
     logger.debug(f"keys={keys}")
     return keys if keys else []
 
+def safe_remove(file_name: str):
+    if file_name:
+        if os.path.isfile(file_name):  # Check if it's a file
+            try:
+                os.remove(file_name)
+                logger.debug(f"File {file_name} deleted successfully.")
+            except Exception as e:
+                logger.error(f"Failed delete file {file_name}: {e}")
+        else:
+            logger.warning(f"File {file_name} does not exist or is not a valid file.")
+
 #######################################################
 # Main script code
-
-def do_beep(duration: float):
-    logger.debug("do_beep()")
-
-    snd = sound.Sound('A', secs=duration, stereo=True)
-    #snd = sound.Sound('beep_003.wav')
-
-    logger.debug(f"Play sound '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
-    snd.play()
-    core.wait(snd.duration)
-    logger.debug(f"Sound '{snd.sound}' has finished playing.")
-
 
 def do_init(logfn: str) -> bool:
     if os.path.exists(logfn):
@@ -138,12 +128,27 @@ def do_init(logfn: str) -> bool:
 def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             ntrials: int, duration: float, interval: float) -> int:
     logger.info("main script started")
+
+    # late sound init
+    from soundcode import (beep, list_audio_devices,
+                           save_soundcode, play_sound)
+
+    #soundcode.logger.setLevel(logging.DEBUG)
+
     # print(json.dumps(mkrec(mode, logfn, interval, blah=123), indent=4))
 
     if mode == Mode.BEEP:
-        do_beep(duration)
+        for i in range(ntrials):
+            beep(interval*0.5, async_=True)
+            sleep(interval)
         return 0
 
+    if mode == Mode.DEVICES:
+        list_audio_devices()
+        return 0
+
+    sound_data: int = 0
+    sound_file: str = None
     f = open(logfn, "w")
 
     win = visual.Window(fullscr=True, screen=display)
@@ -200,6 +205,11 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
         elif mode == Mode.INTERVAL:
             #keys = kb.getKeys(waitRelease=False)
             keys = check_keys()
+            # prepare sound code file if any
+            if not mute:
+                safe_remove(sound_file)
+                sound_data = acqNum
+                sound_file = save_soundcode(code_uint16=sound_data)
             target_time = t_start + acqNum * interval
             to_wait = target_time - time()
             # sleep some part of it if long enough
@@ -212,13 +222,11 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             raise ValueError(mode)
 
         if not mute:
-            #freq = 2000 + (100*acqNum)
-            #beep = sound.Sound(freq, secs=0.5, volume=0.8, sampleRate=44100, stereo=True)
-            #beep.play()
+            play_sound(sound_file, async_=True)
             sound_time, sound_time_str = get_times()
             rec['sound_time'] = sound_time
             rec['sound_time_str'] = sound_time_str
-            rec['sound_data'] = acqNum
+            rec['sound_data'] = sound_data
 
         rec['keys'] = keys
         tkeys, tkeys_str = get_times()
@@ -245,6 +253,8 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             break
 
     f.close()
+    # cleanup temporary sound file if any
+    safe_remove(sound_file)
     logger.info("main script finished")
     return 0
 
@@ -258,6 +268,11 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
               help='Output log file name prefix.')
 @click.option('-d', '--display', default=1, type=int,
               help='Display number as an integer (default: 1).')
+@click.option('-a', '--audio-lib',
+              type=click.Choice([a.value for a in AudioLib],
+                                case_sensitive=False),
+              default=AudioLib.SOUNDDEVICE,
+              help='Specify audio library to be used.')
 @click.option('-m', '--mute', is_flag=True, default=False,
               help="Disable sound codes generation (default is False).")
 @click.option('-t', '--trials', default=300, type=int,
@@ -266,7 +281,7 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
               help='Specifies script duration in seconds.')
 @click.option('-i', '--interval', default=2, type=float,
               help='Specifies interval value (default: 2.0).')
-@click.option('--log-level', default='DEBUG',
+@click.option('-l', '--log-level', default='DEBUG',
               type=click.Choice(['DEBUG', 'INFO',
                                  'WARNING', 'ERROR',
                                  'CRITICAL']),
@@ -275,6 +290,7 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
 def main(ctx, mode: str,
          output_prefix: str,
          display: int,
+         audio_lib: str,
          mute: bool,
          trials: int,
          duration: float,
@@ -290,12 +306,17 @@ def main(ctx, mode: str,
     logger.debug(f"    mode     : {mode}")
     logger.debug(f"    prefix   : {output_prefix}")
     logger.debug(f"    display  : {display}")
+    logger.debug(f"    audio_lib: {audio_lib}")
     logger.debug(f"    mute     : {mute}")
     logger.debug(f"    duration : {duration}")
     logger.debug(f"    interval : {interval}")
 
     output: str = get_output_file_name(output_prefix, start_ts)
     logger.debug(f"    output   : {output}")
+
+    # setup environment variables
+    os.environ['REPROSTIM_AUDIO_LIB'] = audio_lib
+    os.environ['REPROSTIM_LOG_LEVEL'] = log_level
 
     if not do_init(output):
         logger.error()
