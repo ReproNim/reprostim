@@ -7,6 +7,7 @@ from enum import Enum
 import logging
 import sys
 import os
+import shutil
 import json
 from datetime import datetime
 import qrcode
@@ -115,6 +116,13 @@ def safe_remove(file_name: str):
         else:
             logger.warning(f"File {file_name} does not exist or is not a valid file.")
 
+def store_soundcode(sound_file: str, sound_data: int, logfn: str):
+    # if sound_file exits, copy it to {logfn}soundcode_{sound_data}.wav
+    if os.path.isfile(sound_file):
+        sfile = f"{os.path.splitext(logfn)[0]}soundcode_{sound_data}.wav"
+        shutil.copy(sound_file, sfile)
+
+
 #######################################################
 # Main script code
 
@@ -126,7 +134,8 @@ def do_init(logfn: str) -> bool:
 
 
 def do_main(mode: Mode, logfn: str, display: int, mute: bool,
-            ntrials: int, duration: float, interval: float) -> int:
+            ntrials: int, duration: float, interval: float,
+            keep_soundcode: bool) -> int:
     logger.info("main script started")
 
     # late sound init
@@ -209,6 +218,8 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             keys = check_keys()
             # prepare sound code file if any
             if not mute:
+                if keep_soundcode and sound_file:
+                    store_soundcode(sound_file, sound_data, logfn)
                 safe_remove(sound_file)
                 sound_data = acqNum
                 sound_file, sound_info = save_soundcode(code_uint16=sound_data)
@@ -259,6 +270,9 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             break
 
     f.close()
+
+    if keep_soundcode and sound_file:
+        store_soundcode(sound_file, sound_data, logfn)
     # cleanup temporary sound file if any
     safe_remove(sound_file)
     logger.info("main script finished")
@@ -287,6 +301,9 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
               help='Specifies script duration in seconds.')
 @click.option('-i', '--interval', default=2, type=float,
               help='Specifies interval value (default: 2.0).')
+@click.option('-k', '--keep-soundcode', is_flag=True, default=False,
+              help="Store soundcode as separate .wav files "
+                   "for debug purposes (default is False).")
 @click.option('-l', '--log-level', default='DEBUG',
               type=click.Choice(['DEBUG', 'INFO',
                                  'WARNING', 'ERROR',
@@ -301,6 +318,7 @@ def main(ctx, mode: str,
          trials: int,
          duration: float,
          interval: float,
+         keep_soundcode: bool,
          log_level):
     logger.setLevel(log_level)
     # psychopy has similar logging levels like
@@ -329,7 +347,8 @@ def main(ctx, mode: str,
         return -1
 
     res = do_main(mode, output, display, mute,
-                   trials, duration, interval)
+                   trials, duration, interval,
+                   keep_soundcode)
 
     end_ts: datetime = datetime.now()
     logger.debug(f"  Finished on: {end_ts}")
