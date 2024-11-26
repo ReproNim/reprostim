@@ -131,7 +131,8 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
 
     # late sound init
     from soundcode import (beep, list_audio_devices,
-                           save_soundcode, play_sound)
+                           save_soundcode, play_sound,
+                           SoundCodeInfo)
 
     #soundcode.logger.setLevel(logging.DEBUG)
 
@@ -149,6 +150,7 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
 
     sound_data: int = 0
     sound_file: str = None
+    sound_info: SoundCodeInfo = None
     f = open(logfn, "w")
 
     win = visual.Window(fullscr=True, screen=display)
@@ -209,7 +211,9 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             if not mute:
                 safe_remove(sound_file)
                 sound_data = acqNum
-                sound_file = save_soundcode(code_uint16=sound_data)
+                sound_file, sound_info = save_soundcode(code_uint16=sound_data)
+                logger.debug(f"  {sound_info}")
+
             target_time = t_start + acqNum * interval
             to_wait = target_time - time()
             # sleep some part of it if long enough
@@ -222,11 +226,13 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
             raise ValueError(mode)
 
         if not mute:
-            play_sound(sound_file, async_=True)
+            d = play_sound(sound_file, async_=True)
             sound_time, sound_time_str = get_times()
             rec['sound_time'] = sound_time
             rec['sound_time_str'] = sound_time_str
             rec['sound_data'] = sound_data
+            # NOTE: should we add codec info to the log?
+            # like f0, f1, sampleRate, bit_duration, duration, etc
 
         rec['keys'] = keys
         tkeys, tkeys_str = get_times()

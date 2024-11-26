@@ -5,6 +5,7 @@ import os
 import time
 from datetime import datetime
 import tempfile
+from enum import Enum
 
 import numpy as np
 import sounddevice as sd
@@ -79,85 +80,6 @@ def crc8(data: bytes, polynomial: int = 0x31, init_value: int = 0x00) -> int:
                 crc <<= 1  # Just shift left
             crc &= 0xFF  # Keep CRC to 8 bits
     return crc
-
-
-def list_audio_devices():
-    logger.debug("list_audio_devices()")
-
-    logger.debug("[psychopy]")
-    logger.debug(f"audioLib     : {prefs.hardware['audioLib']}")
-    logger.debug(f"audioDevice  : {prefs.hardware['audioDevice']}")
-
-    logger.debug("[sounddevice]")
-    devices = sd.query_devices()  # Query all devices
-    for i, device in enumerate(devices):
-        logger.debug(f"device [{i}]  : {device['name']}")
-    default_device = sd.default.device  # Get the current default input/output devices
-    logger.debug(f"default in  : {default_device[0]}")
-    logger.debug(f"default out : {default_device[1]}")
-
-    logger.debug("[psytoolbox]")
-    for i, device in enumerate(audio.get_devices()):
-        logger.debug(f"device [{i}]  : {device}")
-
-    logger.debug("[psychopy.backend_ptb]")
-    # TODO: investigate why only single out device listed from
-    # USB capture but defult one is not shown
-    # logger.debug(sound.backend_ptb.getDevices())
-
-
-def beep(duration: float = 2.0, async_: bool = False):
-    logger.debug(f"beep(duration={duration})")
-    play_sound('A', duration, async_)
-
-
-def play_sound(name: str, duration: float = None, async_: bool = False):
-    logger.debug(f"play_sound(name={name}, duration={duration}, async_={async_})")
-    snd = None
-    if duration:
-        snd = sound.Sound(name, secs=duration, stereo=True)
-    else:
-        snd = sound.Sound(name, stereo=True)
-    logger.debug(f"Play sound '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
-    snd.play()
-    if not async_:
-        logger.debug("Waiting for sound to finish playing...")
-        core.wait(snd.duration)
-        logger.debug(f"Sound '{snd.sound}' has finished playing.")
-
-
-def save_soundcode(fname: str = None,
-                   code_uint16: int = None,
-                   code_uint32: int = None,
-                   code_uint64: int = None,
-                   code_str: str = None,
-                   code_bytes: bytes = None,
-                   engine=None) -> str:
-    logger.debug(f"save_sound(fname={fname}...)")
-    if not fname:
-        fname = tempfile.mktemp(
-            prefix=f"soundcode_{datetime.now().strftime('%Y%m%d_%H%M%S%f')}_",
-            suffix=".wav")
-
-    data = DataMessage()
-    if not code_uint16 is None:
-        data.set_uint16(code_uint16)
-    elif not code_uint32 is None:
-        data.set_uint32(code_uint32)
-    elif not code_uint64 is None:
-        data.set_uint64(code_uint64)
-    elif code_str:
-        data.set_str(code_str)
-    elif code_bytes:
-        data.set_bytes(code_bytes)
-    else:
-        raise ValueError("No code data provided.")
-
-    if not engine:
-        engine = SoundCodeFsk()
-    engine.save(data, fname)
-    logger.debug(f" -> {fname}")
-    return fname
 
 ######################################
 # Classes
@@ -241,27 +163,55 @@ class DataMessage:
         self.set_bytes(i.to_bytes(8, 'big'))
 
 
+class SoundCodec(str, Enum):
+    FSK = "fsk"
+
+
+# Class to provide general information about sound code
+class SoundCodeInfo:
+    def __init__(self):
+        self.codec = None
+        self.f1 = None
+        self.f0 = None
+        self.sample_rate = None
+        self.bit_duration = None
+        self.bit_count = None
+        self.volume = None
+        self.duration = None
+
+    # to string
+    def __str__(self):
+        return (f"SoundCodeInfo(codec={self.codec}, "
+                f"f1={self.f1}, "
+                f"f0={self.f0}, "
+                f"rate={self.sample_rate}, "
+                f"bit_duration={self.bit_duration}, "
+                f"bit_count={self.bit_count}, "
+                f"volume={self.volume}, "
+                f"duration={self.duration})")
+
+
 # Class to generate/parse QR-like sound codes with FSK modulation
 class SoundCodeFsk:
     def __init__(self,
                  f1=1000,
                  f0=5000,
                  sample_rate=44100,
-                 duration=0.0070,
+                 bit_duration=0.0070,
                  volume=0.75
                  ):
         self.f1 = f1
         self.f0 = f0
         self.sample_rate = sample_rate
-        self.duration = duration
+        self.bit_duration = bit_duration
         if volume < 0.0 or volume > 1.0:
             raise ValueError("Volume must be between 0.0 and 1.0.")
         self.volume = volume
 
-    def generate(self, data):
-        logger.debug(f"audio config  : f1={self.f1} Hz, f0={self.f0} Hz, rate={self.sample_rate} Hz, bit duration={self.duration} sec, volume={self.volume}")
-        t = np.linspace(0, self.duration,
-                        int(self.sample_rate * self.duration),
+    def generate(self, data) -> (np.array, SoundCodeInfo):
+        logger.debug(f"audio config  : f1={self.f1} Hz, f0={self.f0} Hz, rate={self.sample_rate} Hz, bit duration={self.bit_duration} sec, volume={self.volume}")
+        t = np.linspace(0, self.bit_duration,
+                        int(self.sample_rate * self.bit_duration),
                         endpoint=False)
 
         # Create FSK signal
@@ -282,13 +232,24 @@ class SoundCodeFsk:
         # Normalize the signal for 100% volume
         if self.volume==1.0:
             fsk_signal /= np.max(np.abs(fsk_signal))
+
+        sci: SoundCodeInfo = SoundCodeInfo()
+        sci.codec = SoundCodec.FSK
+        sci.f1 = self.f1
+        sci.f0 = self.f0
+        sci.sample_rate = self.sample_rate
+        sci.bit_duration = self.bit_duration
+        sci.bit_count = c
+        sci.volume = self.volume
+        sci.duration = c * self.bit_duration
+
         logger.debug(f"audio raw bits: count={c}, {sb}")
-        logger.debug(f"audio duration: {c * self.duration:.6f} seconds")
-        return fsk_signal
+        logger.debug(f"audio duration: {sci.duration:.6f} seconds")
+        return (fsk_signal, sci)
 
     def play(self, data):
         ts = time.perf_counter()
-        fsk_signal = self.generate(data)
+        fsk_signal, sci = self.generate(data)
         ts = time.perf_counter() - ts
         logger.debug(f"generate time : {ts:.6f} seconds")
 
@@ -303,7 +264,7 @@ class SoundCodeFsk:
 
 
     def save(self, data, filename):
-        fsk_signal = self.generate(data)
+        fsk_signal, sci = self.generate(data)
 
         # Save the signal to a WAV file
         write(filename, self.sample_rate,
@@ -318,7 +279,7 @@ class SoundCodeFsk:
             data = data.mean(axis=1)
 
         # Calculate the number of samples for each bit duration
-        samples_per_bit = int(self.sample_rate * self.duration)
+        samples_per_bit = int(self.sample_rate * self.bit_duration)
 
         # Prepare a list to hold the detected bits
         detected_bits = []
@@ -352,3 +313,90 @@ class SoundCodeFsk:
         dbg_bits: str = ''.join([str(bit) for bit in detected_bits])
         logger.debug(f"detected bits : count={len(dbg_bits)}, {dbg_bits}")
         return bits_to_bytes(detected_bits)
+
+######################################
+# Public functions
+
+def beep(duration: float = 2.0, async_: bool = False):
+    logger.debug(f"beep(duration={duration})")
+    play_sound('A', duration, async_)
+
+
+def list_audio_devices():
+    logger.debug("list_audio_devices()")
+
+    logger.debug("[psychopy]")
+    logger.debug(f"audioLib     : {prefs.hardware['audioLib']}")
+    logger.debug(f"audioDevice  : {prefs.hardware['audioDevice']}")
+
+    logger.debug("[sounddevice]")
+    devices = sd.query_devices()  # Query all devices
+    for i, device in enumerate(devices):
+        logger.debug(f"device [{i}]  : {device['name']}")
+    default_device = sd.default.device  # Get the current default input/output devices
+    logger.debug(f"default in  : {default_device[0]}")
+    logger.debug(f"default out : {default_device[1]}")
+
+    logger.debug("[psytoolbox]")
+    for i, device in enumerate(audio.get_devices()):
+        logger.debug(f"device [{i}]  : {device}")
+
+    logger.debug("[psychopy.backend_ptb]")
+    # TODO: investigate why only single out device listed from
+    # USB capture but defult one is not shown
+    # logger.debug(sound.backend_ptb.getDevices())
+
+
+
+def play_sound(name: str,
+               duration: float = None,
+               volume: float = 0.8,
+               async_: bool = False):
+    logger.debug(f"play_sound(name={name}, duration={duration}, async_={async_})")
+    snd = None
+    if duration:
+        snd = sound.Sound(name, secs=duration,
+                          stereo=True, volume=volume)
+    else:
+        snd = sound.Sound(name, stereo=True, volume=volume)
+    logger.debug(f"Play sound '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
+    snd.play()
+    logger.debug(f" sampleRate={snd.sampleRate}, duration={snd.duration}, volume={snd.volume}")
+    if not async_:
+        logger.debug("Waiting for sound to finish playing...")
+        core.wait(snd.duration)
+        logger.debug(f"Sound '{snd.sound}' has finished playing.")
+
+
+def save_soundcode(fname: str = None,
+                   code_uint16: int = None,
+                   code_uint32: int = None,
+                   code_uint64: int = None,
+                   code_str: str = None,
+                   code_bytes: bytes = None,
+                   engine=None) -> (str, SoundCodeInfo):
+    logger.debug(f"save_sound(fname={fname}...)")
+    if not fname:
+        fname = tempfile.mktemp(
+            prefix=f"soundcode_{datetime.now().strftime('%Y%m%d_%H%M%S%f')}_",
+            suffix=".wav")
+
+    data = DataMessage()
+    if not code_uint16 is None:
+        data.set_uint16(code_uint16)
+    elif not code_uint32 is None:
+        data.set_uint32(code_uint32)
+    elif not code_uint64 is None:
+        data.set_uint64(code_uint64)
+    elif code_str:
+        data.set_str(code_str)
+    elif code_bytes:
+        data.set_bytes(code_bytes)
+    else:
+        raise ValueError("No code data provided.")
+
+    if not engine:
+        engine = SoundCodeFsk()
+    sci: SoundCodeInfo = engine.save(data, fname)
+    logger.debug(f" -> {fname}")
+    return (fname, sci)
