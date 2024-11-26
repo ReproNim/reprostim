@@ -198,7 +198,11 @@ class SoundCodeFsk:
                  f0=5000,
                  sample_rate=44100,
                  bit_duration=0.0070,
-                 volume=0.75
+                 volume=0.95,
+                 pre_delay=0.1,
+                 pre_f=1780,
+                 post_delay=0.1,
+                 post_f=0 #3571
                  ):
         self.f1 = f1
         self.f0 = f0
@@ -207,6 +211,11 @@ class SoundCodeFsk:
         if volume < 0.0 or volume > 1.0:
             raise ValueError("Volume must be between 0.0 and 1.0.")
         self.volume = volume
+        self.pre_delay = pre_delay
+        self.pre_f = pre_f
+        self.post_delay = post_delay
+        self.post_f = post_f
+
 
     def generate(self, data) -> (np.array, SoundCodeInfo):
         logger.debug(f"audio config  : f1={self.f1} Hz, f0={self.f0} Hz, rate={self.sample_rate} Hz, bit duration={self.bit_duration} sec, volume={self.volume}")
@@ -216,7 +225,24 @@ class SoundCodeFsk:
 
         # Create FSK signal
         fsk_signal = np.array([])
+        pre_signal = np.array([])
+        post_signal = np.array([])
 
+        # generate pre-signal if any
+        if self.pre_delay > 0:
+            t_pre = np.linspace(0, self.pre_delay,
+                                int(self.sample_rate * self.pre_delay),
+                                endpoint=False)
+            pre_signal = self.volume * np.sin(2 * np.pi * self.pre_f * t_pre)
+
+        # generate post-signal if any
+        if self.post_delay > 0:
+            t_post = np.linspace(0, self.post_delay,
+                                 int(self.sample_rate * self.post_delay),
+                                 endpoint=False)
+            post_signal = self.volume * np.sin(2 * np.pi * self.post_f * t_post)
+
+        # generate data signal properly
         c: int = 0
         sb: str = ''
         for bit in bit_enumerator(data):
@@ -228,6 +254,10 @@ class SoundCodeFsk:
             else:
                 fsk_signal = np.concatenate((fsk_signal,
                                              self.volume * np.sin(2 * np.pi * self.f0 * t)))
+
+        # concatenate pre-signal, data signal, and post-signal
+        if self.pre_delay > 0 or self.post_delay > 0:
+            fsk_signal = np.concatenate((pre_signal, fsk_signal, post_signal))
 
         # Normalize the signal for 100% volume
         if self.volume==1.0:
@@ -241,7 +271,8 @@ class SoundCodeFsk:
         sci.bit_duration = self.bit_duration
         sci.bit_count = c
         sci.volume = self.volume
-        sci.duration = c * self.bit_duration
+        sci.duration = (c * self.bit_duration +
+                        self.pre_delay + self.post_delay)
 
         logger.debug(f"audio raw bits: count={c}, {sb}")
         logger.debug(f"audio duration: {sci.duration:.6f} seconds")
