@@ -47,10 +47,13 @@ apt-get install -y -q --no-install-recommends \
     libwxgtk-webview3.2-dev \
     libwxgtk3.2-dev \
     ncdu \
+    pavucontrol \
     pigz \
     pkg-config \
     portaudio19-dev \
     procps \
+    pulseaudio \
+    pulseaudio-utils \
     python3 \
     python3-pip \
     strace \
@@ -65,7 +68,7 @@ git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-inst
 
 /opt/psychopy-installer/psychopy_linux_installer.sh --install_dir=/opt/psychopy --psychopy_version=2024.1.4 --bids_version=2023.2.0 --python_version=3.10.14 --wxpython_version=4.2.1 -v -f
 
-/opt/psychopy/psychopy_*/bin/pip install qrcode
+/opt/psychopy/psychopy_*/bin/pip install qrcode pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice
 
 bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'
 
@@ -114,6 +117,9 @@ printf '{ \
           "libusb-1.0-0-dev", \
           "portaudio19-dev", \
           "libasound2-dev", \
+          "pulseaudio", \
+          "pavucontrol", \
+          "pulseaudio-utils", \
           "vim", \
           "wget", \
           "strace", \
@@ -134,7 +140,7 @@ printf '{ \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "apt-get update -qq\\napt-get install -y -q --no-install-recommends \\\\\\n    build-essential \\\\\\n    curl \\\\\\n    git \\\\\\n    gnupg \\\\\\n    less \\\\\\n    libasound2-dev \\\\\\n    libcanberra-gtk3-module \\\\\\n    libgtk-3-dev \\\\\\n    libusb-1.0-0-dev \\\\\\n    libwxgtk-media3.2-dev \\\\\\n    libwxgtk-webview3.2-dev \\\\\\n    libwxgtk3.2-dev \\\\\\n    ncdu \\\\\\n    pigz \\\\\\n    pkg-config \\\\\\n    portaudio19-dev \\\\\\n    procps \\\\\\n    python3 \\\\\\n    python3-pip \\\\\\n    strace \\\\\\n    sudo \\\\\\n    time \\\\\\n    tree \\\\\\n    vim \\\\\\n    wget\\nrm -rf /var/lib/apt/lists/*" \
+        "command": "apt-get update -qq\\napt-get install -y -q --no-install-recommends \\\\\\n    build-essential \\\\\\n    curl \\\\\\n    git \\\\\\n    gnupg \\\\\\n    less \\\\\\n    libasound2-dev \\\\\\n    libcanberra-gtk3-module \\\\\\n    libgtk-3-dev \\\\\\n    libusb-1.0-0-dev \\\\\\n    libwxgtk-media3.2-dev \\\\\\n    libwxgtk-webview3.2-dev \\\\\\n    libwxgtk3.2-dev \\\\\\n    ncdu \\\\\\n    pavucontrol \\\\\\n    pigz \\\\\\n    pkg-config \\\\\\n    portaudio19-dev \\\\\\n    procps \\\\\\n    pulseaudio \\\\\\n    pulseaudio-utils \\\\\\n    python3 \\\\\\n    python3-pip \\\\\\n    strace \\\\\\n    sudo \\\\\\n    time \\\\\\n    tree \\\\\\n    vim \\\\\\n    wget\\nrm -rf /var/lib/apt/lists/*" \
       } \
     }, \
     { \
@@ -152,7 +158,7 @@ printf '{ \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "/opt/psychopy/psychopy_*/bin/pip install qrcode" \
+        "command": "/opt/psychopy/psychopy_*/bin/pip install qrcode pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice" \
       } \
     }, \
     { \
