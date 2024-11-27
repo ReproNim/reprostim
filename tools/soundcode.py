@@ -198,9 +198,11 @@ class SoundCodeFsk:
                  f0=5000,
                  sample_rate=44100,
                  bit_duration=0.0070,
+                 #bit_duration=0.014,
                  volume=0.95,
                  pre_delay=0.1,
-                 pre_f=1780,
+                 #pre_f=1780,
+                 pre_f=0,
                  post_delay=0.1,
                  post_f=0 #3571
                  ):
