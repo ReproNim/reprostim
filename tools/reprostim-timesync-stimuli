@@ -35,16 +35,6 @@ from psychopy import visual, core, event, clock
 #######################################################
 # Constants
 
-# Enum for the audio libs
-class AudioLib(str, Enum):
-    # PsychoPy SoundDevice audio lib
-    PSYCHOPY_SOUNDDEVICE = "psychopy_sounddevice"
-    # PsychoPy SoundPTB audio lib
-    PSYCHOPY_PTB = "psychopy_ptb"
-    # sounddevice audio lib
-    # http://python-sounddevice.readthedocs.io/
-    SOUNDDEVICE = "sounddevice"
-
 
 # Enum for the mode of the script operation
 class Mode(str, Enum):
@@ -312,10 +302,13 @@ def do_main(mode: Mode, logfn: str,
               help='Specify QR code scale factor in range 0..1. '
                    'Use 1.0 to fit full height (default: 0.8).')
 @click.option('-a', '--audio-lib',
-              type=click.Choice([a.value for a in AudioLib],
-                                case_sensitive=False),
-              default=AudioLib.PSYCHOPY_SOUNDDEVICE,
-              help='Specify audio library to be used.')
+              type=click.Choice(['psychopy_sounddevice',
+                                 'psychopy_ptb',
+                                 'sounddevice'],
+                                case_sensitive=True),
+              default='psychopy_sounddevice',
+              help='Specify audio library to be used '
+                   '(default: psychopy_sounddevice).')
 @click.option('-c', '--sound-codec',
               type=click.Choice(['FSK', 'NFE'],
                                 case_sensitive=True),

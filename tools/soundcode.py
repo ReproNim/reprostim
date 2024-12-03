@@ -9,7 +9,7 @@ from enum import Enum
 
 import numpy as np
 import sounddevice as sd
-from scipy.io.wavfile import write
+from scipy.io.wavfile import write, read
 from scipy.io import wavfile
 from reedsolo import RSCodec
 
@@ -18,10 +18,30 @@ from reedsolo import RSCodec
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get('REPROSTIM_LOG_LEVEL', 'INFO'))
 
-# setup audio library
+######################################
+# Setup psychopy audio library
+
+# Enum for the audio libs
+class AudioLib(str, Enum):
+    # PsychoPy SoundDevice audio lib
+    PSYCHOPY_SOUNDDEVICE = "psychopy_sounddevice"
+    # PsychoPy SoundPTB audio lib
+    PSYCHOPY_PTB = "psychopy_ptb"
+    # sounddevice audio lib
+    # http://python-sounddevice.readthedocs.io/
+    SOUNDDEVICE = "sounddevice"
+
+_audio_lib = os.environ.get('REPROSTIM_AUDIO_LIB', AudioLib.PSYCHOPY_SOUNDDEVICE)
+
 from psychopy import prefs
-prefs.hardware['audioLib'] = [os.environ.get('REPROSTIM_AUDIO_LIB',
-                                             'sounddevice')]
+prefs.hardware['audioLib'] = ['sounddevice']
+if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
+    logger.debug("Set psychopy audio library: sounddevice")
+    prefs.hardware['audioLib'] = ['sounddevice']
+elif _audio_lib == AudioLib.PSYCHOPY_PTB:
+    logger.debug("Set psychopy audio library: ptb")
+    prefs.hardware['audioLib'] = ['ptb']
+
 #logger.info("Using psychopy audio library: %s", prefs.hardware['audioLib'])
 from psychopy import core, sound
 from psychtoolbox import audio
@@ -80,6 +100,20 @@ def crc8(data: bytes, polynomial: int = 0x31, init_value: int = 0x00) -> int:
                 crc <<= 1  # Just shift left
             crc &= 0xFF  # Keep CRC to 8 bits
     return crc
+
+######################################
+# Constants
+
+class SoundCodec(str, Enum):
+    # Frequency Shift Keying (FSK) where binary data is
+    # encoded as two different frequencies f0 and f1 with
+    # a fixed bit duration (baud rate or bit_rate).
+    FSK = "FSK"
+
+    # Numerical Frequency Encoding (NFE) numbers are mapped
+    # directly to specific frequencies
+    # can encode only some numeric hash.
+    NFE = "NFE"
 
 ######################################
 # Classes
@@ -173,18 +207,6 @@ class DataMessage:
 
     def set_uint64(self, i: int):
         self.set_bytes(i.to_bytes(8, 'big'))
-
-
-class SoundCodec(str, Enum):
-    # Frequency Shift Keying (FSK) where binary data is
-    # encoded as two different frequencies f0 and f1 with
-    # a fixed bit duration (baud rate or bit_rate).
-    FSK = "FSK"
-
-    # Numerical Frequency Encoding (NFE) numbers are mapped
-    # directly to specific frequencies
-    # can encode only some numeric hash.
-    NFE = "NFE"
 
 
 # Class to provide general information about sound code
@@ -477,17 +499,19 @@ def list_audio_devices():
 
 
 
-def play_sound(name: str,
+def _play_sound_psychopy(name: str,
                duration: float = None,
                volume: float = 0.8,
+               sample_rate: int = 44100,
                async_: bool = False):
-    logger.debug(f"play_sound(name={name}, duration={duration}, async_={async_})")
+    logger.debug(f"_play_sound_psychopy(name={name}, duration={duration}, async_={async_})")
     snd = None
     if duration:
-        snd = sound.Sound(name, secs=duration,
+        snd = sound.Sound(name, secs=duration, sampleRate=sample_rate,
                           stereo=True, volume=volume)
     else:
-        snd = sound.Sound(name, stereo=True, volume=volume)
+        snd = sound.Sound(name, stereo=True, sampleRate=sample_rate,
+                          volume=volume)
     logger.debug(f"Play sound '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
     snd.play()
     logger.debug(f" sampleRate={snd.sampleRate}, duration={snd.duration}, volume={snd.volume}")
@@ -495,6 +519,39 @@ def play_sound(name: str,
         logger.debug("Waiting for sound to finish playing...")
         core.wait(snd.duration)
         logger.debug(f"Sound '{snd.sound}' has finished playing.")
+
+
+def _play_sound_sd(name: str,
+               duration: float = None,
+               volume: float = 0.8,
+               sample_rate: int = 44100,
+               async_: bool = False):
+    logger.debug(f"_play_sound_sd(name={name}, duration={duration}, async_={async_})")
+    data = name
+
+    if os.path.exists(name):
+        rate, signal = read(name)
+        logger.debug(f"Read sound file: {name}, rate={rate}")
+        # Convert from int16 to float32
+        #signal = signal.astype(np.float32) / 32767
+        data = signal
+
+    sd.play(data, samplerate=sample_rate)
+
+
+def play_sound(name: str,
+               duration: float = None,
+               volume: float = 0.8,
+               sample_rate: int = 44100,
+               async_: bool = False):
+    logger.debug(f"play_sound(name={name}, duration={duration}, async_={async_})")
+    if (_audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE or
+        _audio_lib == AudioLib.PSYCHOPY_PTB):
+        _play_sound_psychopy(name, duration, volume, sample_rate, async_)
+    elif _audio_lib == AudioLib.SOUNDDEVICE:
+        _play_sound_sd(name, duration, volume, sample_rate, async_)
+    else:
+        raise ValueError(f"Unsupported audio library: {_audio_lib}")
 
 
 def save_soundcode(fname: str = None,
