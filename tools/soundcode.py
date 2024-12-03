@@ -127,6 +127,18 @@ class DataMessage:
     def get_str(self) -> str:
         return self.value.decode("utf-8")
 
+    def get_uint(self) -> int:
+        c = len(self.value)
+        if c == 2:
+            return self.get_uint16()
+        elif c == 4:
+            return self.get_uint32()
+        elif c == 8:
+            return self.get_uint64()
+        else:
+            raise ValueError(f"Data length must be 2, 4, or 8 bytes, "
+                             f"but was {c}")
+
     def get_uint16(self) -> int:
         if len(self.value) != 2:
             raise ValueError(f"Data length for uint16 must be 2 bytes, "
@@ -164,7 +176,15 @@ class DataMessage:
 
 
 class SoundCodec(str, Enum):
+    # Frequency Shift Keying (FSK) where binary data is
+    # encoded as two different frequencies f0 and f1 with
+    # a fixed bit duration (baud rate or bit_rate).
     FSK = "fsk"
+
+    # Numerical Frequency Encoding (NFE) numbers are mapped
+    # directly to specific frequencies
+    # can encode only some numeric hash.
+    NFE = "nfe"
 
 
 # Class to provide general information about sound code
@@ -173,43 +193,58 @@ class SoundCodeInfo:
         self.codec = None
         self.f1 = None
         self.f0 = None
+        self.nfe_df = None
         self.sample_rate = None
         self.bit_duration = None
+        self.nfe_duration = None
+        self.nfe_freq = None
         self.bit_count = None
         self.volume = None
         self.duration = None
+        self.pre_delay = None
+        self.post_delay = None
 
     # to string
     def __str__(self):
         return (f"SoundCodeInfo(codec={self.codec}, "
                 f"f1={self.f1}, "
                 f"f0={self.f0}, "
+                f"nfe_df={self.nfe_df}, "
                 f"rate={self.sample_rate}, "
                 f"bit_duration={self.bit_duration}, "
                 f"bit_count={self.bit_count}, "
+                f"nfe_freq={self.nfe_freq}, "
                 f"volume={self.volume}, "
-                f"duration={self.duration})")
+                f"duration={self.duration})"
+                f"pre_delay={self.pre_delay}, "
+                f"post_delay={self.post_delay}")
 
 
 # Class to generate/parse QR-like sound codes with FSK modulation
-class SoundCodeFsk:
+class SoundCodeEngine:
     def __init__(self,
-                 f1=1000,
-                 f0=5000,
+                 codec=SoundCodec.FSK,
+                 f0=1000,
+                 f1=5000,
+                 nfe_df=100,  # used only in NFE
                  sample_rate=44100,
-                 bit_duration=0.0070,
+                 bit_duration=0.0070,  # used only in FSK
                  #bit_duration=0.014,
+                 nfe_duration=0.3,  # used only in NFE
                  volume=0.95,
                  pre_delay=0.1,
                  #pre_f=1780,
                  pre_f=0,
                  post_delay=0.1,
-                 post_f=0 #3571
+                 post_f=0  #3571
                  ):
-        self.f1 = f1
+        self.codec = codec
         self.f0 = f0
+        self.f1 = f1
+        self.nfe_df = nfe_df
         self.sample_rate = sample_rate
         self.bit_duration = bit_duration
+        self.nfe_duration = nfe_duration
         if volume < 0.0 or volume > 1.0:
             raise ValueError("Volume must be between 0.0 and 1.0.")
         self.volume = volume
@@ -218,8 +253,15 @@ class SoundCodeFsk:
         self.post_delay = post_delay
         self.post_f = post_f
 
+    def generate_sin(self, freq_hz, duration_sec):
+        t = np.linspace(0, duration_sec,
+                            int(self.sample_rate * duration_sec),
+                            endpoint=False)
+        signal = self.volume * np.sin(2 * np.pi * freq_hz * t)
+        return signal
 
-    def generate(self, data) -> (np.array, SoundCodeInfo):
+
+    def generate_fsk(self, data) -> (np.array, SoundCodeInfo):
         logger.debug(f"audio config  : f1={self.f1} Hz, f0={self.f0} Hz, rate={self.sample_rate} Hz, bit duration={self.bit_duration} sec, volume={self.volume}")
         t = np.linspace(0, self.bit_duration,
                         int(self.sample_rate * self.bit_duration),
@@ -232,17 +274,11 @@ class SoundCodeFsk:
 
         # generate pre-signal if any
         if self.pre_delay > 0:
-            t_pre = np.linspace(0, self.pre_delay,
-                                int(self.sample_rate * self.pre_delay),
-                                endpoint=False)
-            pre_signal = self.volume * np.sin(2 * np.pi * self.pre_f * t_pre)
+            pre_signal = self.generate_sin(self.pre_f, self.pre_delay)
 
         # generate post-signal if any
         if self.post_delay > 0:
-            t_post = np.linspace(0, self.post_delay,
-                                 int(self.sample_rate * self.post_delay),
-                                 endpoint=False)
-            post_signal = self.volume * np.sin(2 * np.pi * self.post_f * t_post)
+            post_signal = self.generate_sin(self.post_f, self.post_delay)
 
         # generate data signal properly
         c: int = 0
@@ -275,12 +311,72 @@ class SoundCodeFsk:
         sci.volume = self.volume
         sci.duration = (c * self.bit_duration +
                         self.pre_delay + self.post_delay)
+        sci.pre_delay = self.pre_delay
+        sci.post_delay = self.post_delay
 
         logger.debug(f"audio raw bits: count={c}, {sb}")
         logger.debug(f"audio duration: {sci.duration:.6f} seconds")
         return (fsk_signal, sci)
 
-    def play(self, data):
+
+    def generate_nfe(self, data) -> (np.array, SoundCodeInfo):
+        # Create NFE signal
+        nfe_signal = np.array([])
+        pre_signal = np.array([])
+        post_signal = np.array([])
+
+        # generate pre-signal if any
+        if self.pre_delay > 0:
+            pre_signal = self.generate_sin(self.pre_f, self.pre_delay)
+
+        # generate post-signal if any
+        if self.post_delay > 0:
+            post_signal = self.generate_sin(self.post_f, self.post_delay)
+
+        n = data.get_uint()
+        c = int((self.f1 - self.f0) / self.nfe_df) + 1
+        freq = self.f0 + (n % c) * self.nfe_df
+        logger.debug(f" n={n}, c={c}, freq={freq}")
+        nfe_signal = self.generate_sin(freq, self.nfe_duration)
+
+        # concatenate pre-signal, data signal, and post-signal
+        if self.pre_delay > 0 or self.post_delay > 0:
+            nfe_signal = np.concatenate((pre_signal, nfe_signal, post_signal))
+
+        # Normalize the signal for 100% volume
+        if self.volume==1.0:
+            nfe_signal /= np.max(np.abs(nfe_signal))
+
+        sci: SoundCodeInfo = SoundCodeInfo()
+        sci.codec = SoundCodec.NFE
+        sci.f1 = self.f1
+        sci.f0 = self.f0
+        sci.nfe_df = self.nfe_df
+        sci.sample_rate = self.sample_rate
+        sci.nfe_duration = self.nfe_duration
+        sci.nfe_freq = freq
+        sci.volume = self.volume
+        sci.duration = (self.nfe_duration +
+                        self.pre_delay + self.post_delay)
+        sci.pre_delay = self.pre_delay
+        sci.post_delay = self.post_delay
+
+
+        logger.debug(f"audio duration: {sci.duration:.6f} seconds")
+        return nfe_signal, sci
+
+
+    def generate(self, data) -> (np.array, SoundCodeInfo):
+        if self.codec == SoundCodec.FSK:
+            return self.generate_fsk(data)
+        elif self.codec == SoundCodec.NFE:
+            return self.generate_nfe(data)
+        else:
+            raise ValueError(f"Unsupported codec: {self.codec}")
+
+
+    # play sound data with sounddevice
+    def play_data_sd(self, data):
         ts = time.perf_counter()
         fsk_signal, sci = self.generate(data)
         ts = time.perf_counter() - ts
@@ -302,6 +398,8 @@ class SoundCodeFsk:
         # Save the signal to a WAV file
         write(filename, self.sample_rate,
               (fsk_signal * 32767).astype(np.int16))
+        return sci
+
 
     def parse(self, filename):
         # Read the WAV file
@@ -407,6 +505,7 @@ def save_soundcode(fname: str = None,
                    code_uint64: int = None,
                    code_str: str = None,
                    code_bytes: bytes = None,
+                   codec: SoundCodec = SoundCodec.FSK,
                    engine=None) -> (str, SoundCodeInfo):
     logger.debug(f"save_sound(fname={fname}...)")
     if not fname:
@@ -429,7 +528,7 @@ def save_soundcode(fname: str = None,
         raise ValueError("No code data provided.")
 
     if not engine:
-        engine = SoundCodeFsk()
+        engine = SoundCodeEngine(codec=codec)
     sci: SoundCodeInfo = engine.save(data, fname)
     logger.debug(f" -> {fname}")
     return (fname, sci)

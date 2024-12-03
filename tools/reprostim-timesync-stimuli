@@ -37,8 +37,13 @@ from psychopy import visual, core, event, clock
 
 # Enum for the audio libs
 class AudioLib(str, Enum):
+    # PsychoPy SoundDevice audio lib
+    PSYCHOPY_SOUNDDEVICE = "psychopy_sounddevice"
+    # PsychoPy SoundPTB audio lib
+    PSYCHOPY_PTB = "psychopy_ptb"
+    # sounddevice audio lib
+    # http://python-sounddevice.readthedocs.io/
     SOUNDDEVICE = "sounddevice"
-    PTB = "ptb"
 
 
 # Enum for the mode of the script operation
@@ -133,7 +138,8 @@ def do_init(logfn: str) -> bool:
     return True
 
 
-def do_main(mode: Mode, logfn: str, display: int, mute: bool,
+def do_main(mode: Mode, logfn: str, display: int,
+            sound_codec: str, mute: bool,
             ntrials: int, duration: float, interval: float,
             keep_soundcode: bool) -> int:
     logger.info("main script started")
@@ -141,7 +147,7 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
     # late sound init
     from soundcode import (beep, list_audio_devices,
                            save_soundcode, play_sound,
-                           SoundCodeInfo)
+                           SoundCodec, SoundCodeInfo)
 
     #soundcode.logger.setLevel(logging.DEBUG)
 
@@ -222,7 +228,10 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
                     store_soundcode(sound_file, sound_data, logfn)
                 safe_remove(sound_file)
                 sound_data = acqNum
-                sound_file, sound_info = save_soundcode(code_uint16=sound_data)
+                sound_file, sound_info_ = save_soundcode(
+                    code_uint16=sound_data,
+                    codec=sound_codec)
+                sound_info = sound_info_
                 logger.debug(f"  {sound_info}")
 
             target_time = t_start + acqNum * interval
@@ -239,9 +248,19 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
         if not mute:
             d = play_sound(sound_file, async_=True)
             sound_time, sound_time_str = get_times()
-            rec['sound_time'] = sound_time
-            rec['sound_time_str'] = sound_time_str
-            rec['sound_data'] = sound_data
+            rec['s_time'] = sound_time
+            rec['s_time_str'] = sound_time_str
+            rec['s_data'] = sound_data
+            rec['s_codec'] = sound_codec
+            rec['s_f0'] = sound_info.f0
+            rec['s_f1'] = sound_info.f1
+            rec['s_pre_delay'] = sound_info.pre_delay
+            rec['s_post_delay'] = sound_info.post_delay
+            rec['s_duration'] = sound_info.duration
+            if sound_codec == SoundCodec.NFE:
+                rec['s_freq'] = sound_info.nfe_freq
+                rec['s_df'] = sound_info.nfe_df
+
             # NOTE: should we add codec info to the log?
             # like f0, f1, sampleRate, bit_duration, duration, etc
 
@@ -291,8 +310,14 @@ def do_main(mode: Mode, logfn: str, display: int, mute: bool,
 @click.option('-a', '--audio-lib',
               type=click.Choice([a.value for a in AudioLib],
                                 case_sensitive=False),
-              default=AudioLib.SOUNDDEVICE,
+              default=AudioLib.PSYCHOPY_SOUNDDEVICE,
               help='Specify audio library to be used.')
+@click.option('-c', '--sound-codec',
+              type=click.Choice(['fsk', 'nfe'],
+                                case_sensitive=False),
+              default='fsk',
+              help='Specify sound codec to produce audio code '
+                   '(default: fsk).')
 @click.option('-m', '--mute', is_flag=True, default=False,
               help="Disable sound codes generation (default is False).")
 @click.option('-t', '--trials', default=300, type=int,
@@ -314,6 +339,7 @@ def main(ctx, mode: str,
          output_prefix: str,
          display: int,
          audio_lib: str,
+         sound_codec: str,
          mute: bool,
          trials: int,
          duration: float,
@@ -346,7 +372,8 @@ def main(ctx, mode: str,
         logger.error()
         return -1
 
-    res = do_main(mode, output, display, mute,
+    res = do_main(mode, output, display,
+                   sound_codec, mute,
                    trials, duration, interval,
                    keep_soundcode)
 
