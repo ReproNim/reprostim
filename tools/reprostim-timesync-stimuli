@@ -138,7 +138,8 @@ def do_init(logfn: str) -> bool:
     return True
 
 
-def do_main(mode: Mode, logfn: str, display: int,
+def do_main(mode: Mode, logfn: str,
+            display: int, qr_scale: float,
             sound_codec: str, mute: bool,
             ntrials: int, duration: float, interval: float,
             keep_soundcode: bool) -> int:
@@ -272,7 +273,7 @@ def do_main(mode: Mode, logfn: str, display: int,
                               qrcode.make(json.dumps(rec)),
                               pos=(0, 0)
                               )
-        qr.size = qr.size *1
+        qr.size = qr.size * qr_scale
         qr.draw()
         win.flip()
         tflip, tflip_str = get_times()
@@ -307,17 +308,20 @@ def do_main(mode: Mode, logfn: str, display: int,
               help='Output log file name prefix.')
 @click.option('-d', '--display', default=1, type=int,
               help='Display number as an integer (default: 1).')
+@click.option('-s', '--qr-scale', default=0.8, type=float,
+              help='Specify QR code scale factor in range 0..1. '
+                   'Use 1.0 to fit full height (default: 0.8).')
 @click.option('-a', '--audio-lib',
               type=click.Choice([a.value for a in AudioLib],
                                 case_sensitive=False),
               default=AudioLib.PSYCHOPY_SOUNDDEVICE,
               help='Specify audio library to be used.')
 @click.option('-c', '--sound-codec',
-              type=click.Choice(['fsk', 'nfe'],
-                                case_sensitive=False),
-              default='fsk',
+              type=click.Choice(['FSK', 'NFE'],
+                                case_sensitive=True),
+              default='FSK',
               help='Specify sound codec to produce audio code '
-                   '(default: fsk).')
+                   '(default: FSK).')
 @click.option('-m', '--mute', is_flag=True, default=False,
               help="Disable sound codes generation (default is False).")
 @click.option('-t', '--trials', default=300, type=int,
@@ -338,6 +342,7 @@ def do_main(mode: Mode, logfn: str, display: int,
 def main(ctx, mode: str,
          output_prefix: str,
          display: int,
+         qr_scale: float,
          audio_lib: str,
          sound_codec: str,
          mute: bool,
@@ -372,10 +377,11 @@ def main(ctx, mode: str,
         logger.error()
         return -1
 
-    res = do_main(mode, output, display,
-                   sound_codec, mute,
-                   trials, duration, interval,
-                   keep_soundcode)
+    res = do_main(mode, output,
+                  display, qr_scale,
+                  sound_codec, mute,
+                  trials, duration, interval,
+                  keep_soundcode)
 
     end_ts: datetime = datetime.now()
     logger.debug(f"  Finished on: {end_ts}")

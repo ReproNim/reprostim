@@ -179,12 +179,12 @@ class SoundCodec(str, Enum):
     # Frequency Shift Keying (FSK) where binary data is
     # encoded as two different frequencies f0 and f1 with
     # a fixed bit duration (baud rate or bit_rate).
-    FSK = "fsk"
+    FSK = "FSK"
 
     # Numerical Frequency Encoding (NFE) numbers are mapped
     # directly to specific frequencies
     # can encode only some numeric hash.
-    NFE = "nfe"
+    NFE = "NFE"
 
 
 # Class to provide general information about sound code
@@ -229,12 +229,10 @@ class SoundCodeEngine:
                  nfe_df=100,  # used only in NFE
                  sample_rate=44100,
                  bit_duration=0.0070,  # used only in FSK
-                 #bit_duration=0.014,
                  nfe_duration=0.3,  # used only in NFE
-                 volume=0.95,
+                 volume=0.80,
                  pre_delay=0.1,
-                 #pre_f=1780,
-                 pre_f=0,
+                 pre_f=0, #1780
                  post_delay=0.1,
                  post_f=0  #3571
                  ):
