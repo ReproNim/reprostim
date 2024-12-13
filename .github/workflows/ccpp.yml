@@ -28,21 +28,21 @@ jobs:
         cd build
         cmake ..
         make
-      working-directory: Capture
+      working-directory: src/reprostim-capture
 
     - name: Test "reprostim-videocapture -h"
       run: |
         ./reprostim-videocapture -V
         ./reprostim-videocapture -h
-      working-directory: Capture/build/videocapture
+      working-directory: src/reprostim-capture/build/videocapture
 
     - name: Test "reprostim-screencapture -h"
       run: |
         ./reprostim-screencapture -V
         ./reprostim-screencapture -h
-      working-directory: Capture/build/screencapture
+      working-directory: src/reprostim-capture/build/screencapture
 
     - name: Run tests with CTest
       run: |
         ctest --output-on-failure
-      working-directory: Capture/build
+      working-directory: src/reprostim-capture/build
