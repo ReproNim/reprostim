@@ -1,7 +1,7 @@
-# CMakeLists.txt (Main Capture project)
+# CMakeLists.txt (Main reprostim-capture project)
 cmake_minimum_required (VERSION 3.10)
 
-project(Capture)
+project(reprostim-capture)
 
 option(CTEST_ENABLED "Specify CTest build and run are enabled" ON)
 
