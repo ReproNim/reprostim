@@ -25,7 +25,7 @@ Refactor stuff here into cleanly separated and documented libraries etc.
     - `qr/` - QR code utilities
     - `__init__.py` - sets up the library
   - `reprostim-capture/` - C++ code(s) relating to capturing
-    - `lib/` - Magewell SDK
+    - `3rdparty/` - Magewell MWCapture SDK
   - `reproevents/` - move MicroPython ReproEvents here (do not strive to make it work)
 - `test/` - some global tests possibly for integration testing etc
 
