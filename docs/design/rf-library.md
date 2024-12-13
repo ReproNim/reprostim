@@ -28,3 +28,10 @@ Refactor stuff here into cleanly separated and documented libraries etc.
     - `lib/` - Magewell SDK
   - `reproevents/` - move MicroPython ReproEvents here (do not strive to make it work)
 - `test/` - some global tests possibly for integration testing etc
+
+## Refactor log
+
+| Old       | New                     |
+|-----------|-------------------------|
+| `Capture` | `src/reprostim-capture` |
+| `Events`  | `src/reproevents`       |

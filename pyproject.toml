@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "reprostim"
+dynamic = ["version"]
+description = 'ReproStim is a video capture and recording suite for neuroimaging and psychology experiments.'
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Vadim Melnik", email = "vmelnik@docsultant.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = []
+
+[project.urls]
+Documentation = "https://github.com/ReproNim/reprostim"
+Issues = "https://github.com/ReproNim/reprostim/issues"
+Source = "https://github.com/ReproNim/reprostim"
+
+[tool.hatch.version]
+path = "src/reprostim/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/reprostim tests}"
+
+[tool.coverage.run]
+source_pkgs = ["reprostim", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/reprostim/__about__.py",
+]
+
+[tool.coverage.paths]
+reprostim = ["src/reprostim", "*/reprostim/src/reprostim"]
+tests = ["tests", "*/reprostim/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
