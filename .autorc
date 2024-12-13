@@ -1,0 +1,16 @@
+{
+    "onlyPublishWithReleaseLabel": true,
+    "baseBranch": "master",
+    "author": "DANDI Bot <team@dandiarchive.org>",
+    "noVersionPrefix": true,
+    "plugins": [
+        "git-tag",
+        [
+            "exec",
+            {
+                  "afterRelease": "python -m build && twine upload dist/*"
+            }
+        ],
+        "released"
+    ]
+}
