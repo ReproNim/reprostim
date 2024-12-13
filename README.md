@@ -123,26 +123,30 @@ subjects.
 
 On Debian
 
+```shell
     apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
+```
 
 "Parsing/parse_wQR.py" script requires in zbar to be installed as well:
 
+```shell
     apt-get install -y libzbar0
-
+````
 
 ## Build
 
-    cd Capture
+```shell
+    cd src/reprostim-capture
 
     mkdir build
     cd build
     cmake ..
     make
-
+```
 
 ## Subdirectories Structure
 
-### Capture
+### src/reprostim-capture
 
 Contains all code needed for setting up video capture. This includes C++
 code for interfacing with the video capture device, and scheme for setting
@@ -188,7 +192,9 @@ it can accidentally produce the same error message ERROR[003].
 
 This is optional step, only for information purposes:
 
+```shell
     lsusb
+```
 
 And locate line with device, e.g.:
 
@@ -198,8 +204,9 @@ In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
 
 Optionally Magewell device name and serial number can be quickly checked with this command:
 
+```shell
     lsusb -d 2935: -v | grep -E 'iSerial|iProduct'
-
+```
 
 ### 2) Create "udev" rules
 Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
@@ -217,18 +224,24 @@ Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in
 step 1) from lsusb utility.
 
 Also sample udev rules configuration added to project under 
-"Capture/etc/udev/189-reprostim.rules" location.
+"src/reprostim-capture/etc/udev/189-reprostim.rules" location.
 
 Note: make sure the file has owner "root", group "root" and 644 permissions:
 
+```shell
     ls -l /etc/udev/rules.d/189*
+````
+```
     -rw-r--r-- 1 root root 72 ... /etc/udev/rules.d/189-reprostim.rules
+```    
 
 ### 3) Add user to "plugdev" group
 Make sure the user running VideoCapture utility is a member of the 
 "plugdev" group, e.g.:
 
+```shell
     sudo usermod -aG plugdev TODO_user
+```    
 
 ### 4) Restart computer
 Restart computer to make changes effect.

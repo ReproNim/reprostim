@@ -31,7 +31,8 @@ Refactor stuff here into cleanly separated and documented libraries etc.
 
 ## Refactor log
 
-| Old       | New                     |
-|-----------|-------------------------|
-| `Capture` | `src/reprostim-capture` |
-| `Events`  | `src/reproevents`       |
+| Old           | New                     |
+|---------------|-------------------------|
+| [x] `Capture` | `src/reprostim-capture` |
+| [ ] `Events`  | `src/reproevents`       |
+| [ ] `TBD`     | `TODO`                  |
