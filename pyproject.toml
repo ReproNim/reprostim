@@ -14,7 +14,7 @@ authors = [
   { name = "Vadim Melnik", email = "vmelnik@docsultant.com" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 3 - Alpha",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -30,6 +30,12 @@ dependencies = []
 Documentation = "https://github.com/ReproNim/reprostim"
 Issues = "https://github.com/ReproNim/reprostim/issues"
 Source = "https://github.com/ReproNim/reprostim"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src/reprostim/",
+  "/tests",
+]
 
 [tool.hatch.version]
 path = "src/reprostim/__about__.py"
