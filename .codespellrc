@@ -1,2 +1,3 @@
 [codespell]
-skip = build,cmake-build-debug
+ignore-words = .codespell-ignore
+skip = venv,reprostim-capture,build,cmake-build-debug

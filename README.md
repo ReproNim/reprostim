@@ -84,7 +84,7 @@ The A/V out connections from SC can be any standard as long as you have the
 appropriate adapters, dongles, etc. However, if your Video out does not
 support embedded audio (e.g. VGA), then you will need a separate audio out
 set of splitters and cables. The Magewell device has standard audio ports to
-accomodate this eventuality.
+accommodate this eventuality.
 
 Note: Missing from Schematics A and B, is any connection back to SC that
 records subject response information. That's because ReproStim is not

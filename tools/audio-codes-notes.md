@@ -101,7 +101,7 @@ sudo apt install python3.10
 sudo apt install python3.10-venv
 ```
 
-After this `python3.10` failed to create `venv` so used following commans to create it:
+After this `python3.10` failed to create `venv` so used following commands to create it:
 
 ```
 python3.10 -m venv --without-pip venv
