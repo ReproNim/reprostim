@@ -8,3 +8,17 @@ Videos/
 *.pyc
 Capture/C++/VideoCapture
 venvs
+build/
+.coverage*
+.dir-locals.el
+dist/
+*.egg-info
+.env.*
+!.env.local
+.flake8
+.idea/
+.mypy_cache/
+*.pid
+*.pyc
+.python-version
+
