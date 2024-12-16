@@ -7,7 +7,7 @@ name = "reprostim"
 dynamic = ["version"]
 description = 'ReproStim is a video capture and recording suite for neuroimaging and psychology experiments.'
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = "3.10"
 license = "MIT"
 keywords = []
 authors = [
@@ -65,3 +65,6 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
