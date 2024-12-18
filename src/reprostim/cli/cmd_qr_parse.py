@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 import click
 
+
 @click.command()
 def qr_parse():
     """Parse QR codes in captured videos."""

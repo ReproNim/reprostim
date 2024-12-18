@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 import click
 
+
 @click.command()
 def timesync_stimuli():
     """Run psychopy script with QR video and audio codes."""
