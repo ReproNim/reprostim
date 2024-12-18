@@ -75,7 +75,7 @@ Issues = "https://github.com/ReproNim/reprostim/issues"
 Source = "https://github.com/ReproNim/reprostim"
 
 [project.scripts]
-reprostim = "reprostim.cli:reprostim"
+reprostim = "reprostim.cli.entrypoint:main"
 
 [tool.hatch.build.targets.sdist]
 include = [

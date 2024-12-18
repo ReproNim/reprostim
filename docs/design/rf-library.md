@@ -31,8 +31,11 @@ Refactor stuff here into cleanly separated and documented libraries etc.
 
 ## Refactor log
 
-| Old           | New                     |
-|---------------|-------------------------|
-| [x] `Capture` | `src/reprostim-capture` |
-| [ ] `Events`  | `src/reproevents`       |
-| [ ] `TBD`     | `TODO`                  |
+| Old                                    | New                                         |
+|----------------------------------------|---------------------------------------------|
+| [x] `Capture`                          | `src/reprostim-capture`                     |
+| [ ] `Parsing/parse_wQR.py`             | `src/reprostim/cli/cmd_qr_parse.py`         |
+| [ ] `tools/reprostim-timesync-stimuli` | `src/reprostim/cli/cmd_timesync_stimuli.py` |
+| [ ] `Capture/nosignal`                 | `src/reprostim/cli/cmd_detect_nosignal.py`  |
+| [ ] `Events`                           | `src/reproevents`                           |
+| [ ] `TBD`                              | `TODO`                                      |
