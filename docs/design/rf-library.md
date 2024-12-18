@@ -19,7 +19,7 @@ Refactor stuff here into cleanly separated and documented libraries etc.
 - `src/`
   - `reprostim/` - Python library and CLIs for working with ReproStim
     - `audio/` - Audio fingerprinting/processing
-    - `cli/` - CLI entrypoints (for `reprostim CMD`, could be hierarchical like `reprostim qr parse`)
+    - `cli/` - CLI entrypoints (for `reprostim CMD`, could be hierarchical like `reprostim qr-parse`)
       - `base.py` - common base commands for CLI
       - `cmd_timesync_stimuli.py` - CLI to replace `tools/reprostim-timesync-stimuli`
     - `qr/` - QR code utilities
