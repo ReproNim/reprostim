@@ -7,7 +7,7 @@ name = "reprostim"
 dynamic = ["version"]
 description = 'ReproStim is a video capture and recording suite for neuroimaging and psychology experiments.'
 readme = "README.md"
-requires-python = "3.10"
+#requires-python = "3.10"
 license = "MIT"
 license-files = { paths = ["LICENSE"] }
 keywords = []
@@ -25,12 +25,17 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "click>=8.1.7",
+]
 
 [project.urls]
 Documentation = "https://github.com/ReproNim/reprostim"
 Issues = "https://github.com/ReproNim/reprostim/issues"
 Source = "https://github.com/ReproNim/reprostim"
+
+[project.scripts]
+reprostim = "reprostim.cli:reprostim"
 
 [tool.hatch.build.targets.sdist]
 include = [
