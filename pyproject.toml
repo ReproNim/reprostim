@@ -32,13 +32,41 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
 dependencies = [
   "click>=8.1.7",
-  "click-didyoumean",
+  "click-didyoumean>=0.3.1",
   "pydantic>=2.7.1",
   "numpy>=1.26.4",
   "pyzbar>=0.1.9",
+  "qrcode>=8.0",
   "opencv-python>=4.9.0.80",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+audio = [
+  "sounddevice>=0.5.1",
+  "scipy>=1.14.1",
+  "pydub>=0.25.1",
+  "pyaudio>=0.2.14",
+  "reedsolo>=1.7.0",
+]
+psychopy = [
+  "psychopy",
+  "psychopy-sounddevice",
+]
+all = [
+  "pytest>=8.0",
+  "sounddevice>=0.5.1",
+  "scipy>=1.14.1",
+  "pydub>=0.25.1",
+  "pyaudio>=0.2.14",
+  "reedsolo>=1.7.0",
+  "psychopy",
+  "psychopy-sounddevice",
 ]
 
 [project.urls]
