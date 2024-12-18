@@ -24,6 +24,13 @@ def print_version(ctx, param, value):
               help='Set the logging level.')
 @click.pass_context
 def main(ctx, log_level):
+    """Command-line interface to run ReproStim tools and services.
+    To see help for the specific command, run:
+
+         reprostim COMMAND --help
+
+    e.g. reprostim timesync-stimuli --help
+    """
     pass
 
 

@@ -5,4 +5,5 @@ import click
 
 @click.command()
 def qr_parse():
-    click.echo("TODO: Implement qr_parse")
+    """Parse QR codes in captured videos."""
+    click.echo("TODO: Implement qr-parse")

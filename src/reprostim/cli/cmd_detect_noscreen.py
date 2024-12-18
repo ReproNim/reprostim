@@ -5,4 +5,5 @@ import click
 
 @click.command()
 def detect_noscreen():
-    click.echo("TODO: Implement detect_noscreen")
+    """Detect no screen/no signal frames in captured videos."""
+    click.echo("TODO: Implement detect-noscreen")
