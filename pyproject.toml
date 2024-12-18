@@ -9,9 +9,16 @@ description = 'ReproStim is a video capture and recording suite for neuroimaging
 readme = "README.md"
 #requires-python = "3.10"
 license = "MIT"
-license-files = { paths = ["LICENSE"] }
-keywords = []
+license-files = { paths = ["LICENSE.txt"] }
+keywords = [
+  "ReproStim",
+  "reprostim-videocapture",
+  "reprostim-screncapture",
+]
 authors = [
+  { name = "Yaroslav Halchenko", email = "yoh@dartmouth.edu" },
+  { name = "Andy Connolly", email = "andrew.c.connolly@dartmouth.edu" },
+  { name = "Horea Christian", email = "chr@chymera.eu" },
   { name = "Vadim Melnik", email = "vmelnik@docsultant.com" },
 ]
 classifiers = [
@@ -28,6 +35,10 @@ classifiers = [
 dependencies = [
   "click>=8.1.7",
   "click-didyoumean",
+  "pydantic>=2.7.1",
+  "numpy>=1.26.4",
+  "pyzbar>=0.1.9",
+  "opencv-python>=4.9.0.80",
 ]
 
 [project.urls]
