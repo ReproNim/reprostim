@@ -22,7 +22,7 @@ We have developed a number of Free and Open Source Software (FOSS) solutions, an
 The ReproFlow environment consists of 8 core tools developed by the ReproNim project.
 HeuDiConv provides configurable MRI conversion from DICOM to a desired layout.
 ReproIn provides configuration for HeuDiConv via an extensive heuristic syntax, as well as a user assistance utility.
-ReproEvents provides audio and video capture capabilites to integrate complex stimuli with MRI data.
+ReproEvents provides audio and video capture capabilities to integrate complex stimuli with MRI data.
 ReproStim provides support for capturing behavioral events from participants.
 Con/noisseur captures and performs QA on operator input at the scanner console.
 ReproMon complements the QA capabilities by providing support for online operator feedback and alerts in case of incidents or anomalous metadata input.
@@ -41,4 +41,4 @@ ReproEvents, ReproMon, and Con/noisseur are currently in early deployment and pr
 
 We argue based on our results that data integration remains a non-trivial matter for multi-modal set-ups and that significant improvements in automation and transparency are necessary to ensure data reliability.
 In particular, general-purpose open-source tools are needed in order to ensure sustainability of acquisition frameworks over time, and to ensure relevant know-how is shared across centers.
-We propose ReproFlow as a solution for these requirements and encourage re-use of this environment.
+We propose ReproFlow as a solution for these requirements and encourage reuse of this environment.

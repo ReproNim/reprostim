@@ -1,23 +1,27 @@
-# ReproStim Capture
+# reprostim-capture
 
 ## Overview
 
-Capture project is set of tools and utilities to capture video/audio signal with Magewell
+`reprostim-capture` project is set of tools and utilities to capture video/audio signal with Magewell
 USB Capture devices and save it to a file. It is a part of the ReproStim project.
 
 ## Dependencies
 
 ### On Debian:
 
+```shell
     apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
+````
 
 Optionally, in case `con/duct` tool is used and `conduct_opts.enabled` is set to true in reprostim-videocapture `config.yaml`:
 
+```shell
     apt-get install -y python3-pip
     python3 -m venv venv
     source venv/bin/activate
     pip install con-duct
     duct --version
+```    
 
 ### Project requirements:
    - OS Linux
@@ -44,29 +48,33 @@ Optionally, in case `con/duct` tool is used and `conduct_opts.enabled` is set to
 
 ## Build
 
-Capture uses CMake as build system. To build the project, run the following commands:
+`reprostim-capture` uses CMake as build system. To build the project, run the following commands:
 
-    cd Capture
+```shell
+    cd src/reprostim-capture
 
     mkdir build
     cd build
     cmake ..
     make
+```    
 
 ## Installation
 
 To install the project, once the build done, run the following command:
 
-    cd Capture
+```shell
+    cd src/reprostim-capture
 
     sudo cmake --install build
+```    
 
 It will copy all necessary files to the `/usr/local/bin` location (`reprostim-videocapture`,
 `reprostim-screencapture`, `reprostim-nosignal`).
 
 ## Project Structure
 
-Capture project consists of the following components:
+`reprostim-capture` project consists of the following components:
    - `capturelib` - shared static C++ library with common code across all utilities.
    - `screencapture` - project source code for "reprostim-screencapture" command-line 
 utility. The program captures screenshots from Magewell USB Capture device and saves 
@@ -98,9 +106,11 @@ set the version. Where {MAJOR}, {MINOR} and {PATCH} values should be set manuall
 We also have CMake script "version-auto-inc.cmake" which can be used to increment 
 build number in version file during development process:
     
-        cd Capture
+```shell
+        cd src/reprostim-capture
 
         cmake -P version-auto-inc.cmake
+```        
 
 
 E.g. in CLion IDE, you can add "version-auto-inc.cmake" as External Tool under
@@ -116,8 +126,10 @@ with build process (as pre-build hook) to increment build number automatically.
 In short words project uses CMake + CTest + Catch2 for unit testing. To run tests, 
 build project and execute the following command:
 
-    cd Capture/build
+```shell
+    cd src/reprostim-capture/build
     ctest
+```    
 
 Root project and each subproject have their own tests located in the "test" directory 
 along with CMakeList.txt and C++ sources. 

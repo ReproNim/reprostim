@@ -494,7 +494,7 @@ def list_audio_devices():
 
     logger.debug("[psychopy.backend_ptb]")
     # TODO: investigate why only single out device listed from
-    # USB capture but defult one is not shown
+    # USB capture but default one is not shown
     # logger.debug(sound.backend_ptb.getDevices())
 
 
