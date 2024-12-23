@@ -2,7 +2,7 @@
 
 ## Current status
 
-This repository collects various sub-projects 
+This repository collects various sub-projects
 
 - Magewell SDK
 - C++ code of ReproStim `reprostim-videocapture` (and `reprostim-screencapture`)
@@ -22,6 +22,7 @@ Refactor stuff here into cleanly separated and documented libraries etc.
     - `cli/` - CLI entrypoints (for `reprostim CMD`, could be hierarchical like `reprostim qr-parse`)
       - `base.py` - common base commands for CLI
       - `cmd_timesync_stimuli.py` - CLI to replace `tools/reprostim-timesync-stimuli`
+      - `entrypoint.py` - entrypoint for all reprostim CLI commands
     - `qr/` - QR code utilities
     - `__init__.py` - sets up the library
   - `reprostim-capture/` - C++ code(s) relating to capturing
@@ -34,7 +35,8 @@ Refactor stuff here into cleanly separated and documented libraries etc.
 | Old                                    | New                                         |
 |----------------------------------------|---------------------------------------------|
 | [x] `Capture`                          | `src/reprostim-capture`                     |
-| [ ] `Parsing/parse_wQR.py`             | `src/reprostim/cli/cmd_qr_parse.py`         |
+| [x] `Parsing/parse_wQR.py`             | `src/reprostim/cli/cmd_qr_parse.py`         |
+| [x] `Parsing/generate_qrinfo.sh`       | `tools/reprostim-generate-qrinfo`           |
 | [ ] `tools/reprostim-timesync-stimuli` | `src/reprostim/cli/cmd_timesync_stimuli.py` |
 | [ ] `Capture/nosignal`                 | `src/reprostim/cli/cmd_detect_nosignal.py`  |
 | [ ] `Events`                           | `src/reproevents`                           |

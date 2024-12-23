@@ -5,7 +5,7 @@ psychology experiments.  Its goal is to provide experimenters with a
 complete record of audio and visual stimulation for every data collection
 session by making it possible to easily collect high fidelity copies of the
 actual stimuli shown to each subject in the form of video files that can be
-stored alongside  behavioral or neuroimaging data in public repositories. 
+stored alongside  behavioral or neuroimaging data in public repositories.
 
 ReproStim provides for enhanced experimental reproducibility and a safeguard
 against data loss in cases of data-collection irregularites.  Because
@@ -17,18 +17,18 @@ such as aborted fMRI runs, unexpected glitches in trial timing, or
 programming errors that cause records of trial conditions to be lost,
 valuable data (which can be especially costly in cases of fMRI of ECog, for
 example) can be recoded and recovered using the audio-visual record provided
-by ReproStim.   
+by ReproStim.
 
 ReproStim requires minimal effort on behalf of investigators.  Once it is
 setup as the default mode within a behavioral lab or neuroimaging center,
 investigators can reap the benefits of ReproStim without any additional
 effort on the part of invidiual experimenters.  When successfully set up,
 ReproStim runs in the background, silently collecting, cataloging, and
-storing all audio and visual stimulation delivered to experimental subjects. 
+storing all audio and visual stimulation delivered to experimental subjects.
 
 # Development
 
-## Hardware needed 
+## Hardware needed
 
 Before using ReproStim you will need a minimum of the the following
 components:
@@ -65,9 +65,9 @@ would be something like:
        ------                     |           -------
                                   V
                                -------              ------
-                               | MWC | -- USB-C --> | VC | 
+                               | MWC | -- USB-C --> | VC |
                                -------              ------
-                             
+
 ### Original set up without ReproStim
 
 Most experimental setups include something like Schematic A, with a stimulus
@@ -78,7 +78,7 @@ control room for SC. The External Presentation Device for video (EPDv) in
 the DBIC MRI suite is a projector that projects through the wall of the
 shielded scan room to a rear-projection screen located at the back of the
 MRI scanner bore; and the EPDa (audio) comprises MRI-safe headphones worn on
-the subject's head. 
+the subject's head.
 
 The A/V out connections from SC can be any standard as long as you have the
 appropriate adapters, dongles, etc. However, if your Video out does not
@@ -113,7 +113,7 @@ coming over the connection, it gets recorded for posterity.
 Current development of ReproStim, including our working setup at the DBIC,
 uses a Linux box running Debian Linux. We anticipate that any Nix/Mac setup
 running on a modern desktop will be amply sufficient as a ReproStim Server,
-and should be relatively painless to configure. 
+and should be relatively painless to configure.
 
 The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
@@ -163,23 +163,23 @@ Contains code needed for segmenting videos to include just the parts of the
 videos that are demarcated by embedded QR codes marking the beginning and
 end of experimental runs. There are also helper tools for identifying
 experimental runs and matching them to the parent experimental paradigm and
-neuroimaging data acquisitions. 
+neuroimaging data acquisitions.
 
 # Installation and Configuration
 
 ## Setup USB device with "udev" access
 
 VideoCapture utility internally uses Magewell Capture SDK and to make it working
-properly should be executed under "root" account or in case of other account - special 
-"udev" rules should be applied there. Program will produce following error when 
+properly should be executed under "root" account or in case of other account - special
+"udev" rules should be applied there. Program will produce following error when
 executed in environment without proper ownership and permissions for informational
 purposes:
 
     ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.
 
-For more information refer to item #14 from Magewell FAQ on https://www.magewell.com/kb/detail/010020005/All :  
+For more information refer to item #14 from Magewell FAQ on https://www.magewell.com/kb/detail/010020005/All :
 
-    14. Can the example codes associated with USB Capture (Plus) devices in SDKv3 work 
+    14. Can the example codes associated with USB Capture (Plus) devices in SDKv3 work
         without root authority (sudo) on Linux?
 
     Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
@@ -210,7 +210,7 @@ Optionally Magewell device name and serial number can be quickly checked with th
 
 ### 2) Create "udev" rules
 Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
-appropriate content depending on system type. 
+appropriate content depending on system type.
 
 For an active/desktop user logged in via session manager it should be like:
 
@@ -220,10 +220,10 @@ For a daemon configuration we should provide explicit permissions like:
 
     SUBSYSTEM=="usb", ATTR{idVendor}=="2935", MODE="0660", OWNER="reprostim", GROUP="plugdev"
 
-Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in 
+Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in
 step 1) from lsusb utility.
 
-Also sample udev rules configuration added to project under 
+Also sample udev rules configuration added to project under
 "src/reprostim-capture/etc/udev/189-reprostim.rules" location.
 
 Note: make sure the file has owner "root", group "root" and 644 permissions:
@@ -233,20 +233,20 @@ Note: make sure the file has owner "root", group "root" and 644 permissions:
 ````
 ```
     -rw-r--r-- 1 root root 72 ... /etc/udev/rules.d/189-reprostim.rules
-```    
+```
 
 ### 3) Add user to "plugdev" group
-Make sure the user running VideoCapture utility is a member of the 
+Make sure the user running VideoCapture utility is a member of the
 "plugdev" group, e.g.:
 
 ```shell
     sudo usermod -aG plugdev TODO_user
-```    
+```
 
 ### 4) Restart computer
 Restart computer to make changes effect.
 
-Note: we tested "sudo udevadm control --reload-rules" command without OS 
+Note: we tested "sudo udevadm control --reload-rules" command without OS
 restart, but somehow it didn't help, and complete restart was necessary
 anyway.
 
@@ -259,4 +259,4 @@ anyway.
 - ...
 - [Parsing/repro-vidsort](./Parsing/repro-vidsort) script (has hardcoded paths) sorts from `incoming/` to
   folders per DICOM accession
-- 
+-

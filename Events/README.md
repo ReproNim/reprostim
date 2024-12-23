@@ -10,4 +10,4 @@ Handheld input pads which are usable inside an MR scanner are connected to the d
 ## Installation
 
 ### Micropython
-A device-type-specific micropython distribution file (e.g. `.uf2` or `.dfu`) will need to be downloaded and flashed onto the microcontroller. 
+A device-type-specific micropython distribution file (e.g. `.uf2` or `.dfu`) will need to be downloaded and flashed onto the microcontroller.

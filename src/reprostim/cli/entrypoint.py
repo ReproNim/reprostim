@@ -1,10 +1,16 @@
 # SPDX-FileCopyrightText: 2024-present Vadim Melnik <vmelnik@docsultant.com>
 #
 # SPDX-License-Identifier: MIT
+import logging
+
 import click
 from click_didyoumean import DYMGroup
 
-from ..__about__ import __version__
+from .. import _init_logger
+from ..__about__ import __reprostim_name__, __version__
+
+# setup logging
+logger = logging.getLogger(__name__)
 
 
 def print_version(ctx, value):
@@ -16,7 +22,7 @@ def print_version(ctx, value):
 
 # group to provide commands
 @click.group(cls=DYMGroup)
-@click.version_option(version=__version__, prog_name="reprostim")
+@click.version_option(version=__version__, prog_name=__reprostim_name__)
 @click.option(
     "-l",
     "--log-level",
@@ -24,8 +30,15 @@ def print_version(ctx, value):
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
     help="Set the logging level.",
 )
+@click.option(
+    "-f",
+    "--log-format",
+    default="%(asctime)s [%(levelname)s] %(message)s",
+    help="Set the logging format string. For the pattern details see standard "
+    "Python 'logging.Formatter' documentation.",
+)
 @click.pass_context
-def main(ctx, log_level):
+def main(ctx, log_level, log_format):
     """Command-line interface to run ReproStim tools and services.
     To see help for the specific command, run:
 
@@ -33,7 +46,11 @@ def main(ctx, log_level):
 
     e.g. reprostim timesync-stimuli --help
     """
-    pass
+    # some commands require logging to stderr
+    log_to_stderr: bool = ctx.invoked_subcommand in ("qr-parse",)
+    _init_logger(log_level, log_format, log_to_stderr)
+    logger.debug(f"{__reprostim_name__} v{__version__}")
+    logger.debug(f"main(...), command={ctx.invoked_subcommand}")
 
 
 # Import all CLI commands
