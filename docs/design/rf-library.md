@@ -38,6 +38,6 @@ Refactor stuff here into cleanly separated and documented libraries etc.
 | [x] `Parsing/parse_wQR.py`             | `src/reprostim/cli/cmd_qr_parse.py`         |
 | [x] `Parsing/generate_qrinfo.sh`       | `tools/reprostim-generate-qrinfo`           |
 | [ ] `tools/reprostim-timesync-stimuli` | `src/reprostim/cli/cmd_timesync_stimuli.py` |
-| [ ] `Capture/nosignal`                 | `src/reprostim/cli/cmd_detect_nosignal.py`  |
+| [x] `Capture/nosignal`                 | `src/reprostim/cli/cmd_detect_nosignal.py`  |
 | [ ] `Events`                           | `src/reproevents`                           |
 | [ ] `TBD`                              | `TODO`                                      |
