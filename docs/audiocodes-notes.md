@@ -130,7 +130,7 @@ Applied security fix for audio scripts user, by adding current user to `audio` g
 sudo usermod -a -G audio $USER
 ```
 
-and to adjust real-time permissions by creating a file `/etc/security/limits.d/99-realtime.conf` 
+and to adjust real-time permissions by creating a file `/etc/security/limits.d/99-realtime.conf`
 
 ```
 sudo vi /etc/security/limits.d/99-realtime.conf
@@ -176,6 +176,7 @@ singularity --version
   singularity-ce version 4.1.1
 ```
 
+
 ## Summary
   - `PyDub` allows you to generate simple tones easily.
   -  FSK modulation can be achieved using `numpy` and
@@ -196,3 +197,27 @@ singularity --version
 
   - `reedsolo` can be used for ECC (Error Correction Codes).
 
+## Appendix: A
+Some ffmpeg audio commands to prepare/filter files:
+
+```shell
+ffmpeg -i IMG_6454.mov -vn -ac 1 -ar 44100 -sample_fmt s16 IMG_6454.wav
+ffmpeg -i IMG_6454.mov -vn -ac 1 -ar 44100 -sample_fmt s16 -t 00:00:03 IMG_6454a.wav
+ffmpeg -i IMG_6454.mov -vn -ac 1 -ar 44100 -sample_fmt s16 -t 1.7 IMG_6454b.wav
+
+ffmpeg -i IMG_6455.mov -vn -ac 1 -ar 44100 -sample_fmt s16 -ss 00:00:03 -t 00:00:02 IMG_6455_11.wav
+
+ffmpeg -i IMG_6459.mov -vn -ac 1 -ar 44100 -sample_fmt s16 -ss 00:00:00 -t 2.3 IMG_6459_0.wav
+ffmpeg -i IMG_6459_0.wav -af "bandpass=f=1780:width_type=h:w=40" IMG_6459_0_pre.wav
+ffmpeg -i IMG_6459_0.wav -af "bandpass=f=5000:width_type=h:w=10" IMG_6459_0_code.wav
+ffmpeg -i IMG_6459_0.wav -af "firequalizer=gain='if(between(f,995,1005),1,if(between(f,4995,5005),1,-INF))'" IMG_6459_0_code.wav
+
+ffmpeg -i IMG_6460.mov -vn -ac 1 -ar 44100 -sample_fmt s16 -ss 2.5 -t 1.5 IMG_6460_2.wav
+ffmpeg -i IMG_6460_2.wav -af "firequalizer=gain='if(between(f,995,1005),1,if(between(f,4995,5005),1,-INF))'" IMG_6460_2_f1.wav
+ffmpeg -i IMG_6460_2_f1.wav -af "loudnorm=I=-1:TP=-1:LRA=11" IMG_6460_2_f2.wav
+
+ffmpeg -i IMG_6460_2_f1.wav -af volumedetect -f null /dev/null
+ffmpeg -i IMG_6460_2_f1.wav -af "volume=34.1dB" IMG_6460_2_f2.wav
+
+ffmpeg -i IMG_6461.mov -vn -ac 1 -ar 44100 -sample_fmt s16 IMG_6461_5.wav
+```

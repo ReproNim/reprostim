@@ -1,6 +1,7 @@
 #
 # SPDX-License-Identifier: MIT
 import logging
+import os
 import sys
 
 # setup logging
@@ -31,5 +32,8 @@ def _init_logger(
     # set the logging level
     if log_level:
         root_logger.setLevel(log_level)
+        # setup log level as environment variable
+        # used to setup psychopy logs
+        os.environ["REPROSTIM_LOG_LEVEL"] = log_level
 
     root_logger.debug(f"Logging level set to: {log_level}")

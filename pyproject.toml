@@ -77,7 +77,8 @@ Source = "https://github.com/ReproNim/reprostim"
 [project.scripts]
 reprostim = "reprostim.cli.entrypoint:main"
 
-[tool.hatch.build]
+[tool.hatch.build.targets.wheel]
+packages = ["src/reprostim"]
 include = [
     "reprostim/assets/img/*.png"
 ]
@@ -90,6 +91,12 @@ include = [
 
 [tool.hatch.version]
 path = "src/reprostim/__about__.py"
+
+[tool.hatch.envs.all]
+# install [all] extras
+features = [
+  "all",
+]
 
 [tool.hatch.envs.types]
 extra-dependencies = [
