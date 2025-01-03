@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024-present ReproNim <info@repronim.org>
+#
+# SPDX-License-Identifier: MIT
+
 from time import sleep, time
 
 t0 = time()

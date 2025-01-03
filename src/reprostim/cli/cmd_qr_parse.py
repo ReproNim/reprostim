@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2024-present Vadim Melnik <vmelnik@docsultant.com>
+# SPDX-FileCopyrightText: 2024-present ReproNim <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
+
 import logging
 import os
 
