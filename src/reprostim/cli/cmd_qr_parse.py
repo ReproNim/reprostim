@@ -7,8 +7,6 @@ import os
 
 import click
 
-from ..qr.qr_parse import do_info, do_parse
-
 # setup logging
 logger = logging.getLogger(__name__)
 
@@ -29,6 +27,9 @@ logger = logging.getLogger(__name__)
 @click.pass_context
 def qr_parse(ctx, path: str, mode: str):
     """Parse QR codes in captured videos."""
+
+    from ..qr.qr_parse import do_info, do_parse
+
     logger.debug("qr_parse(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")

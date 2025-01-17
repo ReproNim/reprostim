@@ -11,8 +11,6 @@ from importlib.resources import files
 
 import click
 
-from ..capture.nosignal import auto_fix_video, find_no_signal, init_grid_colors
-
 # setup logging
 logger = logging.getLogger(__name__)
 
@@ -104,6 +102,9 @@ def detect_noscreen(
     threshold: float,
 ):
     """Detect no screen/no signal frames in captured videos."""
+
+    from ..capture.nosignal import auto_fix_video, find_no_signal, init_grid_colors
+
     logger.debug("detect_noscreen(...)")
     logger.debug(f"path={path}")
 
