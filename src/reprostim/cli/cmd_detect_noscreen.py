@@ -116,11 +116,11 @@ def detect_noscreen(
     res = find_no_signal(path, step, number_of_checks, show_progress, 0)
 
     if res.error is not None:
-        logger.error(f"ERROR          : {res.error}")
+        logger.error(str(res.error))
 
     # process truncated video if any
     if res.is_truncated:
-        logger.error("ERROR          : Truncated video detected.")
+        logger.error("Truncated video detected.")
 
         if truncated == "exit2":
             return _main_exit(2)
@@ -137,7 +137,7 @@ def detect_noscreen(
             res = find_no_signal(path, step, number_of_checks, show_progress, 5)
 
     elif res.is_invalid_timing:
-        logger.error("ERROR          : Invaild video timing/duration detected.")
+        logger.error("Invaild video timing/duration detected.")
 
         if invalid_timing == "exit3":
             return _main_exit(3)
