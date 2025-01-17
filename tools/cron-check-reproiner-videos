@@ -2,7 +2,30 @@
 #
 # A simple script to ensure that we have at least one video file from today
 #
-prefix="/mnt/btrfs/@datafs/reprostim/Videos/$(date +%Y)/$(date +%m)/$(date +%Y.%m.%d)"
-ssh reproiner "ls -ld $prefix*" | grep -q .
-# || { echo "No files for $prefix"; exit 1; }
+#
+# Check first for DICOMs for functional sequences but not rest
+#
+
+set -eu -o pipefail
+
+# To ease testing/troubleshooting, make easy to change day
+DICOMS_DAY=$(date +%d)
+VIDEOS_DAY="$DICOMS_DAY"
+
+# Debugging conveniences, comment out for proper run
+# DICOMS_DAY=13
+# VIDEOS_DAY=16
+
+DICOMS_DATE_DIR="/inbox/DICOM/$(date +%Y)/$(date +%m)/${DICOMS_DAY}"
+VIDEOS_PREFIX="/mnt/btrfs/@datafs/reprostim/Videos/$(date +%Y)/$(date +%m)/$(date +%Y.%m).${VIDEOS_DAY}"
+if ! ssh bids@rolando.cns.dartmouth.edu echo test > /dev/null; then
+	echo "E: cannot connect/execute on rolando"
+fi
+
+if ! ssh bids@rolando.cns.dartmouth.edu ls -d "$DICOMS_DATE_DIR/*/*_task-*" | grep -v '_task-rest' | grep -q .; then
+	echo "D: no relevant DICOMs for $DICOMS_DATE_DIR, no videos expected"
+	exit 0
+fi
+
+ssh reproiner "ls -ld $VIDEOS_PREFIX*" | grep -q .
 
