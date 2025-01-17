@@ -33,6 +33,3 @@ repos:
           # - flake8-unused-arguments
 
 exclude: '^src/reprostim-capture/.*|.codespellrc'
-
-default_language_version:
-    python: python3.10
