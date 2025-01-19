@@ -1,4 +1,5 @@
 #define CATCH_CONFIG_MAIN
+#include <regex>
 #include "reprostim/CaptureLib.h"
 #include <catch2/catch_all.hpp>
 
