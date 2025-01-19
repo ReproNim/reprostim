@@ -15,7 +15,7 @@ target_link_libraries(
         opencv_core
         opencv_highgui
         opencv_imgcodecs
-        Catch2::Catch2
+        Catch2::Catch2WithMain
 )
 
 find_package(OpenCV REQUIRED)

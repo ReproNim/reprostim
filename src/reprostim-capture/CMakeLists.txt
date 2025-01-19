@@ -79,7 +79,7 @@ if(CTEST_ENABLED)
     message(STATUS "CTests are ENABLED")
     enable_testing()
 
-    find_package(Catch2 REQUIRED)
+    find_package(Catch2 3 REQUIRED)
     include_directories(${Catch2_INCLUDE_DIRS})
 
     add_subdirectory(test)

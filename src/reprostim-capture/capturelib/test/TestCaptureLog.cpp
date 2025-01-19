@@ -3,7 +3,7 @@
 #include <filesystem>
 #include "reprostim/CaptureLib.h"
 #include "reprostim/CaptureLog.h"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 using namespace reprostim;
 

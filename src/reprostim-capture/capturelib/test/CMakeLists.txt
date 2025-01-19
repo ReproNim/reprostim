@@ -14,7 +14,7 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(
         ${PROJECT_NAME}
         capturelib
-        Catch2::Catch2
+        Catch2::Catch2WithMain
 )
 
 include(CTest)
