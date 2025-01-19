@@ -27,9 +27,9 @@ def print_version(ctx, value):
 @click.option(
     "-l",
     "--log-level",
-    default="DEBUG",
+    default="INFO",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
-    help="Set the logging level.",
+    help="Set the logging level. Default is INFO.",
 )
 @click.option(
     "-f",

@@ -371,14 +371,8 @@ def do_parse(path_video: str):
     '"path" argument specifies video file or directory '
     "containing video files).",
 )
-@click.option(
-    "--log-level",
-    default="INFO",
-    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
-    help="Set the logging level",
-)
 @click.pass_context
-def main(ctx, path: str, mode: str, log_level):
+def main(ctx, path: str, mode: str):
     logger.debug("qr-parse command")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
