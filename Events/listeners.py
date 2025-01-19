@@ -10,7 +10,7 @@ def listen(command, pyb):
 	Notes
 	-----
 	* This could be set up as a global listener, though that might be overkill just for conveying stimulus events.
-	* Using `-1` polling to disable timouts, we could use ipoll instead:
+	* Using `-1` polling to disable timeouts, we could use ipoll instead:
 		https://docs.micropython.org/en/latest/library/select.html?highlight=poll#select.poll.ipoll
 	"""
 

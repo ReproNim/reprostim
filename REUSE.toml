@@ -1,0 +1,36 @@
+version=1
+
+[[annotations]]
+path = [
+    ".github/**",
+    "*.md",
+    "*.toml",
+    "docs/**",
+    "containers/**",
+    "src/reprostim/assets/**",
+    "tests/**",
+    "tools/**",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2020-2025 ReproNim Team <info@repronim.org>"
+SPDX-License-Identifier = "MIT"
+
+
+[[annotations]]
+path = "src/reprostim-capture/**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2020-2025 ReproNim Team <info@repronim.org>"
+SPDX-License-Identifier = "MIT"
+
+
+[[annotations]]
+path = [
+    ".*",
+    "Parsing/**",
+    "Events/**",
+    "Examples/**",
+    "QRCoding/**",
+    "venv/**"
+]
+SPDX-FileCopyrightText = "NONE"
+SPDX-License-Identifier = "MIT"

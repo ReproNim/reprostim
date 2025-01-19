@@ -1,0 +1,57 @@
+---
+name: Test with pytest and hatch
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: Test with pytest
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python:
+          - '3.10'
+    steps:
+    - name: Configure environment
+      run: |
+        git config --global user.name "reprostim-test"
+        git config --global user.email "reprostim-test@example.com"
+        uname -a
+        date -Is
+        date -u
+
+    - name: Checkout source code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install hatch and virtual environment
+      run: |
+        pwd
+        ls -l
+        pip install --upgrade pip
+        pip install hatch
+        hatch env create
+      shell: bash
+
+    - name: Run pytest
+      run: |
+        hatch run pytest --cov=. --cov-report=xml
+      shell: bash
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

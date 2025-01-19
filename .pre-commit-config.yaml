@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile=black"]
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        # B008 Do not perform function calls in argument defaults.
+        # A003 class attribute "id" is shadowing a python builtin
+        args: ["-j8", "--ignore=B008,A003,E402", "--max-line-length=89"]
+        additional_dependencies:
+          - flake8-bugbear
+          - flake8-builtins
+          # - flake8-unused-arguments
+
+exclude: '^src/reprostim-capture/.*|.codespellrc'

@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
+#include <regex>
 #include "reprostim/CaptureLib.h"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 using namespace reprostim;
 // Function to test
