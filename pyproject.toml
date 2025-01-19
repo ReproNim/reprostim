@@ -55,15 +55,10 @@ psychopy = [
   "psychopy-sounddevice",
 ]
 all = [
-  "pytest>=8.0",
-  "sounddevice>=0.5.1",
-  "scipy>=1.14.1",
-  "pydub>=0.25.1",
-  "pyaudio>=0.2.14",
-  "reedsolo>=1.7.0",
-  "psychopy",
-  "psychopy-sounddevice",
-]
+  "reprostim[test]",
+  "reprostim[audio]",
+  "reprostim[psychopy]",
+] 
 
 [project.urls]
 Documentation = "https://github.com/ReproNim/reprostim"
