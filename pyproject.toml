@@ -16,6 +16,7 @@ keywords = [
   "reprostim-screncapture",
 ]
 authors = [
+  { name = "ReproNim Team", email = "info@repronim.org" },
   { name = "Yaroslav Halchenko", email = "yoh@dartmouth.edu" },
   { name = "Andy Connolly", email = "andrew.c.connolly@dartmouth.edu" },
   { name = "Horea Christian", email = "chr@chymera.eu" },
@@ -58,7 +59,7 @@ all = [
   "reprostim[test]",
   "reprostim[audio]",
   "reprostim[psychopy]",
-] 
+]
 
 [project.urls]
 Documentation = "https://github.com/ReproNim/reprostim"
