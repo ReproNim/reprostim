@@ -137,7 +137,7 @@ def detect_noscreen(
             res = find_no_signal(path, step, number_of_checks, show_progress, 5)
 
     elif res.is_invalid_timing:
-        logger.error("Invaild video timing/duration detected.")
+        logger.error("Invalid video timing/duration detected.")
 
         if invalid_timing == "exit3":
             return _main_exit(3)
