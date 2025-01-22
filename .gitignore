@@ -20,4 +20,4 @@ dist/
 .mypy_cache/
 *.pid
 *.pyc
-.python-version
+src/reprostim/_version.py

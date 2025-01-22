@@ -1,5 +1,8 @@
 [build-system]
-requires = ["hatchling"]
+requires = [
+  "hatchling",
+  "versioningit",
+]
 build-backend = "hatchling.build"
 
 [project]
@@ -81,9 +84,6 @@ include = [
   "/tests",
 ]
 
-[tool.hatch.version]
-path = "src/reprostim/__about__.py"
-
 [tool.hatch.envs.all]
 # install [all] extras
 features = [
@@ -96,6 +96,9 @@ extra-dependencies = [
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/reprostim tests}"
+
+[tool.hatch.version]
+source = "versioningit"
 
 [tool.coverage.run]
 source_pkgs = ["reprostim", "tests"]
@@ -118,3 +121,6 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.versioningit.write]
+file = "src/reprostim/_version.py"
