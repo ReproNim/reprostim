@@ -1,0 +1,120 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "reprostim"
+dynamic = ["version"]
+description = 'ReproStim is a video capture and recording suite for neuroimaging and psychology experiments.'
+readme = "README.md"
+#requires-python = "3.10"
+license = "MIT"
+license-files = { paths = ["LICENSES/MIT.txt"] }
+keywords = [
+  "ReproStim",
+  "reprostim-videocapture",
+  "reprostim-screncapture",
+]
+authors = [
+  { name = "ReproNim Team", email = "info@repronim.org" },
+  { name = "Yaroslav Halchenko", email = "yoh@dartmouth.edu" },
+  { name = "Andy Connolly", email = "andrew.c.connolly@dartmouth.edu" },
+  { name = "Horea Christian", email = "chr@chymera.eu" },
+  { name = "Vadim Melnik", email = "vmelnik@docsultant.com" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+dependencies = [
+  "click>=8.1.7",
+  "click-didyoumean>=0.3.1",
+  "pydantic>=2.7.1",
+  "numpy>=1.26.4",
+  "pyzbar>=0.1.9",
+  "qrcode>=8.0",
+  "opencv-python>=4.9.0.80",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+audio = [
+  "sounddevice>=0.5.1",
+  "scipy>=1.14.1",
+  "pydub>=0.25.1",
+  "pyaudio>=0.2.14",
+  "reedsolo>=1.7.0",
+]
+psychopy = [
+  "psychopy",
+  "psychopy-sounddevice",
+]
+all = [
+  "reprostim[test]",
+  "reprostim[audio]",
+  "reprostim[psychopy]",
+]
+
+[project.urls]
+Documentation = "https://github.com/ReproNim/reprostim"
+Issues = "https://github.com/ReproNim/reprostim/issues"
+Source = "https://github.com/ReproNim/reprostim"
+
+[project.scripts]
+reprostim = "reprostim.cli.entrypoint:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reprostim"]
+include = [
+    "reprostim/assets/img/*.png"
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src/reprostim/",
+  "/tests",
+]
+
+[tool.hatch.version]
+path = "src/reprostim/__about__.py"
+
+[tool.hatch.envs.all]
+# install [all] extras
+features = [
+  "all",
+]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/reprostim tests}"
+
+[tool.coverage.run]
+source_pkgs = ["reprostim", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/reprostim/__about__.py",
+]
+
+[tool.coverage.paths]
+reprostim = ["src/reprostim", "*/reprostim/src/reprostim"]
+tests = ["tests", "*/reprostim/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

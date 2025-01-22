@@ -39,7 +39,7 @@ cd ./containers/images/repronim
 datalad get .
 ```
 
-Check that X11 system is used by default in Linux (Ubuntu 24.04), 
+Check that X11 system is used by default in Linux (Ubuntu 24.04),
 psychopy will not work well with Wayland:
 
 ```
@@ -56,7 +56,7 @@ It should return `x11`. If not, switch to X11:
 
 ### C. Run ReproNim TimeSync Script
 
-Make sure the current directory is one under singularity container 
+Make sure the current directory is one under singularity container
 path created in the previous step B:
 
 ```shell
@@ -67,21 +67,21 @@ Run the script:
 
 ```shell
 singularity exec ./repronim-psychopy--2024.1.4.sing ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
-``` 
+```
 Where `REPROSTIM_PATH` is the local clone of https://github.com/ReproNim/reprostim repository.
 
-Last script parameter is the display ID, which is `1` in this case.  
+Last script parameter is the display ID, which is `1` in this case.
 
 ### D. Update Singularity Container Locally (Optionally)
 
-Optionally, you can update the container locally for development 
+Optionally, you can update the container locally for development
 and debugging purposes (with overlay):
 
 ```shell
 singularity overlay create \
   --size 1024 \
   repronim-psychopy--2024.1.4.overlay
-  
+
 sudo singularity exec \
   --overlay repronim-psychopy--2024.1.4.overlay \
   repronim-psychopy--2024.1.4.sing \
@@ -108,16 +108,16 @@ singularity exec \
   --overlay ./repronim-psychopy--2024.1.4.overlay \
   ./repronim-psychopy--2024.1.4.sing \
   ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
-``` 
+```
 
-Where `/run/user/321/pulse` is sample external pulseaudio device path bound to the container. Usually 
+Where `/run/user/321/pulse` is sample external pulseaudio device path bound to the container. Usually
 when you run the script w/o binding it will report error like:
 
 ```shell
 Failed to create secure directory (/run/user/321/pulse): No such file or directory
-``` 
+```
 
-NOTE: Make sure `PULSE_SERVER` is specified in the container environment and 
+NOTE: Make sure `PULSE_SERVER` is specified in the container environment and
 points to the host pulseaudio server. e.g.:
 
 ```shell
@@ -128,12 +128,12 @@ export PULSE_SERVER=unix:/run/user/321/pulse/native
 
 ```shell
 cd ~/Projects/Dartmouth/branches/datalad/containers/images/repronim
-export REPROSTIM_PATH=~/Projects/Dartmouth/branches/reprostim 
+export REPROSTIM_PATH=~/Projects/Dartmouth/branches/reprostim
 
 singularity overlay create \
   --size 1024 \
   repronim-psychopy--2024.1.4.overlay
-  
+
 sudo singularity exec \
   --overlay repronim-psychopy--2024.1.4.overlay \
   repronim-psychopy--2024.1.4.sing \
@@ -149,7 +149,7 @@ exit
 sudo singularity exec \
   --overlay repronim-psychopy--2024.1.4.overlay \
   repronim-psychopy--2024.1.4.sing \
-  python3 -m pip install pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice 
+  python3 -m pip install pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice
 
 # and run the script
 rm output.log
@@ -164,5 +164,3 @@ singularity exec \
   ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 
 ```
-
-

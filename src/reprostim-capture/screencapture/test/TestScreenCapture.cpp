@@ -5,7 +5,7 @@
 #include <sysexits.h>
 #include <getopt.h>
 #include "ScreenCapture.h"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 // Function to test
 int add(int a, int b) {

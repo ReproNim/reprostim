@@ -1,25 +1,27 @@
-# TODO: Move to reprostim.soundcode module
+# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+#
+# SPDX-License-Identifier: MIT
 
 import logging
 import os
+import tempfile
 import time
 from datetime import datetime
-import tempfile
 from enum import Enum
 
 import numpy as np
 import sounddevice as sd
-from scipy.io.wavfile import write, read
-from scipy.io import wavfile
 from reedsolo import RSCodec
-
+from scipy.io import wavfile
+from scipy.io.wavfile import read, write
 
 # setup logging
 logger = logging.getLogger(__name__)
-logger.setLevel(os.environ.get('REPROSTIM_LOG_LEVEL', 'INFO'))
+logger.setLevel(os.environ.get("REPROSTIM_LOG_LEVEL", "INFO"))
 
 ######################################
 # Setup psychopy audio library
+
 
 # Enum for the audio libs
 class AudioLib(str, Enum):
@@ -31,24 +33,26 @@ class AudioLib(str, Enum):
     # http://python-sounddevice.readthedocs.io/
     SOUNDDEVICE = "sounddevice"
 
-_audio_lib = os.environ.get('REPROSTIM_AUDIO_LIB', AudioLib.PSYCHOPY_SOUNDDEVICE)
 
-from psychopy import prefs
-prefs.hardware['audioLib'] = ['sounddevice']
+_audio_lib = os.environ.get("REPROSTIM_AUDIO_LIB", AudioLib.PSYCHOPY_SOUNDDEVICE)
+
+from psychopy import prefs  # noqa: E402
+
+prefs.hardware["audioLib"] = ["sounddevice"]
 if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
     logger.debug("Set psychopy audio library: sounddevice")
-    prefs.hardware['audioLib'] = ['sounddevice']
+    prefs.hardware["audioLib"] = ["sounddevice"]
 elif _audio_lib == AudioLib.PSYCHOPY_PTB:
     logger.debug("Set psychopy audio library: ptb")
-    prefs.hardware['audioLib'] = ['ptb']
+    prefs.hardware["audioLib"] = ["ptb"]
 
-#logger.info("Using psychopy audio library: %s", prefs.hardware['audioLib'])
-from psychopy import core, sound
-from psychtoolbox import audio
-
+# logger.info("Using psychopy audio library: %s", prefs.hardware['audioLib'])
+from psychopy import core, sound  # noqa: E402
+from psychtoolbox import audio  # noqa: E402
 
 ######################################
-# Sound code/qr helper functions
+# Audio code/qr helper functions
+
 
 def bit_enumerator(data):
     if isinstance(data, DataMessage):
@@ -56,7 +60,7 @@ def bit_enumerator(data):
     if isinstance(data, str):
         # If data is a string, iterate over each character
         for char in data:
-            if char not in ('0', '1'):
+            if char not in ("0", "1"):
                 raise ValueError("String must only contain '0' and '1'.")
             yield int(char)  # Yield the bit as an integer
     elif isinstance(data, bytes):
@@ -65,19 +69,23 @@ def bit_enumerator(data):
             for i in range(7, -1, -1):  # Iterate from MSB to LSB
                 yield (byte >> i) & 1  # Extract and yield the bit
     else:
-        raise TypeError("Data must be either a string or bytes. Got: " + str(type(data)))
+        raise TypeError(
+            "Data must be either a string or bytes. Got: " + str(type(data))
+        )
 
 
 # Convert a list of bits to bytes
 def bits_to_bytes(detected_bits):
     # Check if the length of detected_bits is a multiple of 8
     if len(detected_bits) % 8 != 0:
-        raise ValueError(f"Detected bits array must be aligned to 8 bits. Length={len(detected_bits)}")
+        raise ValueError(
+            f"Detected bits array must be aligned to 8 bits. Length={len(detected_bits)}"
+        )
 
     byte_array = bytearray()  # Use bytearray for mutable bytes
     for i in range(0, len(detected_bits), 8):
         # Get the next 8 bits
-        byte_bits = detected_bits[i:i + 8]
+        byte_bits = detected_bits[i : i + 8]  # noqa: E203
 
         # Convert the list of bits to a byte (big-endian)
         byte_value = 0
@@ -101,10 +109,12 @@ def crc8(data: bytes, polynomial: int = 0x31, init_value: int = 0x00) -> int:
             crc &= 0xFF  # Keep CRC to 8 bits
     return crc
 
+
 ######################################
 # Constants
 
-class SoundCodec(str, Enum):
+
+class AudioCodec(str, Enum):
     # Frequency Shift Keying (FSK) where binary data is
     # encoded as two different frequencies f0 and f1 with
     # a fixed bit duration (baud rate or bit_rate).
@@ -115,8 +125,10 @@ class SoundCodec(str, Enum):
     # can encode only some numeric hash.
     NFE = "NFE"
 
+
 ######################################
 # Classes
+
 
 # Class representing audio data message in big-endian
 # format and encoded with Reed-Solomon error correction
@@ -126,7 +138,7 @@ class SoundCodec(str, Enum):
 #  - 3+ and the rest is the data itself
 class DataMessage:
     def __init__(self):
-        self.value: bytes = b''
+        self.value: bytes = b""
         self.length: int = 0
         self.crc8: int = 0
         self.use_ecc: bool = True
@@ -137,7 +149,7 @@ class DataMessage:
             dec, dec_full, errata_pos_all = self.rsc.decode(data)
             data = bytes(dec)
 
-        #logger.debug(f"decoded data  : {data}")
+        # logger.debug(f"decoded data  : {data}")
         self.crc8 = data[0]
         self.length = data[1]
         self.value = data[2:]
@@ -170,26 +182,28 @@ class DataMessage:
         elif c == 8:
             return self.get_uint64()
         else:
-            raise ValueError(f"Data length must be 2, 4, or 8 bytes, "
-                             f"but was {c}")
+            raise ValueError(f"Data length must be 2, 4, or 8 bytes, " f"but was {c}")
 
     def get_uint16(self) -> int:
         if len(self.value) != 2:
-            raise ValueError(f"Data length for uint16 must be 2 bytes, "
-                             f"but was {len(self.value)}")
-        return int.from_bytes(self.value, 'big')
+            raise ValueError(
+                f"Data length for uint16 must be 2 bytes, " f"but was {len(self.value)}"
+            )
+        return int.from_bytes(self.value, "big")
 
     def get_uint32(self) -> int:
         if len(self.value) != 4:
-            raise ValueError(f"Data length for uint32 must be 4 bytes, "
-                             f"but was {len(self.value)}")
-        return int.from_bytes(self.value, 'big')
+            raise ValueError(
+                f"Data length for uint32 must be 4 bytes, " f"but was {len(self.value)}"
+            )
+        return int.from_bytes(self.value, "big")
 
     def get_uint64(self) -> int:
         if len(self.value) != 8:
-            raise ValueError(f"Data length for uint64 must be 8 bytes, "
-                             f"but was {len(self.value)}")
-        return int.from_bytes(self.value, 'big')
+            raise ValueError(
+                f"Data length for uint64 must be 8 bytes, " f"but was {len(self.value)}"
+            )
+        return int.from_bytes(self.value, "big")
 
     def set_bytes(self, data: bytes):
         self.value = data
@@ -200,17 +214,17 @@ class DataMessage:
         self.set_bytes(s.encode("utf-8"))
 
     def set_uint16(self, i: int):
-        self.set_bytes(i.to_bytes(2, 'big'))
+        self.set_bytes(i.to_bytes(2, "big"))
 
     def set_uint32(self, i: int):
-        self.set_bytes(i.to_bytes(4, 'big'))
+        self.set_bytes(i.to_bytes(4, "big"))
 
     def set_uint64(self, i: int):
-        self.set_bytes(i.to_bytes(8, 'big'))
+        self.set_bytes(i.to_bytes(8, "big"))
 
 
-# Class to provide general information about sound code
-class SoundCodeInfo:
+# Class to provide general information about audio code
+class AudioCodeInfo:
     def __init__(self):
         self.codec = None
         self.f1 = None
@@ -228,36 +242,39 @@ class SoundCodeInfo:
 
     # to string
     def __str__(self):
-        return (f"SoundCodeInfo(codec={self.codec}, "
-                f"f1={self.f1}, "
-                f"f0={self.f0}, "
-                f"nfe_df={self.nfe_df}, "
-                f"rate={self.sample_rate}, "
-                f"bit_duration={self.bit_duration}, "
-                f"bit_count={self.bit_count}, "
-                f"nfe_freq={self.nfe_freq}, "
-                f"volume={self.volume}, "
-                f"duration={self.duration})"
-                f"pre_delay={self.pre_delay}, "
-                f"post_delay={self.post_delay}")
+        return (
+            f"AudioCodeInfo(codec={self.codec}, "
+            f"f1={self.f1}, "
+            f"f0={self.f0}, "
+            f"nfe_df={self.nfe_df}, "
+            f"rate={self.sample_rate}, "
+            f"bit_duration={self.bit_duration}, "
+            f"bit_count={self.bit_count}, "
+            f"nfe_freq={self.nfe_freq}, "
+            f"volume={self.volume}, "
+            f"duration={self.duration})"
+            f"pre_delay={self.pre_delay}, "
+            f"post_delay={self.post_delay}"
+        )
 
 
-# Class to generate/parse QR-like sound codes with FSK modulation
-class SoundCodeEngine:
-    def __init__(self,
-                 codec=SoundCodec.FSK,
-                 f0=1000,
-                 f1=5000,
-                 nfe_df=100,  # used only in NFE
-                 sample_rate=44100,
-                 bit_duration=0.0070,  # used only in FSK
-                 nfe_duration=0.3,  # used only in NFE
-                 volume=0.80,
-                 pre_delay=0.1,
-                 pre_f=0, #1780
-                 post_delay=0.1,
-                 post_f=0  #3571
-                 ):
+# Class to generate/parse QR-like audio codes with FSK modulation
+class AudioCodeEngine:
+    def __init__(
+        self,
+        codec=AudioCodec.FSK,
+        f0=1000,
+        f1=5000,
+        nfe_df=100,  # used only in NFE
+        sample_rate=44100,
+        bit_duration=0.0070,  # used only in FSK
+        nfe_duration=0.3,  # used only in NFE
+        volume=0.80,
+        pre_delay=0.1,
+        pre_f=0,  # 1780
+        post_delay=0.1,
+        post_f=0,  # 3571
+    ):
         self.codec = codec
         self.f0 = f0
         self.f1 = f1
@@ -274,18 +291,25 @@ class SoundCodeEngine:
         self.post_f = post_f
 
     def generate_sin(self, freq_hz, duration_sec):
-        t = np.linspace(0, duration_sec,
-                            int(self.sample_rate * duration_sec),
-                            endpoint=False)
+        t = np.linspace(
+            0, duration_sec, int(self.sample_rate * duration_sec), endpoint=False
+        )
         signal = self.volume * np.sin(2 * np.pi * freq_hz * t)
         return signal
 
-
-    def generate_fsk(self, data) -> (np.array, SoundCodeInfo):
-        logger.debug(f"audio config  : f1={self.f1} Hz, f0={self.f0} Hz, rate={self.sample_rate} Hz, bit duration={self.bit_duration} sec, volume={self.volume}")
-        t = np.linspace(0, self.bit_duration,
-                        int(self.sample_rate * self.bit_duration),
-                        endpoint=False)
+    def generate_fsk(self, data) -> (np.array, AudioCodeInfo):
+        logger.debug(
+            f"audio config  : f1={self.f1} Hz, f0={self.f0} Hz, "
+            f"rate={self.sample_rate} Hz, "
+            f"bit duration={self.bit_duration} sec, "
+            f"volume={self.volume}"
+        )
+        t = np.linspace(
+            0,
+            self.bit_duration,
+            int(self.sample_rate * self.bit_duration),
+            endpoint=False,
+        )
 
         # Create FSK signal
         fsk_signal = np.array([])
@@ -302,35 +326,36 @@ class SoundCodeEngine:
 
         # generate data signal properly
         c: int = 0
-        sb: str = ''
+        sb: str = ""
         for bit in bit_enumerator(data):
             c += 1
             sb += str(bit)
             if bit == 1:
-                fsk_signal = np.concatenate((fsk_signal,
-                                             self.volume * np.sin(2 * np.pi * self.f1 * t)))
+                fsk_signal = np.concatenate(
+                    (fsk_signal, self.volume * np.sin(2 * np.pi * self.f1 * t))
+                )
             else:
-                fsk_signal = np.concatenate((fsk_signal,
-                                             self.volume * np.sin(2 * np.pi * self.f0 * t)))
+                fsk_signal = np.concatenate(
+                    (fsk_signal, self.volume * np.sin(2 * np.pi * self.f0 * t))
+                )
 
         # concatenate pre-signal, data signal, and post-signal
         if self.pre_delay > 0 or self.post_delay > 0:
             fsk_signal = np.concatenate((pre_signal, fsk_signal, post_signal))
 
         # Normalize the signal for 100% volume
-        if self.volume==1.0:
+        if self.volume == 1.0:
             fsk_signal /= np.max(np.abs(fsk_signal))
 
-        sci: SoundCodeInfo = SoundCodeInfo()
-        sci.codec = SoundCodec.FSK
+        sci: AudioCodeInfo = AudioCodeInfo()
+        sci.codec = AudioCodec.FSK
         sci.f1 = self.f1
         sci.f0 = self.f0
         sci.sample_rate = self.sample_rate
         sci.bit_duration = self.bit_duration
         sci.bit_count = c
         sci.volume = self.volume
-        sci.duration = (c * self.bit_duration +
-                        self.pre_delay + self.post_delay)
+        sci.duration = c * self.bit_duration + self.pre_delay + self.post_delay
         sci.pre_delay = self.pre_delay
         sci.post_delay = self.post_delay
 
@@ -338,8 +363,7 @@ class SoundCodeEngine:
         logger.debug(f"audio duration: {sci.duration:.6f} seconds")
         return (fsk_signal, sci)
 
-
-    def generate_nfe(self, data) -> (np.array, SoundCodeInfo):
+    def generate_nfe(self, data) -> (np.array, AudioCodeInfo):
         # Create NFE signal
         nfe_signal = np.array([])
         pre_signal = np.array([])
@@ -364,11 +388,11 @@ class SoundCodeEngine:
             nfe_signal = np.concatenate((pre_signal, nfe_signal, post_signal))
 
         # Normalize the signal for 100% volume
-        if self.volume==1.0:
+        if self.volume == 1.0:
             nfe_signal /= np.max(np.abs(nfe_signal))
 
-        sci: SoundCodeInfo = SoundCodeInfo()
-        sci.codec = SoundCodec.NFE
+        sci: AudioCodeInfo = AudioCodeInfo()
+        sci.codec = AudioCodec.NFE
         sci.f1 = self.f1
         sci.f0 = self.f0
         sci.nfe_df = self.nfe_df
@@ -376,26 +400,22 @@ class SoundCodeEngine:
         sci.nfe_duration = self.nfe_duration
         sci.nfe_freq = freq
         sci.volume = self.volume
-        sci.duration = (self.nfe_duration +
-                        self.pre_delay + self.post_delay)
+        sci.duration = self.nfe_duration + self.pre_delay + self.post_delay
         sci.pre_delay = self.pre_delay
         sci.post_delay = self.post_delay
-
 
         logger.debug(f"audio duration: {sci.duration:.6f} seconds")
         return nfe_signal, sci
 
-
-    def generate(self, data) -> (np.array, SoundCodeInfo):
-        if self.codec == SoundCodec.FSK:
+    def generate(self, data) -> (np.array, AudioCodeInfo):
+        if self.codec == AudioCodec.FSK:
             return self.generate_fsk(data)
-        elif self.codec == SoundCodec.NFE:
+        elif self.codec == AudioCodec.NFE:
             return self.generate_nfe(data)
         else:
             raise ValueError(f"Unsupported codec: {self.codec}")
 
-
-    # play sound data with sounddevice
+    # play audio data with sounddevice
     def play_data_sd(self, data):
         ts = time.perf_counter()
         fsk_signal, sci = self.generate(data)
@@ -406,20 +426,17 @@ class SoundCodeEngine:
         # Play the FSK signal
         sd.play(fsk_signal, samplerate=self.sample_rate)
 
-        # Wait until sound is finished playing
+        # Wait until audio is finished playing
         sd.wait()
         ts = time.perf_counter() - ts
         logger.debug(f"play time     : {ts:.6f} seconds")
-
 
     def save(self, data, filename):
         fsk_signal, sci = self.generate(data)
 
         # Save the signal to a WAV file
-        write(filename, self.sample_rate,
-              (fsk_signal * 32767).astype(np.int16))
+        write(filename, self.sample_rate, (fsk_signal * 32767).astype(np.int16))
         return sci
-
 
     def parse(self, filename):
         # Read the WAV file
@@ -441,7 +458,7 @@ class SoundCodeEngine:
                 break  # Avoid out of bounds
 
             # Extract the current chunk of audio
-            chunk = data[i:i + samples_per_bit]
+            chunk = data[i : i + samples_per_bit]  # noqa: E203
 
             # Perform FFT on the chunk
             fourier = np.fft.fft(chunk)
@@ -449,8 +466,8 @@ class SoundCodeEngine:
 
             # Get the magnitudes and filter out positive frequencies
             magnitudes = np.abs(fourier)
-            positive_frequencies = frequencies[:len(frequencies) // 2]
-            positive_magnitudes = magnitudes[:len(magnitudes) // 2]
+            positive_frequencies = frequencies[: len(frequencies) // 2]
+            positive_magnitudes = magnitudes[: len(magnitudes) // 2]
 
             # Find the peak frequency
             peak_freq = positive_frequencies[np.argmax(positive_magnitudes)]
@@ -461,16 +478,18 @@ class SoundCodeEngine:
             elif abs(peak_freq - self.f0) < 50:  # Frequency for '0'
                 detected_bits.append(0)
 
-        dbg_bits: str = ''.join([str(bit) for bit in detected_bits])
+        dbg_bits: str = "".join([str(bit) for bit in detected_bits])
         logger.debug(f"detected bits : count={len(dbg_bits)}, {dbg_bits}")
         return bits_to_bytes(detected_bits)
+
 
 ######################################
 # Public functions
 
+
 def beep(duration: float = 2.0, async_: bool = False):
     logger.debug(f"beep(duration={duration})")
-    play_sound('A', duration, async_)
+    play_audio("A", duration, async_)
 
 
 def list_audio_devices():
@@ -494,86 +513,100 @@ def list_audio_devices():
 
     logger.debug("[psychopy.backend_ptb]")
     # TODO: investigate why only single out device listed from
-    # USB capture but defult one is not shown
+    # USB capture but default one is not shown
     # logger.debug(sound.backend_ptb.getDevices())
 
 
-
-def _play_sound_psychopy(name: str,
-               duration: float = None,
-               volume: float = 0.8,
-               sample_rate: int = 44100,
-               async_: bool = False):
-    logger.debug(f"_play_sound_psychopy(name={name}, duration={duration}, async_={async_})")
+def _play_audio_psychopy(
+    name: str,
+    duration: float = None,
+    volume: float = 0.8,
+    sample_rate: int = 44100,
+    async_: bool = False,
+):
+    logger.debug(
+        f"_play_audio_psychopy(name={name}, duration={duration}, async_={async_})"
+    )
     snd = None
     if duration:
-        snd = sound.Sound(name, secs=duration, sampleRate=sample_rate,
-                          stereo=True, volume=volume)
+        snd = sound.Sound(
+            name, secs=duration, sampleRate=sample_rate, stereo=True, volume=volume
+        )
     else:
-        snd = sound.Sound(name, stereo=True, sampleRate=sample_rate,
-                          volume=volume)
-    logger.debug(f"Play sound '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
+        snd = sound.Sound(name, stereo=True, sampleRate=sample_rate, volume=volume)
+    logger.debug(f"Play audio '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
     snd.play()
-    logger.debug(f" sampleRate={snd.sampleRate}, duration={snd.duration}, volume={snd.volume}")
+    logger.debug(
+        f" sampleRate={snd.sampleRate}, duration={snd.duration}, volume={snd.volume}"
+    )
     if not async_:
-        logger.debug("Waiting for sound to finish playing...")
+        logger.debug("Waiting for audio to finish playing...")
         core.wait(snd.duration)
-        logger.debug(f"Sound '{snd.sound}' has finished playing.")
+        logger.debug(f"Audio '{snd.sound}' has finished playing.")
 
 
-def _play_sound_sd(name: str,
-               duration: float = None,
-               volume: float = 0.8,
-               sample_rate: int = 44100,
-               async_: bool = False):
-    logger.debug(f"_play_sound_sd(name={name}, duration={duration}, async_={async_})")
+def _play_audio_sd(
+    name: str,
+    duration: float = None,
+    volume: float = 0.8,
+    sample_rate: int = 44100,
+    async_: bool = False,
+):
+    logger.debug(f"_play_audio_sd(name={name}, duration={duration}, async_={async_})")
     data = name
 
     if os.path.exists(name):
         rate, signal = read(name)
-        logger.debug(f"Read sound file: {name}, rate={rate}")
+        logger.debug(f"Read audio file: {name}, rate={rate}")
         # Convert from int16 to float32
-        #signal = signal.astype(np.float32) / 32767
+        # signal = signal.astype(np.float32) / 32767
         data = signal
 
     sd.play(data, samplerate=sample_rate)
 
 
-def play_sound(name: str,
-               duration: float = None,
-               volume: float = 0.8,
-               sample_rate: int = 44100,
-               async_: bool = False):
-    logger.debug(f"play_sound(name={name}, duration={duration}, async_={async_})")
-    if (_audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE or
-        _audio_lib == AudioLib.PSYCHOPY_PTB):
-        _play_sound_psychopy(name, duration, volume, sample_rate, async_)
+def play_audio(
+    name: str,
+    duration: float = None,
+    volume: float = 0.8,
+    sample_rate: int = 44100,
+    async_: bool = False,
+):
+    logger.debug(f"play_audio(name={name}, duration={duration}, async_={async_})")
+    if (
+        _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE
+        or _audio_lib == AudioLib.PSYCHOPY_PTB  # noqa: W503
+    ):
+        _play_audio_psychopy(name, duration, volume, sample_rate, async_)
     elif _audio_lib == AudioLib.SOUNDDEVICE:
-        _play_sound_sd(name, duration, volume, sample_rate, async_)
+        _play_audio_sd(name, duration, volume, sample_rate, async_)
     else:
         raise ValueError(f"Unsupported audio library: {_audio_lib}")
 
 
-def save_soundcode(fname: str = None,
-                   code_uint16: int = None,
-                   code_uint32: int = None,
-                   code_uint64: int = None,
-                   code_str: str = None,
-                   code_bytes: bytes = None,
-                   codec: SoundCodec = SoundCodec.FSK,
-                   engine=None) -> (str, SoundCodeInfo):
-    logger.debug(f"save_sound(fname={fname}...)")
+def save_audiocode(
+    fname: str = None,
+    code_uint16: int = None,
+    code_uint32: int = None,
+    code_uint64: int = None,
+    code_str: str = None,
+    code_bytes: bytes = None,
+    codec: AudioCodec = AudioCodec.FSK,
+    engine=None,
+) -> (str, AudioCodeInfo):
+    logger.debug(f"save_audiocode(fname={fname}...)")
     if not fname:
         fname = tempfile.mktemp(
-            prefix=f"soundcode_{datetime.now().strftime('%Y%m%d_%H%M%S%f')}_",
-            suffix=".wav")
+            prefix=f"audiocode_{datetime.now().strftime('%Y%m%d_%H%M%S%f')}_",
+            suffix=".wav",
+        )
 
     data = DataMessage()
-    if not code_uint16 is None:
+    if code_uint16 is not None:
         data.set_uint16(code_uint16)
-    elif not code_uint32 is None:
+    elif code_uint32 is not None:
         data.set_uint32(code_uint32)
-    elif not code_uint64 is None:
+    elif code_uint64 is not None:
         data.set_uint64(code_uint64)
     elif code_str:
         data.set_str(code_str)
@@ -583,7 +616,7 @@ def save_soundcode(fname: str = None,
         raise ValueError("No code data provided.")
 
     if not engine:
-        engine = SoundCodeEngine(codec=codec)
-    sci: SoundCodeInfo = engine.save(data, fname)
+        engine = AudioCodeEngine(codec=codec)
+    sci: AudioCodeInfo = engine.save(data, fname)
     logger.debug(f" -> {fname}")
     return (fname, sci)

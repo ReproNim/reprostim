@@ -1,9 +1,9 @@
-#!/bin/bash
-# chmod +x ns_05.sh
+#!/usr/bin/env bash
 
 # Define external variables
 #NOSIGNAL_ARGS="--number-of-checks 5 --truncated check5"
 NOSIGNAL_ARGS="--number-of-checks 100 --truncated fixup --invalid-timing fixup --threshold 0.5"
+LOG_LEVEL=DEBUG
 
 print_help() {
     echo "Usage: $0 <DIRECTORY>"
@@ -33,7 +33,7 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 DIRECTORY="$1"
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-echo "[$TIMESTAMP] Processing nosignal batch:"
+echo "[$TIMESTAMP] Processing detect-noscreen/nosignal batch:"
 echo "  - DIRECTORY     : $DIRECTORY"
 echo "  - NOSIGNAL_ARGS : $NOSIGNAL_ARGS"
 echo " "
@@ -51,7 +51,7 @@ do
   echo "----------------------------------------------"
   TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
   echo "[$TIMESTAMP] Processing ($COUNTER of $TOTAL_FILES) $FILE ..."
-  ./reprostim/nosignal $NOSIGNAL_ARGS "$FILE"
+  reprostim --log-level $LOG_LEVEL detect-noscreen $NOSIGNAL_ARGS "$FILE"
   EXIT_CODE=$?
   echo "EXIT_CODE=$EXIT_CODE"
   if [ $EXIT_CODE -eq 1 ]; then
@@ -74,5 +74,3 @@ do
   echo "$NOSIGNAL_FILE"
 done
 echo " "
-
-

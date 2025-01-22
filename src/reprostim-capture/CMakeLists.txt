@@ -1,7 +1,7 @@
-# CMakeLists.txt (Main Capture project)
+# CMakeLists.txt (Main reprostim-capture project)
 cmake_minimum_required (VERSION 3.10)
 
-project(Capture)
+project(reprostim-capture)
 
 option(CTEST_ENABLED "Specify CTest build and run are enabled" ON)
 
@@ -79,7 +79,7 @@ if(CTEST_ENABLED)
     message(STATUS "CTests are ENABLED")
     enable_testing()
 
-    find_package(Catch2 REQUIRED)
+    find_package(Catch2 3 REQUIRED)
     include_directories(${Catch2_INCLUDE_DIRS})
 
     add_subdirectory(test)

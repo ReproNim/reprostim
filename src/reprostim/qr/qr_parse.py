@@ -1,35 +1,37 @@
-#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+#
+# SPDX-License-Identifier: MIT
 
-import json
 import logging
 import os
 import re
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from re import match
 from typing import Optional
 
-from pydantic import BaseModel, Field
-from pyzbar.pyzbar import decode, ZBarSymbol
-import cv2
-import sys
-import numpy as np
-import time
 import click
+import cv2
+import numpy as np
+from pydantic import BaseModel, Field
+from pyzbar.pyzbar import ZBarSymbol, decode
 
 # initialize the logger
-# Note: all logs goes to stderr
+# Note: all logs out to stderr
 logger = logging.getLogger(__name__)
-logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
+# logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
+
 
 # Define class video info details
 class InfoSummary(BaseModel):
     path: Optional[str] = Field(None, description="Video file path")
-    rate_mbpm: Optional[float] = Field(0.0, description="Video file 'byterate' "
-                                                            "in MB per minute.")
-    duration_sec: Optional[float] = Field(0.0, description="Duration of the video "
-                                                            "in seconds")
+    rate_mbpm: Optional[float] = Field(
+        0.0, description="Video file 'byterate' " "in MB per minute."
+    )
+    duration_sec: Optional[float] = Field(
+        0.0, description="Duration of the video " "in seconds"
+    )
     size_mb: Optional[float] = Field(0.0, description="Video file size in MB.")
 
 
@@ -39,62 +41,86 @@ class VideoTimeInfo(BaseModel):
     error: Optional[str] = Field(None, description="Error message if any")
     start_time: Optional[datetime] = Field(None, description="Start time of the video")
     end_time: Optional[datetime] = Field(None, description="End time of the video")
-    duration_sec: Optional[float] = Field(None, description="Duration of the video "
-                                                            "in seconds")
+    duration_sec: Optional[float] = Field(
+        None, description="Duration of the video " "in seconds"
+    )
+
 
 # Define model for parsing summary info
 class ParseSummary(BaseModel):
     type: Optional[str] = Field("ParseSummary", description="JSON record type/class")
     qr_count: Optional[int] = Field(0, description="Number of QR codes found")
-    parsing_duration: Optional[float] = Field(0.0, description="Duration of the "
-                                                     "parsing in seconds")
+    parsing_duration: Optional[float] = Field(
+        0.0, description="Duration of the " "parsing in seconds"
+    )
     # exit code
     exit_code: Optional[int] = Field(-1, description="Number of QR codes found")
-    video_full_path: Optional[str] = Field(None, description="Full path "
-                                                            "to the video file")
-    video_file_name: Optional[str] = Field(None, description="Name of the "
-                                                            "video file")
-    video_isotime_start: Optional[datetime] = Field(None, description="ISO datetime "
-                                                                      "video started")
-    video_isotime_end: Optional[datetime] = Field(None, description="ISO datetime "
-                                                                    "video ended")
-    video_duration: Optional[float] = Field(None, description="Duration of the video "
-                                                              "in seconds")
-    video_frame_width: Optional[int] = Field(None, description="Width of the "
-                                                               "video frame in px")
-    video_frame_height: Optional[int] = Field(None, description="Height of the "
-                                                                "video frame in px")
-    video_frame_rate: Optional[float] = Field(None, description="Frame rate of the "
-                                                               "video in FPS")
-    video_frame_count: Optional[int] = Field(None, description="Number of frames "
-                                                               "in video file")
+    video_full_path: Optional[str] = Field(
+        None, description="Full path " "to the video file"
+    )
+    video_file_name: Optional[str] = Field(
+        None, description="Name of the " "video file"
+    )
+    video_isotime_start: Optional[datetime] = Field(
+        None, description="ISO datetime " "video started"
+    )
+    video_isotime_end: Optional[datetime] = Field(
+        None, description="ISO datetime " "video ended"
+    )
+    video_duration: Optional[float] = Field(
+        None, description="Duration of the video " "in seconds"
+    )
+    video_frame_width: Optional[int] = Field(
+        None, description="Width of the " "video frame in px"
+    )
+    video_frame_height: Optional[int] = Field(
+        None, description="Height of the " "video frame in px"
+    )
+    video_frame_rate: Optional[float] = Field(
+        None, description="Frame rate of the " "video in FPS"
+    )
+    video_frame_count: Optional[int] = Field(
+        None, description="Number of frames " "in video file"
+    )
 
 
 # Define the data model for the QR record
 class QrRecord(BaseModel):
     type: Optional[str] = Field("QrRecord", description="JSON record type/class")
-    index: Optional[int] = Field(None, description="Zero-based i    ndex of the QR code")
-    frame_start: Optional[int] = Field(None, description="Frame number where QR code starts")
-    frame_end: Optional[int] = Field(None, description="Frame number where QR code ends")
-    isotime_start: Optional[datetime] = Field(None, description="ISO datetime where QR "
-                                                           "code starts")
-    isotime_end: Optional[datetime] = Field(None, description="ISO datetime where QR "
-                                                         "code ends")
-    time_start: Optional[float] = Field(None, description="Position in seconds "
-                                                             "where QR code starts")
-    time_end: Optional[float] = Field(None, description="Position in seconds "
-                                                           "where QR code ends")
-    duration: Optional[float] = Field(None, description="Duration of the QR code "
-                                                        "in seconds")
+    index: Optional[int] = Field(
+        None, description="Zero-based i    ndex of the QR code"
+    )
+    frame_start: Optional[int] = Field(
+        None, description="Frame number where QR code starts"
+    )
+    frame_end: Optional[int] = Field(
+        None, description="Frame number where QR code ends"
+    )
+    isotime_start: Optional[datetime] = Field(
+        None, description="ISO datetime where QR " "code starts"
+    )
+    isotime_end: Optional[datetime] = Field(
+        None, description="ISO datetime where QR " "code ends"
+    )
+    time_start: Optional[float] = Field(
+        None, description="Position in seconds " "where QR code starts"
+    )
+    time_end: Optional[float] = Field(
+        None, description="Position in seconds " "where QR code ends"
+    )
+    duration: Optional[float] = Field(
+        None, description="Duration of the QR code " "in seconds"
+    )
     data: Optional[dict] = Field(None, description="QR code data")
 
     def __str__(self):
-        return (f"QrRecord(frames=[{self.frame_start}, {self.frame_end}], "
-                f"times=[{self.time_start}, {self.time_end} sec], "
-                f"duration={self.duration} sec, "
-                f"isotimes=[{self.isotime_start}, {self.isotime_end}], "
-                f"data={self.data})"
-                )
+        return (
+            f"QrRecord(frames=[{self.frame_start}, {self.frame_end}], "
+            f"times=[{self.time_start}, {self.time_end} sec], "
+            f"duration={self.duration} sec, "
+            f"isotimes=[{self.isotime_start}, {self.isotime_end}], "
+            f"data={self.data})"
+        )
 
 
 def calc_time(ts: datetime, pos_sec: float) -> datetime:
@@ -108,16 +134,21 @@ def get_iso_time(ts: str) -> datetime:
 
 
 def get_video_time_info(path_video: str) -> VideoTimeInfo:
-    res: VideoTimeInfo = VideoTimeInfo(success=False, error=None,
-                                       start_time=None, end_time=None)
+    res: VideoTimeInfo = VideoTimeInfo(
+        success=False, error=None, start_time=None, end_time=None
+    )
     # Define the regex pattern for the timestamp and file extension
     # (either .mkv or .mp4)
-    pattern1 = (r'^(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})'
-               r'_(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$')
+    pattern1 = (
+        r"^(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})"
+        r"_(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$"
+    )
 
     # add support for new file format
-    pattern2 = (r'^(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})'
-               r'\-\-(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$')
+    pattern2 = (
+        r"^(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})"
+        r"\-\-(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$"
+    )
 
     file_name: str = os.path.basename(path_video)
     logger.info(f"Video file name  : {file_name}")
@@ -133,7 +164,7 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
             # Define the format for datetime parsing
             ts_format = "%Y.%m.%d-%H.%M.%S.%f"
         else:
-            res.error = "Filename does not match the required pattern."
+            res.error = f"Filename '{path_video}' does not match the required pattern."
             return res
 
     start_ts, end_ts, extension = match1.groups()
@@ -159,10 +190,9 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
     return res
 
 
-def finalize_record(ps: ParseSummary,
-                    vti: VideoTimeInfo,
-                    record: QrRecord, iframe: int,
-                    pos_sec: float) -> QrRecord:
+def finalize_record(
+    ps: ParseSummary, vti: VideoTimeInfo, record: QrRecord, iframe: int, pos_sec: float
+) -> QrRecord:
     record.frame_end = iframe
     # Note: unclear should we also use last frame duration or not
     record.isotime_end = calc_time(vti.start_time, pos_sec)
@@ -171,16 +201,20 @@ def finalize_record(ps: ParseSummary,
     record.index = ps.qr_count
     logger.info(f"QR: {str(record)}")
     # dump times
-    event_time = get_iso_time(record.data['time_formatted'])
-    keys_time = get_iso_time(record.data['keys_time_str'])
+    event_time = get_iso_time(record.data["time_formatted"])
+    keys_time = get_iso_time(record.data["keys_time_str"])
     logger.info(f" - QR code isotime : {record.isotime_start}")
-    logger.info(f" - Event isotime   : "
-                f"{event_time} / "
-                f"dt={(event_time - record.isotime_start).total_seconds()} sec")
-    logger.info(f" - Keys isotime    : "
-                f"{keys_time} / "
-                f"dt={(keys_time - record.isotime_start).total_seconds()} sec")
-    #print(record.json())
+    logger.info(
+        f" - Event isotime   : "
+        f"{event_time} / "
+        f"dt={(event_time - record.isotime_start).total_seconds()} sec"
+    )
+    logger.info(
+        f" - Keys isotime    : "
+        f"{keys_time} / "
+        f"dt={(keys_time - record.isotime_start).total_seconds()} sec"
+    )
+    # print(record.json())
     ps.qr_count += 1
     return record
 
@@ -195,9 +229,9 @@ def do_info_file(path: str):
     o.path = path
     o.duration_sec = round(vti.duration_sec, 1)
     size: float = os.path.getsize(path)
-    o.size_mb = round(size/(1000*1000), 1)
-    if o.duration_sec>0.0001:
-        o.rate_mbpm = round(size*60/(o.duration_sec*1000*1000), 1)
+    o.size_mb = round(size / (1000 * 1000), 1)
+    if o.duration_sec > 0.0001:
+        o.rate_mbpm = round(size * 60 / (o.duration_sec * 1000 * 1000), 1)
     return o
 
 
@@ -209,7 +243,7 @@ def do_info(path: str):
         logger.info(f"Processing video directory: {path}")
         for root, _, files in os.walk(path):
             for file in files:
-                if file.endswith('.mkv'):
+                if file.endswith(".mkv"):
                     yield do_info_file(os.path.join(root, file))
             # Uncomment to visit only top-level dir
             # break
@@ -243,7 +277,7 @@ def do_parse(path_video: str):
     frame_width: int = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height: int = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     duration_sec: float = frame_count / fps if fps > 0 else -1.0
-    logger.info(f"Video media info : ")
+    logger.info("Video media info : ")
     logger.info(f"    - resolution : {frame_width}x{frame_height}")
     logger.info(f"    - frame rate : {str(fps)} FPS")
     logger.info(f"    - duration   : {str(duration_sec)} sec")
@@ -259,19 +293,12 @@ def do_parse(path_video: str):
     ps.video_file_name = os.path.basename(path_video)
 
     if abs(duration_sec - vti.duration_sec) > 120.0:
-        logger.error(f"Video duration significant mismatch (real/file name):"
-                     f" {duration_sec} sec vs {vti.duration_sec} sec")
+        logger.error(
+            f"Video duration significant mismatch (real/file name):"
+            f" {duration_sec} sec vs {vti.duration_sec} sec"
+        )
 
-    clips = []
-    qrData = {}
-
-    inRun = False
-
-    clip_start = None
-    acqNum = None
-    runNum = None
-
-    #for f in vid.iter_frames(with_times=True):
+    # for f in vid.iter_frames(with_times=True):
 
     # TODO: just use tqdm for progress indication
     iframe: int = 0
@@ -281,7 +308,7 @@ def do_parse(path_video: str):
     while True:
         iframe += 1
         # pos time in ms
-        pos_sec = round((iframe-1) / fps, 3)
+        pos_sec = round((iframe - 1) / fps, 3)
         ret, frame = cap.read()
         if not ret:
             break
@@ -297,13 +324,13 @@ def do_parse(path_video: str):
 
         cod = decode(f, symbols=[ZBarSymbol.QRCODE])
         if len(cod) > 0:
-            logger.debug("Found QR code: " + str(cod));
+            logger.debug("Found QR code: " + str(cod))
             assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
-            data = eval(eval(str(cod[0].data)).decode('utf-8'))
+            data = eval(eval(str(cod[0].data)).decode("utf-8"))
             if record is not None:
                 if data == record.data:
                     # we are still in the same QR code record
-                    logger.debug(f"Same QR code: continue")
+                    logger.debug("Same QR code: continue")
                     continue
                 # It is a different QR code! we need to finalize current one
                 yield finalize_record(ps, vti, record, iframe, pos_sec)
@@ -328,29 +355,25 @@ def do_parse(path_video: str):
     ps.exit_code = 0
     ps.parsing_duration = round(time.time() - dt, 1)
     yield ps
-    #print(ps.json())
+    # print(ps.json())
 
 
-@click.command(help='Utility to parse video and locate integrated '
-                    'QR time codes.')
-@click.argument('path', type=click.Path(exists=True))
-@click.option('--mode', default='PARSE',
-              type=click.Choice(['PARSE', 'INFO']),
-              help='Specify execution mode. Default is "PARSE", '
-                   'normal execution. '
-                   'Use "INFO" to dump video file info like duration, '
-                   'bitrate, file size etc, (in this case '
-                   '"path" argument specifies video file or directory '
-                   'containing video files).')
-@click.option('--log-level', default='INFO',
-              type=click.Choice(['DEBUG', 'INFO',
-                                 'WARNING', 'ERROR',
-                                 'CRITICAL']),
-              help='Set the logging level')
+@click.command(help="Utility to parse video and locate integrated " "QR time codes.")
+@click.argument("path", type=click.Path(exists=True))
+@click.option(
+    "--mode",
+    default="PARSE",
+    type=click.Choice(["PARSE", "INFO"]),
+    help='Specify execution mode. Default is "PARSE", '
+    "normal execution. "
+    'Use "INFO" to dump video file info like duration, '
+    "bitrate, file size etc, (in this case "
+    '"path" argument specifies video file or directory '
+    "containing video files).",
+)
 @click.pass_context
-def main(ctx, path: str, mode: str, log_level):
-    logger.setLevel(log_level)
-    logger.debug("parse_wQR.py tool")
+def main(ctx, path: str, mode: str):
+    logger.debug("qr-parse command")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
 
@@ -358,17 +381,13 @@ def main(ctx, path: str, mode: str, log_level):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    if mode=="PARSE":
+    if mode == "PARSE":
         for item in do_parse(path):
-            print(item.model_dump_json())
-    elif mode=="INFO":
+            click.echo(item.model_dump_json())
+    elif mode == "INFO":
         for item in do_info(path):
-            print(item.model_dump_json())
+            click.echo(item.model_dump_json())
     else:
         logger.error(f"Unknown mode: {mode}")
+        return -1
     return 0
-
-
-if __name__ == "__main__":
-    code = main()
-    sys.exit(code)
