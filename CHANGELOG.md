@@ -1,3 +1,19 @@
+# 0.7.2 (Wed Jan 22 2025)
+
+#### 🐛 Bug Fix
+
+- Fix a typo by codespell [#127](https://github.com/ReproNim/reprostim/pull/127) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### ⚠️ Pushed to `master`
+
+- Fixup changelog after a little screwed up auto run ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.1 (Wed Jan 22 2025)
 
 #### 🏠 Internal
