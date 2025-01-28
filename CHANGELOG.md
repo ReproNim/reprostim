@@ -1,3 +1,15 @@
+# 0.7.3 (Tue Jan 28 2025)
+
+#### 🐛 Bug Fix
+
+- Fixed hatch versioningit configuration [#131](https://github.com/ReproNim/reprostim/pull/131) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.2 (Wed Jan 22 2025)
 
 #### 🐛 Bug Fix
