@@ -1,7 +1,7 @@
 {
     "onlyPublishWithReleaseLabel": true,
     "baseBranch": "master",
-    "author": "DANDI Bot <team@dandiarchive.org>",
+    "author": "ReproNim Bot <info@repronim.org>",
     "noVersionPrefix": true,
     "plugins": [
         "git-tag",
