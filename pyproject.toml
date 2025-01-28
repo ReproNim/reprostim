@@ -72,6 +72,12 @@ Source = "https://github.com/ReproNim/reprostim"
 [project.scripts]
 reprostim = "reprostim.cli.entrypoint:main"
 
+# Force _version.py to be included in dist
+[tool.hatch.build]
+artifacts = [
+  "src/reprostim/_version.py"
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/reprostim"]
 include = [
@@ -97,9 +103,6 @@ extra-dependencies = [
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/reprostim tests}"
 
-[tool.hatch.version]
-source = "versioningit"
-
 [tool.coverage.run]
 source_pkgs = ["reprostim", "tests"]
 branch = true
@@ -121,6 +124,18 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.hatch.metadata]
+root = "src"
+
+[tool.hatch.version]
+source = "versioningit"
+
+# ATM force version to be always like specified in GIT tag
+[tool.versioningit.format]
+distance = "{base_version}"
+dirty = "{base_version}"
+distance-dirty = "{base_version}"
 
 [tool.versioningit.write]
 file = "src/reprostim/_version.py"
