@@ -119,32 +119,96 @@ The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
 subjects.
 
+# reprostim-capture
+
+This subproject is set of native C/C++ tools and utilities to capture
+video/audio signals with Magewell USB Capture devices and save it to a file.
+More detailed information about dependencies and installation provided in
+[reprostim-capture README.md](./src/reprostim-capture/README.md).
+
+
+# reprostim CLI
+
+Represented as a set of Python tools and utilities under the umbrella of
+the `reprostim` library, where each tool is a separate subcommand of
+the `reprostim` CLI.
+
 ## Dependencies
 
-On Debian
+`qr-parse` subcommand requires `zbar` to be installed:
+ - On Debian
+   ```shell
+       apt-get install -y libzbar0
+   ````
+ - On MacOS
+   ```shell
+       brew install zbar
+   ```
+   NOTE: Consider this conversation in case of problems to install it @MacOS:
+         https://github.com/ReproNim/reprostim/pull/124#issuecomment-2599291577
+
+`timesync-stimuli` subcommand requires in `psychopy` and `portaudio` to
+be installed:
+ - On Debian
+   ```shell
+       apt-get install portaudio19-dev
+   ```
+ - On MacOS
+   ```shell
+       brew install portaudio
+   ```
+
+
+## Installation
+
+Make sure you have strict Python version/venv especially for subcommands working
+with psychopy like `timesync-stimuli`. Recommended Python version is 3.10 ATM:
 
 ```shell
-    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
+    python3.10 -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    python3 --version
 ```
 
-"Parsing/parse_wQR.py" script requires in zbar to be installed as well:
+Then it can be installed from PyPI:
 
 ```shell
-    apt-get install -y libzbar0
-````
+    pip install reprostim
+```
 
 ## Build
 
-```shell
-    cd src/reprostim-capture
+To build the project, use `hatch` and `venv` with preferable Python version:
 
-    mkdir build
-    cd build
-    cmake ..
-    make
+```shell
+    # first setup python and hatch
+    python3.10 -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install hatch
+
+    # build reprostim package
+    hatch build reprostim
+
+    # optionally re-create env
+    hatch env remove
+    hatch env create
+
+    # install all extra dependencies
+    hatch run pip install .[all]
+
+    # run some reprostim commands, e.g.:
+    hatch run reprostim --help
+    hatch run reprostim --version
+    hatch run reprostim echo 'Hello ReproStim CLI!'
 ```
 
 ## Subdirectories Structure
+
+### src/reprostim
+
+Contains all code for `reprostim` library.
 
 ### src/reprostim-capture
 
@@ -152,12 +216,17 @@ Contains all code needed for setting up video capture. This includes C++
 code for interfacing with the video capture device, and scheme for setting
 up a video-capture "server", along with helper utilities.
 
-### QRCoding
+### tests
+
+Directory with reprostim pytests and test data.
+
+
+### **_Obsolete:_** QRCoding
 
 Contains utilities for embedding QR codes in experimental stimulus-delivery
 programs, such as PsychoPy, or PsychToolbox scripts.
 
-### Parsing
+### **_Obsolete:_**  Parsing
 
 Contains code needed for segmenting videos to include just the parts of the
 videos that are demarcated by embedded QR codes marking the beginning and
@@ -165,15 +234,15 @@ end of experimental runs. There are also helper tools for identifying
 experimental runs and matching them to the parent experimental paradigm and
 neuroimaging data acquisitions.
 
-# Installation and Configuration
+# Hardware Installation and Configuration
 
 ## Setup USB device with "udev" access
 
-VideoCapture utility internally uses Magewell Capture SDK and to make it working
-properly should be executed under "root" account or in case of other account - special
-"udev" rules should be applied there. Program will produce following error when
-executed in environment without proper ownership and permissions for informational
-purposes:
+The `reprostim-videocapture` utility internally uses Magewell Capture SDK and to
+make it working properly should be executed under "root" account or in case of
+other account - special "udev" rules should be applied there. Program will
+produce following error when executed in environment without proper ownership
+and permissions for informational purposes:
 
     ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.
 
@@ -236,7 +305,7 @@ Note: make sure the file has owner "root", group "root" and 644 permissions:
 ```
 
 ### 3) Add user to "plugdev" group
-Make sure the user running VideoCapture utility is a member of the
+Make sure the user running `reprostim-videocapture` utility is a member of the
 "plugdev" group, e.g.:
 
 ```shell
