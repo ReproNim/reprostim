@@ -1,3 +1,15 @@
+# 0.7.4 (Tue Jan 28 2025)
+
+#### 🐛 Bug Fix
+
+- Provided additional documentation for reprostim CLI environment setup and hatch-based build [#133](https://github.com/ReproNim/reprostim/pull/133) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.3 (Tue Jan 28 2025)
 
 #### 🐛 Bug Fix
