@@ -1,3 +1,15 @@
+# 0.7.5 (Wed Jan 29 2025)
+
+#### 🐛 Bug Fix
+
+- Fixed 'SoundDeviceSound' object has no attribute 'duration' error [#134](https://github.com/ReproNim/reprostim/pull/134) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.4 (Tue Jan 28 2025)
 
 #### 🐛 Bug Fix
