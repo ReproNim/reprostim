@@ -537,11 +537,12 @@ def _play_audio_psychopy(
     logger.debug(f"Play audio '{snd.sound}' with psychopy {prefs.hardware['audioLib']}")
     snd.play()
     logger.debug(
-        f" sampleRate={snd.sampleRate}, duration={snd.duration}, volume={snd.volume}"
+        f" sampleRate={snd.sampleRate}, duration={snd.getDuration()}, "
+        f"volume={snd.getVolume()}"
     )
     if not async_:
         logger.debug("Waiting for audio to finish playing...")
-        core.wait(snd.duration)
+        core.wait(snd.getDuration())
         logger.debug(f"Audio '{snd.sound}' has finished playing.")
 
 
