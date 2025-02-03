@@ -1,0 +1,28 @@
+# repronim-reprostim container
+
+## Overview
+
+This container is designed to provide a reproducible environment to 
+execute the `reprostim` tool/package commands.
+
+
+## Draft Dev Notes
+
+To generate the container instructions like `Dockerfile` and `Singularity` 
+use the following command:
+
+```shell
+cd containers/repronim-reprostim
+./generate_container.sh
+```
+
+This will generate container Dockerfile/Singularity files in format like
+`***.repronim-reprostim-{VERSION}`, where `VERSION` is the latest `git` tag 
+version when specified, or `0.0.0` otherwise.
+
+To build singularity container, use the following command:
+
+```shell
+cd containers/repronim-reprostim
+./build_singularity.sh
+```
