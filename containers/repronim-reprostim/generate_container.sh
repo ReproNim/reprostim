@@ -25,7 +25,7 @@ generate() {
           libusb-1.0-0-dev portaudio19-dev libasound2-dev pulseaudio pavucontrol pulseaudio-utils \
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
         --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v1.4.3" \
-		    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=/opt/psychopy --psychopy-version=2024.1.4 --additional-packages=psychopy_bids==2023.2.0 --python-version=3.10 --wxpython-version=4.2.1 -v -f" \
+		    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=/opt/psychopy --psychopy-version=2024.2.5 --additional-packages=psychopy_bids==2024.2.2 --python-version=3.10 --wxpython-version=4.2.2 -v -f" \
         --run "/opt/psychopy/psychopy_*/bin/pip install qrcode pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice" \
         --run "bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'" \
         --run "bash -c 'b=\$(ls /opt/psychopy/psychopy_*/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
