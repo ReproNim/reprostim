@@ -2,6 +2,9 @@
 
 set -eu
 
+REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+REPROSTIM_SUFFIX=repronim-reprostim-${REPROSTIM_VERSION}
+
 generate() {
 	[ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
 	ndversion=1.0.1
@@ -30,5 +33,10 @@ generate() {
 #       --user=reproin \
 }
 
-generate docker > Dockerfile
-generate singularity > Singularity
+echo "Generating containers for ReproStim v${REPROSTIM_VERSION}.."
+#
+echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
+generate docker > Dockerfile.${REPROSTIM_SUFFIX}
+
+echo "Singularity.${REPROSTIM_SUFFIX} ..."
+generate singularity > Singularity.${REPROSTIM_SUFFIX}
