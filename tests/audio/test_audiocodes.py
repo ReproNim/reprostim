@@ -1,4 +1,4 @@
-from ..audio.audiocodes import crc8
+from reprostim.audio.audiocodes import crc8
 
 
 def test_crc8():

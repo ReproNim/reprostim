@@ -44,9 +44,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest>=8.0",
-]
 audio = [
   "sounddevice>=0.5.1",
   "scipy>=1.14.1",
@@ -59,7 +56,6 @@ psychopy = [
   "psychopy-sounddevice",
 ]
 all = [
-  "reprostim[test]",
   "reprostim[audio]",
   "reprostim[psychopy]",
 ]
@@ -94,6 +90,19 @@ include = [
 # install [all] extras
 features = [
   "all",
+]
+
+[tool.hatch.envs.hatch-test]
+features = [
+  "audio",
+  "psychopy",
+]
+extra-dependencies = [
+  "pytest>=8.0",
+  "pytest",
+  "pytest-cov",
+  "pytest-mock",
+  "pytest-xdist",
 ]
 
 [tool.hatch.envs.types]
