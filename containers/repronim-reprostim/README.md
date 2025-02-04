@@ -31,3 +31,18 @@ To test `reprostim` package version run:
 ```shell
 singularity exec ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing python3 -m reprostim --version
 ```
+
+To run `timesync-stimuli` command with audio codes use the following command:
+
+```shell
+export REPROSTIM_PATH=$(pwd)
+
+singularity exec \
+  --cleanenv --contain \
+  -B /run/user/$(id -u)/pulse \
+  -B ${REPROSTIM_PATH} \
+  --env DISPLAY=$DISPLAY \
+  --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
+  ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing \
+  python3 -m reprostim timesync-stimuli -t 10 --mode interval
+```
