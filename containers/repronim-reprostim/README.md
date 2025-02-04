@@ -18,7 +18,7 @@ cd containers/repronim-reprostim
 
 This will generate container Dockerfile/Singularity files in format like
 `***.repronim-reprostim-{VERSION}`, where `VERSION` is the latest `git` tag 
-version when specified, or `0.0.0` otherwise.
+version when specified, or `0.0.1` otherwise.
 
 To build singularity container, use the following command:
 
