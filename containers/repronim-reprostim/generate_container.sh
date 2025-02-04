@@ -2,8 +2,16 @@
 
 set -eu
 
+
+PYTHON_VERSION=3.10
+
+PSYCHOPY_VERSION=2024.2.5
+PSYCHOPY_INSTALL_DIR=/opt/psychopy
+PSYCHOPY_HOME=${PSYCHOPY_INSTALL_DIR}/psychopy_${PSYCHOPY_VERSION}_py${PYTHON_VERSION}
+
 REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 REPROSTIM_SUFFIX=repronim-reprostim-${REPROSTIM_VERSION}
+
 
 generate() {
 	[ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
@@ -25,15 +33,15 @@ generate() {
           libusb-1.0-0-dev portaudio19-dev libasound2-dev pulseaudio pavucontrol pulseaudio-utils \
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
         --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v1.4.3" \
-		    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=/opt/psychopy --psychopy-version=2024.2.5 --additional-packages=psychopy_bids==2024.2.2 --python-version=3.10 --wxpython-version=4.2.2 -v -f" \
-        --run "/opt/psychopy/psychopy_*/bin/pip install reprostim[all]==${REPROSTIM_VERSION}" \
-        --run "bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'" \
-        --run "bash -c 'b=\$(ls /opt/psychopy/psychopy_*/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
+		    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2024.2.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.2 -v -f" \
+        --run "${PSYCHOPY_HOME}/bin/pip install reprostim[all]==${REPROSTIM_VERSION}" \
+        --run "bash -c 'ln -s ${PSYCHOPY_HOME}/bin/psychopy /usr/local/bin/'" \
+        --run "bash -c 'b=\$(ls ${PSYCHOPY_HOME}/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
         --entrypoint python3
 #       --user=reproin \
 }
 
-echo "Generating containers for ReproStim v${REPROSTIM_VERSION}.."
+echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
 echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
 generate docker > Dockerfile.${REPROSTIM_SUFFIX}

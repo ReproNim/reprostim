@@ -59,9 +59,9 @@ RUN apt-get update -qq \
            && rm -rf /var/lib/apt/lists/*
 RUN git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v1.4.3
 RUN /opt/psychopy-installer/psychopy_linux_installer --install-dir=/opt/psychopy --psychopy-version=2024.2.5 --additional-packages=psychopy_bids==2024.2.2 --python-version=3.10 --wxpython-version=4.2.2 -v -f
-RUN /opt/psychopy/psychopy_*/bin/pip install reprostim[all]==0.7.5
-RUN bash -c 'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'
-RUN bash -c 'b=$(ls /opt/psychopy/psychopy_*/bin/python3); echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'
+RUN /opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install reprostim[all]==0.7.5
+RUN bash -c 'ln -s /opt/psychopy/psychopy_2024.2.5_py3.10/bin/psychopy /usr/local/bin/'
+RUN bash -c 'b=$(ls /opt/psychopy/psychopy_2024.2.5_py3.10/bin/python3); echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'
 ENTRYPOINT ["python3"]
 
 # Save specification to JSON.
@@ -148,19 +148,19 @@ RUN printf '{ \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "/opt/psychopy/psychopy_*/bin/pip install reprostim[all]==0.7.5" \
+        "command": "/opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install reprostim[all]==0.7.5" \
       } \
     }, \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "bash -c '"'"'ln -s /opt/psychopy/psychopy_*/bin/psychopy /usr/local/bin/'"'"'" \
+        "command": "bash -c '"'"'ln -s /opt/psychopy/psychopy_2024.2.5_py3.10/bin/psychopy /usr/local/bin/'"'"'" \
       } \
     }, \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "bash -c '"'"'b=$\(ls /opt/psychopy/psychopy_*/bin/python3\); echo -e \\"#!/bin/sh\\\\n$b \\\\\\"\\\\$@\\\\\\"\\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'"'"'" \
+        "command": "bash -c '"'"'b=$\(ls /opt/psychopy/psychopy_2024.2.5_py3.10/bin/python3\); echo -e \\"#!/bin/sh\\\\n$b \\\\\\"\\\\$@\\\\\\"\\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'"'"'" \
       } \
     }, \
     { \
