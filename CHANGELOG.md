@@ -1,3 +1,19 @@
+# 0.7.8 (Fri Feb 07 2025)
+
+#### 🐛 Bug Fix
+
+- Fixes basic tests execution under conda-forge #2 [#138](https://github.com/ReproNim/reprostim/pull/138) ([@vmdocua](https://github.com/vmdocua))
+
+#### ⚠️ Pushed to `master`
+
+- Make psychopy optional in audiocodes. ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.7 (Fri Feb 07 2025)
 
 #### 🐛 Bug Fix
