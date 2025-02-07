@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-# optionally: import sounddevice as sd
 import importlib
 import logging
 import os
@@ -16,6 +15,7 @@ from reedsolo import RSCodec
 from scipy.io import wavfile
 from scipy.io.wavfile import read, write
 
+# optionally: import sounddevice as sd
 sd = (
     importlib.import_module("sounddevice")
     if importlib.util.find_spec("sounddevice")
@@ -44,19 +44,27 @@ class AudioLib(str, Enum):
 
 _audio_lib = os.environ.get("REPROSTIM_AUDIO_LIB", AudioLib.PSYCHOPY_SOUNDDEVICE)
 
-from psychopy import prefs  # noqa: E402
+# optionally import psychopy
+try:
+    from psychopy import prefs  # noqa: E402
 
-prefs.hardware["audioLib"] = ["sounddevice"]
-if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
-    logger.debug("Set psychopy audio library: sounddevice")
     prefs.hardware["audioLib"] = ["sounddevice"]
-elif _audio_lib == AudioLib.PSYCHOPY_PTB:
-    logger.debug("Set psychopy audio library: ptb")
-    prefs.hardware["audioLib"] = ["ptb"]
+    if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
+        logger.debug("Set psychopy audio library: sounddevice")
+        prefs.hardware["audioLib"] = ["sounddevice"]
+    elif _audio_lib == AudioLib.PSYCHOPY_PTB:
+        logger.debug("Set psychopy audio library: ptb")
+        prefs.hardware["audioLib"] = ["ptb"]
 
-# logger.info("Using psychopy audio library: %s", prefs.hardware['audioLib'])
-from psychopy import core, sound  # noqa: E402
-from psychtoolbox import audio  # noqa: E402
+    # logger.info("Using psychopy audio library: %s", prefs.hardware['audioLib'])
+    from psychopy import core, sound  # noqa: E402
+    from psychtoolbox import audio  # noqa: E402
+except ImportError:
+    logger.warn(
+        "psychopy module not found, if necessary "
+        "install reprostim with [all] extra dependencies"
+    )
+
 
 ######################################
 # Audio code/qr helper functions
