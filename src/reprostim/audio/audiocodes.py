@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+# optionally: import sounddevice as sd
+import importlib
 import logging
 import os
 import tempfile
@@ -10,10 +12,16 @@ from datetime import datetime
 from enum import Enum
 
 import numpy as np
-import sounddevice as sd
 from reedsolo import RSCodec
 from scipy.io import wavfile
 from scipy.io.wavfile import read, write
+
+sd = (
+    importlib.import_module("sounddevice")
+    if importlib.util.find_spec("sounddevice")
+    else None
+)
+
 
 # setup logging
 logger = logging.getLogger(__name__)
