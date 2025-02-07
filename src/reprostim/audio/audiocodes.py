@@ -56,7 +56,6 @@ try:
         logger.debug("Set psychopy audio library: ptb")
         prefs.hardware["audioLib"] = ["ptb"]
 
-    # logger.info("Using psychopy audio library: %s", prefs.hardware['audioLib'])
     from psychopy import core, sound  # noqa: E402
     from psychtoolbox import audio  # noqa: E402
 except ImportError:
