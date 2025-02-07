@@ -1,3 +1,15 @@
+# 0.7.7 (Fri Feb 07 2025)
+
+#### 🐛 Bug Fix
+
+- Fixes basic tests execution under conda-forge. [#137](https://github.com/ReproNim/reprostim/pull/137) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.6 (Fri Feb 07 2025)
 
 #### 🐛 Bug Fix
