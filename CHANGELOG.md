@@ -1,3 +1,19 @@
+# 0.7.6 (Fri Feb 07 2025)
+
+#### 🐛 Bug Fix
+
+- Update container recipe and make sure it builds on typhon using singularity [#136](https://github.com/ReproNim/reprostim/pull/136) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🏠 Internal
+
+- Fixed hatch test errors and configured hatch-test environment [#135](https://github.com/ReproNim/reprostim/pull/135) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.5 (Wed Jan 29 2025)
 
 #### 🐛 Bug Fix
