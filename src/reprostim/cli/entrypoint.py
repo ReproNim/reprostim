@@ -57,6 +57,7 @@ def main(ctx, log_level, log_format):
 # Import all CLI commands
 from .cmd_detect_noscreen import detect_noscreen  # noqa: E402
 from .cmd_echo import echo  # noqa: E402
+from .cmd_list_displays import list_displays  # noqa: E402
 from .cmd_qr_parse import qr_parse  # noqa: E402
 from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
 
@@ -64,6 +65,7 @@ from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
 __all_commands__ = (
     detect_noscreen,
     echo,
+    list_displays,
     qr_parse,
     timesync_stimuli,
 )
