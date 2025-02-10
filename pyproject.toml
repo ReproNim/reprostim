@@ -51,12 +51,19 @@ audio = [
   "pyaudio>=0.2.14",
   "reedsolo>=1.7.0",
 ]
+# displays monitor optional dependencies
+# platform specifix, Linux and macOS supported
+dmon = [
+  "pyobjc-core>=10.3.2 ; sys_platform == 'darwin'",
+  "pyobjc-framework-Quartz>=10.3.2 ; sys_platform == 'darwin'"
+]
 psychopy = [
   "psychopy",
   "psychopy-sounddevice",
 ]
 all = [
   "reprostim[audio]",
+  "reprostim[dmon]",
   "reprostim[psychopy]",
 ]
 
