@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
     help="Specify audio codec to produce audio code " "(default: FSK).",
 )
 @click.option(
-    "-m",
+    "-u",
     "--mute",
     is_flag=True,
     default=False,
