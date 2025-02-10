@@ -8,8 +8,6 @@ from datetime import datetime
 
 import click
 
-from ..qr.timesync_stimuli import Mode, do_init, do_main, get_output_file_name
-
 # setup logging
 logger = logging.getLogger(__name__)
 
@@ -18,8 +16,8 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice([mode.value for mode in Mode], case_sensitive=False),
-    default=Mode.EVENT,
+    type=click.Choice(["event", "interval", "beep", "devices"], case_sensitive=False),
+    default="event",
     help="Mode of operation: event, interval, or beep.",
 )
 @click.option(
@@ -109,6 +107,8 @@ def timesync_stimuli(
 ):
     """Run psychopy script with QR video and audio codes."""
     click.echo("reprostim timesync-stimuli")
+
+    from ..qr.timesync_stimuli import do_init, do_main, get_output_file_name
 
     # psychopy has similar logging levels like
     # default logging module
