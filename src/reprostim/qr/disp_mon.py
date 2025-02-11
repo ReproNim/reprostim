@@ -52,7 +52,7 @@ class DisplayInfo:
     width: int = 0
     height: int = 0
     refresh_rate: float = 0.0
-    # bits_per_pixel: int = 0
+    bits_per_pixel: int = 0
     is_connected: bool = False
     is_active: bool = False
     is_main: bool = False
@@ -89,6 +89,7 @@ def _enum_displays_quartz() -> Generator[DisplayInfo, None, None]:
         di.name = f"{vendor_id},{model_id},{serial_id}"  # TODO expand IDs
         di.width = Quartz.CGDisplayPixelsWide(d_id)
         di.height = Quartz.CGDisplayPixelsHigh(d_id)
+        di.bits_per_pixel = Quartz.CGDisplayBitsPerPixel(d_id)
         di.is_connected = True
         di.is_active = bool(Quartz.CGDisplayIsActive(d_id))
         di.is_main = d_id == main_id
