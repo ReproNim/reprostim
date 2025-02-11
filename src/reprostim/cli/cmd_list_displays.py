@@ -17,12 +17,16 @@ def list_displays(
     ctx,
 ):
     """List information about available GUI/displays."""
-    click.echo("reprostim list-displays")
+    logger.debug("reprostim list-displays")
+
+    from ..qr.disp_mon import do_list_displays
 
     res: int = 0
     logger.debug("reprostim list-displays script started")
 
+    do_list_displays()
+
     logger.debug(f"reprostim list-displays script finished: {res}")
-    logger.info(f"Exit on   : {datetime.now()}")
-    logger.info(f"Exit code : {res}")
+    logger.debug(f"Exit on   : {datetime.now()}")
+    logger.debug(f"Exit code : {res}")
     return res

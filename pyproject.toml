@@ -53,7 +53,7 @@ audio = [
 ]
 # displays monitor optional dependencies
 # platform specifix, Linux and macOS supported
-dmon = [
+disp_mon = [
   "pyobjc-core>=10.3.2 ; sys_platform == 'darwin'",
   "pyobjc-framework-Quartz>=10.3.2 ; sys_platform == 'darwin'"
 ]
@@ -63,7 +63,7 @@ psychopy = [
 ]
 all = [
   "reprostim[audio]",
-  "reprostim[dmon]",
+  "reprostim[disp_mon]",
   "reprostim[psychopy]",
 ]
 
