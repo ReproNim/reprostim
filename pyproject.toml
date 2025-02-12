@@ -52,7 +52,7 @@ audio = [
   "reedsolo>=1.7.0",
 ]
 # displays monitor optional dependencies
-# platform specifix, Linux and macOS supported
+# platform specific, Linux and macOS supported
 disp_mon = [
   "pyobjc-core>=10.3.2 ; sys_platform == 'darwin'",
   "pyobjc-framework-Quartz>=10.3.2 ; sys_platform == 'darwin'"
