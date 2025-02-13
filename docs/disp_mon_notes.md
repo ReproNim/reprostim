@@ -24,4 +24,21 @@ looks like internally can be used different backends like [pyglet](http://www.py
 `pyglet` one. `pygame` probably doesn't support multiple `screen`s.
 `screen` is some kind of logical/abstract thing which is tied to backend like `pyglet` or `glfw`.
 
-The `screen` is drawn on `display`....TBD
+In general video stack can be described as stack of layers like below:
+
+* `V1`: Physical video card or device with one of ports like HDMI, DVI, D-Sub,
+DisplayPort, USB-C etc.
+* `V2`: OS specific virtual `display` model. It handled by OS and bound to
+`V1` video device.
+* `V3`: PsychoPy visual backend (`pyglet`, `pygame` or `glfw`) which can have
+one or multiple virtual `screen`s bound to `display` from `V2`.
+* `V4`: Researcher specific script operating with PsychoPy `screen` via visual
+API to render data. In our case this is `timesync-stimuli` script orchestrating
+stimuli/QR codes data.
+
+Note: each layer has own identification model for related video device and on
+some layers it's OS/hardware specific. Sometimes we don't have strict correlation
+between layers.
+
+Problem/goal: we have some events on layer `V1`, and we need somehow to map it to
+`V4`.
