@@ -40,5 +40,13 @@ Note: each layer has own identification model for related video device and on
 some layers it's OS/hardware specific. Sometimes we don't have strict correlation
 between layers.
 
-Problem/goal: we have some events on layer `V1`, and we need somehow to map it to
-`V4`.
+Problem: we have some events on low layer `V1` from hardware, and it should be
+monitored and mapped to logical `V4` one. Possible matrix listed below, but
+currently only Linux with X11 and OSX 10.6+ are going to be supported:
+
+| Layer | Linux+X11 | OSX      | Windows  |
+|-------|-----------|----------|----------|
+| V1    | pyudev    | Quartz   | WMI      |
+| V2    | xrandr    | Quartz   | WMI      |
+| V3    | piglet    | piglet   | piglet   |
+| V4    | PsychoPy  | PsychoPy | PsychoPy |
