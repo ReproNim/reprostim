@@ -10,8 +10,8 @@ import logging
 import sys
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Generator
 from itertools import chain
+from typing import Generator
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -27,14 +27,14 @@ class DmProvider(str, Enum):
 
     PYUDEV = "pyudev"  # Used in Linux
     QUARTZ = "quartz"  # Used in macOS
-    RANDR  = "randr"   # Used in Linux
+    RANDR = "randr"  # Used in Linux
 
 
 # import necessary provider implementation in runtime based on OS type
 if sys.platform.startswith("linux"):
+    import pyudev
     from Xlib import display
     from Xlib.ext import randr
-    import pyudev
 
     _PROVIDER = DmProvider.PYUDEV
 elif sys.platform == "darwin":
@@ -71,9 +71,9 @@ def _enum_displays_pyudev() -> Generator[DisplayInfo, None, None]:
     ctx = pyudev.Context()
 
     # Look for devices under the 'drm' subsystem
-    for d in ctx.list_devices(subsystem='drm'):
-        if 'DEVNAME' in d and 'ID_PATH' in d:
-            logger.debug(f"Display: ")
+    for d in ctx.list_devices(subsystem="drm"):
+        if "DEVNAME" in d and "ID_PATH" in d:
+            logger.debug("Display: ")
             logger.debug(f"  device_node = {d.device_node}")
             logger.debug(f"  ID_PATH     = {d.get('ID_PATH')}")
             for k in d.properties.keys():
@@ -85,7 +85,7 @@ def _enum_displays_pyudev() -> Generator[DisplayInfo, None, None]:
             # like pci-0000:01:00.0 or similar,
             # it can be mapped to name by looking at
             #    ls -l /sys/class/drm/
-            di.id = d.get('ID_PATH')
+            di.id = d.get("ID_PATH")
             di.name = d.device_node
 
             yield di
@@ -112,9 +112,8 @@ def _enum_displays_randr() -> Generator[DisplayInfo, None, None]:
         for output in outputs:
             di: DisplayInfo = DisplayInfo()
             di.provider = DmProvider.RANDR
-            out_info = randr.get_output_info(root, output,
-                                             scr_res.config_timestamp)
-            scr_name = out_info.name #.decode("utf-8")
+            out_info = randr.get_output_info(root, output, scr_res.config_timestamp)
+            scr_name = out_info.name  # .decode("utf-8")
             logger.debug(f"Screen name: {scr_name}")
             di.id = scr_name
             di.name = scr_name
@@ -144,8 +143,9 @@ def _enum_displays_randr() -> Generator[DisplayInfo, None, None]:
                 logger.debug("  active")
                 di.is_active = True
 
-            crtc_info = randr.get_crtc_info(root, out_info.crtc,
-                                            scr_res.config_timestamp)
+            crtc_info = randr.get_crtc_info(
+                root, out_info.crtc, scr_res.config_timestamp
+            )
 
             # Get max screen width and height
             scr_max_width = crtc_info.width
@@ -155,7 +155,9 @@ def _enum_displays_randr() -> Generator[DisplayInfo, None, None]:
             # Find active mode refresh rate
             for mode in scr_res.modes:
                 if mode.id == crtc_info.mode:
-                    refresh_rate = round((mode.dot_clock * 1000) / (mode.h_total * mode.v_total), 2)
+                    refresh_rate = round(
+                        (mode.dot_clock * 1000) / (mode.h_total * mode.v_total), 2
+                    )
                     di.refresh_rate = refresh_rate
                     logger.debug(f"  refresh rate: {refresh_rate} Hz")
                     di.width = mode.width
@@ -216,8 +218,7 @@ def enum_displays() -> Generator[DisplayInfo, None, None]:
     if _PROVIDER == DmProvider.QUARTZ:
         return _enum_displays_quartz()
     elif _PROVIDER == DmProvider.PYUDEV:
-        return chain(_enum_displays_pyudev(),
-                        _enum_displays_randr())
+        return chain(_enum_displays_pyudev(), _enum_displays_randr())
     else:
         raise NotImplementedError(f"Unsupported OS: {sys.platform}")
 
