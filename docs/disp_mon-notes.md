@@ -48,5 +48,5 @@ currently only Linux with X11 and OSX 10.6+ are going to be supported:
 |-------|----------------------------|----------|----------|
 | `V1`  | pyudev                     | Quartz   | WMI      |
 | `V2`  | randr, python-xlib, xrandr | Quartz   | WMI      |
-| `V3`  | piglet                     | piglet   | piglet   |
+| `V3`  | pyglet                     | pyglet   | pyglet   |
 | `V4`  | PsychoPy                   | PsychoPy | PsychoPy |

@@ -20,11 +20,20 @@ logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
+# Platform constants
+class DmPlatform(str, Enum):
+    LINUX = "linux"
+    XOS = "xos"
+    # WINDOWS = "win64"
+
+
 # Service provider constants
 class DmProvider(str, Enum):
     """Enum to represent the display monitoring provider/engine
     depending on used OS environment."""
 
+    PLATFORM = "platform"  # Default OS specific providers
+    PYGLET = "pyglet"  # Cross-platform
     PYUDEV = "pyudev"  # Used in Linux
     QUARTZ = "quartz"  # Used in macOS
     RANDR = "randr"  # Used in Linux
@@ -36,16 +45,16 @@ if sys.platform.startswith("linux"):
     from Xlib import display
     from Xlib.ext import randr
 
-    _PROVIDER = DmProvider.PYUDEV
+    _PLATFORM = DmPlatform.LINUX
 elif sys.platform == "darwin":
     import Quartz
 
-    _PROVIDER = DmProvider.QUARTZ
+    _PLATFORM = DmPlatform.XOS
 else:
     logger.error(f"Unsupported OS: {sys.platform}")
     raise NotImplementedError(f"Unsupported OS: {sys.platform}")
 
-logger.debug(f"Use '{_PROVIDER}' provider.")
+logger.debug(f"Use '{_PLATFORM}' platform.")
 
 MAX_DISPLAYS: int = 16
 
@@ -214,20 +223,55 @@ def _enum_displays_quartz() -> Generator[DisplayInfo, None, None]:
         yield di
 
 
-def enum_displays() -> Generator[DisplayInfo, None, None]:
-    if _PROVIDER == DmProvider.QUARTZ:
-        return _enum_displays_quartz()
-    elif _PROVIDER == DmProvider.PYUDEV:
-        return chain(_enum_displays_pyudev(), _enum_displays_randr())
+def enum_displays(
+    provider: DmProvider = DmProvider.PLATFORM,
+) -> Generator[DisplayInfo, None, None]:
+    a = []
+    if provider == DmProvider.PLATFORM:
+        if _PLATFORM == DmPlatform.LINUX:
+            a.append(_enum_displays_pyudev())
+            a.append(_enum_displays_randr())
+        elif _PLATFORM == DmPlatform.XOS:
+            a.append(_enum_displays_quartz())
+        else:
+            raise NotImplementedError(f"Unsupported platform: {_PLATFORM}")
+    elif provider == DmProvider.PYUDEV:
+        a.append(_enum_displays_pyudev())
+    elif provider == DmProvider.QUARTZ:
+        a.append(_enum_displays_quartz())
+    elif provider == DmProvider.RANDR:
+        a.append(_enum_displays_randr())
     else:
-        raise NotImplementedError(f"Unsupported OS: {sys.platform}")
+        raise NotImplementedError(f"Unsupported provider: {provider}")
+    return chain(*a)
 
 
-def do_list_displays():
+def do_list_displays(
+    provider: DmProvider = DmProvider.PLATFORM, fmt: str = "jsonl", out_func=print
+):
     logger.debug("do_list_displays()")
-    for di in enum_displays():
-        print(json.dumps(asdict(di)))
+
+    last_provider: DmProvider = None
+    fmt = fmt.lower()  # make it case-insensitive
+
+    for di in enum_displays(DmProvider(provider)):
+        if fmt == "jsonl":
+            out_func(json.dumps(asdict(di)))
+        elif fmt == "text":
+            if last_provider != di.provider:
+                last_provider = di.provider
+                out_func(f"[{di.provider}]")
+
+            out_func(
+                f"  {di.name}[{di.id}] : {di.width}x{di.height},"
+                f" {round(di.refresh_rate, 2)}Hz"
+                f"{' connected' if di.is_connected else ''}"
+                f"{' active' if di.is_active else ''}"
+                f"{' primary' if di.is_main else ''}"
+            )
+        else:
+            raise NotImplementedError(f"Unknown format: {format}")
 
 
 if __name__ == "__main__":
-    do_list_displays()
+    do_list_displays(DmProvider.PLATFORM, "text")
