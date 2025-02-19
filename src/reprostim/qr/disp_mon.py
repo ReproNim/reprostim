@@ -96,6 +96,7 @@ def _enum_displays_pyudev() -> Generator[DisplayInfo, None, None]:
             #    ls -l /sys/class/drm/
             di.id = d.get("ID_PATH")
             di.name = d.device_node
+            di.is_connected = True
 
             yield di
 
@@ -165,7 +166,7 @@ def _enum_displays_randr() -> Generator[DisplayInfo, None, None]:
             for mode in scr_res.modes:
                 if mode.id == crtc_info.mode:
                     refresh_rate = round(
-                        (mode.dot_clock * 1000) / (mode.h_total * mode.v_total), 2
+                        mode.dot_clock / (mode.h_total * mode.v_total), 2
                     )
                     di.refresh_rate = refresh_rate
                     logger.debug(f"  refresh rate: {refresh_rate} Hz")
@@ -262,10 +263,11 @@ def do_list_displays(
                 last_provider = di.provider
                 out_func(f"[{di.provider}]")
 
+            mode: str = f" {di.width}x{di.height}, {round(di.refresh_rate, 2)}Hz" \
+                if di.is_connected and di.width>0 else ""
             out_func(
-                f"  {di.name}[{di.id}] : {di.width}x{di.height},"
-                f" {round(di.refresh_rate, 2)}Hz"
-                f"{' connected' if di.is_connected else ''}"
+                f"  {di.name} [{di.id}] :{mode}"
+                f"{' connected' if di.is_connected else ' disconnected'}"
                 f"{' active' if di.is_active else ''}"
                 f"{' primary' if di.is_main else ''}"
             )
