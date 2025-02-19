@@ -33,6 +33,7 @@ class DmProvider(str, Enum):
     depending on used OS environment."""
 
     PLATFORM = "platform"  # Default OS specific providers
+    PYGAME = "pygame"  # Cross-platform
     PYGLET = "pyglet"  # Cross-platform
     PYUDEV = "pyudev"  # Used in Linux
     QUARTZ = "quartz"  # Used in macOS
@@ -75,6 +76,57 @@ class DisplayInfo:
     provider: DmProvider = None
 
 
+# pygame implementation
+def _enum_displays_pygame() -> Generator[DisplayInfo, None, None]:
+    import pygame
+
+    # Initialize Pygame
+    pygame.display.init()
+
+    # Get the number of available screens
+    disp_count = pygame.display.get_num_displays()
+    logger.debug(f"Number of displays connected: {disp_count}")
+
+    # default display info
+    def_disp_info = pygame.display.Info()
+    def_w = def_disp_info.current_w
+    def_h = def_disp_info.current_h
+    logger.debug(f"Default display resolution: {def_w}x{def_h}")
+
+    # Loop through each screen and list available modes
+    for i in range(disp_count):
+        logger.debug(f"Display {i}:")
+        di: DisplayInfo = DisplayInfo()
+        di.provider = DmProvider.PYGAME
+        di.id = i
+        di.name = f"display-{i}"
+
+        # logger.debug(f"  Active: {pygame.display.get_active()}")
+
+        disp_w, disp_h = pygame.display.get_desktop_sizes()[i]
+        logger.debug(f"  Resolution: {disp_w}x{disp_h}")
+        di.is_connected = True
+        di.is_active = True
+        di.width = disp_w
+        di.height = disp_h
+
+        if disp_w == def_w and disp_h == def_h:
+            di.is_main = True
+
+        # pygame.display.set_mode((desktop_size[0], desktop_size[1]),
+        # pygame.FULLSCREEN, display=i)
+        # inf = pygame.display.Info()
+
+        # Get available resolutions for the current display
+        # modes = pygame.display.list_modes(display=i)
+        # logger.debug(f"Available resolutions on Display {i}:")
+        # for mode in modes:
+        #    logger.debug(f"{mode[0]}x{mode[1]}")
+        yield di
+
+    pygame.display.quit()
+
+
 # pyudev implementation
 def _enum_displays_pyudev() -> Generator[DisplayInfo, None, None]:
     ctx = pyudev.Context()
@@ -96,6 +148,9 @@ def _enum_displays_pyudev() -> Generator[DisplayInfo, None, None]:
             #    ls -l /sys/class/drm/
             di.id = d.get("ID_PATH")
             di.name = d.device_node
+            # strip prefix to get the name optionally
+            if di.name.startswith("/dev/dri/"):
+                di.name = di.name[9:]
             di.is_connected = True
 
             yield di
@@ -236,12 +291,16 @@ def enum_displays(
             a.append(_enum_displays_quartz())
         else:
             raise NotImplementedError(f"Unsupported platform: {_PLATFORM}")
+        # add cross-platform providers as well
+        # a.append(_enum_displays_pygame())
     elif provider == DmProvider.PYUDEV:
         a.append(_enum_displays_pyudev())
     elif provider == DmProvider.QUARTZ:
         a.append(_enum_displays_quartz())
     elif provider == DmProvider.RANDR:
         a.append(_enum_displays_randr())
+    elif provider == DmProvider.PYGAME:
+        a.append(_enum_displays_pygame())
     else:
         raise NotImplementedError(f"Unsupported provider: {provider}")
     return chain(*a)
@@ -263,10 +322,16 @@ def do_list_displays(
                 last_provider = di.provider
                 out_func(f"[{di.provider}]")
 
-            mode: str = f" {di.width}x{di.height}, {round(di.refresh_rate, 2)}Hz" \
-                if di.is_connected and di.width>0 else ""
+            mode: str = (
+                f" {di.width}x{di.height}" if di.is_connected and di.width > 0 else ""
+            )
+            rate: str = (
+                f" {round(di.refresh_rate, 2)}Hz"
+                if di.is_connected and di.refresh_rate > 0
+                else ""
+            )
             out_func(
-                f"  {di.name} [{di.id}] :{mode}"
+                f"  {di.name} [{di.id}] :{mode}{rate}"
                 f"{' connected' if di.is_connected else ' disconnected'}"
                 f"{' active' if di.is_active else ''}"
                 f"{' primary' if di.is_main else ''}"
@@ -277,3 +342,4 @@ def do_list_displays(
 
 if __name__ == "__main__":
     do_list_displays(DmProvider.PLATFORM, "text")
+    do_list_displays(DmProvider.PYGAME, "text")

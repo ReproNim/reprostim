@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
     "-p",
     "--provider",
     default="platform",
-    type=click.Choice(["platform", "pyudev", "quartz", "randr"]),
+    type=click.Choice(["platform", "pygame", "pyglet",
+                       "pyudev", "quartz", "randr"]),
     help="Set display monitoring providers to be used",
 )
 @click.option(
