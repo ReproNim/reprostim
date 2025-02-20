@@ -239,6 +239,27 @@ def _enum_displays_randr() -> Generator[DisplayInfo, None, None]:
 def _enum_displays_quartz() -> Generator[DisplayInfo, None, None]:
     # logger.debug(dir(Quartz))
 
+    # TODO: find display name,
+    #    see also NSScreen.screens @NSScreenNumber to match
+    #    with display_id (CGDirectDisplayID)
+    #    [https://stackoverflow.com/questions/1236498/how-to-
+    #    get-the-display-name-with-the-display-id-in-mac-os-x]
+    #    https://github.com/johnjohndoe/DisplayInfo
+    #
+    # from serial.tools.list_ports_osx import (GetIOServicesByType,
+    #                                          IORegistryEntryGetName,
+    #                                          get_string_property,
+    #                                          get_int_property)
+    #
+    # services = GetIOServicesByType("IODisplayConnect")
+    # logger.debug(f"services={services}")
+    # for dev_type in services:
+    #    logger.debug(f"dev_type={dev_type}")
+    #    den_ename = IORegistryEntryGetName(dev_type)
+    #    logger.debug(f"den_ename={den_ename}")
+    #    name = get_string_property(dev_type, "AppleDisplay")
+    #    logger.debug(f"name={name}")
+
     main_id = Quartz.CGMainDisplayID()
     logger.debug(f"main_id={main_id}")
 
