@@ -127,6 +127,67 @@ def _enum_displays_pygame() -> Generator[DisplayInfo, None, None]:
     pygame.display.quit()
 
 
+# pyglet implementation
+def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
+    # handle both pyglet versions
+    import pyglet
+
+    if hasattr(pyglet, "display"):
+        from pyglet.display import get_display
+    elif hasattr(pyglet, "canvas"):
+        from pyglet.canvas import get_display
+
+    # Get the default display
+    display = get_display()
+
+    primary_screen = display.get_default_screen()
+
+    # Get all screens connected to the display
+    screens = display.get_screens()
+
+    # Enumerate and print screen details
+    for i, scr in enumerate(screens):
+        # Note: scr has private _cg_display_id property
+        # with quartz display ID as well in xos.
+
+        di: DisplayInfo = DisplayInfo()
+        di.provider = DmProvider.PYGLET
+        di.id = i
+        di.name = f"screen-{i}"
+        di.is_connected = True
+        di.is_active = True
+
+        logger.debug(f"Screen {i}:")
+        if hasattr(scr, "get_nsscreen"):
+            logger.debug(f"  NSScreen: {scr.get_nsscreen()}")
+        if (
+            scr.display == primary_screen.display
+            and scr.width == primary_screen.width
+            and scr.height == primary_screen.height
+            and scr.x == primary_screen.x
+            and scr.y == primary_screen.y
+        ):
+            logger.debug("  primary")
+            di.is_main = True
+
+        logger.debug(f"  pos  : [{scr.x}, {scr.y}]")
+        logger.debug(f"  size : {scr.width}x{scr.height}")
+        di.width = scr.width
+        di.height = scr.height
+
+        modes = scr.get_modes()
+        logger.debug(f"  modes: {modes}")
+        # find current mode if any
+        for mode in modes:
+            if mode.width == scr.width and mode.height == scr.height:
+                logger.debug(f"  current mode : {mode}")
+                di.refresh_rate = mode.rate
+                di.bits_per_pixel = mode.depth
+                break
+
+        yield di
+
+
 # pyudev implementation
 def _enum_displays_pyudev() -> Generator[DisplayInfo, None, None]:
     ctx = pyudev.Context()
@@ -314,6 +375,7 @@ def enum_displays(
             raise NotImplementedError(f"Unsupported platform: {_PLATFORM}")
         # add cross-platform providers as well
         # a.append(_enum_displays_pygame())
+        a.append(_enum_displays_pyglet())
     elif provider == DmProvider.PYUDEV:
         a.append(_enum_displays_pyudev())
     elif provider == DmProvider.QUARTZ:
@@ -322,6 +384,8 @@ def enum_displays(
         a.append(_enum_displays_randr())
     elif provider == DmProvider.PYGAME:
         a.append(_enum_displays_pygame())
+    elif provider == DmProvider.PYGLET:
+        a.append(_enum_displays_pyglet())
     else:
         raise NotImplementedError(f"Unsupported provider: {provider}")
     return chain(*a)
@@ -363,4 +427,5 @@ def do_list_displays(
 
 if __name__ == "__main__":
     do_list_displays(DmProvider.PLATFORM, "text")
-    do_list_displays(DmProvider.PYGAME, "text")
+    # do_list_displays(DmProvider.PYGAME, "text")
+    # do_list_displays(DmProvider.PYGLET, "text")
