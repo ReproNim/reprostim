@@ -28,8 +28,10 @@ def print_version(ctx, value):
     "-l",
     "--log-level",
     default="INFO",
-    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
-    help="Set the logging level. Default is INFO.",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
+    ),
+    help="Set the logging level, case-insensitive. Default is INFO.",
 )
 @click.option(
     "-f",
@@ -39,7 +41,7 @@ def print_version(ctx, value):
     "Python 'logging.Formatter' documentation.",
 )
 @click.pass_context
-def main(ctx, log_level, log_format):
+def main(ctx, log_level: str, log_format):
     """Command-line interface to run ReproStim tools and services.
     To see help for the specific command, run:
 
@@ -49,7 +51,7 @@ def main(ctx, log_level, log_format):
     """
     # some commands require logging to stderr
     log_to_stderr: bool = ctx.invoked_subcommand in ("qr-parse",)
-    _init_logger(log_level, log_format, log_to_stderr)
+    _init_logger(log_level.upper(), log_format, log_to_stderr)
     logger.debug(f"{__reprostim_name__} v{__version__}")
     logger.debug(f"main(...), command={ctx.invoked_subcommand}")
 
