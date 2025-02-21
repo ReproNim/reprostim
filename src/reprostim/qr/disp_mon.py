@@ -32,7 +32,8 @@ class DmProvider(str, Enum):
     """Enum to represent the display monitoring provider/engine
     depending on used OS environment."""
 
-    PLATFORM = "platform"  # Default OS specific providers
+    ALL = "all"  # use all available providers
+    PLATFORM = "platform"  # use the best OS specific providers
     PYGAME = "pygame"  # Cross-platform
     PYGLET = "pyglet"  # Cross-platform
     PYUDEV = "pyudev"  # Used in Linux
@@ -133,14 +134,13 @@ def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
     import pyglet
 
     if hasattr(pyglet, "display"):
-        from pyglet.display import get_display, Display
+        from pyglet.display import get_display
     elif hasattr(pyglet, "canvas"):
-        from pyglet.canvas import get_display, Display
+        from pyglet.canvas import get_display
 
     # trace version info
     if hasattr(pyglet, "c"):
         logger.debug(f"pyglet version: {pyglet.c}")
-
 
     display = get_display()
 
@@ -179,7 +179,7 @@ def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
         di.width = scr.width
         di.height = scr.height
 
-        #scr._xinerama = False
+        # scr._xinerama = False
         modes = scr.get_modes()
         logger.debug(f"  modes: {modes}")
         # find current mode if any
@@ -192,12 +192,13 @@ def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
                 # fix issue in pyglet/xlib, convert dotclock to refresh rate
                 if type(mode).__name__ == "XlibScreenMode":
                     logger.debug("fix rate")
-                    if mode.info.htotal != 0 and mode.info.vtotal != 0 :
-                        di.refresh_rate = (mode.info.dotclock*1000.0) / (mode.info.htotal * mode.info.vtotal)
+                    if mode.info.htotal != 0 and mode.info.vtotal != 0:
+                        di.refresh_rate = (mode.info.dotclock * 1000.0) / (
+                            mode.info.htotal * mode.info.vtotal
+                        )
                 break
 
         yield di
-
 
 
 # pyudev implementation
@@ -377,7 +378,7 @@ def enum_displays(
     provider: DmProvider = DmProvider.PLATFORM,
 ) -> Generator[DisplayInfo, None, None]:
     a = []
-    if provider == DmProvider.PLATFORM:
+    if provider in (DmProvider.PLATFORM, DmProvider.ALL):
         if _PLATFORM == DmPlatform.LINUX:
             a.append(_enum_displays_pyudev())
             a.append(_enum_displays_randr())
@@ -385,9 +386,10 @@ def enum_displays(
             a.append(_enum_displays_quartz())
         else:
             raise NotImplementedError(f"Unsupported platform: {_PLATFORM}")
-        # add cross-platform providers as well
-        # a.append(_enum_displays_pygame())
-        a.append(_enum_displays_pyglet())
+        if provider == DmProvider.ALL:
+            # add all cross-platform providers as well
+            a.append(_enum_displays_pygame())
+            a.append(_enum_displays_pyglet())
     elif provider == DmProvider.PYUDEV:
         a.append(_enum_displays_pyudev())
     elif provider == DmProvider.QUARTZ:
@@ -438,6 +440,7 @@ def do_list_displays(
 
 
 if __name__ == "__main__":
-    do_list_displays(DmProvider.PLATFORM, "text")
+    do_list_displays(DmProvider.ALL, "text")
+    # do_list_displays(DmProvider.PLATFORM, "text")
     # do_list_displays(DmProvider.PYGAME, "text")
     # do_list_displays(DmProvider.PYGLET, "text")
