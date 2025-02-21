@@ -133,11 +133,15 @@ def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
     import pyglet
 
     if hasattr(pyglet, "display"):
-        from pyglet.display import get_display
+        from pyglet.display import get_display, Display
     elif hasattr(pyglet, "canvas"):
-        from pyglet.canvas import get_display
+        from pyglet.canvas import get_display, Display
 
-    # Get the default display
+    # trace version info
+    if hasattr(pyglet, "c"):
+        logger.debug(f"pyglet version: {pyglet.c}")
+
+
     display = get_display()
 
     primary_screen = display.get_default_screen()
@@ -175,6 +179,7 @@ def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
         di.width = scr.width
         di.height = scr.height
 
+        #scr._xinerama = False
         modes = scr.get_modes()
         logger.debug(f"  modes: {modes}")
         # find current mode if any
@@ -183,9 +188,16 @@ def _enum_displays_pyglet() -> Generator[DisplayInfo, None, None]:
                 logger.debug(f"  current mode : {mode}")
                 di.refresh_rate = mode.rate
                 di.bits_per_pixel = mode.depth
+
+                # fix issue in pyglet/xlib, convert dotclock to refresh rate
+                if type(mode).__name__ == "XlibScreenMode":
+                    logger.debug("fix rate")
+                    if mode.info.htotal != 0 and mode.info.vtotal != 0 :
+                        di.refresh_rate = (mode.info.dotclock*1000.0) / (mode.info.htotal * mode.info.vtotal)
                 break
 
         yield di
+
 
 
 # pyudev implementation

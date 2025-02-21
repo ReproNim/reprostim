@@ -44,9 +44,9 @@ Problem: we have some events on low layer `V1` from hardware, and it should be
 monitored and mapped to logical `V4` one. Possible matrix listed below, but
 currently only Linux with X11 and OSX 10.6+ are going to be supported:
 
-| Layer | Linux+X11                  | OSX      | Windows  |
-|-------|----------------------------|----------|----------|
-| `V1`  | pyudev                     | Quartz   | WMI      |
-| `V2`  | randr, python-xlib, xrandr | Quartz   | WMI      |
-| `V3`  | pyglet                     | pyglet   | pyglet   |
-| `V4`  | PsychoPy                   | PsychoPy | PsychoPy |
+| Layer | Linux+X11                  | OSX      | Windows    |
+|-------|----------------------------|----------|------------|
+| `V1`  | pyudev                     | Quartz   | Win32, WMI |
+| `V2`  | randr, python-xlib, xrandr | Quartz   | Win32, WMI |
+| `V3`  | pyglet                     | pyglet   | pyglet     |
+| `V4`  | PsychoPy                   | PsychoPy | PsychoPy   |
