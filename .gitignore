@@ -21,3 +21,4 @@ dist/
 *.pid
 *.pyc
 src/reprostim/_version.py
+/temp/
