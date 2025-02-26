@@ -8,10 +8,12 @@
 import json
 import logging
 import sys
+import time
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 from itertools import chain
-from typing import Generator
+from typing import Generator, Iterable
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -75,6 +77,50 @@ class DisplayInfo:
     is_main: bool = False
     is_sleeping: bool = False
     provider: DmProvider = None
+    ts: datetime = datetime.now()
+
+    # compare display mode
+    def eq_mode(self, di) -> bool:
+        if di is None:
+            return False
+        if (
+            di.width != self.width
+            or di.height != self.height
+            or di.refresh_rate != self.refresh_rate
+            or di.bits_per_pixel != self.bits_per_pixel
+        ):
+            return False
+        return True
+
+    # Custom equality based on provider+id key
+    def eq_key(self, di):
+        if isinstance(di, DisplayInfo):
+            return self.provider == di.provider and self.id == di.id
+        return False
+
+
+# Display change type
+class DisplayChangeType(str, Enum):
+    CONNECT = "connect"  # display connected
+    DISCONNECT = "disconnect"  # display disconnected
+    MODE = "mode"  # mode, resolution or framerate changed
+
+
+# class representing display change event
+@dataclass
+class DisplayChangeEvent:
+    type: DisplayChangeType = None
+    display: DisplayInfo = None
+    old_display: DisplayInfo = None
+    ts: datetime = datetime.now()
+
+
+# sample prototype for display change event callback
+def display_change_callback(evt: DisplayChangeEvent):
+    logger.debug(
+        f"display_change_callback: type={evt.type},"
+        f" new={evt.display}, old={evt.old_display}"
+    )
 
 
 # pygame implementation
@@ -363,13 +409,17 @@ def _enum_displays_quartz() -> Generator[DisplayInfo, None, None]:
         di.is_sleeping = bool(Quartz.CGDisplayIsAsleep(d_id))
 
         # extract additional info, but it should be released
+        # dm = c_void_p(Quartz.CGDisplayCopyDisplayMode(d_id))
         dm = Quartz.CGDisplayCopyDisplayMode(d_id)
         if dm:
             try:
                 di.refresh_rate = Quartz.CGDisplayModeGetRefreshRate(dm)
                 # di.bits_per_pixel = Quartz.CGDisplayModeCopyPixelEncoding(dm)
             finally:
-                Quartz.CGDisplayModeRelease(dm)
+                # TODO: Process finished with exit code 138
+                #       (interrupted by signal 10:SIGBUS)
+                # Quartz.CGDisplayModeRelease(dm)
+                pass
 
         yield di
 
@@ -403,6 +453,17 @@ def enum_displays(
     else:
         raise NotImplementedError(f"Unsupported provider: {provider}")
     return chain(*a)
+
+
+# find matched display info object from provided list
+# Note: result can be not the same object as provided
+# via di param
+def find_di(lst: Iterable[DisplayInfo], di: DisplayInfo) -> DisplayInfo:
+    if di is None:
+        return None
+    for di2 in lst:
+        if di.eq_key(di2):
+            return di2
 
 
 def do_list_displays(
@@ -439,8 +500,100 @@ def do_list_displays(
             raise NotImplementedError(f"Unknown format: {format}")
 
 
+def do_monitor_displays(
+    provider: DmProvider = DmProvider.PLATFORM,
+    poll_interval: int = 60,
+    max_wait: int = 3,
+    out_func=print,
+):
+    logger.debug("do_monitor_displays() enter")
+
+    callback = display_change_callback
+
+    max_dt: datetime = (
+        datetime.now() + timedelta(seconds=max_wait) if max_wait >= 0 else None
+    )
+
+    # build initial display info list
+    lst = [di for di in enum_displays(DmProvider(provider))]
+
+    # notify all connected display at startup
+    for di in lst:
+        if di.is_connected:
+            evt: DisplayChangeEvent = DisplayChangeEvent()
+            evt.type = DisplayChangeType.CONNECT
+            evt.display = di
+            callback(evt)
+
+    logger.debug("enter monitor displays cycle")
+    seq: int = 1
+    try:
+        while True:
+            logger.debug(f"checking {seq} ...")
+            seq += 1
+            if max_dt is not None and max_dt < datetime.now():
+                logger.debug(f"max_wait({max_wait}) reached")
+                break
+            time.sleep(poll_interval)
+            # get latest display list and compare
+            lst2 = [di for di in enum_displays(DmProvider(provider))]
+
+            # find disconnected displays, they exist in
+            # old display list, but not exist in new one
+            for di in lst:
+                di2 = find_di(lst2, di)
+                if di2:
+                    continue
+
+                # notify only connected displays
+                if di.is_connected:
+                    evt: DisplayChangeEvent = DisplayChangeEvent()
+                    evt.type = DisplayChangeType.DISCONNECT
+                    di.is_connected = False
+                    evt.display = di
+                    callback(evt)
+
+            for di2 in lst2:
+                di: DisplayInfo = find_di(lst, di2)
+
+                # check new or just connected displays
+                if di is None:
+                    # notify only connected displays
+                    if di2.is_connected:
+                        evt: DisplayChangeEvent = DisplayChangeEvent()
+                        evt.type = DisplayChangeType.CONNECT
+                        evt.display = di2
+                        callback(evt)
+                else:
+                    # update existing displays
+                    evt: DisplayChangeEvent = DisplayChangeEvent()
+                    evt.display = di2
+                    evt.old_display = di
+                    # logger.debug(f"compare di2={di2} and di={di}")
+                    if di2.is_connected != di.is_connected:
+                        evt.type = (
+                            DisplayChangeType.CONNECT
+                            if di2.is_connected
+                            else DisplayChangeType.DISCONNECT
+                        )
+                    elif not di2.eq_mode(di):
+                        evt.type = DisplayChangeType.MODE
+
+                    if evt.type is not None:
+                        callback(evt)
+
+            # store latest display snapshot
+            lst = lst2
+
+    finally:
+        logger.debug("cleaning up")
+
+    logger.debug("do_monitor_displays() leave")
+
+
 if __name__ == "__main__":
     do_list_displays(DmProvider.ALL, "text")
     # do_list_displays(DmProvider.PLATFORM, "text")
     # do_list_displays(DmProvider.PYGAME, "text")
     # do_list_displays(DmProvider.PYGLET, "text")
+    # do_monitor_displays(DmProvider.PLATFORM, 1, 60)
