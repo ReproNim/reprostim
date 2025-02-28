@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+# Check if any arguments were provided
+if [ $# -eq 0 ]; then
+    echo "Error: No arguments provided with JSON event data."
+    exit 1
+fi
+
+# The JSON DisplayChangeEvent event string passed as an argument
+DCE_JSON="$1"
+echo "JSON: $DCE_JSON"
+# echo "$DCE_JSON" | jq .
+
+
+# jq need to be installed
+#  MacOS: brew install jq
+#  Linux: apt-get install jq
+#
+# check jq installation
+if ! command -v jq &> /dev/null
+then
+    echo "Error: jq is not installed. Please install 'jq' and try again."
+    exit 1  # Exit the script with a non-zero status
+fi
+
+DCE_TYPE=$(echo "$DCE_JSON" | jq -r '.type')
+DCE_TS=$(echo "$DCE_JSON" | jq -r '.ts')
+DISPLAY_ID=$(echo "$DCE_JSON" | jq -r '.display.id')
+DISPLAY_NAME=$(echo "$DCE_JSON" | jq -r '.display.name')
+DISPLAY_WIDTH=$(echo "$DCE_JSON" | jq -r '.display.width')
+DISPLAY_HEIGHT=$(echo "$DCE_JSON" | jq -r '.display.height')
+DISPLAY_RATE=$(echo "$DCE_JSON" | jq -r '.display.refresh_rate*100|round/100')
+DISPLAY_CONNECTED=$(echo "$DCE_JSON" | jq -r '.display.is_connected')
+
+echo $DCE_TYPE
+echo "reprostim-display-on-change"
+echo "[event type]   : $DCE_TYPE"
+echo "[event ts]     : $DCE_TS"
+echo "[display name] : $DISPLAY_NAME"
+echo "[display id]   : $DISPLAY_ID"
+echo "[display mode] : ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}, $DISPLAY_RATE fps, connected=$DISPLAY_CONNECTED"
