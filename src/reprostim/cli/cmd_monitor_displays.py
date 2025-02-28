@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-u",
     "--on-change",
-    default="*",
+    default=None,
     type=str,
     help="Specifies shell script to be executed when target "
     "display is connected, disconnected or monitor "
@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-c",
     "--on-connect",
-    default="*",
+    default=None,
     type=str,
     help="Specifies shell script to be executed when target "
     "display is connected. Note: subprocess is automatically "
@@ -88,7 +88,9 @@ def monitor_displays(
     res: int = 0
     logger.debug("reprostim monitor-displays script started")
 
-    do_monitor_displays(DmProvider(provider), poll_interval, max_wait)
+    do_monitor_displays(
+        DmProvider(provider), poll_interval, max_wait, name, d_id, on_change, on_connect
+    )
 
     logger.debug(f"reprostim monitor-displays script finished: {res}")
     logger.debug(f"Exit on   : {datetime.now()}")
