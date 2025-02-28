@@ -1,12 +1,10 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
-
-# Display monitoring service: cross-platform API to list
-# available GUI displays and monitor status
-
+import fnmatch
 import json
 import logging
+import subprocess
 import sys
 import time
 from dataclasses import asdict, dataclass
@@ -14,6 +12,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 from itertools import chain
 from typing import Generator, Iterable
+
+# Display monitoring service: cross-platform API to list
+# available GUI displays and monitor status
+
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -77,7 +79,7 @@ class DisplayInfo:
     is_main: bool = False
     is_sleeping: bool = False
     provider: DmProvider = None
-    ts: datetime = datetime.now()
+    ts: str = datetime.now().isoformat()
 
     # compare display mode
     def eq_mode(self, di) -> bool:
@@ -112,7 +114,7 @@ class DisplayChangeEvent:
     type: DisplayChangeType = None
     display: DisplayInfo = None
     old_display: DisplayInfo = None
-    ts: datetime = datetime.now()
+    ts: str = datetime.now().isoformat()
 
 
 # sample prototype for display change event callback
@@ -504,11 +506,49 @@ def do_monitor_displays(
     provider: DmProvider = DmProvider.PLATFORM,
     poll_interval: int = 60,
     max_wait: int = 3,
+    name: str = "*",
+    d_id: str = "*",
+    on_change: str = None,
+    on_connect: str = None,
     out_func=print,
 ):
     logger.debug("do_monitor_displays() enter")
 
-    callback = display_change_callback
+    # default callback with event filters and
+    # shell commands execution
+    def callback_impl(dce: DisplayChangeEvent):
+        if name and not fnmatch.fnmatch(str(dce.display.name), name):
+            logger.debug(f"event ignored, name mismatch: " f"{name}/{dce.display.name}")
+            return
+
+        if d_id and not fnmatch.fnmatch(str(dce.display.id), d_id):
+            logger.debug(f"event ignored, id mismatch: " f"{d_id}/{dce.display.id}")
+            return
+
+        if on_change and len(on_change) > 0:
+            evt_json: str = json.dumps(asdict(dce))
+            logger.debug(
+                f"execute on_change callback <{on_change}>," f" evt: {evt_json}"
+            )
+            res = subprocess.run(
+                [on_change, evt_json],
+                check=False,
+                timeout=2 * poll_interval,
+                capture_output=True,
+                text=True,
+            )
+            out_func(res.stdout)
+
+        if on_connect and len(on_connect) > 0:
+            if evt.type == DisplayChangeType.CONNECT:
+                logger.debug("TODO: start on_connect process")
+            if evt.type == DisplayChangeType.DISCONNECT:
+                logger.debug("TODO: terminate on_connect process if any")
+
+        display_change_callback(dce)
+
+    # callback = display_change_callback
+    callback = callback_impl
 
     max_dt: datetime = (
         datetime.now() + timedelta(seconds=max_wait) if max_wait >= 0 else None
@@ -596,4 +636,12 @@ if __name__ == "__main__":
     # do_list_displays(DmProvider.PLATFORM, "text")
     # do_list_displays(DmProvider.PYGAME, "text")
     # do_list_displays(DmProvider.PYGLET, "text")
-    # do_monitor_displays(DmProvider.PLATFORM, 1, 60)
+    do_monitor_displays(
+        DmProvider.PLATFORM,
+        1,
+        1,
+        name="9*",
+        d_id="861767562",
+        on_change="./../../../tools/reprostim-display-on-change",
+        on_connect="echo",
+    )
