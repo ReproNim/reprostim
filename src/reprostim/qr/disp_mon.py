@@ -13,6 +13,8 @@ from enum import Enum
 from itertools import chain
 from typing import Generator, Iterable
 
+import psutil
+
 # Display monitoring service: cross-platform API to list
 # available GUI displays and monitor status
 
@@ -502,6 +504,25 @@ def do_list_displays(
             raise NotImplementedError(f"Unknown format: {format}")
 
 
+def _kill_process_tree(pid):
+    try:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):  # Get all child processes
+            child.terminate()
+        parent.terminate()
+    except psutil.NoSuchProcess:
+        pass
+
+
+def _terminate_proc(proc):
+    if proc and proc.poll() is None:
+        pid = proc.pid
+        logger.info(f"terminating bound process, pid = {pid}")
+        _kill_process_tree(proc.pid)
+        return pid
+    return None
+
+
 def do_monitor_displays(
     provider: DmProvider = DmProvider.PLATFORM,
     poll_interval: int = 60,
@@ -509,10 +530,12 @@ def do_monitor_displays(
     name: str = "*",
     d_id: str = "*",
     on_change: str = None,
-    on_connect: str = None,
+    bound_command: str = None,
     out_func=print,
 ):
     logger.debug("do_monitor_displays() enter")
+
+    _bproc = None
 
     # default callback with event filters and
     # shell commands execution
@@ -539,11 +562,30 @@ def do_monitor_displays(
             )
             out_func(res.stdout)
 
-        if on_connect and len(on_connect) > 0:
+        if bound_command and len(bound_command) > 0:
+            nonlocal _bproc
             if evt.type == DisplayChangeType.CONNECT:
-                logger.debug("TODO: start on_connect process")
+                if _bproc is not None:
+                    out_func(f"Terminating bound process, pid={_bproc.pid}")
+                    _terminate_proc(_bproc)
+                    _bproc = None
+
+                logger.debug("starting bound process...")
+                try:
+                    _bproc = subprocess.Popen(
+                        [bound_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    )
+                    out_func(
+                        f"Started bound process, pid={_bproc.pid}, cmd={bound_command}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to start bound process {bound_command}: {e}")
+
             if evt.type == DisplayChangeType.DISCONNECT:
-                logger.debug("TODO: terminate on_connect process if any")
+                if _bproc is not None:
+                    out_func(f"Terminating bound process, pid={_bproc.pid}")
+                    _terminate_proc(_bproc)
+                    _bproc = None
 
         display_change_callback(dce)
 
@@ -626,7 +668,12 @@ def do_monitor_displays(
             lst = lst2
 
     finally:
-        logger.debug("cleaning up")
+        logger.debug("cleaning up...")
+        if _bproc is not None:
+            out_func(f"Terminating bound process, pid={_bproc.pid}")
+            _terminate_proc(_bproc)
+            _bproc = None
+        logger.debug("cleaned up")
 
     logger.debug("do_monitor_displays() leave")
 
@@ -639,9 +686,10 @@ if __name__ == "__main__":
     do_monitor_displays(
         DmProvider.PLATFORM,
         1,
-        1,
-        name="9*",
+        60,
+        name="*",
         d_id="861767562",
+        # d_id="103*",
         on_change="./../../../tools/reprostim-display-on-change",
-        on_connect="echo",
+        bound_command="./../../../tools/reprostim-display-bound-command",
     )

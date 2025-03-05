@@ -61,8 +61,8 @@ logger = logging.getLogger(__name__)
     "resolution/mode updated.",
 )
 @click.option(
-    "-c",
-    "--on-connect",
+    "-b",
+    "--bound-command",
     default=None,
     type=str,
     help="Specifies shell script to be executed when target "
@@ -78,7 +78,7 @@ def monitor_displays(
     name: str,
     d_id: str,
     on_change: str,
-    on_connect: str,
+    bound_command: str,
 ):
     """Monitor GUI/displays connection status."""
     logger.debug("reprostim monitor-displays")
@@ -89,7 +89,13 @@ def monitor_displays(
     logger.debug("reprostim monitor-displays script started")
 
     do_monitor_displays(
-        DmProvider(provider), poll_interval, max_wait, name, d_id, on_change, on_connect
+        DmProvider(provider),
+        poll_interval,
+        max_wait,
+        name,
+        d_id,
+        on_change,
+        bound_command,
     )
 
     logger.debug(f"reprostim monitor-displays script finished: {res}")
