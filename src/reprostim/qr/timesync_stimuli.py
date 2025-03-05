@@ -117,6 +117,8 @@ def do_init(logfn: str) -> bool:
 def do_main(
     mode: Mode,
     logfn: str,
+    is_fullscreen: bool,
+    win_size: tuple[int, int],
     display: int,
     qr_scale: float,
     audio_codec: str,
@@ -178,7 +180,7 @@ def do_main(
     audio_info: AudioCodeInfo = None
     f = open(logfn, "w")
 
-    win = visual.Window(fullscr=True, screen=display)
+    win = visual.Window(fullscr=is_fullscreen, size=win_size, screen=display)
     win.mouseVisible = False  # hides the mouse pointer
 
     log(

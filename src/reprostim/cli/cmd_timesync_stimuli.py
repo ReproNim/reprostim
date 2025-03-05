@@ -28,6 +28,22 @@ logger = logging.getLogger(__name__)
     help="Output log file name prefix.",
 )
 @click.option(
+    "-w",
+    "--windowed",
+    is_flag=True,
+    default=False,
+    help="Run script in windowed mode, by default fullscreen mode is used.",
+)
+@click.option(
+    "-z",
+    "--size",
+    "win_size",
+    type=(int, int),
+    default=(1920, 1080),
+    help="Specify window size as a tuple of integers (default: 1920 1080)."
+         "Used only in windowed mode.",
+)
+@click.option(
     "-d",
     "--display",
     default=1,
@@ -95,6 +111,8 @@ def timesync_stimuli(
     ctx,
     mode: str,
     output_prefix: str,
+    windowed: bool,
+    win_size: tuple[int, int],
     display: int,
     qr_scale: float,
     audio_lib: str,
@@ -110,19 +128,23 @@ def timesync_stimuli(
 
     from ..qr.timesync_stimuli import do_init, do_main, get_output_file_name
 
+    is_fullscreen: bool = not windowed
+
     # psychopy has similar logging levels like
     # default logging module
     # pl.console.setLevel(log_level)
     start_ts: datetime = datetime.now()
     logger.debug("reprostim timesync-stimuli script started")
-    logger.debug(f"  Started on : {start_ts}")
-    logger.debug(f"    mode     : {mode}")
-    logger.debug(f"    prefix   : {output_prefix}")
-    logger.debug(f"    display  : {display}")
-    logger.debug(f"    audio_lib: {audio_lib}")
-    logger.debug(f"    mute     : {mute}")
-    logger.debug(f"    duration : {duration}")
-    logger.debug(f"    interval : {interval}")
+    logger.debug(f"  Started on   : {start_ts}")
+    logger.debug(f"    mode       : {mode}")
+    logger.debug(f"    prefix     : {output_prefix}")
+    logger.debug(f"    fullscreen : {is_fullscreen}")
+    logger.debug(f"    win_size   : {win_size[0]}x{win_size[1]}")
+    logger.debug(f"    display    : {display}")
+    logger.debug(f"    audio_lib  : {audio_lib}")
+    logger.debug(f"    mute       : {mute}")
+    logger.debug(f"    duration   : {duration}")
+    logger.debug(f"    interval   : {interval}")
 
     output: str = get_output_file_name(output_prefix, start_ts)
     logger.debug(f"    output   : {output}")
@@ -137,6 +159,8 @@ def timesync_stimuli(
     res = do_main(
         mode,
         output,
+        is_fullscreen,
+        win_size,
         display,
         qr_scale,
         audio_codec,
