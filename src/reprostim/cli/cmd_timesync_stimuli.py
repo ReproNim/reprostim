@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
     "--mode",
     type=click.Choice(["event", "interval", "beep", "devices"], case_sensitive=False),
     default="event",
-    help="Mode of operation: event, interval, or beep.",
+    help="Mode of operation: 'event', 'interval', or 'beep', (default: event).",
 )
 @click.option(
     "-o",
@@ -87,9 +87,10 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-d",
     "--duration",
-    default=2,
+    default=-1,
     type=float,
-    help="Specifies script duration in seconds.",
+    help="Specifies script duration in seconds. Use negative value "
+         "for infinite duration (default: -1).",
 )
 @click.option(
     "-i",
@@ -169,6 +170,7 @@ def timesync_stimuli(
         duration,
         interval,
         keep_audiocode,
+        click.echo,
     )
 
     end_ts: datetime = datetime.now()

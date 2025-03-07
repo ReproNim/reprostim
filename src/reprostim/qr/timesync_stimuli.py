@@ -127,6 +127,7 @@ def do_main(
     duration: float,
     interval: float,
     keep_audiocode: bool,
+    out_func=print,
 ) -> int:
     logger.info("main script started")
 
@@ -221,32 +222,56 @@ def do_main(
     # kb = keyboard.Keyboard()
 
     t_start = time()
+    t_end = t_start + duration if duration > 0 else None
 
     logger.debug(f"warming time: {(t_start-t0):.6f} sec")
     logger.info(f"starting loop with {ntrials} trials...")
 
+    terminate: bool = False
+
     for acqNum in range(ntrials):
+        # check the duration time limit
+        if t_end and time() > t_end:
+            out_func("Time is up!")
+            terminate = True
+
+        # exit processing loop if requested
+        if terminate:
+            break
+
         logger.debug(f"trial {acqNum}")
 
         rec = mkrec(mode, logfn, interval, event="trigger", acqNum=acqNum)
 
+        # prepare audio code file if any
+        if not mute:
+            if keep_audiocode and audio_file:
+                store_audiocode(audio_file, audio_data, logfn)
+            safe_remove(audio_file)
+            audio_data = acqNum
+            audio_file, audio_info_ = save_audiocode(
+                code_uint16=audio_data, codec=audio_codec
+            )
+            audio_info = audio_info_
+            logger.debug(f"  {audio_info}")
+
         if mode == Mode.EVENT:
-            print("Waiting for an event")
-            keys = check_keys(120)  # keyList=['5'])
+            out_func("Waiting for an event...")
+            while True:
+                # check the duration time limit
+                if t_end and time() > t_end:
+                    out_func("Time is up!")
+                    terminate = True
+                    break
+                keys = check_keys(1)
+                if keys and len(keys) > 0:
+                    break
+            # break external loop/terminate
+            if terminate:
+                break
         elif mode == Mode.INTERVAL:
             # keys = kb.getKeys(waitRelease=False)
             keys = check_keys()
-            # prepare audio code file if any
-            if not mute:
-                if keep_audiocode and audio_file:
-                    store_audiocode(audio_file, audio_data, logfn)
-                safe_remove(audio_file)
-                audio_data = acqNum
-                audio_file, audio_info_ = save_audiocode(
-                    code_uint16=audio_data, codec=audio_codec
-                )
-                audio_info = audio_info_
-                logger.debug(f"  {audio_info}")
 
             target_time = t_start + acqNum * interval
             to_wait = target_time - time()
