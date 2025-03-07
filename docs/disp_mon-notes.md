@@ -50,3 +50,23 @@ currently only Linux with X11 and OSX 10.6+ are going to be supported:
 | `V2`  | randr, python-xlib, xrandr | Quartz   | Win32, WMI |
 | `V3`  | pyglet                     | pyglet   | pyglet     |
 | `V4`  | PsychoPy                   | PsychoPy | PsychoPy   |
+
+
+## Appendix
+
+### MacOS Installation Notes
+
+Display monitoring functionality moved to separate extra dependency `[disp_mon]`
+and included in `[all]` one. But it happened that under some MacOS systems
+`[disp_mon]` conflicts with `[psychopy]`/`[audio]` ones on package manager level.
+Issue is not resolved ATM in clean way, but if someone still need to run scripts
+using psychopy or audio, like `timesync-stimuli`, it can be temporary bypassed
+as listed below (in development mode):
+
+```shell
+hatch env remove
+hatcn env create
+hatch run pip install -e .[psychopy]
+hatch run pip install -e .[audio]
+hatch run reprostim timesync-stimuli -w -z 600 400
+```
