@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
-
+from dataclasses import dataclass
 from time import sleep, time
 
 t0 = time()
@@ -25,6 +25,14 @@ logger.info("reprostim timesync-stimuli script started")
 # Constants
 
 
+# Enum for the log event names
+class EventName(str, Enum):
+    STARTED = "started"
+    SERIES_BEGIN = "series_begin"
+    SERIES_END = "series_end"
+    TRIGGER = "trigger"
+
+
 # Enum for the mode of the script operation
 class Mode(str, Enum):
     # Listen for keyboard events to show codes
@@ -35,6 +43,17 @@ class Mode(str, Enum):
     BEEP = "beep"
     # List audio/video devices
     DEVICES = "devices"
+
+
+#######################################################
+# Classes
+
+
+@dataclass
+class SeriesData:
+    num: int  # series number
+    tr_count: int = 0  # trigger events count in the series
+    tr_timeout: float = 4.0  # trigger event max timeout, default is 4
 
 
 #######################################################
@@ -69,18 +88,14 @@ def log(f, rec):
     logger.debug(f"LOG {s}")
 
 
-def mkrec(mode, logfn, interval, **kwargs):
+def mkrec(**kwargs):
     t, tstr = get_times()
     kwargs.update(
         {
-            "logfn": logfn,
             "time": t,
             "time_formatted": tstr,
-            "mode": mode,
         }
     )
-    if mode == "interval":
-        kwargs["interval"] = interval
     return kwargs
 
 
@@ -166,6 +181,37 @@ def do_main(
         logger.debug(f"keys={keys}")
         return keys if keys else []
 
+    def series_begin(series_num: int) -> SeriesData:
+        sd = SeriesData(num=series_num, tr_count=0, tr_timeout=4.0)
+        # log series begin event
+        nonlocal f
+        log(
+            f,
+            mkrec(
+                event=EventName.SERIES_BEGIN,
+                mode=mode,
+                logfn=logfn,
+                series_num=sd.num,
+            ),
+        )
+        return sd
+
+    def series_end(sd: SeriesData) -> SeriesData:
+        if sd:
+            # log series end event
+            nonlocal f
+            log(
+                f,
+                mkrec(
+                    event=EventName.SERIES_END,
+                    mode=mode,
+                    logfn=logfn,
+                    series_num=sd.num,
+                    trigger_count=sd.tr_count,
+                ),
+            )
+        return None
+
     if mode == Mode.BEEP:
         for _ in range(ntrials):
             beep(interval * 0.5, async_=True)
@@ -184,13 +230,13 @@ def do_main(
     win = visual.Window(fullscr=is_fullscreen, size=win_size, screen=display)
     win.mouseVisible = False  # hides the mouse pointer
 
+    # log script started event
     log(
         f,
         mkrec(
-            mode,
-            logfn,
-            interval,
-            event="started",
+            event=EventName.STARTED,
+            mode=mode,
+            logfn=logfn,
             start_time=t0,
             start_time_formatted=get_iso_time(t0),
         ),
@@ -229,6 +275,9 @@ def do_main(
 
     terminate: bool = False
 
+    series_num: int = 0
+    cur_series: SeriesData = None
+
     for acqNum in range(ntrials):
         # check the duration time limit
         if t_end and time() > t_end:
@@ -240,8 +289,6 @@ def do_main(
             break
 
         logger.debug(f"trial {acqNum}")
-
-        rec = mkrec(mode, logfn, interval, event="trigger", acqNum=acqNum)
 
         # prepare audio code file if any
         if not mute:
@@ -284,6 +331,20 @@ def do_main(
         else:
             raise ValueError(mode)
 
+        # start series if not started
+        if not cur_series:
+            cur_series = series_begin(series_num)
+            series_num += 1
+
+        # trigger record,
+        rec = mkrec(event=EventName.TRIGGER, mode=mode, logfn=logfn, acqNum=acqNum)
+
+        if cur_series:
+            rec["series_num"] = cur_series.num
+
+        if mode == Mode.INTERVAL:
+            rec["interval"] = interval
+
         if not mute:
             play_audio(audio_file, async_=True)
             audio_time, audio_time_str = get_times()
@@ -321,8 +382,12 @@ def do_main(
         rec["prior_time_off"] = toff
         rec["prior_time_off_str"] = toff_str
         log(f, rec)
+        if cur_series:
+            cur_series.tr_count = cur_series.tr_count + 1
         if "q" in keys or "escape" in keys:
             break
+
+    cur_series = series_end(cur_series)
 
     f.close()
 
