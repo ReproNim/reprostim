@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
     type=(int, int),
     default=(1920, 1080),
     help="Specify window size as a tuple of integers (default: 1920 1080)."
-         "Used only in windowed mode.",
+    "Used only in windowed mode.",
 )
 @click.option(
     "-d",
@@ -90,7 +90,7 @@ logger = logging.getLogger(__name__)
     default=-1,
     type=float,
     help="Specifies script duration in seconds. Use negative value "
-         "for infinite duration (default: -1).",
+    "for infinite duration (default: -1).",
 )
 @click.option(
     "-i",
@@ -148,7 +148,7 @@ def timesync_stimuli(
     logger.debug(f"    interval   : {interval}")
 
     output: str = get_output_file_name(output_prefix, start_ts)
-    logger.debug(f"    output   : {output}")
+    logger.debug(f"    output     : {output}")
 
     # setup environment variables
     os.environ["REPROSTIM_AUDIO_LIB"] = audio_lib

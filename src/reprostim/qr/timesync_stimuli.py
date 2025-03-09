@@ -16,6 +16,8 @@ from enum import Enum
 
 import qrcode
 
+from ..__about__ import __version__
+
 # setup logging
 logger = logging.getLogger(__name__)
 logger.info("reprostim timesync-stimuli script started")
@@ -198,6 +200,7 @@ def do_main(
                 series_num=sd.num,
             ),
         )
+        out_func(f"Series [{sd.num}] started")
         return sd
 
     def series_end(sd: SeriesData) -> SeriesData:
@@ -215,6 +218,7 @@ def do_main(
                     trigger_count=sd.tr_count,
                 ),
             )
+            out_func(f"Series [{sd.num}] ended, trigger count: {sd.tr_count}")
         return None
 
     if mode == Mode.BEEP:
@@ -232,8 +236,20 @@ def do_main(
     audio_info: AudioCodeInfo = None
     f = open(logfn, "w")
 
-    win = visual.Window(fullscr=is_fullscreen, size=win_size, screen=display)
+    win = visual.Window(
+        fullscr=is_fullscreen,
+        title=f"ReproStim timesync-stimuli v{__version__}",
+        name="timesync-stimuli",
+        size=win_size,
+        screen=display,
+    )
+    logger.debug(f"win.winHandle class: {type(win.winHandle).__name__}")
+    win.winHandle.on_activate = lambda: out_func("Window activated")
+    win.winHandle.on_activate()
+    win.winHandle.on_deactivate = lambda: out_func("Window deactivated")
+    # win.winHandle.set_caption(win.title)
     win.mouseVisible = False  # hides the mouse pointer
+    # win.winHandle.activate()
 
     # log script started event
     log(
@@ -276,7 +292,7 @@ def do_main(
     t_end = t_start + duration if duration > 0 else None
 
     logger.debug(f"warming time: {(t_start-t0):.6f} sec")
-    logger.info(f"starting loop with {ntrials} trials...")
+    logger.debug(f"starting loop with {ntrials} trials...")
 
     terminate: bool = False
 
@@ -316,8 +332,28 @@ def do_main(
                     terminate = True
                     break
                 keys = check_keys(0.2)
-                if keys and len(keys) > 0:
+                # only break if 5 or exit keys are pressed
+                if (
+                    keys
+                    and len(keys) > 0
+                    and (
+                        "q" in keys
+                        or "escape" in keys
+                        or "5" in keys
+                        or "num_5" in keys
+                    )
+                ):
                     break
+                # additional check the series if any expired
+                # inside the trigger pulse waiting loop
+                if (
+                    cur_series
+                    and cur_series.tr_count > 0
+                    and (time() - cur_series.tr_last_time) > cur_series.tr_timeout
+                ):
+                    logger.debug("series expired")
+                    cur_series = series_end(cur_series)
+
             # break external loop/terminate
             if terminate:
                 break
@@ -403,6 +439,11 @@ def do_main(
         rec["prior_time_off"] = toff
         rec["prior_time_off_str"] = toff_str
         log(f, rec)
+        out_func(
+            f"Trigger pulse: acq={acqNum}, "
+            f"series={cur_series.num if cur_series else 'N/A'}, "
+            f"keys={keys}"
+        )
         # update trigger event series data
         if cur_series:
             cur_series.tr_count = cur_series.tr_count + 1
