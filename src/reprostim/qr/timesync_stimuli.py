@@ -24,6 +24,8 @@ logger.info("reprostim timesync-stimuli script started")
 #######################################################
 # Constants
 
+MAX_TR_TIMEOUT: float = 4.0
+
 
 # Enum for the log event names
 class EventName(str, Enum):
@@ -53,7 +55,8 @@ class Mode(str, Enum):
 class SeriesData:
     num: int  # series number
     tr_count: int = 0  # trigger events count in the series
-    tr_timeout: float = 4.0  # trigger event max timeout, default is 4
+    tr_last_time: float = None  # last trigger event time()
+    tr_timeout: float = MAX_TR_TIMEOUT  # trigger event max timeout
 
 
 #######################################################
@@ -182,7 +185,8 @@ def do_main(
         return keys if keys else []
 
     def series_begin(series_num: int) -> SeriesData:
-        sd = SeriesData(num=series_num, tr_count=0, tr_timeout=4.0)
+        sd = SeriesData(num=series_num, tr_count=0, tr_timeout=MAX_TR_TIMEOUT)
+        logger.debug(f"series begin: {sd.num}")
         # log series begin event
         nonlocal f
         log(
@@ -198,6 +202,7 @@ def do_main(
 
     def series_end(sd: SeriesData) -> SeriesData:
         if sd:
+            logger.debug(f"series end: {sd.num}")
             # log series end event
             nonlocal f
             log(
@@ -310,12 +315,28 @@ def do_main(
                     out_func("Time is up!")
                     terminate = True
                     break
-                keys = check_keys(1)
+                keys = check_keys(0.2)
                 if keys and len(keys) > 0:
                     break
             # break external loop/terminate
             if terminate:
                 break
+
+            if cur_series and cur_series.tr_count > 0:
+                # calculate time delta from last impulse if any
+                dt: float = time() - cur_series.tr_last_time
+
+                if dt > cur_series.tr_timeout:
+                    logger.debug(f"timed out after {dt} sec, renew series")
+                    cur_series = series_end(cur_series)
+                else:
+                    # after receiving two first consecutive triggers
+                    # pulses -- take the temporal distance between
+                    # them +50% as the next value of tr_timeout
+                    if cur_series.tr_count == 1:
+                        cur_series.tr_timeout = dt * 1.5
+                        logger.debug(f"update tr_timeout: {cur_series.tr_timeout}")
+
         elif mode == Mode.INTERVAL:
             # keys = kb.getKeys(waitRelease=False)
             keys = check_keys()
@@ -382,8 +403,10 @@ def do_main(
         rec["prior_time_off"] = toff
         rec["prior_time_off_str"] = toff_str
         log(f, rec)
+        # update trigger event series data
         if cur_series:
             cur_series.tr_count = cur_series.tr_count + 1
+            cur_series.tr_last_time = tkeys
         if "q" in keys or "escape" in keys:
             break
 
