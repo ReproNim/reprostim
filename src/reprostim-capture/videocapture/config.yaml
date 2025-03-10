@@ -48,6 +48,8 @@ conduct_opts:
 # and automatically start/stop related subprocess/script.
 #
 ext_proc_opts:
+    # to enable external processes set "enabled" to "true"
+    enabled: true
     # to execute on connect of new display or change of resolution detected
     status_command: "xrandr"
     # milliseconds to wait until running status_command
