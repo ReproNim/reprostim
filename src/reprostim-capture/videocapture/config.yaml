@@ -30,6 +30,7 @@ session_logger_level: "DEBUG"
 # specify session log line format, from spdlog library
 session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
 
+
 #
 # Specify con/duct options to execute ffmpeg command
 #
@@ -57,9 +58,12 @@ ext_proc_opts:
     # regex to match in the output of status_command, if matched run
     # "exec_command"
     status_regex: "^HDMI-0 connected"
-    exec_command: ~/Projects/Dartmouth/branches/reprostim/tools/repronim-reprostim-timesync-stimuli
+    # external process command to run
+    exec_command: "~/Projects/Dartmouth/branches/reprostim/tools/repronim-reprostim-timesync-stimuli"
+    # exec_command: "~/Projects/Dartmouth/branches/reprostim/tools/reprostim-display-bound-command"
     # Not implemented, do not even bother if it dies ATM
-    # exec_restart_on_exit: false
+    exec_restart_on_exit: false
+
 
 #
 # Specify ReproNim/repromon options

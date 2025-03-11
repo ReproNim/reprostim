@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-$OLD_CUR_DIR="$(pwd)"
+OLD_CUR_DIR="$(pwd)"
 
 
 echo "Run timesync-stimuli command in singularity container"

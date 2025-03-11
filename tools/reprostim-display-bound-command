@@ -2,6 +2,6 @@
 
 echo "Sample bound proc start"
 
-sleep 100
+sleep 1000
 
 echo "Sample bound proc stop"
