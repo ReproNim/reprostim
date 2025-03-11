@@ -209,8 +209,13 @@ void ExtProcThread::run() {
 		fExec = runAndMatchStatusCommand(opts, false);
 
 		if (fExec && !opts.exec_command.empty()) {
-			_INFO("TODO: Execute exec command: " << opts.exec_command);
-			// exec(opts.exec_command);
+			_INFO("Execute external process command: " << opts.exec_command);
+			exec(opts.exec_command,
+				true, !getParams().fTopLogExtProc, 48,
+				[this]() {
+					return isTerminated();
+				}
+			);
 		}
 	} catch(std::exception& e) {
 		_ERROR("ExtProcThread unhandled exception: " << e.what());
@@ -223,7 +228,7 @@ void ExtProcThread::run() {
 
 // specialization/override for default WorkerThread::run
 template<>
-void FfmpegThread ::run() {
+void FfmpegThread::run() {
 	_SESSION_LOG_BEGIN(getParams().pLogger);
 	_FFMPEG_KEEP_ALIVE();
 
@@ -640,12 +645,11 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 		_VERBOSE("Starting external process...");
 		ExtProcThread *pte = ExtProcThread::newInstance(ExtProcParams{
 				cfg.ext_proc_opts,
-				pLogger
+				pLogger,
+				m_fTopLogFfmpeg
 		});
-
 		m_extProcExec.schedule(pte);
 	}
-
 }
 
 void VideoCaptureApp::stopRecording(const std::string& start_ts,
@@ -664,7 +668,10 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 	}
 
 	if (cfg.ext_proc_opts.enabled) {
-		_INFO("terminating external process with SIGKILL");
+		_INFO("terminating external process with SIGINT");
+		killExtProc(cfg.ext_proc_opts.exec_command, SIGINT);
+		SLEEP_SEC(1.5);
+		_INFO("terminating external process with SIGTERM");
 		killExtProc(cfg.ext_proc_opts.exec_command, SIGTERM);
 	}
 

@@ -14,6 +14,7 @@ using namespace reprostim;
 struct ExtProcParams {
 	const ExtProcOpts       opts; // passed all options by value
 	const SessionLogger_ptr pLogger;
+	const bool              fTopLogExtProc;
 };
 
 
