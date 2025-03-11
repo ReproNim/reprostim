@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 from datetime import datetime
 from enum import Enum
 
@@ -177,6 +178,8 @@ def do_main(
         save_audiocode,
     )
 
+    sys_shutdown: bool = False
+
     def check_keys(max_wait: float = 0) -> list[str]:
         keys: list[str]
         if max_wait > 0:
@@ -185,6 +188,13 @@ def do_main(
             keys = event.getKeys()
         logger.debug(f"keys={keys}")
         return keys if keys else []
+
+    def on_signal(signum, frame):
+        logger.info(f"Received system signal: {signum}")
+        if signum in [2, 15] :
+            nonlocal sys_shutdown
+            logger.debug("setting sys_shutdown=True")
+            sys_shutdown = True
 
     def series_begin(series_num: int) -> SeriesData:
         sd = SeriesData(num=series_num, tr_count=0, tr_timeout=MAX_TR_TIMEOUT)
@@ -230,6 +240,11 @@ def do_main(
     if mode == Mode.DEVICES:
         list_audio_devices()
         return 0
+
+    # register signal hook
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+
 
     audio_data: int = 0
     audio_file: str = None
@@ -326,6 +341,9 @@ def do_main(
         if mode == Mode.EVENT:
             out_func("Waiting for an event...")
             while True:
+                if sys_shutdown:
+                    break
+
                 # check the duration time limit
                 if t_end and time() > t_end:
                     out_func("Time is up!")
@@ -358,6 +376,10 @@ def do_main(
             if terminate:
                 break
 
+            if sys_shutdown:
+                out_func("Shutdown timesync-stimuli...")
+                break
+
             if cur_series and cur_series.tr_count > 0:
                 # calculate time delta from last impulse if any
                 dt: float = time() - cur_series.tr_last_time
@@ -385,6 +407,12 @@ def do_main(
             # busy loop without sleep to not miss it
             while time() < target_time:
                 sleep(0)  # pass CPU to other threads
+                if sys_shutdown:
+                    break
+            # 2nd break
+            if sys_shutdown:
+                out_func("Shutdown timesync-stimuli...")
+                break
         else:
             raise ValueError(mode)
 
