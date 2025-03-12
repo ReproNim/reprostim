@@ -8,6 +8,16 @@
 //
 using namespace reprostim;
 
+
+// external proc params, make sure it's thread-safe in usage
+// as shared between threads
+struct ExtProcParams {
+	const ExtProcOpts       opts; // passed all options by value
+	const SessionLogger_ptr pLogger;
+	const bool              fTopLogExtProc;
+};
+
+
 // ffmpeg params shared between threads
 // make sure it's thread-safe in usage
 struct FfmpegParams {
@@ -26,13 +36,18 @@ struct FfmpegParams {
 	const std::string       duct_prefix;
 };
 
+
+using ExtProcThread = WorkerThread<ExtProcParams>;
 using FfmpegThread = WorkerThread<FfmpegParams>;
+
 
 class VideoCaptureApp: public CaptureApp {
 private:
-	SingleThreadExecutor<FfmpegThread> m_ffmpegExec;
-	bool                               m_fTopLogFfmpeg;
+	SingleThreadExecutor<ExtProcThread> m_extProcExec;
+	SingleThreadExecutor<FfmpegThread>  m_ffmpegExec;
+	bool                                m_fTopLogFfmpeg;
 
+	void checkExtProc(const std::string& mode);
 	void onCaptureStartInternal(bool fRecovery	= false);
 
 	void startRecording(int cx, int cy, const std::string& frameRate,

@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -338,6 +339,21 @@ namespace reprostim {
 		return oss.str();
 	}
 
+// get the children of a process by examining the /proc filesystem (Linux-specific)
+	std::vector<pid_t> getProcChildren(pid_t pid) {
+		std::vector<pid_t> children;
+		std::string path = "/proc/" + std::to_string(pid) + "/task/" + std::to_string(pid) + "/children";
+		std::ifstream child_file(path);
+
+		if (child_file) {
+			pid_t child_pid;
+			while (child_file >> child_pid) {
+				children.push_back(child_pid);
+			}
+		}
+		return children;
+	}
+
 	std::vector<std::string> getVideoDevicePaths(const std::string &pattern) {
 		glob_t glob_result;
 		memset(&glob_result, 0, sizeof(glob_result));
@@ -461,6 +477,30 @@ namespace reprostim {
 	bool isSysBreakExec() {
 		return s_nSysBreakExec == 0 ? false : true;
 	}
+
+
+// kill a process and all of its children recursively optionally
+	void killProcById(pid_t pid, int sig, bool recursive) {
+		try {
+			if (kill(pid, 0) == 0) {  // Signal 0 checks if the process exists
+				if (recursive) {
+					// Get all children of the process
+					auto children = getProcChildren(pid);
+
+					// kill all children first
+					for (pid_t cpid: children) {
+						killProcById(cpid, sig, recursive);  // Send terminate signal
+					}
+				}
+
+				int res = kill(pid, sig);
+				_INFO("Kill process, signal=" << sig << ", pid=" << pid << ", result=" << res);
+			}
+		} catch (const std::exception &e) {
+			_ERROR("Failed kill process: " << e.what());
+		}
+	}
+
 
 	static void listAudioControls(const std::string &cardName,
 								  const std::string &indent)

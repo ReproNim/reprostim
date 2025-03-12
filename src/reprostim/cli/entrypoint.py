@@ -28,8 +28,10 @@ def print_version(ctx, value):
     "-l",
     "--log-level",
     default="INFO",
-    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
-    help="Set the logging level. Default is INFO.",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
+    ),
+    help="Set the logging level, case-insensitive. Default is INFO.",
 )
 @click.option(
     "-f",
@@ -39,7 +41,7 @@ def print_version(ctx, value):
     "Python 'logging.Formatter' documentation.",
 )
 @click.pass_context
-def main(ctx, log_level, log_format):
+def main(ctx, log_level: str, log_format):
     """Command-line interface to run ReproStim tools and services.
     To see help for the specific command, run:
 
@@ -49,7 +51,7 @@ def main(ctx, log_level, log_format):
     """
     # some commands require logging to stderr
     log_to_stderr: bool = ctx.invoked_subcommand in ("qr-parse",)
-    _init_logger(log_level, log_format, log_to_stderr)
+    _init_logger(log_level.upper(), log_format, log_to_stderr)
     logger.debug(f"{__reprostim_name__} v{__version__}")
     logger.debug(f"main(...), command={ctx.invoked_subcommand}")
 
@@ -57,6 +59,8 @@ def main(ctx, log_level, log_format):
 # Import all CLI commands
 from .cmd_detect_noscreen import detect_noscreen  # noqa: E402
 from .cmd_echo import echo  # noqa: E402
+from .cmd_list_displays import list_displays  # noqa: E402
+from .cmd_monitor_displays import monitor_displays  # noqa: E402
 from .cmd_qr_parse import qr_parse  # noqa: E402
 from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
 
@@ -64,6 +68,8 @@ from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
 __all_commands__ = (
     detect_noscreen,
     echo,
+    list_displays,
+    monitor_displays,
     qr_parse,
     timesync_stimuli,
 )

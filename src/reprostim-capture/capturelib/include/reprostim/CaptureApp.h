@@ -27,6 +27,16 @@ namespace reprostim {
 		std::string  duct_bin;
 	};
 
+	// optional external process hook options
+	struct ExtProcOpts {
+		bool         enabled = false;
+		std::string  status_command;
+		int          status_delay_ms = 0;
+		std::string  status_regex;
+		std::string  exec_command;
+		bool         exec_restart_on_exit = false;
+	};
+
 	struct FfmpegOpts {
 		std::string a_fmt;
 		std::string a_nchan;
@@ -57,6 +67,7 @@ namespace reprostim {
 		std::string  session_logger_pattern;
 		std::string  video_device_path_pattern;
 		ConductOpts  conduct_opts;
+		ExtProcOpts  ext_proc_opts;
 		RepromonOpts repromon_opts;
 		FfmpegOpts   ffm_opts;
 	};

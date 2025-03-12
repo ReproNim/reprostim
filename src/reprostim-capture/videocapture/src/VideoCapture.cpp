@@ -53,6 +53,7 @@
 #include <sysexits.h>
 #include <getopt.h>
 #include <csignal>
+#include <regex>
 #include "VideoCapture.h"
 
 using namespace reprostim;
@@ -104,6 +105,26 @@ bool killProc(const std::string& procName,
 	return pid.length()==0?true:false;
 }
 
+
+bool killExtProc(const std::string& cmd,
+			  int sig = SIGKILL) {
+	std::string pid = exec("pgrep -o -f " + cmd);
+	_INFO("Kill external process, pid: " << pid.c_str());
+	if( pid.length() > 0 ) {
+		killProcById(std::stoi(pid), sig, true);
+		/*
+		// this doesn't work well with singularity containers and python
+		// so used custom terminateProc
+		std::string killCmd = "pkill --signal " + std::to_string(sig) + " -P " + pid;
+		_INFO("Kill ext proc command: " << killCmd);
+		system(killCmd.c_str());
+		*/
+		return true;
+	}
+	return false;
+}
+
+
 void renameConductFiles(const std::string &old_prefix, const std::string &new_prefix) {
 	std::string o1 = old_prefix + "info.json";
 	std::string n1 = new_prefix + "info.json";
@@ -135,10 +156,79 @@ std::string renameVideoFile(
 	return outVideoFile2;
 }
 
+bool runAndMatchStatusCommand(const ExtProcOpts& opts, bool fDump) {
+	bool fExec = false;
+	if (fDump) {
+		_INFO("  [STATUS COMMAND]  : " << opts.status_command);
+	}
+
+	if (!opts.status_command.empty()) {
+		_VERBOSE("Execute status command: " << opts.status_command);
+		std::string status_res = exec(opts.status_command);
+		_VERBOSE("Status command result: " << status_res);
+		if (fDump) {
+			_INFO("  [OUTPUT]          : " << status_res);
+			_INFO("  [REGEX]           : " << opts.status_regex);
+		}
+
+		if (!opts.status_regex.empty()) {
+			_VERBOSE("Check status regex: " << opts.status_regex);
+			std::regex pattern(opts.status_regex, std::regex_constants::multiline);
+			std::smatch match;
+			if (std::regex_search(status_res, match, pattern)) {
+				_VERBOSE("Status command matches regex: " << match.str());
+				if (fDump) {
+					_INFO("  [MATCHED]         : " << match.str());
+				}
+				fExec = true;
+			} else {
+				_INFO("  [NOT MATCHED]");
+				fExec = false;
+			}
+		}
+	}
+	return fExec;
+}
+
 
 // specialization/override for default WorkerThread::run
 template<>
-void FfmpegThread ::run() {
+void ExtProcThread::run() {
+	_SESSION_LOG_BEGIN(getParams().pLogger);
+	std::thread::id tid= std::this_thread::get_id();
+
+	const ExtProcOpts& opts = getParams().opts;
+
+	try {
+		// specify if exec_command should be executed
+		bool fExec = false;
+		if (opts.status_delay_ms>0) {
+			_INFO("Sleeping status delay...");
+			SLEEP_MS(opts.status_delay_ms);
+		}
+		fExec = runAndMatchStatusCommand(opts, false);
+
+		if (fExec && !opts.exec_command.empty()) {
+			_INFO("Execute external process command: " << opts.exec_command);
+			exec(opts.exec_command,
+				true, !getParams().fTopLogExtProc, 48,
+				[this]() {
+					return isTerminated();
+				}
+			);
+		}
+	} catch(std::exception& e) {
+		_ERROR("ExtProcThread unhandled exception: " << e.what());
+	}
+	_VERBOSE("ExtProcThread terminating [" << tid << "]: ");
+
+	_SESSION_LOG_END();
+}
+
+
+// specialization/override for default WorkerThread::run
+template<>
+void FfmpegThread::run() {
 	_SESSION_LOG_BEGIN(getParams().pLogger);
 	_FFMPEG_KEEP_ALIVE();
 
@@ -208,6 +298,39 @@ VideoCaptureApp::VideoCaptureApp() {
 
 VideoCaptureApp::~VideoCaptureApp() {
 	m_ffmpegExec.shutdown();
+	m_extProcExec.shutdown();
+}
+
+void VideoCaptureApp::checkExtProc(const std::string& mode) {
+	printVersion();
+	if( !(mode == "all" || mode == "status" || mode == "exec") ) {
+		_ERROR("Invalid command type: " << mode << ", must be 'all', 'status' or 'exec'");
+		return;
+	}
+
+	bool fExec = true;
+	if(mode == "all" || mode == "status" ) {
+		_INFO(" ");
+		_INFO("[Check status command]:");
+		fExec = runAndMatchStatusCommand(cfg.ext_proc_opts, true);
+	}
+
+	if( fExec && (mode == "all" || mode == "exec") ) {
+		std::string cmd = cfg.ext_proc_opts.exec_command;
+		// create background thread to execute test kill command
+		std::thread([cmd]() {
+			SLEEP_SEC(1*60);
+			_INFO("Kill external process command for testing purposes");
+			killExtProc("\"" + cmd + "\"", SIGTERM);
+		}).detach(); // run in the background
+
+		_INFO(" ");
+		_INFO("[Check exec command]: pid=" << getpid());
+		_INFO("  [EXEC COMMAND]  : " << cmd);
+		_INFO("  [OUTPUT]        : ");
+		exec(cmd, true);
+		_INFO("  [DONE]");
+	}
 }
 
 void VideoCaptureApp::onCaptureIdle() {
@@ -298,6 +421,15 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 								 "\t         \t  audio : list only audio devices information\n"
 								 "\t         \t  video : list only video devices information\n"
 								 "\t         \tDefault value is \"all\"\n"
+								 "\t-e, --ext-proc <mode>\n"
+								 "\t         \tExecute external proc commands for debug purposes.\n"
+								 "\t         \tCan be used to manually check status/exec commands\n"
+								 "\t         \tconfiguration and regex pattern.\n"
+								 "\t         \tSupported <mode> values:\n"
+								 "\t         \t  all    : execute both status and exec commands\n"
+								 "\t         \t  status : run only status command and regex\n"
+								 "\t         \t  exec   : run external process command\n"
+								 "\t         \tDefault value is \"status\"\n"
 								 "\t-h, --help\n"
 								 "\t         \tPrint this help string\n";
 
@@ -313,13 +445,15 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 			{"verbose", no_argument, nullptr, 'v'},
 			{"version", no_argument, nullptr, 1000},
 			{"list-devices", optional_argument, nullptr, 'l'},
+			{"ext-proc", optional_argument, nullptr, 'e'},
 			{"file-log", required_argument, nullptr, 'f'},
 			{nullptr, 0, nullptr, 0}
 	};
 
 	m_fTopLogFfmpeg = false;
+	bool fExtProc = false;
 
-	while ((c = getopt_long(argc, argv, "o:c:d:f:hvVlt", longOpts, nullptr)) != -1) {
+	while ((c = getopt_long(argc, argv, "o:c:d:f:hvVlet", longOpts, nullptr)) != -1) {
 		switch(c) {
 			case 'o':
 				if(optarg) opts.outPathTempl = optarg;
@@ -344,6 +478,9 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 					listDevices(devices);
 				}
 				return 1;
+			case 'e':
+				fExtProc = true;
+				break;
 			case 'v':
 				opts.verbose = true;
 				break;
@@ -379,6 +516,28 @@ int VideoCaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
 	if( opts.outPathTempl.empty() ) {
 		opts.outPathTempl = opts.homePath + "/Videos/{year}/{month}";
 	}
+
+
+	// run check external process command
+	if (fExtProc) {
+		// preload config manually
+		setVerbose(opts.verbose);
+		if( !loadConfig(cfg, opts.configPath) ) {
+			// config.yaml load/parse problems
+			return 1;
+		}
+
+		std::string mode = "status";
+		if (optarg) {
+			mode = std::string(optarg);
+		} else if (optind < argc && argv[optind][0] != '-') {
+			mode = std::string(argv[optind]);
+			optind++;
+		}
+		checkExtProc(mode);
+		return 1;
+	}
+
 	return EX_OK;
 }
 
@@ -464,7 +623,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 		_INFO("Con/duct command: " << cmd);
 	}
 	_VERBOSE("Created session logger: session_logger_" << start_ts);
-	FfmpegThread* pt = FfmpegThread::newInstance(FfmpegParams{
+	FfmpegThread* ptf = FfmpegThread::newInstance(FfmpegParams{
 			appName,
 			cmd,
 			ffmpg,
@@ -480,7 +639,17 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			duct_prefix
 	});
 
-	m_ffmpegExec.schedule(pt);
+	m_ffmpegExec.schedule(ptf);
+
+	if (cfg.ext_proc_opts.enabled) {
+		_VERBOSE("Starting external process...");
+		ExtProcThread *pte = ExtProcThread::newInstance(ExtProcParams{
+				cfg.ext_proc_opts,
+				pLogger,
+				m_fTopLogFfmpeg
+		});
+		m_extProcExec.schedule(pte);
+	}
 }
 
 void VideoCaptureApp::stopRecording(const std::string& start_ts,
@@ -498,8 +667,17 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 		}
 	}
 
+	if (cfg.ext_proc_opts.enabled) {
+		_INFO("terminating external process with SIGINT");
+		killExtProc(cfg.ext_proc_opts.exec_command, SIGINT);
+		SLEEP_SEC(1.5);
+		_INFO("terminating external process with SIGTERM");
+		killExtProc(cfg.ext_proc_opts.exec_command, SIGTERM);
+	}
+
 	_SESSION_LOG_END();
 	m_ffmpegExec.schedule(nullptr);
+	m_extProcExec.schedule(nullptr);
 
 	// finally double check file again, as sometime ffmpeg
 	// process killed while unfinished video file exists

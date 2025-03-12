@@ -217,6 +217,19 @@ namespace reprostim {
 			opts.duct_bin = node["duct_bin"].as<std::string>();
 		}
 
+
+		// load ext_proc_opts
+		if( doc["ext_proc_opts"] ) {
+			YAML::Node node = doc["ext_proc_opts"];
+			ExtProcOpts& opts = cfg.ext_proc_opts;
+			opts.enabled = node["enabled"].as<bool>();
+			opts.status_command = node["status_command"].as<std::string>();
+			opts.status_delay_ms = node["status_delay_ms"].as<int>();
+			opts.status_regex = node["status_regex"].as<std::string>();
+			opts.exec_command = node["exec_command"].as<std::string>();
+			opts.exec_restart_on_exit = node["exec_restart_on_exit"].as<bool>();
+		}
+
 		// load repromon_opts
 		if( doc["repromon_opts"] ) {
 			YAML::Node node = doc["repromon_opts"];

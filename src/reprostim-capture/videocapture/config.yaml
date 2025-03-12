@@ -30,6 +30,7 @@ session_logger_level: "DEBUG"
 # specify session log line format, from spdlog library
 session_logger_pattern: "%Y-%m-%d %H:%M:%S.%e [%l] [%t] %v"
 
+
 #
 # Specify con/duct options to execute ffmpeg command
 #
@@ -41,6 +42,28 @@ conduct_opts:
     cmd: "${duct_bin} -l NONE -p ${prefix} -c none --sample-interval 10 --report-interval 60 ${ffmpeg_cmd}"
     # specify con/duct tool path/etc
     duct_bin: "duct"
+
+#
+# External process/hook to control Magewell USB capture device connect/disconnect events.
+# Can be used to monitor certain display connection status with "xrandr"
+# and automatically start/stop related subprocess/script.
+#
+ext_proc_opts:
+    # to enable external processes set "enabled" to "true"
+    enabled: true
+    # to execute on connect of new display or change of resolution detected
+    status_command: "xrandr"
+    # milliseconds to wait until running status_command
+    status_delay_ms: 2000
+    # regex to match in the output of status_command, if matched run
+    # "exec_command"
+    status_regex: "^HDMI-0 connected"
+    # external process command to run
+    exec_command: "~/Projects/Dartmouth/branches/reprostim/tools/repronim-reprostim-timesync-stimuli"
+    # exec_command: "~/Projects/Dartmouth/branches/reprostim/tools/reprostim-display-bound-command"
+    # Not implemented, do not even bother if it dies ATM
+    exec_restart_on_exit: false
+
 
 #
 # Specify ReproNim/repromon options

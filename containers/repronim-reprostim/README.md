@@ -116,6 +116,7 @@ singularity overlay create \
 
 sudo singularity exec \
   --overlay repronim-reprostim-0.7.5.overlay \
+  --cleanenv --contain -B ${REPROSTIM_PATH} \
   repronim-reprostim-0.7.5.sing \
   bash
 ```
@@ -127,6 +128,26 @@ apt-get install pulseaudio-utils
 pactl
 exit
 ```
+
+Optionally also uninstall current reprostim and install it from the local path:
+```shell
+sudo singularity exec \
+  --overlay repronim-reprostim-0.7.5.overlay \
+  --cleanenv --contain -B ${REPROSTIM_PATH} \
+  repronim-reprostim-0.7.5.sing \
+  /opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip uninstall reprostim
+
+
+sudo singularity exec \
+  --overlay repronim-reprostim-0.7.5.overlay \
+  --cleanenv --contain -B ${REPROSTIM_PATH} \
+  repronim-reprostim-0.7.5.sing \
+  /opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install ${REPROSTIM_PATH}/dist/reprostim-0.7.8.tar.gz[all,disp_mon]
+```
+
+
+
+```shell
 
 And now run the script with overlay:
 
@@ -195,6 +216,6 @@ singularity exec \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
   --overlay ./repronim-reprostim-0.7.5.overlay \
   ./repronim-reprostim-0.7.5.sing \
-  ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
+  python3 -m reprostim timesync-stimuli --display 1 
 
 ```

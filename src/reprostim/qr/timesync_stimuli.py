@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
-
+from dataclasses import dataclass
 from time import sleep, time
 
 t0 = time()
@@ -11,10 +11,13 @@ import json
 import logging
 import os
 import shutil
+import signal
 from datetime import datetime
 from enum import Enum
 
 import qrcode
+
+from ..__about__ import __version__
 
 # setup logging
 logger = logging.getLogger(__name__)
@@ -23,6 +26,16 @@ logger.info("reprostim timesync-stimuli script started")
 
 #######################################################
 # Constants
+
+MAX_TR_TIMEOUT: float = 4.0
+
+
+# Enum for the log event names
+class EventName(str, Enum):
+    STARTED = "started"
+    SERIES_BEGIN = "series_begin"
+    SERIES_END = "series_end"
+    TRIGGER = "trigger"
 
 
 # Enum for the mode of the script operation
@@ -35,6 +48,18 @@ class Mode(str, Enum):
     BEEP = "beep"
     # List audio/video devices
     DEVICES = "devices"
+
+
+#######################################################
+# Classes
+
+
+@dataclass
+class SeriesData:
+    num: int  # series number
+    tr_count: int = 0  # trigger events count in the series
+    tr_last_time: float = None  # last trigger event time()
+    tr_timeout: float = MAX_TR_TIMEOUT  # trigger event max timeout
 
 
 #######################################################
@@ -69,18 +94,14 @@ def log(f, rec):
     logger.debug(f"LOG {s}")
 
 
-def mkrec(mode, logfn, interval, **kwargs):
+def mkrec(**kwargs):
     t, tstr = get_times()
     kwargs.update(
         {
-            "logfn": logfn,
             "time": t,
             "time_formatted": tstr,
-            "mode": mode,
         }
     )
-    if mode == "interval":
-        kwargs["interval"] = interval
     return kwargs
 
 
@@ -117,6 +138,8 @@ def do_init(logfn: str) -> bool:
 def do_main(
     mode: Mode,
     logfn: str,
+    is_fullscreen: bool,
+    win_size: tuple[int, int],
     display: int,
     qr_scale: float,
     audio_codec: str,
@@ -125,6 +148,7 @@ def do_main(
     duration: float,
     interval: float,
     keep_audiocode: bool,
+    out_func=print,
 ) -> int:
     logger.info("main script started")
 
@@ -154,6 +178,8 @@ def do_main(
         save_audiocode,
     )
 
+    sys_shutdown: bool = False
+
     def check_keys(max_wait: float = 0) -> list[str]:
         keys: list[str]
         if max_wait > 0:
@@ -162,6 +188,48 @@ def do_main(
             keys = event.getKeys()
         logger.debug(f"keys={keys}")
         return keys if keys else []
+
+    def on_signal(signum, frame):
+        logger.info(f"Received system signal: {signum}")
+        if signum in [2, 15] :
+            nonlocal sys_shutdown
+            logger.debug("setting sys_shutdown=True")
+            sys_shutdown = True
+
+    def series_begin(series_num: int) -> SeriesData:
+        sd = SeriesData(num=series_num, tr_count=0, tr_timeout=MAX_TR_TIMEOUT)
+        logger.debug(f"series begin: {sd.num}")
+        # log series begin event
+        nonlocal f
+        log(
+            f,
+            mkrec(
+                event=EventName.SERIES_BEGIN,
+                mode=mode,
+                logfn=logfn,
+                series_num=sd.num,
+            ),
+        )
+        out_func(f"Series [{sd.num}] started")
+        return sd
+
+    def series_end(sd: SeriesData) -> SeriesData:
+        if sd:
+            logger.debug(f"series end: {sd.num}")
+            # log series end event
+            nonlocal f
+            log(
+                f,
+                mkrec(
+                    event=EventName.SERIES_END,
+                    mode=mode,
+                    logfn=logfn,
+                    series_num=sd.num,
+                    trigger_count=sd.tr_count,
+                ),
+            )
+            out_func(f"Series [{sd.num}] ended, trigger count: {sd.tr_count}")
+        return None
 
     if mode == Mode.BEEP:
         for _ in range(ntrials):
@@ -173,21 +241,38 @@ def do_main(
         list_audio_devices()
         return 0
 
+    # register signal hook
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+
+
     audio_data: int = 0
     audio_file: str = None
     audio_info: AudioCodeInfo = None
     f = open(logfn, "w")
 
-    win = visual.Window(fullscr=True, screen=display)
+    win = visual.Window(
+        fullscr=is_fullscreen,
+        title=f"ReproStim timesync-stimuli v{__version__}",
+        name="timesync-stimuli",
+        size=win_size,
+        screen=display,
+    )
+    logger.debug(f"win.winHandle class: {type(win.winHandle).__name__}")
+    win.winHandle.on_activate = lambda: out_func("Window activated")
+    win.winHandle.on_activate()
+    win.winHandle.on_deactivate = lambda: out_func("Window deactivated")
+    # win.winHandle.set_caption(win.title)
     win.mouseVisible = False  # hides the mouse pointer
+    # win.winHandle.activate()
 
+    # log script started event
     log(
         f,
         mkrec(
-            mode,
-            logfn,
-            interval,
-            event="started",
+            event=EventName.STARTED,
+            mode=mode,
+            logfn=logfn,
             start_time=t0,
             start_time_formatted=get_iso_time(t0),
         ),
@@ -219,32 +304,100 @@ def do_main(
     # kb = keyboard.Keyboard()
 
     t_start = time()
+    t_end = t_start + duration if duration > 0 else None
 
     logger.debug(f"warming time: {(t_start-t0):.6f} sec")
-    logger.info(f"starting loop with {ntrials} trials...")
+    logger.debug(f"starting loop with {ntrials} trials...")
+
+    terminate: bool = False
+
+    series_num: int = 0
+    cur_series: SeriesData = None
 
     for acqNum in range(ntrials):
+        # check the duration time limit
+        if t_end and time() > t_end:
+            out_func("Time is up!")
+            terminate = True
+
+        # exit processing loop if requested
+        if terminate:
+            break
+
         logger.debug(f"trial {acqNum}")
 
-        rec = mkrec(mode, logfn, interval, event="trigger", acqNum=acqNum)
+        # prepare audio code file if any
+        if not mute:
+            if keep_audiocode and audio_file:
+                store_audiocode(audio_file, audio_data, logfn)
+            safe_remove(audio_file)
+            audio_data = acqNum
+            audio_file, audio_info_ = save_audiocode(
+                code_uint16=audio_data, codec=audio_codec
+            )
+            audio_info = audio_info_
+            logger.debug(f"  {audio_info}")
 
         if mode == Mode.EVENT:
-            print("Waiting for an event")
-            keys = check_keys(120)  # keyList=['5'])
+            out_func("Waiting for an event...")
+            while True:
+                if sys_shutdown:
+                    break
+
+                # check the duration time limit
+                if t_end and time() > t_end:
+                    out_func("Time is up!")
+                    terminate = True
+                    break
+                keys = check_keys(0.2)
+                # only break if 5 or exit keys are pressed
+                if (
+                    keys
+                    and len(keys) > 0
+                    and (
+                        "q" in keys
+                        or "escape" in keys
+                        or "5" in keys
+                        or "num_5" in keys
+                    )
+                ):
+                    break
+                # additional check the series if any expired
+                # inside the trigger pulse waiting loop
+                if (
+                    cur_series
+                    and cur_series.tr_count > 0
+                    and (time() - cur_series.tr_last_time) > cur_series.tr_timeout
+                ):
+                    logger.debug("series expired")
+                    cur_series = series_end(cur_series)
+
+            # break external loop/terminate
+            if terminate:
+                break
+
+            if sys_shutdown:
+                out_func("Shutdown timesync-stimuli...")
+                break
+
+            if cur_series and cur_series.tr_count > 0:
+                # calculate time delta from last impulse if any
+                dt: float = time() - cur_series.tr_last_time
+
+                if dt > cur_series.tr_timeout:
+                    logger.debug(f"timed out after {dt} sec, renew series")
+                    cur_series = series_end(cur_series)
+                else:
+                    # after receiving two first consecutive triggers
+                    # pulses -- take the temporal distance between
+                    # them +50% as the next value of tr_timeout
+                    if cur_series.tr_count == 1:
+                        cur_series.tr_timeout = dt * 1.5
+                        logger.debug(f"update tr_timeout: {cur_series.tr_timeout}")
+
         elif mode == Mode.INTERVAL:
             # keys = kb.getKeys(waitRelease=False)
             keys = check_keys()
-            # prepare audio code file if any
-            if not mute:
-                if keep_audiocode and audio_file:
-                    store_audiocode(audio_file, audio_data, logfn)
-                safe_remove(audio_file)
-                audio_data = acqNum
-                audio_file, audio_info_ = save_audiocode(
-                    code_uint16=audio_data, codec=audio_codec
-                )
-                audio_info = audio_info_
-                logger.debug(f"  {audio_info}")
 
             target_time = t_start + acqNum * interval
             to_wait = target_time - time()
@@ -254,8 +407,28 @@ def do_main(
             # busy loop without sleep to not miss it
             while time() < target_time:
                 sleep(0)  # pass CPU to other threads
+                if sys_shutdown:
+                    break
+            # 2nd break
+            if sys_shutdown:
+                out_func("Shutdown timesync-stimuli...")
+                break
         else:
             raise ValueError(mode)
+
+        # start series if not started
+        if not cur_series:
+            cur_series = series_begin(series_num)
+            series_num += 1
+
+        # trigger record,
+        rec = mkrec(event=EventName.TRIGGER, mode=mode, logfn=logfn, acqNum=acqNum)
+
+        if cur_series:
+            rec["series_num"] = cur_series.num
+
+        if mode == Mode.INTERVAL:
+            rec["interval"] = interval
 
         if not mute:
             play_audio(audio_file, async_=True)
@@ -294,8 +467,19 @@ def do_main(
         rec["prior_time_off"] = toff
         rec["prior_time_off_str"] = toff_str
         log(f, rec)
+        out_func(
+            f"Trigger pulse: acq={acqNum}, "
+            f"series={cur_series.num if cur_series else 'N/A'}, "
+            f"keys={keys}"
+        )
+        # update trigger event series data
+        if cur_series:
+            cur_series.tr_count = cur_series.tr_count + 1
+            cur_series.tr_last_time = tkeys
         if "q" in keys or "escape" in keys:
             break
+
+    cur_series = series_end(cur_series)
 
     f.close()
 

@@ -10,6 +10,7 @@
 #include <chrono>
 #include <thread>
 #include <cmath>
+#include <csignal>
 #include "LibMWCapture/MWCapture.h"
 #include "reprostim/CaptureVer.h"
 #include "reprostim/CaptureLog.h"
@@ -129,6 +130,9 @@ namespace reprostim {
 	// get file hash info in string format representing unique file snapshot in time
 	std::string getFileChangeHash(const std::string &filePath);
 
+	// get the children of a process by examining the /proc filesystem (Linux-specific)
+	std::vector<pid_t> getProcChildren(pid_t pid);
+
 	std::vector<std::string> getVideoDevicePaths(const std::string &pattern);
 
 	// NOTE: uses by-value result
@@ -151,6 +155,9 @@ namespace reprostim {
 	std::string getTimeIsoStr(const Timestamp &ts = CURRENT_TIMESTAMP());
 
 	bool isSysBreakExec();
+
+	// kill a process and all of its children recursively optionally
+	void killProcById(pid_t pid, int sig=SIGKILL, bool recursive=true);
 
 	void listAudioDevices();
 

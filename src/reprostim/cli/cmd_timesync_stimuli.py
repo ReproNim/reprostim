@@ -8,8 +8,6 @@ from datetime import datetime
 
 import click
 
-from ..qr.timesync_stimuli import Mode, do_init, do_main, get_output_file_name
-
 # setup logging
 logger = logging.getLogger(__name__)
 
@@ -18,9 +16,9 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice([mode.value for mode in Mode], case_sensitive=False),
-    default=Mode.EVENT,
-    help="Mode of operation: event, interval, or beep.",
+    type=click.Choice(["event", "interval", "beep", "devices"], case_sensitive=False),
+    default="event",
+    help="Mode of operation: 'event', 'interval', or 'beep', (default: event).",
 )
 @click.option(
     "-o",
@@ -28,6 +26,22 @@ logger = logging.getLogger(__name__)
     default="output_",
     type=str,
     help="Output log file name prefix.",
+)
+@click.option(
+    "-w",
+    "--windowed",
+    is_flag=True,
+    default=False,
+    help="Run script in windowed mode, by default fullscreen mode is used.",
+)
+@click.option(
+    "-z",
+    "--size",
+    "win_size",
+    type=(int, int),
+    default=(1920, 1080),
+    help="Specify window size as a tuple of integers (default: 1920 1080)."
+    "Used only in windowed mode.",
 )
 @click.option(
     "-d",
@@ -61,7 +75,7 @@ logger = logging.getLogger(__name__)
     help="Specify audio codec to produce audio code " "(default: FSK).",
 )
 @click.option(
-    "-m",
+    "-u",
     "--mute",
     is_flag=True,
     default=False,
@@ -73,9 +87,10 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-d",
     "--duration",
-    default=2,
+    default=-1,
     type=float,
-    help="Specifies script duration in seconds.",
+    help="Specifies script duration in seconds. Use negative value "
+    "for infinite duration (default: -1).",
 )
 @click.option(
     "-i",
@@ -97,6 +112,8 @@ def timesync_stimuli(
     ctx,
     mode: str,
     output_prefix: str,
+    windowed: bool,
+    win_size: tuple[int, int],
     display: int,
     qr_scale: float,
     audio_lib: str,
@@ -110,22 +127,28 @@ def timesync_stimuli(
     """Run psychopy script with QR video and audio codes."""
     click.echo("reprostim timesync-stimuli")
 
+    from ..qr.timesync_stimuli import do_init, do_main, get_output_file_name
+
+    is_fullscreen: bool = not windowed
+
     # psychopy has similar logging levels like
     # default logging module
     # pl.console.setLevel(log_level)
     start_ts: datetime = datetime.now()
     logger.debug("reprostim timesync-stimuli script started")
-    logger.debug(f"  Started on : {start_ts}")
-    logger.debug(f"    mode     : {mode}")
-    logger.debug(f"    prefix   : {output_prefix}")
-    logger.debug(f"    display  : {display}")
-    logger.debug(f"    audio_lib: {audio_lib}")
-    logger.debug(f"    mute     : {mute}")
-    logger.debug(f"    duration : {duration}")
-    logger.debug(f"    interval : {interval}")
+    logger.debug(f"  Started on   : {start_ts}")
+    logger.debug(f"    mode       : {mode}")
+    logger.debug(f"    prefix     : {output_prefix}")
+    logger.debug(f"    fullscreen : {is_fullscreen}")
+    logger.debug(f"    win_size   : {win_size[0]}x{win_size[1]}")
+    logger.debug(f"    display    : {display}")
+    logger.debug(f"    audio_lib  : {audio_lib}")
+    logger.debug(f"    mute       : {mute}")
+    logger.debug(f"    duration   : {duration}")
+    logger.debug(f"    interval   : {interval}")
 
     output: str = get_output_file_name(output_prefix, start_ts)
-    logger.debug(f"    output   : {output}")
+    logger.debug(f"    output     : {output}")
 
     # setup environment variables
     os.environ["REPROSTIM_AUDIO_LIB"] = audio_lib
@@ -137,6 +160,8 @@ def timesync_stimuli(
     res = do_main(
         mode,
         output,
+        is_fullscreen,
+        win_size,
         display,
         qr_scale,
         audio_codec,
@@ -145,6 +170,7 @@ def timesync_stimuli(
         duration,
         interval,
         keep_audiocode,
+        click.echo,
     )
 
     end_ts: datetime = datetime.now()

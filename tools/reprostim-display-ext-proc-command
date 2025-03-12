@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+echo "Sample external process start"
+
+sleep 1000
+
+echo "Sample external process stop"
