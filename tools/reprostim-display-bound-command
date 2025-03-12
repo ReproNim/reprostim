@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-echo "Sample bound proc start"
-
-sleep 1000
-
-echo "Sample bound proc stop"

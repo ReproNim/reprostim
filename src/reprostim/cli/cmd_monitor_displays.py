@@ -61,13 +61,14 @@ logger = logging.getLogger(__name__)
     "resolution/mode updated.",
 )
 @click.option(
-    "-b",
-    "--bound-command",
+    "-e",
+    "--ext-proc-command",
     default=None,
     type=str,
-    help="Specifies shell script to be executed when target "
-    "display is connected. Note: subprocess is automatically "
-    "terminated when display is disconnected.",
+    help="Specifies external process or shell script to be "
+         "executed when target display is connected. "
+         "Note: subprocess is automatically terminated when "
+         "display is disconnected.",
 )
 @click.pass_context
 def monitor_displays(
@@ -78,7 +79,7 @@ def monitor_displays(
     name: str,
     d_id: str,
     on_change: str,
-    bound_command: str,
+    ext_proc_command: str,
 ):
     """Monitor GUI/displays connection status."""
     logger.debug("reprostim monitor-displays")
@@ -95,7 +96,7 @@ def monitor_displays(
         name,
         d_id,
         on_change,
-        bound_command,
+        ext_proc_command,
     )
 
     logger.debug(f"reprostim monitor-displays script finished: {res}")

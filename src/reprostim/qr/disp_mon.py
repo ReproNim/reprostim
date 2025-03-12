@@ -517,7 +517,7 @@ def _kill_process_tree(pid):
 def _terminate_proc(proc):
     if proc and proc.poll() is None:
         pid = proc.pid
-        logger.info(f"terminating bound process, pid = {pid}")
+        logger.info(f"terminating external process, pid = {pid}")
         _kill_process_tree(proc.pid)
         return pid
     return None
@@ -530,12 +530,12 @@ def do_monitor_displays(
     name: str = "*",
     d_id: str = "*",
     on_change: str = None,
-    bound_command: str = None,
+    ext_proc_command: str = None,
     out_func=print,
 ):
     logger.debug("do_monitor_displays() enter")
 
-    _bproc = None
+    _eproc = None
 
     # default callback with event filters and
     # shell commands execution
@@ -562,30 +562,30 @@ def do_monitor_displays(
             )
             out_func(res.stdout)
 
-        if bound_command and len(bound_command) > 0:
-            nonlocal _bproc
+        if ext_proc_command and len(ext_proc_command) > 0:
+            nonlocal _eproc
             if evt.type == DisplayChangeType.CONNECT:
-                if _bproc is not None:
-                    out_func(f"Terminating bound process, pid={_bproc.pid}")
-                    _terminate_proc(_bproc)
-                    _bproc = None
+                if _eproc is not None:
+                    out_func(f"Terminating external process, pid={_eproc.pid}")
+                    _terminate_proc(_eproc)
+                    _eproc = None
 
-                logger.debug("starting bound process...")
+                logger.debug("starting external process...")
                 try:
-                    _bproc = subprocess.Popen(
-                        [bound_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    _eproc = subprocess.Popen(
+                        [ext_proc_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
                     )
                     out_func(
-                        f"Started bound process, pid={_bproc.pid}, cmd={bound_command}"
+                        f"Started external process, pid={_eproc.pid}, cmd={ext_proc_command}"
                     )
                 except Exception as e:
-                    logger.error(f"Failed to start bound process {bound_command}: {e}")
+                    logger.error(f"Failed to start external process {ext_proc_command}: {e}")
 
             if evt.type == DisplayChangeType.DISCONNECT:
-                if _bproc is not None:
-                    out_func(f"Terminating bound process, pid={_bproc.pid}")
-                    _terminate_proc(_bproc)
-                    _bproc = None
+                if _eproc is not None:
+                    out_func(f"Terminating external process, pid={_eproc.pid}")
+                    _terminate_proc(_eproc)
+                    _eproc = None
 
         display_change_callback(dce)
 
@@ -669,10 +669,10 @@ def do_monitor_displays(
 
     finally:
         logger.debug("cleaning up...")
-        if _bproc is not None:
-            out_func(f"Terminating bound process, pid={_bproc.pid}")
-            _terminate_proc(_bproc)
-            _bproc = None
+        if _eproc is not None:
+            out_func(f"Terminating external process, pid={_eproc.pid}")
+            _terminate_proc(_eproc)
+            _eproc = None
         logger.debug("cleaned up")
 
     logger.debug("do_monitor_displays() leave")
@@ -691,5 +691,5 @@ if __name__ == "__main__":
         d_id="861767562",
         # d_id="103*",
         on_change="./../../../tools/reprostim-display-on-change",
-        bound_command="./../../../tools/reprostim-display-bound-command",
+        ext_proc_command="./../../../tools/reprostim-display-ext-proc-command",
     )

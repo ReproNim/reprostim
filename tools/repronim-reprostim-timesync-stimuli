@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 
+# This script runs the timesync-stimuli command in the singularity container
+# It's just sample one. Script can be triggered by reprostim-videocapture
+# ext proc hook, or by reprostim monitor-displays command.
+#
+# To use reprostim-videocapture ext proc hook, update "ext_proc_opts" section
+# in the config.yaml file, and point "exec_command" to this script.
+#
+# To use reprostim monitor-displays command sample usage below:
+#
+# reprostim monitor-displays -w -1 -t 10  -n HDMI-0 -e ~/Projects/Dartmouth/branches/reprostim/tools/repronim-reprostim-timesync-stimuli
+#
+# It monitors display named "HDMI-0" each 10 seconds, and then run the script
+# when display is connected or terminates process once disconnect event received.
+
 OLD_CUR_DIR="$(pwd)"
 
 
