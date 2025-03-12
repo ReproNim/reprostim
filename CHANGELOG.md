@@ -1,3 +1,20 @@
+# 0.7.9 (Wed Mar 12 2025)
+
+#### 🐛 Bug Fix
+
+- Establish turnkey system for calibration/timing, automate timesync-stimuli [#139](https://github.com/ReproNim/reprostim/pull/139) ([@vmdocua](https://github.com/vmdocua))
+
+#### ⚠️ Pushed to `master`
+
+- Clarify the purpose of scripts under tools/ ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.8 (Fri Feb 07 2025)
 
 #### 🐛 Bug Fix
