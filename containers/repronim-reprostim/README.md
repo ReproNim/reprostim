@@ -63,7 +63,7 @@ datalad get .
 
 ### Build
 
-To generate the container instructions like `Dockerfile` and `Singularity`
+To `generate` the container instructions like `Dockerfile` and `Singularity`
 use the following command:
 
 ```shell
@@ -75,11 +75,18 @@ This will generate container Dockerfile/Singularity files in format like
 `***.repronim-reprostim-{VERSION}`, where `VERSION` is the latest `git` tag
 version when specified, or `0.0.1` otherwise.
 
-To build singularity container, use the following command:
+To `build` singularity container, use the following command:
 
 ```shell
 cd containers/repronim-reprostim
 ./build_singularity.sh
+```
+
+To `test` the singularity container and run `reprostim`, use the following command:
+
+```shell
+cd containers/repronim-reprostim
+./run_reprostim.sh --help
 ```
 
 ### Run
