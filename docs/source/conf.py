@@ -6,15 +6,15 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-# import reprostim
+import reprostim.__about__
 
 project = "ReproStim"
 copyright = "2020-%Y, ReproNim Team"  # noqa: A001
 author = "ReproNim Team"
 
 # The full version, including alpha/beta/rc tags
-version = "TODO_version"  # reprostim.__version__
-release = "TODO_release"  # reprostim.__version__
+version = reprostim.__about__.__version__
+release = reprostim.__about__.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
