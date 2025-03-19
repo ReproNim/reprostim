@@ -1,6 +1,7 @@
 # ReproStim Introduction
 
 [![Read the Docs](https://img.shields.io/readthedocs/reprostim.svg)](https://reprostim.readthedocs.io/)
+[![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
 
 ReproStim is a video capture and recording suite for neuroimaging and
 psychology experiments.  Its goal is to provide experimenters with a
