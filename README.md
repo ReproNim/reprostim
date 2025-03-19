@@ -1,6 +1,6 @@
 # ReproStim Introduction
 
-[![Read the Docs](https://img.shields.io/readthedocs/reprostim.svg)](https://reprostim.readthedocs.io/)
+[![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
 [![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
 
 ReproStim is a video capture and recording suite for neuroimaging and
