@@ -6,6 +6,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+from docutils import nodes
+from sphinx.transforms import SphinxTransform
+
 import reprostim.__about__
 
 project = "ReproStim"
@@ -67,7 +70,10 @@ source_suffix = {
     ".md": "markdown",
 }
 
-suppress_warnings = ["myst.header"]
+suppress_warnings = [
+    "myst.header",
+    "myst.xref_missing",  # Note: to be fixed in README.md relative link
+]
 
 # def on_source_read(app, docname, source):
 #     print("$1%-"+docname)
@@ -75,8 +81,45 @@ suppress_warnings = ["myst.header"]
 #         print("[CONTENT] "+source[0])
 
 # def on_include_read(app, relative_path, parent_docname, content):
-#     print("$2% -" + content)
+#     print(f"ON_INCLUDE_READ: {content}")
 
-# def setup(app):
-#     app.connect('source-read', on_source_read)
-#     app.connect('include-read', on_include_read)
+# define URI mapping if any to substitute/fix some links
+_URI_MAP = {
+    "docs/images/clion_version_auto_inc.png": "../../../src/reprostim-capture/docs/images/clion_version_auto_inc.png",  # noqa
+    "docs/images/project_structure.png": "../../../src/reprostim-capture/docs/images/project_structure.png",  # noqa
+    # "./src/reprostim-capture/README.md" : "https://github.com/
+    # ReproNim/reprostim/tree/master/src/reprostim-capture/README.md", #noqa
+    # "./Parsing/repro-vidsort" : "https://github.com/
+    # ReproNim/reprostim/tree/master/Parsing/repro-vidsort", #noqa
+}
+
+
+class UriTransform(SphinxTransform):
+    default_priority = 500
+
+    # replace URI link value if any
+    def replace(self, node, attr):
+        # if "attrs" in node  and "class" in node.attrs:
+        #     print("CLASS=" + str(node.attrs["class"]))
+
+        global _URI_MAP
+        if attr in node:
+            v = _URI_MAP.get(node[attr])
+            if v:
+                node[attr] = v
+                # node["uri"] = v
+
+    def apply(self):
+        # for node in self.document.traverse(nodes.reference):
+        #     self.replace(node, 'refuri')
+        #     # self.replace(node, 'reftarget')
+
+        for node in self.document.traverse(nodes.image):
+            # print(f"image_uri={node['uri']}")
+            self.replace(node, "uri")
+
+
+def setup(app):
+    #     app.connect('source-read', on_source_read)
+    #     app.connect('include-read', on_include_read)
+    app.add_transform(UriTransform)
