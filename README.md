@@ -1,5 +1,7 @@
 # ReproStim Introduction
 
+TODO: add badge to RTD
+
 ReproStim is a video capture and recording suite for neuroimaging and
 psychology experiments.  Its goal is to provide experimenters with a
 complete record of audio and visual stimulation for every data collection
