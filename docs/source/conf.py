@@ -24,6 +24,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "myst_parser",
 ]
 
 templates_path = ["_templates"]
@@ -45,3 +46,37 @@ default_role = "py:obj"
 html_theme = "furo"
 # html_theme = 'alabaster'
 # html_static_path = ['_static']
+
+# configure myst_parser
+
+#
+# myst_enable_extensions = [
+#     "substitution",
+# ]
+#
+# Note: in .md use {{ key1 }}
+#
+# myst_substitutions = {
+#   "key1": "Value1"
+# }
+#
+
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".txt": "markdown",
+    ".md": "markdown",
+}
+
+suppress_warnings = ["myst.header"]
+
+# def on_source_read(app, docname, source):
+#     print("$1%-"+docname)
+#     if docname == "overview/intro":
+#         print("[CONTENT] "+source[0])
+
+# def on_include_read(app, relative_path, parent_docname, content):
+#     print("$2% -" + content)
+
+# def setup(app):
+#     app.connect('source-read', on_source_read)
+#     app.connect('include-read', on_include_read)

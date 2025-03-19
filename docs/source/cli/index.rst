@@ -8,4 +8,4 @@ Command-Line Interface
     :glob:
 
     reprostim
-    *
+..    *
