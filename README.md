@@ -1,6 +1,6 @@
 # ReproStim Introduction
 
-TODO: add badge to RTD
+[![Read the Docs](https://img.shields.io/readthedocs/reprostim.svg)](https://reprostim.readthedocs.io/)
 
 ReproStim is a video capture and recording suite for neuroimaging and
 psychology experiments.  Its goal is to provide experimenters with a
