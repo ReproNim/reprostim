@@ -1,4 +1,5 @@
-name: Test with pytest and hatch
+# Test with pytest and hatch
+name: pytest
 
 on:
   push:
