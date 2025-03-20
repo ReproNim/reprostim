@@ -46,6 +46,10 @@ jobs:
         hatch env create
       shell: bash
 
+    - name: Install reprostim
+      run: |
+        hatch run pip install -e .
+
     - name: Run pytest
       run: |
         # python -m pytest -vv tests
