@@ -68,6 +68,7 @@ docs = [
   "scipy>=1.14.1",
   "pydub>=0.25.1",
   "reedsolo>=1.7.0",
+  "reprostim[disp_mon]",
 ]
 psychopy = [
   "psychopy",

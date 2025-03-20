@@ -10,7 +10,7 @@ API Reference
    :toctree: generated
 
    audio.audiocodes
-..   capture.nosignal
-..   qr.disp_mon
+   capture.nosignal
+   qr.disp_mon
 ..   qr.qr_parse
 ..   qr.timesync_stimuli
