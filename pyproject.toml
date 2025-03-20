@@ -62,9 +62,7 @@ disp_mon = [
   "pyobjc-framework-Quartz>=10.3.2 ; sys_platform == 'darwin'"
 ]
 docs = [
-  "scipy>=1.14.1",
-  "sounddevice>=0.5.1",
-  "reedsolo>=1.7.0",
+  "reprostim[audio]",
 ]
 psychopy = [
   "psychopy",
