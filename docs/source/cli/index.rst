@@ -10,4 +10,4 @@ Command-Line Interface
     reprostim
     list-displays
     monitor-displays
-..  detect-noscreen
+    qr-parse
