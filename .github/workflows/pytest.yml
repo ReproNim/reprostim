@@ -49,6 +49,7 @@ jobs:
     - name: Install reprostim
       run: |
         hatch run pip install -e .
+        hatch build
 
     - name: Run pytest
       run: |
