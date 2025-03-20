@@ -58,8 +58,7 @@ html_sidebars = {
         "about.html",
         "searchfield.html",
         "navigation.html",
-        "relations.html",
-        # 'donate.html',
+        "index.html",
     ]
 }
 html_logo = "_static/images/logo256.png"
