@@ -1,1 +1,25 @@
 /* reprostim custom.css */
+
+.logo {
+    text-align: right;
+    padding: 0;
+}
+
+.logo img {
+    height: 28px;
+    width: 28px;
+    display: block;
+    float: left;
+    margin-top: 10px;
+    margin-left: 0px;
+    margin-right: 4px;
+    margin-bottom: 0px;
+}
+
+.logo-version {
+  width: 180px;
+  height: 18px;
+  text-align: left;
+  margin: 0;
+  padding: 0;
+}

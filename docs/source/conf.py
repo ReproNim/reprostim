@@ -62,6 +62,7 @@ html_sidebars = {
         # 'donate.html',
     ]
 }
+html_logo = "_static/images/logo256.png"
 
 # configure myst_parser
 
