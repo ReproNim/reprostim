@@ -48,7 +48,20 @@ default_role = "py:obj"
 
 # html_theme = "furo"
 html_theme = "alabaster"
-# html_static_path = ['_static']
+html_static_path = ["_static"]
+html_context = {
+    "version": version,
+    "release": release,
+}
+html_sidebars = {
+    "**": [
+        "about.html",
+        "searchfield.html",
+        "navigation.html",
+        "relations.html",
+        # 'donate.html',
+    ]
+}
 
 # configure myst_parser
 
@@ -123,3 +136,5 @@ def setup(app):
     #     app.connect('source-read', on_source_read)
     #     app.connect('include-read', on_include_read)
     app.add_transform(UriTransform)
+    app.add_css_file("custom.css")
+    # app.add_stylesheet('custom.css')
