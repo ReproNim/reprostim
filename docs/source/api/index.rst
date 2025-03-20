@@ -12,5 +12,5 @@ API Reference
    audio.audiocodes
    capture.nosignal
    qr.disp_mon
-   qr.qr_parse
-   qr.timesync_stimuli
+..   qr.qr_parse
+..   qr.timesync_stimuli
