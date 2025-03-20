@@ -7,8 +7,7 @@ reprostim
 
 A command-line client to execute ReproStim commands.
 
-Global Options
---------------
+**Global Options**
 
 .. option:: -l <level>, --log-level <level>
 
@@ -24,3 +23,11 @@ Global Options
     Set the logging format string. For the pattern details see standard Python
     `logging.Formatter <https://docs.python.org/3/library/logging.html#formatter-objects>`_
     documentation.
+
+**Subcommands**
+
+* .. option:: detect-noscreen
+* .. option:: list-displays
+* .. option:: monitor-displays
+* .. option:: qr-parse
+* .. option:: timesync-stimuli
