@@ -9,7 +9,6 @@ python:
         - requirements: docs/requirements.txt
         - method: pip
           path: .
-          extra_requirements: [test]
 sphinx:
     configuration: docs/source/conf.py
     fail_on_warning: true
