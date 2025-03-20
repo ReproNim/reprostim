@@ -1,4 +1,5 @@
 .[docs]
 furo
 Sphinx
+sphinx-click
 myst-parser

@@ -8,4 +8,5 @@ Command-Line Interface
     :glob:
 
     reprostim
-..    *
+    list-displays
+..  detect-noscreen
