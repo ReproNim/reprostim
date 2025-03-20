@@ -54,7 +54,7 @@ jobs:
     - name: Run pytest
       run: |
         # python -m pytest -vv tests
-        hatch run pytest --cov=. --cov-report=xml
+        hatch test --cov=. --cov-report=xml
       shell: bash
 
     - name: Upload coverage reports to Codecov
