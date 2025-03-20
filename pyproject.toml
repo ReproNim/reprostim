@@ -61,8 +61,13 @@ disp_mon = [
   "pyobjc-core>=10.3.2 ; sys_platform == 'darwin'",
   "pyobjc-framework-Quartz>=10.3.2 ; sys_platform == 'darwin'"
 ]
+# sphinx/rtd docs custom dependencies
+# to generate API reference
 docs = [
-  "reprostim[audio]",
+  "sounddevice>=0.5.1",
+  "scipy>=1.14.1",
+  "pydub>=0.25.1",
+  "reedsolo>=1.7.0",
 ]
 psychopy = [
   "psychopy",
