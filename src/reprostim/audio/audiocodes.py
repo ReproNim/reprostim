@@ -59,8 +59,8 @@ _audio_lib = os.environ.get("REPROSTIM_AUDIO_LIB", AudioLib.PSYCHOPY_SOUNDDEVICE
 try:
     from psychopy import prefs  # noqa: E402
 
-    # skip setup under RTD
-    if os.getenv("READTHEDOCS") != "True":
+    # skip setup under sphinx/RTD
+    if os.getenv("REPROSTIM_DOCS") != "True":
         prefs.hardware["audioLib"] = ["sounddevice"]
         if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
             logger.debug("Set psychopy audio library: sounddevice")

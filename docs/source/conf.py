@@ -6,9 +6,13 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-# import os
+import os
+
 # import sys
 # sys.path.insert(0, os.path.abspath("../../src"))
+
+# Set environment variable to specify special sphinx or rtd build environment
+os.environ["REPROSTIM_DOCS"] = "True"
 
 from docutils import nodes
 from sphinx.transforms import SphinxTransform
