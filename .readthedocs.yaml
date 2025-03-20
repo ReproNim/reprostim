@@ -4,9 +4,6 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.10"
-  commands:
-    - git fetch --unshallow || true
-    - pip install --exists-action=w --no-cache-dir -r docs/requirements.txt
 python:
     install:
         - requirements: docs/requirements.txt
