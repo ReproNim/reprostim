@@ -23,3 +23,7 @@
   margin: 0;
   padding: 0;
 }
+
+div.sphinxsidebar {
+    width: 240px;  /* Make sidebar wider */
+}
