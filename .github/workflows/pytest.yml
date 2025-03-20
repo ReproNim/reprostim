@@ -44,7 +44,7 @@ jobs:
         pip install --upgrade pip
         pip install hatch
         hatch env create
-        hatch pip install pytest pytest-cov reedsolo scipy
+        hatch run pip install pytest pytest-cov reedsolo scipy
       shell: bash
 
     - name: Install reprostim
