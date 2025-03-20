@@ -12,7 +12,10 @@ import os
 # sys.path.insert(0, os.path.abspath("../../src"))
 
 # Set environment variable to specify special sphinx or rtd build environment
-os.environ["REPROSTIM_DOCS"] = "True"
+try:
+    os.environ["REPROSTIM_DOCS"] = "True"
+except Exception:
+    pass
 
 from docutils import nodes
 from sphinx.transforms import SphinxTransform
