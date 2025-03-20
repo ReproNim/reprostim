@@ -8,6 +8,7 @@ Command-Line Interface
     :glob:
 
     reprostim
+    detect-noscreen
     list-displays
     monitor-displays
     qr-parse
