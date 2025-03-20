@@ -6,18 +6,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath("../../src"))
-
-# bypass pyaudio with mock
-from unittest.mock import MagicMock
-
-MOCK_MODULES = ["pyaudio"]
-sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
-
-autodoc_mock_imports = ["pyaudio", "sounddevice"]
+# import os
+# import sys
+# sys.path.insert(0, os.path.abspath("../../src"))
 
 from docutils import nodes
 from sphinx.transforms import SphinxTransform
@@ -51,6 +42,9 @@ autodoc_default_options = {
     "members": True,
     "undoc-members": True,
 }
+
+# pyaudio is not installed on RTD
+autodoc_mock_imports = ["pyaudio", "sounddevice"]
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
