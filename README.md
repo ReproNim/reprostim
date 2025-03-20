@@ -326,6 +326,9 @@ restart, but somehow it didn't help, and complete restart was necessary
 anyway.
 
 
+## Documentation
+Full documentation is available at [Read the Docs](https://reprostim.readthedocs.io/en/latest/).
+
 ## TODO:
 
 - Build (per above) and install in the PATH
