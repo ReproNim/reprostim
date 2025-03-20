@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 MOCK_MODULES = ["pyaudio"]
 sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
 
+autodoc_mock_imports = ["pyaudio", "sounddevice"]
 
 from docutils import nodes
 from sphinx.transforms import SphinxTransform
