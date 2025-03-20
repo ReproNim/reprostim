@@ -59,13 +59,15 @@ _audio_lib = os.environ.get("REPROSTIM_AUDIO_LIB", AudioLib.PSYCHOPY_SOUNDDEVICE
 try:
     from psychopy import prefs  # noqa: E402
 
-    prefs.hardware["audioLib"] = ["sounddevice"]
-    if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
-        logger.debug("Set psychopy audio library: sounddevice")
+    # skip setup under RTD
+    if os.getenv("READTHEDOCS") != "True":
         prefs.hardware["audioLib"] = ["sounddevice"]
-    elif _audio_lib == AudioLib.PSYCHOPY_PTB:
-        logger.debug("Set psychopy audio library: ptb")
-        prefs.hardware["audioLib"] = ["ptb"]
+        if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
+            logger.debug("Set psychopy audio library: sounddevice")
+            prefs.hardware["audioLib"] = ["sounddevice"]
+        elif _audio_lib == AudioLib.PSYCHOPY_PTB:
+            logger.debug("Set psychopy audio library: ptb")
+            prefs.hardware["audioLib"] = ["ptb"]
 
     from psychopy import core, sound  # noqa: E402
     from psychtoolbox import audio  # noqa: E402
