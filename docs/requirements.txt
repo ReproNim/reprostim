@@ -1,3 +1,4 @@
+.[audio,disp_mon]
 furo
 Sphinx
 myst-parser
