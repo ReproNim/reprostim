@@ -48,7 +48,14 @@ autodoc_default_options = {
 }
 
 # pyaudio is not installed on RTD
-autodoc_mock_imports = ["pyaudio", "sounddevice", "psychopy", "psutil"]
+autodoc_mock_imports = [
+    "pyaudio",
+    "sounddevice",
+    "psychopy",
+    "psutil",
+    "qrcode",
+    "pyzbar",
+]
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
