@@ -42,12 +42,13 @@ jobs:
         pwd
         ls -l
         pip install --upgrade pip
-        pip install hatch
+        pip install hatch pytest pytest-cov reedsolo scipy
         hatch env create
       shell: bash
 
     - name: Run pytest
       run: |
+        # python -m pytest -vv tests
         hatch run pytest --cov=. --cov-report=xml
       shell: bash
 
