@@ -11,3 +11,4 @@ Command-Line Interface
     list-displays
     monitor-displays
     qr-parse
+    timesync-stimuli

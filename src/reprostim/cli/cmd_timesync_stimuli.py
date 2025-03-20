@@ -18,7 +18,13 @@ logger = logging.getLogger(__name__)
     "--mode",
     type=click.Choice(["event", "interval", "beep", "devices"], case_sensitive=False),
     default="event",
-    help="Mode of operation: 'event', 'interval', or 'beep', (default: event).",
+    help="Mode of operation. Default is `event`. \n\n"
+    "- `event`  : Process events based on triggers or keyboard "
+    "events like `5`, `q`, `ESC`.\n\n"
+    "- `interval` : Operate and produce QR codes in fixed time "
+    "intervals.\n\n"
+    "- `beep`     : Generate beep sound for test purposes.\n\n"
+    "- `devices`  : List available audio devices info.",
 )
 @click.option(
     "-o",
@@ -48,7 +54,7 @@ logger = logging.getLogger(__name__)
     "--display",
     default=1,
     type=int,
-    help="Display number as an integer (default: 1).",
+    help="Specify display number as an integer (default: 1).",
 )
 @click.option(
     "-s",
@@ -65,14 +71,14 @@ logger = logging.getLogger(__name__)
         ["psychopy_sounddevice", "psychopy_ptb", "sounddevice"], case_sensitive=True
     ),
     default="psychopy_sounddevice",
-    help="Specify audio library to be used " "(default: psychopy_sounddevice).",
+    help="Specify audio library to be used. Default is `psychopy_sounddevice`.",
 )
 @click.option(
     "-c",
     "--audio-codec",
     type=click.Choice(["FSK", "NFE"], case_sensitive=True),
     default="FSK",
-    help="Specify audio codec to produce audio code " "(default: FSK).",
+    help="Specify audio codec to produce audio code. Default is `FSK`.",
 )
 @click.option(
     "-u",
