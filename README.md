@@ -1,6 +1,7 @@
 # ReproStim Introduction
 
 [![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
+[![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg?event=push)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
 [![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
 [![Conda](https://img.shields.io/conda/vn/conda-forge/reprostim.svg)](https://anaconda.org/conda-forge/reprostim)
 [![GitHub release](https://img.shields.io/github/release/ReproNim/reprostim.svg)](https://GitHub.com/ReproNim/reprostim/releases/)
@@ -124,7 +125,7 @@ The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
 subjects.
 
-# reprostim-capture
+# Tools `reprostim-capture`
 
 This subproject is set of native C/C++ tools and utilities to capture
 video/audio signals with Magewell USB Capture devices and save it to a file.
@@ -132,7 +133,7 @@ More detailed information about dependencies and installation provided in
 [reprostim-capture README.md](./src/reprostim-capture/README.md).
 
 
-# reprostim CLI
+# CLI `reprostim`
 
 Represented as a set of Python tools and utilities under the umbrella of
 the `reprostim` library, where each tool is a separate subcommand of
