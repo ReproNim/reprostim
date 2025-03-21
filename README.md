@@ -1,5 +1,12 @@
 # ReproStim Introduction
 
+[![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
+[![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg?event=push)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
+[![Conda](https://img.shields.io/conda/vn/conda-forge/reprostim.svg)](https://anaconda.org/conda-forge/reprostim)
+[![GitHub release](https://img.shields.io/github/release/ReproNim/reprostim.svg)](https://GitHub.com/ReproNim/reprostim/releases/)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://raw.githubusercontent.com/ReproNim/reprostim/master/LICENSES/MIT.txt)
+
 ReproStim is a video capture and recording suite for neuroimaging and
 psychology experiments.  Its goal is to provide experimenters with a
 complete record of audio and visual stimulation for every data collection
@@ -8,7 +15,7 @@ actual stimuli shown to each subject in the form of video files that can be
 stored alongside  behavioral or neuroimaging data in public repositories.
 
 ReproStim provides for enhanced experimental reproducibility and a safeguard
-against data loss in cases of data-collection irregularites.  Because
+against data loss in cases of data-collection irregularities.  Because
 ReproStim provides an exact record of the actual stimuli delivered during
 any given experimental session, it makes it possible to precisely reproduce
 experimental sessions, even if the original trial sets were randomized and
@@ -16,13 +23,13 @@ precise trial details not recorded. In cases of experimental irregularities,
 such as aborted fMRI runs, unexpected glitches in trial timing, or
 programming errors that cause records of trial conditions to be lost,
 valuable data (which can be especially costly in cases of fMRI of ECog, for
-example) can be recoded and recovered using the audio-visual record provided
+example) can be recoded and recovered using the audiovisual record provided
 by ReproStim.
 
 ReproStim requires minimal effort on behalf of investigators.  Once it is
 setup as the default mode within a behavioral lab or neuroimaging center,
 investigators can reap the benefits of ReproStim without any additional
-effort on the part of invidiual experimenters.  When successfully set up,
+effort on the part of individual experimenters.  When successfully set up,
 ReproStim runs in the background, silently collecting, cataloging, and
 storing all audio and visual stimulation delivered to experimental subjects.
 
@@ -30,7 +37,7 @@ storing all audio and visual stimulation delivered to experimental subjects.
 
 ## Hardware needed
 
-Before using ReproStim you will need a minimum of the the following
+Before using ReproStim you will need a minimum of the following
 components:
 
 1. Magewell USB Capture Plus device (MWC)
@@ -56,7 +63,7 @@ would be something like:
        | SC | -- A/V Out --> | EPD |
        ------                -------
 
-    With the addition of ReprosStim, the setup will look like this:
+    With the addition of ReproStim, the setup will look like this:
 
 2. Schematic B.
 
@@ -88,7 +95,7 @@ accommodate this eventuality.
 
 Note: Missing from Schematics A and B, is any connection back to SC that
 records subject response information. That's because ReproStim is not
-interested in how the subject responds. If you like, imagine arrows pointing
+interested in how the subject responses. If you like, imagine arrows pointing
 from EPD to a "subject" node, and then more arrows pointing from the subject
 node to some response input device (RID?) and back to SC for recording...
 ReproStim will not interfere.
@@ -105,7 +112,7 @@ can all be found at www.magewell.com
 
 The video capture computer (VC) does most of the work for ReproStim. The
 software running on this computer runs as a service that is always on as
-long as the computer is running, which is all the time. Therefore I will
+long as the computer is running, which is all the time. Therefore, I will
 refer to VC also as the ReproStim server. In a nutshell, the server software
 monitors the video signal coming from SC into MWC. If there is any video
 coming over the connection, it gets recorded for posterity.
@@ -119,7 +126,7 @@ The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
 subjects.
 
-# reprostim-capture
+# Tools `reprostim-capture`
 
 This subproject is set of native C/C++ tools and utilities to capture
 video/audio signals with Magewell USB Capture devices and save it to a file.
@@ -127,7 +134,7 @@ More detailed information about dependencies and installation provided in
 [reprostim-capture README.md](./src/reprostim-capture/README.md).
 
 
-# reprostim CLI
+# CLI `reprostim`
 
 Represented as a set of Python tools and utilities under the umbrella of
 the `reprostim` library, where each tool is a separate subcommand of
@@ -254,7 +261,7 @@ For more information refer to item #14 from Magewell FAQ on https://www.magewell
     Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
     move it to the directory "/etc/udev/rules.d", and then restart your computer.
 
-NOTE: Also make sure that no other processes like ffmpeg, vlc, etc are using this video device, as
+NOTE: Also make sure that no other processes like ffmpeg, vlc, etc. are using this video device, as
 it can accidentally produce the same error message ERROR[003].
 
 ### 1) Identify the USB Device:
@@ -319,6 +326,9 @@ Note: we tested "sudo udevadm control --reload-rules" command without OS
 restart, but somehow it didn't help, and complete restart was necessary
 anyway.
 
+
+## Documentation
+Full documentation is available at [Read the Docs](https://reprostim.readthedocs.io/en/latest/).
 
 ## TODO:
 

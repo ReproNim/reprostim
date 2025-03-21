@@ -75,7 +75,7 @@ digraph graphname {
                     <TD PORT="usb">USB</TD> // swap of usb and dvi leads to jump
 
                     </TR>
-                    
+
             </TABLE>>
             fillcolor="white";
             shape=box;

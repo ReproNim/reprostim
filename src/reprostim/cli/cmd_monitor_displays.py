@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
     "--provider",
     default="platform",
     type=click.Choice(["platform", "pygame", "pyglet", "pyudev", "quartz", "randr"]),
-    help="Set display monitoring providers to be used",
+    help="Set display monitoring providers to be used. " "Default is `platform`.",
 )
 @click.option(
     "-t",
@@ -66,9 +66,9 @@ logger = logging.getLogger(__name__)
     default=None,
     type=str,
     help="Specifies external process or shell script to be "
-         "executed when target display is connected. "
-         "Note: subprocess is automatically terminated when "
-         "display is disconnected.",
+    "executed when target display is connected. "
+    "Note: subprocess is automatically terminated when "
+    "display is disconnected.",
 )
 @click.pass_context
 def monitor_displays(

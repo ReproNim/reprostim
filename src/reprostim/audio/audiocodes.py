@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+Audio module for reprostim.
+
+This module provides audiocodes-related functionality.
+"""
+
 import importlib
 import logging
 import os
@@ -33,13 +39,18 @@ logger.setLevel(os.environ.get("REPROSTIM_LOG_LEVEL", "INFO"))
 
 # Enum for the audio libs
 class AudioLib(str, Enum):
-    # PsychoPy SoundDevice audio lib
+    """Enumeration of available audio libraries."""
+
     PSYCHOPY_SOUNDDEVICE = "psychopy_sounddevice"
-    # PsychoPy SoundPTB audio lib
+    """PsychoPy `SoundDevice` audio lib"""
+
     PSYCHOPY_PTB = "psychopy_ptb"
-    # sounddevice audio lib
-    # http://python-sounddevice.readthedocs.io/
+    """PsychoPy `SoundPTB` audio lib"""
+
     SOUNDDEVICE = "sounddevice"
+    """`sounddevice` audio lib
+    See more at: http://python-sounddevice.readthedocs.io/
+    """
 
 
 _audio_lib = os.environ.get("REPROSTIM_AUDIO_LIB", AudioLib.PSYCHOPY_SOUNDDEVICE)
@@ -48,13 +59,15 @@ _audio_lib = os.environ.get("REPROSTIM_AUDIO_LIB", AudioLib.PSYCHOPY_SOUNDDEVICE
 try:
     from psychopy import prefs  # noqa: E402
 
-    prefs.hardware["audioLib"] = ["sounddevice"]
-    if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
-        logger.debug("Set psychopy audio library: sounddevice")
+    # skip setup under sphinx/RTD
+    if os.getenv("REPROSTIM_DOCS") != "True":
         prefs.hardware["audioLib"] = ["sounddevice"]
-    elif _audio_lib == AudioLib.PSYCHOPY_PTB:
-        logger.debug("Set psychopy audio library: ptb")
-        prefs.hardware["audioLib"] = ["ptb"]
+        if _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE:
+            logger.debug("Set psychopy audio library: sounddevice")
+            prefs.hardware["audioLib"] = ["sounddevice"]
+        elif _audio_lib == AudioLib.PSYCHOPY_PTB:
+            logger.debug("Set psychopy audio library: ptb")
+            prefs.hardware["audioLib"] = ["ptb"]
 
     from psychopy import core, sound  # noqa: E402
     from psychtoolbox import audio  # noqa: E402
@@ -70,6 +83,7 @@ except ImportError:
 
 
 def bit_enumerator(data):
+    """Enumerate audio data bits."""
     if isinstance(data, DataMessage):
         data = data.encode()
     if isinstance(data, str):

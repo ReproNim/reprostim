@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
     "--provider",
     default="platform",
     type=click.Choice(["platform", "pygame", "pyglet", "pyudev", "quartz", "randr"]),
-    help="Set display monitoring providers to be used",
+    help="Set display monitoring providers to be used. " "Default is `platform`.",
 )
 @click.option(
     "-f",
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
     "fmt",
     default="jsonl",
     type=click.Choice(["jsonl", "text"], case_sensitive=False),
-    help="Set the output format",
+    help="Set the output format. Default is `jsonl`.",
 )
 @click.pass_context
 def list_displays(ctx, provider: str, fmt: str):

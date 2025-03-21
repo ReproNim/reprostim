@@ -1,4 +1,4 @@
-# repronim-reprostim container
+# Container `repronim-reprostim`
 
 ## Overview
 
@@ -223,6 +223,6 @@ singularity exec \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
   --overlay ./repronim-reprostim-0.7.5.overlay \
   ./repronim-reprostim-0.7.5.sing \
-  python3 -m reprostim timesync-stimuli --display 1 
+  python3 -m reprostim timesync-stimuli --display 1
 
 ```
