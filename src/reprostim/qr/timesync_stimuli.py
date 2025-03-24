@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
+
+"""
+PsychoPy-based script to produce time calibration session
+with embedded video QR-codes and audiocodes integrated
+with `MRI`/`BIRCH`/`Magewell USB capture` devices.
+
+API to parse `(*.mkv)` video files recorded by `reprostim-videocapture`
+utility and extract embeded video media info, QR-codes and audiocodes into
+JSONL format.
+"""
+
 from dataclasses import dataclass
 from time import sleep, time
 
@@ -191,7 +202,7 @@ def do_main(
 
     def on_signal(signum, frame):
         logger.info(f"Received system signal: {signum}")
-        if signum in [2, 15] :
+        if signum in [2, 15]:
             nonlocal sys_shutdown
             logger.debug("setting sys_shutdown=True")
             sys_shutdown = True
@@ -244,7 +255,6 @@ def do_main(
     # register signal hook
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
-
 
     audio_data: int = 0
     audio_file: str = None

@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 """
-Audio module for reprostim.
-
-This module provides audiocodes-related functionality.
+Audiocodes module for reprostim, provides functionality to
+generate and parse QR-like audiocodes to be included in
+psychopy based scripts.
 """
 
 import importlib

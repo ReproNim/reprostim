@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+Provides functionality to search no-signal/rainbow frames in
+the video failes (`*.mkv`) recorded by `reprostim-videocapture`
+utility.
+"""
+
 import logging.config
 import subprocess
 import time

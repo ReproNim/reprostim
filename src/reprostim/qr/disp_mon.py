@@ -1,6 +1,14 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
+
+"""
+Display monitoring service and cross-platform API used to list
+available GUI displays and monitor information, status and
+functionality to automatically attach external command for
+ceratin screen.
+"""
+
 import fnmatch
 import json
 import logging
@@ -14,10 +22,6 @@ from itertools import chain
 from typing import Generator, Iterable
 
 import psutil
-
-# Display monitoring service: cross-platform API to list
-# available GUI displays and monitor status
-
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -573,13 +577,18 @@ def do_monitor_displays(
                 logger.debug("starting external process...")
                 try:
                     _eproc = subprocess.Popen(
-                        [ext_proc_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                        [ext_proc_command],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
                     )
                     out_func(
-                        f"Started external process, pid={_eproc.pid}, cmd={ext_proc_command}"
+                        f"Started external process, pid={_eproc.pid}, "
+                        f"cmd={ext_proc_command}"
                     )
                 except Exception as e:
-                    logger.error(f"Failed to start external process {ext_proc_command}: {e}")
+                    logger.error(
+                        f"Failed to start external process {ext_proc_command}: {e}"
+                    )
 
             if evt.type == DisplayChangeType.DISCONNECT:
                 if _eproc is not None:
