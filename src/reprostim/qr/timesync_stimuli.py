@@ -8,7 +8,7 @@ with embedded video QR-codes and audiocodes integrated
 with `MRI`/`BIRCH`/`Magewell USB capture` devices.
 
 API to parse `(*.mkv)` video files recorded by `reprostim-videocapture`
-utility and extract embeded video media info, QR-codes and audiocodes into
+utility and extract embedded video media info, QR-codes and audiocodes into
 JSONL format.
 """
 

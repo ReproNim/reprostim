@@ -4,7 +4,7 @@
 
 """
 Provides functionality to search no-signal/rainbow frames in
-the video failes (`*.mkv`) recorded by `reprostim-videocapture`
+the video files (`*.mkv`) recorded by `reprostim-videocapture`
 utility.
 """
 

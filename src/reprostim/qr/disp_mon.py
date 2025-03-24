@@ -6,7 +6,7 @@
 Display monitoring service and cross-platform API used to list
 available GUI displays and monitor information, status and
 functionality to automatically attach external command for
-ceratin screen.
+certain screen.
 """
 
 import fnmatch
