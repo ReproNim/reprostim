@@ -83,7 +83,21 @@ except ImportError:
 
 
 def bit_enumerator(data):
-    """Enumerate audio data bits."""
+    """
+    Enumerate audio data bits.
+
+    This function takes either a string representation of binary digits (`0` and `1`)
+    or a bytes object and yields individual bits as integers (`0` or `1`).
+
+    :param data: The input data containing bits.
+    :type data: str | bytes | DataMessage
+
+    :yield: The extracted bits as integers (`0` or `1`).
+    :rtype: int
+
+    :raises ValueError: If a string contains characters other than `0` and `1`.
+    :raises TypeError: If the input data type is not supported.
+    """
     if isinstance(data, DataMessage):
         data = data.encode()
     if isinstance(data, str):
@@ -103,8 +117,27 @@ def bit_enumerator(data):
         )
 
 
-# Convert a list of bits to bytes
 def bits_to_bytes(detected_bits):
+    """
+    Convert a list of bits (`0` and `1`) into a bytes object.
+
+    This function takes a list of bits, groups them into bytes
+    (8 bits each), and converts them into a bytes object in big-endian order.
+
+    :param detected_bits: A list containing only `0` and `1`. The length
+                          of the list must be a multiple of 8.
+    :type detected_bits: list of int
+
+    :returns: A bytes object representing the converted bit sequence.
+    :rtype: bytes
+
+    :raises ValueError: If the length of `detected_bits` is not a multiple of 8.
+
+    Example
+    -------
+        >>> bits_to_bytes([1, 0, 0, 0, 0, 0, 0, 1])
+        b'\\x81'
+    """
     # Check if the length of detected_bits is a multiple of 8
     if len(detected_bits) % 8 != 0:
         raise ValueError(
@@ -127,6 +160,29 @@ def bits_to_bytes(detected_bits):
 
 
 def crc8(data: bytes, polynomial: int = 0x31, init_value: int = 0x00) -> int:
+    """
+    Compute the CRC-8 checksum for a given byte sequence.
+
+    :param data: The input data for which to compute the CRC-8 checksum.
+    :type data: bytes
+
+    :param polynomial: Polynomial to calculate CRC (default: 0x31).
+    :type polynomial: int, optional
+
+    :param init_value: The initial CRC value (default: 0x00).
+    :type init_value: int, optional
+
+    :returns: The computed 8-bit CRC checksum.
+    :rtype: int
+
+    Example
+    -------
+    >>> crc8(b"123456789")
+    b'\\0xA2'
+
+    >>> crc8(b"Hello", polynomial=0x07, init_value=0xFF)
+    b'\\0xFC'
+    """
     crc = init_value
     for byte in data:
         crc ^= byte  # XOR byte into the CRC
@@ -517,11 +573,40 @@ class AudioCodeEngine:
 
 
 def beep(duration: float = 2.0, async_: bool = False):
+    """
+    Play a beep sound for the given duration.
+
+    :param duration: The duration of the beep in seconds. Default is 2.0 seconds.
+    :type duration: float
+
+    :param async_: If True, play the sound asynchronously. Default is False.
+    :type async_: bool
+    """
     logger.debug(f"beep(duration={duration})")
     play_audio("A", duration, async_)
 
 
 def list_audio_devices():
+    """
+    List all available audio devices.
+
+    This function queries and logs available audio devices from different libraries
+    (`psychopy`, `sounddevice`, `psytoolbox`, and `psychopy.backend_ptb`), and logs
+    the current default input and output devices.
+
+    The function does not return any value but logs detailed information about
+    each device to the standard logger.
+
+    :returns: None
+    :rtype: None
+
+    :raises: None
+
+    Example
+    -------
+    >>> list_audio_devices()
+    # Logs detailed information about available audio devices
+    """
     logger.debug("list_audio_devices()")
 
     logger.debug("[psychopy]")
@@ -602,6 +687,41 @@ def play_audio(
     sample_rate: int = 44100,
     async_: bool = False,
 ):
+    """
+    Play an audio file with specified parameters.
+
+    This function plays an audio file using the specified audio library.
+    It supports different libraries such as PsychoPy (using Sounddevice or PTB)
+    and Sounddevice.
+
+    :param name: The name of the audio file to play.
+    :type name: str
+
+    :param duration: The duration (in seconds) for which to play the audio.
+                     If not specified, the audio will play in its entirety.
+    :type duration: float, optional
+
+    :param volume: The volume level to set for the audio. Should be a value
+                   between 0.0 and 1.0, where 1.0 is the maximum volume.
+                   Default is 0.8.
+    :type volume: float, optional
+
+    :param sample_rate: The sample rate (in Hz) for the audio playback.
+                        Default is 44100.
+    :type sample_rate: int, optional
+
+    :param async_: Whether to play the audio asynchronously.
+                   If set to `True`, the audio will play in the background.
+                   Default is `False`.
+    :type async_: bool, optional
+
+    :raises ValueError: If the selected audio library is unsupported.
+
+    Example
+    -------
+    >>> play_audio("sound.wav", duration=5, volume=0.5)
+    # Plays the audio file "sound.wav" for 5 seconds at half volume.
+    """
     logger.debug(f"play_audio(name={name}, duration={duration}, async_={async_})")
     if (
         _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE
@@ -624,6 +744,53 @@ def save_audiocode(
     codec: AudioCodec = AudioCodec.FSK,
     engine=None,
 ) -> (str, AudioCodeInfo):
+    """
+    Save an audiocode to a file (`*.wav`).
+
+    This function saves an audiocode to a file using the specified encoding
+    engine and codec. The code can be provided in various formats, such as
+    unsigned integers (16, 32, 64 bits), a string, or bytes.
+
+    :param fname: The name of the file where the audio code will be saved.
+                  If not provided, a temporary filename is generated.
+    :type fname: str, optional
+
+    :param code_uint16: The audio code as a 16-bit unsigned integer.
+    :type code_uint16: int, optional
+
+    :param code_uint32: The audio code as a 32-bit unsigned integer.
+    :type code_uint32: int, optional
+
+    :param code_uint64: The audio code as a 64-bit unsigned integer.
+    :type code_uint64: int, optional
+
+    :param code_str: The audio code as a string.
+    :type code_str: str, optional
+
+    :param code_bytes: The audio code as bytes.
+    :type code_bytes: bytes, optional
+
+    :param codec: The audio codec to use for encoding the audio code.
+                  Default is `AudioCodec.FSK`.
+    :type codec: AudioCodec, optional
+
+    :param engine: The encoding engine to use. If not specified, an
+                   `AudioCodeEngine` is created using the provided
+                   codec.
+    :type engine: AudioCodeEngine, optional
+
+    :returns: A tuple containing the file name where the audio code
+              was saved and the corresponding `AudioCodeInfo` object.
+    :rtype: tuple of (str, AudioCodeInfo)
+
+    :raises ValueError: If no code data is provided.
+
+    Example
+    -------
+    >>> save_audiocode(fname="code.wav", code_uint16=12345)
+    ('code.wav', <AudioCodeInfo object>)
+    """
+
     logger.debug(f"save_audiocode(fname={fname}...)")
     if not fname:
         fname = tempfile.mktemp(
