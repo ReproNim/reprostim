@@ -16,6 +16,7 @@ Contents
    :caption: Contents:
 
    overview/index
+   install/index
    changes/index
    cli/index
    capture/index
