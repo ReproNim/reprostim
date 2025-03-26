@@ -125,6 +125,14 @@ class DisplayChangeEvent:
 
 # sample prototype for display change event callback
 def display_change_callback(evt: DisplayChangeEvent):
+    """
+    Callback function sample prototype to handle display
+    change events.
+
+    :param evt: The object containing information about
+                the display change event.
+    :type evt: DisplayChangeEvent
+    """
     logger.debug(
         f"display_change_callback: type={evt.type},"
         f" new={evt.display}, old={evt.old_display}"
@@ -435,6 +443,19 @@ def _enum_displays_quartz() -> Generator[DisplayInfo, None, None]:
 def enum_displays(
     provider: DmProvider = DmProvider.PLATFORM,
 ) -> Generator[DisplayInfo, None, None]:
+    """
+    Enumerates available display devices based on the specified provider.
+
+    :param provider: The display manager provider to use. Defaults to
+                     `DmProvider.PLATFORM`.
+    :type provider: DmProvider
+
+    :return: A generator yielding `DisplayInfo` objects for each detected
+             display.
+    :rtype: Generator[DisplayInfo, None, None]
+
+    :raises NotImplementedError: If the platform or provider is not supported.
+    """
     a = []
     if provider in (DmProvider.PLATFORM, DmProvider.ALL):
         if _PLATFORM == DmPlatform.LINUX:
@@ -467,6 +488,19 @@ def enum_displays(
 # Note: result can be not the same object as provided
 # via di param
 def find_di(lst: Iterable[DisplayInfo], di: DisplayInfo) -> DisplayInfo:
+    """
+    Finds a matching display information object from the provided list.
+
+    Note: The returned result may not be the same object as the one provided
+          via `di` param.
+
+    :param lst: The list of display information objects to search in.
+    :type lst: Iterable[DisplayInfo]
+    :param di: The display information object to match.
+    :type di: DisplayInfo
+    :return: The matching display information object, or None if no match is found.
+    :rtype: DisplayInfo
+    """
     if di is None:
         return None
     for di2 in lst:
@@ -477,6 +511,16 @@ def find_di(lst: Iterable[DisplayInfo], di: DisplayInfo) -> DisplayInfo:
 def do_list_displays(
     provider: DmProvider = DmProvider.PLATFORM, fmt: str = "jsonl", out_func=print
 ):
+    """
+    Lists available displays information and outputs it in the specified format.
+
+    :param provider: The display manager provider to use.
+    :type provider: DmProvider
+    :param fmt: The output format, `jsonl` | `text`.
+    :type fmt: str
+    :param out_func: The function used to output the display list (default: print).
+    :type out_func: Callable[[str], None]
+    """
     logger.debug("do_list_displays()")
 
     last_provider: DmProvider = None
@@ -537,6 +581,49 @@ def do_monitor_displays(
     ext_proc_command: str = None,
     out_func=print,
 ):
+    """
+    Monitors display changes and triggers actions when changes are detected.
+
+    This function continuously monitors display changes and may run in sync
+    mode unless wait timeout reached or function is interrupted externally.
+
+    :param provider: The display manager provider to use. Defaults to
+                     `DmProvider.PLATFORM`.
+    :type provider: DmProvider
+
+    :param poll_interval: The time interval (in seconds) between polling for
+                          display changes. Default is 60 seconds.
+    :type poll_interval: int
+
+    :param max_wait: The maximum time (in seconds) to wait till function exit.
+                     When set to -1, the function will run indefinitely. Default
+                     is 3 seconds.
+    :type max_wait: int
+
+    :param name: A filter for matching display names in Unix shell-style wildcards
+                 format. Use `*` to match all displays. Default is `*`.
+    :type name: str
+
+    :param d_id: A filter for matching display IDs in Unix shell-style wildcards
+                 format. Use `*` to match all displays. Default is `*`.
+    :type d_id: str
+
+    :param on_change: A string indicating a shell script or command to execute
+                      when a display change is detected. Event information in
+                      JSON format is passed as an first argument to the command.
+                      Default is None.
+    :type on_change: str, optional
+
+    :param ext_proc_command: An external process command to execute when a display
+                             change is detected. All subprocesses created by this
+                             command will be automatically terminated when the
+                             display is disconnected. Default is None.
+    :type ext_proc_command: str, optional
+
+    :param out_func: The function used to output messages. Defaults to `print`.
+    :type out_func: Callable[[str], None]
+
+    """
     logger.debug("do_monitor_displays() enter")
 
     _eproc = None
