@@ -30,25 +30,40 @@ logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
-# Platform constants
 class DmPlatform(str, Enum):
+    """
+    Enum representing OS platform constants.
+    """
+
     LINUX = "linux"
+    """Linux platform"""
     XOS = "xos"
-    # WINDOWS = "win64"
+    """MacOS platform"""
+    WINDOWS = "win64"
+    """Windows platform"""
 
 
 # Service provider constants
 class DmProvider(str, Enum):
-    """Enum to represent the display monitoring provider/engine
-    depending on used OS environment."""
+    """
+    Enum to represent the display monitoring provider/engine
+    depending on used OS environment.
+    """
 
-    ALL = "all"  # use all available providers
-    PLATFORM = "platform"  # use the best OS specific providers
-    PYGAME = "pygame"  # Cross-platform
-    PYGLET = "pyglet"  # Cross-platform
-    PYUDEV = "pyudev"  # Used in Linux
-    QUARTZ = "quartz"  # Used in macOS
-    RANDR = "randr"  # Used in Linux
+    ALL = "all"
+    """Use all available providers"""
+    PLATFORM = "platform"
+    """Use the best OS specific providers"""
+    PYGAME = "pygame"
+    """Cross-platform pygame-based provider"""
+    PYGLET = "pyglet"
+    """Cross-platform pyglet-based provider"""
+    PYUDEV = "pyudev"
+    """Used in Linux, pyudev-based provider"""
+    QUARTZ = "quartz"
+    """Used in MacOS, Quartz-based provider"""
+    RANDR = "randr"
+    """Used in Linux, randr/xlib-based provider"""
 
 
 # import necessary provider implementation in runtime based on OS type
@@ -71,21 +86,34 @@ logger.debug(f"Use '{_PLATFORM}' platform.")
 MAX_DISPLAYS: int = 16
 
 
-# class representing display info
 @dataclass
 class DisplayInfo:
+    """Class representing display info."""
+
     id: str = None
+    """Display uniue ID"""
     name: str = None
+    """Display name"""
     width: int = 0
+    """Display width in pixels"""
     height: int = 0
+    """Display height in pixels"""
     refresh_rate: float = 0.0
+    """Display refresh rate in Hz"""
     bits_per_pixel: int = 0
+    """Display color depth in bits per pixel"""
     is_connected: bool = False
+    """Indicates if the display is connected"""
     is_active: bool = False
+    """Indicates if the display is active"""
     is_main: bool = False
+    """Indicates if the display is the main one"""
     is_sleeping: bool = False
+    """Indicates if the display is in sleep mode"""
     provider: DmProvider = None
+    """Used display provider"""
     ts: str = datetime.now().isoformat()
+    """Timestamp of the info in ISO format"""
 
     # compare display mode
     def eq_mode(self, di) -> bool:
@@ -109,21 +137,30 @@ class DisplayInfo:
 
 # Display change type
 class DisplayChangeType(str, Enum):
-    CONNECT = "connect"  # display connected
-    DISCONNECT = "disconnect"  # display disconnected
-    MODE = "mode"  # mode, resolution or framerate changed
+    """Enum representing display change event types."""
+
+    CONNECT = "connect"
+    """Display connect event"""
+    DISCONNECT = "disconnect"
+    """Display disconnect event"""
+    MODE = "mode"
+    """Display mode event (resolution or framerate changed)"""
 
 
-# class representing display change event
 @dataclass
 class DisplayChangeEvent:
+    """Class representing display change event."""
+
     type: DisplayChangeType = None
+    """The type of display change event"""
     display: DisplayInfo = None
+    """Current display information"""
     old_display: DisplayInfo = None
+    """Previous display information if any"""
     ts: str = datetime.now().isoformat()
+    """Timestamp of the event in ISO format"""
 
 
-# sample prototype for display change event callback
 def display_change_callback(evt: DisplayChangeEvent):
     """
     Callback function sample prototype to handle display
