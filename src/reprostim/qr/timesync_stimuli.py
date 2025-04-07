@@ -43,22 +43,30 @@ MAX_TR_TIMEOUT: float = 4.0
 
 # Enum for the log event names
 class EventName(str, Enum):
+    """Enum for the log event names."""
+
     STARTED = "started"
+    """Script started event."""
     SERIES_BEGIN = "series_begin"
+    """Series begin event."""
     SERIES_END = "series_end"
+    """Series end event."""
     TRIGGER = "trigger"
+    """Trigger event."""
 
 
-# Enum for the mode of the script operation
 class Mode(str, Enum):
-    # Listen for keyboard events to show codes
+    """Enum for the mode of the script operation."""
+
     EVENT = "event"
-    # Show codes at regular intervals
+    """Listen for keyboard events or MRI pulse and generate QR/audio codes."""
     INTERVAL = "interval"
+    """Produce QR/audio codes at regular intervals."""
     # Just play a beep
     BEEP = "beep"
-    # List audio/video devices
+    """Play a beep sound for audio test purposes."""
     DEVICES = "devices"
+    """List available audio devices to the console output."""
 
 
 #######################################################
@@ -67,10 +75,16 @@ class Mode(str, Enum):
 
 @dataclass
 class SeriesData:
-    num: int  # series number
-    tr_count: int = 0  # trigger events count in the series
-    tr_last_time: float = None  # last trigger event time()
-    tr_timeout: float = MAX_TR_TIMEOUT  # trigger event max timeout
+    """Class to hold series data for trigger events."""
+
+    num: int
+    """Series number."""
+    tr_count: int = 0
+    """Trigger events count in the series."""
+    tr_last_time: float = None
+    """Last trigger event time."""
+    tr_timeout: float = MAX_TR_TIMEOUT
+    """Trigger event max interval/timeout in seconds."""
 
 
 #######################################################
