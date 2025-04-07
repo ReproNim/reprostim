@@ -78,34 +78,99 @@ class SeriesData:
 
 
 def get_iso_time(t):
+    """Converts a timestamp into an ISO 8601 formatted string
+    with local timezone.
+
+    This function takes a timestamp in seconds and converts it into a
+    datetime object with local timezone.
+
+    :param t: The timestamp to be converted in seconds.
+    :type t: float
+
+    :return: The ISO 8601 formatted string with local timezone.
+    :rtype: str
+    """
     return datetime.fromtimestamp(t).astimezone().isoformat()
 
 
 def get_output_file_name(
     prefix: str, start_ts: datetime, end_ts: datetime = None
 ) -> str:
+    """
+    Generates an output file name based on the given prefix and timestamps.
+
+    This function creates a file name by formatting the provided start and
+    optional end timestamps into a string and appending them to the provided
+    prefix. The timestamps are converted to strings using the `get_ts_str`
+    function.
+
+    :param prefix: The prefix to use for the file name.
+    :type prefix: str
+
+    :param start_ts: The start timestamp to be included in the file name.
+    :type start_ts: datetime
+
+    :param end_ts: The optional end timestamp to be included in the file name.
+    :type end_ts: datetime, optional
+
+    :return: The generated file name.
+    :rtype: str
+    """
     start_str: str = get_ts_str(start_ts)
     end_str: str = get_ts_str(end_ts) if end_ts else ""
     return f"{prefix}{start_str}--{end_str}.log"
 
 
 def get_times():
+    """Get the current time and its ISO formatted string.
+
+    This function retrieves the current time in seconds since the epoch
+    and formats it into an ISO 8601 string with local timezone.
+
+    :return: A tuple containing the current time in seconds and its
+             ISO formatted string.
+    :rtype: tuple[float, str]
+    """
     t = time()
     return t, get_iso_time(t)
 
 
 def get_ts_str(ts: datetime) -> str:
+    """Get a formatted string representation of a timestamp.
+
+    This function formats the provided timestamp into a string using
+    the specified format (`%Y.%m.%d-%H.%M.%S.%f`). The format includes
+    year, month, day, hour, minute, second, and microsecond.
+
+    :param ts: The timestamp to be formatted.
+    :type ts: datetime
+
+    :return: The formatted string representation of the timestamp.
+    :rtype: str
+    """
     ts_format = "%Y.%m.%d-%H.%M.%S.%f"
     return f"{ts.strftime(ts_format)[:-3]}"
 
 
 def log(f, rec):
+    """Log a QR record to a file.
+
+    This function takes a file handle and a record dictionary,
+    converts the record to a JSON string, and writes it to the file.
+
+    :param f: The file handle to write the log to.
+    :type f: file object
+
+    :param rec: The record dictionary to be logged.
+    :type rec: dict
+    """
     s = json.dumps(rec).rstrip()
     f.write(s + os.linesep)
     logger.debug(f"LOG {s}")
 
 
 def mkrec(**kwargs):
+    """Create a basic QR record dictionary."""
     t, tstr = get_times()
     kwargs.update(
         {
@@ -117,6 +182,15 @@ def mkrec(**kwargs):
 
 
 def safe_remove(file_name: str):
+    """Safely remove a file if it exists.
+
+    This function checks if the specified file exists and is a valid file.
+    If it is, it attempts to remove the file. If the removal fails,
+    it logs an error message.
+
+    :param file_name: The name of the file to be removed.
+    :type file_name: str
+    """
     if file_name:
         if os.path.isfile(file_name):  # Check if it's a file
             try:
@@ -129,6 +203,17 @@ def safe_remove(file_name: str):
 
 
 def store_audiocode(audio_file: str, audio_data: int, logfn: str):
+    """Store the audio code data in to the standalone `*.wav` file.
+
+    :param audio_file: The path to the audio file to be copied.
+    :type audio_file: str
+
+    :param audio_data: The audio data used in audio code.
+    :type audio_data: int
+
+    :param logfn: The current log file name.
+    :type logfn: str
+    """
     # if audio_file exits, copy it to {logfn}audiocode_{audio_data}.wav
     if os.path.isfile(audio_file):
         sfile = f"{os.path.splitext(logfn)[0]}audiocode_{audio_data}.wav"
@@ -140,6 +225,16 @@ def store_audiocode(audio_file: str, audio_data: int, logfn: str):
 
 
 def do_init(logfn: str) -> bool:
+    """
+    Initializes a log file.
+
+    :param logfn: The path to the log file to be checked.
+    :type logfn: str
+
+    :return: `True` if the log file does not exist and can be
+              initialized, `False` otherwise.
+    :rtype: bool
+    """
     if os.path.exists(logfn):
         logger.error(f"Log file {logfn} already exists")
         return False
@@ -161,6 +256,55 @@ def do_main(
     keep_audiocode: bool,
     out_func=print,
 ) -> int:
+    """Main function to run the `timesync-stimuli` PsychoPy-based script.
+
+    This function initializes the PsychoPy environment, sets up the window,
+    and handles the main loop for displaying QR codes and audio codes.
+    It also handles keyboard events and manages the series of trigger events.
+    The function takes various parameters to configure the behavior of the script.
+
+    :param mode: The mode of operation (e.g., EVENT, INTERVAL, BEEP, DEVICES).
+    :type mode: Mode
+
+    :param logfn: The name of the log file to write to.
+    :type logfn: str
+
+    :param is_fullscreen: Whether to run the window in fullscreen mode.
+    :type is_fullscreen: bool
+
+    :param win_size: The size of the window (width, height) in pixels.
+    :type win_size: tuple[int, int]
+
+    :param display: The display number to use.
+    :type display: int
+
+    :param qr_scale: The scale factor for the QR code size.
+    :type qr_scale: float
+
+    :param audio_codec: The audio codec to use for the audio code.
+    :type audio_codec: str
+
+    :param mute: Whether to mute the audio output.
+    :type mute: bool
+
+    :param ntrials: The number of trials to run.
+    :type ntrials: int
+
+    :param duration: The duration of the experiment in seconds.
+    :type duration: float
+
+    :param interval: The interval between trials in seconds.
+    :type interval: float
+
+    :param keep_audiocode: Whether to keep the audio code file after use.
+    :type keep_audiocode: bool
+
+    :param out_func: The function to use for output (default is `print`).
+    :type out_func: callable
+
+    :return: 0 on success, -1 on error.
+    :rtype: int
+    """
     logger.info("main script started")
 
     if not importlib.util.find_spec("psychopy"):
