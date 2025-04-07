@@ -29,95 +29,153 @@ logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
-# Define class video info details
 class InfoSummary(BaseModel):
+    """
+    Summary information about a video file.
+
+    Provides video media info details. Contains basic metadata such as
+    path, duration, size, and data rate.
+    """
+
     path: Optional[str] = Field(None, description="Video file path")
+    """Video file path."""
     rate_mbpm: Optional[float] = Field(
         0.0, description="Video file 'byterate' " "in MB per minute."
     )
+    """Video file `byterate` in MB per minute."""
     duration_sec: Optional[float] = Field(
         0.0, description="Duration of the video " "in seconds"
     )
+    """Duration of the video in seconds"""
     size_mb: Optional[float] = Field(0.0, description="Video file size in MB.")
+    """Video file size in MB."""
 
 
 # Define class for video time info
 class VideoTimeInfo(BaseModel):
+    """Metadata for inferred or extracted timing information
+    from a video file.
+
+    This model is populated after parsing video filename
+    timestamps or media metadata.
+    """
+
     success: bool = Field(..., description="Success flag")
+    """Success flag."""
     error: Optional[str] = Field(None, description="Error message if any")
+    """Error message if any."""
     start_time: Optional[datetime] = Field(None, description="Start time of the video")
+    """Start time of the video."""
     end_time: Optional[datetime] = Field(None, description="End time of the video")
+    """End time of the video."""
     duration_sec: Optional[float] = Field(
         None, description="Duration of the video " "in seconds"
     )
+    """Duration of the video in seconds."""
 
 
 # Define model for parsing summary info
 class ParseSummary(BaseModel):
+    """
+    Summary of the QR parsing process and video metadata.
+
+    This model captures information about the parsing results and
+    properties of the video being processed.
+    """
+
     type: Optional[str] = Field("ParseSummary", description="JSON record type/class")
+    """JSON record type/class."""
     qr_count: Optional[int] = Field(0, description="Number of QR codes found")
+    """Number of QR codes found."""
     parsing_duration: Optional[float] = Field(
         0.0, description="Duration of the " "parsing in seconds"
     )
+    """Duration of the parsing in seconds."""
     # exit code
     exit_code: Optional[int] = Field(-1, description="Number of QR codes found")
+    """Exit code of the parsing process."""
     video_full_path: Optional[str] = Field(
         None, description="Full path " "to the video file"
     )
+    """Full path to the video file."""
     video_file_name: Optional[str] = Field(
         None, description="Name of the " "video file"
     )
+    """Name of the video file."""
     video_isotime_start: Optional[datetime] = Field(
         None, description="ISO datetime " "video started"
     )
+    """ISO datetime when the video started."""
     video_isotime_end: Optional[datetime] = Field(
         None, description="ISO datetime " "video ended"
     )
+    """ISO datetime when the video ended."""
     video_duration: Optional[float] = Field(
         None, description="Duration of the video " "in seconds"
     )
+    """Duration of the video in seconds."""
     video_frame_width: Optional[int] = Field(
         None, description="Width of the " "video frame in px"
     )
+    """Width of the video frame in pixels."""
     video_frame_height: Optional[int] = Field(
         None, description="Height of the " "video frame in px"
     )
+    """Height of the video frame in pixels."""
     video_frame_rate: Optional[float] = Field(
         None, description="Frame rate of the " "video in FPS"
     )
+    """Frame rate of the video in frames per second."""
     video_frame_count: Optional[int] = Field(
         None, description="Number of frames " "in video file"
     )
+    """Number of frames in the video file."""
 
 
 # Define the data model for the QR record
 class QrRecord(BaseModel):
+    """
+    Represents a decoded QR code segment extracted from a video stream.
+
+    Contains timing, frame location, and content metadata for each detected QR code.
+    """
+
     type: Optional[str] = Field("QrRecord", description="JSON record type/class")
+    """JSON record type/class."""
     index: Optional[int] = Field(
         None, description="Zero-based i    ndex of the QR code"
     )
+    """Zero-based index of the QR code."""
     frame_start: Optional[int] = Field(
         None, description="Frame number where QR code starts"
     )
+    """Frame number where QR code starts."""
     frame_end: Optional[int] = Field(
         None, description="Frame number where QR code ends"
     )
+    """Frame number where QR code ends."""
     isotime_start: Optional[datetime] = Field(
         None, description="ISO datetime where QR " "code starts"
     )
+    """ISO datetime where QR code starts."""
     isotime_end: Optional[datetime] = Field(
         None, description="ISO datetime where QR " "code ends"
     )
+    """ISO datetime where QR code ends."""
     time_start: Optional[float] = Field(
         None, description="Position in seconds " "where QR code starts"
     )
+    """Position in seconds where QR code starts."""
     time_end: Optional[float] = Field(
         None, description="Position in seconds " "where QR code ends"
     )
+    """Position in seconds where QR code ends."""
     duration: Optional[float] = Field(
         None, description="Duration of the QR code " "in seconds"
     )
+    """Duration of the QR code in seconds."""
     data: Optional[dict] = Field(None, description="QR code data")
+    """QR code data."""
 
     def __str__(self):
         return (
