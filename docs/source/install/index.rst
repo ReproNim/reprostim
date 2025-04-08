@@ -4,7 +4,8 @@
 Installation
 ************
 
-TODO: TBD
-
 .. toctree::
     :glob:
+
+.. include:: install.md
+   :parser: myst_parser.sphinx_
