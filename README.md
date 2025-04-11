@@ -184,32 +184,6 @@ Then it can be installed from PyPI:
     pip install reprostim
 ```
 
-## Build
-
-To build the project, use `hatch` and `venv` with preferable Python version:
-
-```shell
-    # first setup python and hatch
-    python3.10 -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install hatch
-
-    # build reprostim package
-    hatch build reprostim
-
-    # optionally re-create env
-    hatch env remove
-    hatch env create
-
-    # install all extra dependencies
-    hatch run pip install .[all]
-
-    # run some reprostim commands, e.g.:
-    hatch run reprostim --help
-    hatch run reprostim --version
-    hatch run reprostim echo 'Hello ReproStim CLI!'
-```
 
 ## Subdirectories Structure
 

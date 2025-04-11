@@ -78,3 +78,34 @@ singularity exec \
 
 More details can be found in
 [Container `repronim-reprostim`](../notes/containers.rst) section.
+
+## Developers Install
+
+If you want to build `reprostim` from source locally for development
+purposes, you can do this by cloning the
+[repository](https://github.com/ReproNim/reprostim) .
+To build the project, use `hatch` and `venv` with preferable Python
+`3.10` version:
+
+```shell
+    # first setup python and hatch
+    python3.10 -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install hatch
+
+    # build reprostim package
+    hatch build reprostim
+
+    # optionally re-create env
+    hatch env remove
+    hatch env create
+
+    # install all extra dependencies
+    hatch run pip install -e .[all]
+
+    # run some reprostim commands, e.g.:
+    hatch run reprostim --help
+    hatch run reprostim --version
+    hatch run reprostim echo 'Hello ReproStim CLI!'
+```
