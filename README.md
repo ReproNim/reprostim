@@ -14,7 +14,7 @@ session by making it possible to easily collect high fidelity copies of the
 actual stimuli shown to each subject in the form of video files that can be
 stored alongside  behavioral or neuroimaging data in public repositories.
 
-![Diagram](/_static/images/reproflow.svg)
+![](/_static/images/reproflow.svg)
 **Fig. 1:** [ReproNim ReproFlow Diagram, OHBM 2024 #2277](https://github.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster.svg)
 
 ReproStim provides for enhanced experimental reproducibility and a safeguard
@@ -29,7 +29,7 @@ valuable data (which can be especially costly in cases of fMRI of ECog, for
 example) can be recoded and recovered using the audiovisual record provided
 by ReproStim.
 
-![Alt text](/_static/images/reproflow-projects.png)
+![](/_static/images/reproflow-projects.png)
 **Fig. 2:** [ReproFlow projects, automate collection of all related metadata (audio/video stimuli, events)](https://datasets.datalad.org/repronim/artwork/talks/webinar-2024-reproflow/#/10)
 
 ReproStim requires minimal effort on behalf of investigators.  Once it is
@@ -39,7 +39,7 @@ effort on the part of individual experimenters.  When successfully set up,
 ReproStim runs in the background, silently collecting, cataloging, and
 storing all audio and visual stimulation delivered to experimental subjects.
 
-![Alt text](/_static/images/reproflow-sciops-video.png)
+![](/_static/images/reproflow-sciops-video.png)
 **Fig. 3:** [SciOps from ReproNim/ ReproFlow (Webinar, Jun 2024) Video [31:30]](https://youtu.be/SZ96Q6pwJzQ?t=1890s)
 
 
