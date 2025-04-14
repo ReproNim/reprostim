@@ -3,6 +3,7 @@ repos:
     rev: v4.6.0
     hooks:
       - id: check-added-large-files
+        args: ['--maxkb=3600']  # Set a higher size limit in KB (e.g., 3.6 MB)
       - id: check-json
       - id: check-toml
       - id: check-yaml
