@@ -174,5 +174,31 @@ More detailed information about dependencies and installation provided in
 
 Directory with reprostim pytests and test data.
 
+## `tools`
+
+Placeholder for utility scripts which are used outside the Python package,
+potentially for configuration or monitoring of the deployment. Some scripts
+could potentially be later recoded and included in the Python package.
+
+
 # Documentation
 Full documentation is available at [Read the Docs](https://reprostim.readthedocs.io/en/latest/).
+
+# Appendix
+
+## ReproFlow Projects
+
+- [BIDS](https://github.com/bids-standard) - brain imaging data structure standard.
+- [Birch](https://wiki.curdes.com/bin/view/CdiDocs/BirchUsersManual) - birch interface documentation.
+- [con/noisseur](https://github.com/con/noisseur) - system for automated verification of entered/displayed information (on another computer).
+- [containers/repronim](https://github.com/ReproNim/containers/tree/master/images/repronim) - repronim containers binary `distribution` for reproducible neuroimaging.
+- [containers/repronim-reprostim](https://github.com/ReproNim/reprostim/tree/master/containers/repronim-reprostim) - reprostim containers metadata and tools to generate/build binaries.
+- [DataLad](https://www.datalad.org/) - distributed data management free and open source tool.
+- [HeuDiConv](https://heudiconv.readthedocs.io/en/latest/) - heuristic-centric DICOM converter.
+- [MWCapture SDK](https://www.magewell.com/sdk) - Magewell USB Capture SDK and APIs.
+- [ReproEvents](https://github.com/ReproNim/reprostim/tree/master/Events) - events listener server and micropython-based firweware for Raspberry Pi event relay devices.
+- [reproflow-data-sync](https://github.com/ReproNim/reproflow-data-sync) - DataLad dataset with all samples of recorded `ReproEvents`, `ReproStim`, etc. data for purpose of calibration and establishing processing pipelines.
+- [ReproIn](https://github.com/ReproNim/reproin) - setup for automatic generation of shareable, version-controlled BIDS datasets from MR scanners.
+- [ReproMon](https://github.com/ReproNim/repromon) - service to monitor data acquisition to alert if anything goes wrong in ReproFlow.
+- [ReproStim](https://github.com/ReproNim/reprostim) - automated capture of audio-visual stimuli into BIDS datasets.
+- [reprostim-videocapture](https://github.com/ReproNim/reprostim/tree/master/src/reprostim-capture) - set of tools and utilities to capture video/audio signal with Magewell USB Capture devices and save it to a file. It is a part of the ReproStim project.
