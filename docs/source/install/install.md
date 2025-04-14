@@ -28,6 +28,20 @@ be installed:
        brew install portaudio
    ```
 
+`reprostim-videocapture` utility works only on Linux and requires in
+the following packages (build and runtime):
+
+```shell
+    apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev libspdlog-dev catch2 v4l-utils libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++
+````
+Optionally, `con/duct` tool is used to monitor and log system info for
+the video capture with `ffmpeg`:
+
+```shell
+    pip install con-duct
+    duct --version
+```
+
 
 ## Local
 
@@ -40,6 +54,23 @@ If installing through `PyPI`, e.g. :
 
 On Debian-based systems, we recommend using [NeuroDebian](http://neuro.debian.net) as
 a basic environment.
+
+`reprostim-videocapture` utility is not available as a separate package at the moment,
+and it should be built from the source manually like described below in
+[Developers Install](install.md#developers-install) section.
+
+Then, to install the project binaries under `/usr/local/bin`, once the build done,
+run the following command:
+
+```shell
+    cd src/reprostim-capture
+
+    cmake --install build
+```
+
+And make sure the system in configured as described in
+[Hardware Setup](install.md#hardware-setup) section.
+
 
 ## Singularity
 
@@ -81,6 +112,17 @@ More details can be found in
 
 ## Developers Install
 
+`reprostim-videocapture` utility can be built from source with CMake:
+
+```shell
+    cd src/reprostim-capture
+
+    mkdir build
+    cd build
+    cmake ..
+    make
+```
+
 If you want to build `reprostim` from source locally for development
 purposes, you can do this by cloning the
 [repository](https://github.com/ReproNim/reprostim) .
@@ -109,3 +151,88 @@ To build the project, use `hatch` and `venv` with preferable Python
     hatch run reprostim --version
     hatch run reprostim echo 'Hello ReproStim CLI!'
 ```
+
+## Hardware Setup
+
+### Setup USB device with "udev" access
+
+The `reprostim-videocapture` utility internally uses Magewell Capture SDK and to
+make it working properly should be executed under "root" account or in case of
+other account - special "udev" rules should be applied there. Program will
+produce following error when executed in environment without proper ownership
+and permissions for informational purposes:
+
+    ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.
+
+For more information refer to item #14 from Magewell FAQ on https://www.magewell.com/kb/detail/010020005/All :
+
+    14. Can the example codes associated with USB Capture (Plus) devices in SDKv3 work
+        without root authority (sudo) on Linux?
+
+    Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
+    move it to the directory "/etc/udev/rules.d", and then restart your computer.
+
+NOTE: Also make sure that no other processes like ffmpeg, vlc, etc. are using this video device, as
+it can accidentally produce the same error message ERROR[003].
+
+#### 1) Identify the USB Device:
+
+This is optional step, only for information purposes:
+
+```shell
+    lsusb
+```
+
+And locate line with device, e.g.:
+
+    Bus 004 Device 012: ID 2935:0008 Magewell USB Capture DVI+
+
+In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
+
+Optionally Magewell device name and serial number can be quickly checked with this command:
+
+```shell
+    lsusb -d 2935: -v | grep -E 'iSerial|iProduct'
+```
+
+#### 2) Create "udev" rules
+Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
+appropriate content depending on system type.
+
+For an active/desktop user logged in via session manager it should be like:
+
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2935", TAG+="uaccess"
+
+For a daemon configuration we should provide explicit permissions like:
+
+    SUBSYSTEM=="usb", ATTR{idVendor}=="2935", MODE="0660", OWNER="reprostim", GROUP="plugdev"
+
+Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in
+step 1) from lsusb utility.
+
+Also sample udev rules configuration added to project under
+"src/reprostim-capture/etc/udev/189-reprostim.rules" location.
+
+Note: make sure the file has owner "root", group "root" and 644 permissions:
+
+```shell
+    ls -l /etc/udev/rules.d/189*
+````
+```
+    -rw-r--r-- 1 root root 72 ... /etc/udev/rules.d/189-reprostim.rules
+```
+
+#### 3) Add user to "plugdev" group
+Make sure the user running `reprostim-videocapture` utility is a member of the
+"plugdev" group, e.g.:
+
+```shell
+    sudo usermod -aG plugdev TODO_user
+```
+
+#### 4) Restart computer
+Restart computer to make changes effect.
+
+Note: we tested "sudo udevadm control --reload-rules" command without OS
+restart, but somehow it didn't help, and complete restart was necessary
+anyway.

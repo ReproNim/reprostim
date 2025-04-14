@@ -83,6 +83,9 @@ html_logo = "_static/images/logo256.png"
 
 # configure myst_parser
 
+# myst_enable_extensions = [
+#     "attrs_block",  # enables `{#id}` for paragraphs
+# ]
 #
 # myst_enable_extensions = [
 #     "substitution",
