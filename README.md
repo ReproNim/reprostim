@@ -113,6 +113,11 @@ ReproStim will not interfere.
 
 #### Magewell USB Capture Plus Family device
 
+| ![](/_static/images/mwc-dvi-plus.png) | ![](/_static/images/mwc-hdmi-plus.png) |
+|:-------------------------------------:|:--------------------------------------:|
+|        *USB Capture DVI Plus*         |        *USB Capture HDMI Plus*         |
+
+
 The current version of ReproStim has only been developed and tested for the
 Magewell USB Capture devices `MWC` . Common Magewell devices include the
 USB Capture HDMI Plus, USB Capture DVI Plus models. However, we anticipate
