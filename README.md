@@ -52,28 +52,29 @@ components:
 
 ### Simple setup schematic
 
-Given a stimulus presentation computer (SP) that controls the content and
+Given a stimulus presentation computer (SC) that controls the content and
 flow of the experimental presentation and presents A/V to experimental
 subject on external monitor or projector (EPD), the setup without ReproStim
 would be something like:
 
-1. Schematic A.
+#### 1. Schematic A.
 
-       ------                -------
-       | SC | -- A/V Out --> | EPD |
-       ------                -------
+```{mermaid}
+graph LR
+    SC[SC] -- A/V Out --> EPD[EPD]
+```
 
-    With the addition of ReproStim, the setup will look like this:
+With the addition of ReproStim, the setup will look like this:
 
-2. Schematic B.
+#### 2. Schematic B.
 
-       ------                                 -------
-       | SC | -- A/V Out --> A/V Splitter --> | EPD |
-       ------                     |           -------
-                                  V
-                               -------              ------
-                               | MWC | -- USB-C --> | VC |
-                               -------              ------
+```{mermaid}
+graph LR
+    SC[SC] -- A/V Out --> AVS[A/V Splitter]
+    AVS --> EPD[EPD]
+    AVS --> MWC[MWC]
+    MWC -- USB-C --> VC[VC]
+```
 
 ### Original set up without ReproStim
 

@@ -3,3 +3,4 @@ furo
 Sphinx
 sphinx-click
 myst-parser
+sphinxcontrib-mermaid
