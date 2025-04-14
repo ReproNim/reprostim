@@ -1,4 +1,4 @@
-# ReproStim Introduction
+# Introduction
 
 [![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
 [![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg?event=push)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
@@ -40,21 +40,21 @@ storing all audio and visual stimulation delivered to experimental subjects.
 Before using ReproStim you will need a minimum of the following
 components:
 
-1. Magewell USB Capture Plus device (MWC)
+1. Magewell USB Capture Plus device `MWC`
 
-2. Stimulus control computer (SC) with A/V out to presentation device
+2. Stimulus control computer `SC` with A/V out to presentation device
 
-3. External presentation device (EPD)
+3. External presentation device `EPD`
 
-4. Video capture computer (VC) with USB-C port
+4. Video capture computer `VC` with USB-C port
 
-5. Supporting cables including A/V splitter cables
+5. Supporting cables including `A/V` splitter cables
 
 ### Simple setup schematic
 
-Given a stimulus presentation computer (SC) that controls the content and
-flow of the experimental presentation and presents A/V to experimental
-subject on external monitor or projector (EPD), the setup without ReproStim
+Given a stimulus presentation computer `SC` that controls the content and
+flow of the experimental presentation and presents `A/V` to experimental
+subject on external monitor or projector `EPD`, the setup without ReproStim
 would be something like:
 
 #### 1. Schematic A.
@@ -79,16 +79,16 @@ graph LR
 ### Original set up without ReproStim
 
 Most experimental setups include something like Schematic A, with a stimulus
-control computer (SC) that sends A/V information to the experimental
+control computer `SC` that sends `A/V` information to the experimental
 subject. For example, in the Dartmouth Brain Imaging Center (DBIC),
 experimenters can use their own laptop or a dedicated computer in the scan
-control room for SC. The External Presentation Device for video (EPDv) in
+control room for `SC`. The External Presentation Device for video (EPDv) in
 the DBIC MRI suite is a projector that projects through the wall of the
 shielded scan room to a rear-projection screen located at the back of the
 MRI scanner bore; and the EPDa (audio) comprises MRI-safe headphones worn on
 the subject's head.
 
-The A/V out connections from SC can be any standard as long as you have the
+The `A/V` out connections from `SC` can be any standard as long as you have the
 appropriate adapters, dongles, etc. However, if your Video out does not
 support embedded audio (e.g. VGA), then you will need a separate audio out
 set of splitters and cables. The Magewell device has standard audio ports to
@@ -104,60 +104,60 @@ ReproStim will not interfere.
 #### Magewell USB Capture Plus Family device
 
 The current version of ReproStim has only been developed and tested for the
-Magewell USB Capture DVI Plus device (MWC) . However, we anticipate that it
-will be relatively painless to support at least all devices in the USB
+Magewell USB Capture devices `MWC` . Common Magewell devices include the
+USB Capture HDMI Plus, USB Capture DVI Plus models. However, we anticipate
+that it will be relatively painless to support at least all devices in the USB
 Capture Plus Family. Information about these devices and supporting software
-can all be found at www.magewell.com
+can all be found at [Magewell](https://www.magewell.com/capture/usb-capture)
+website.
 
-#### Video Capture computer (VC), AKA ReproStim Server
+#### Video Capture computer `VC`, AKA ReproStim Server
 
-The video capture computer (VC) does most of the work for ReproStim. The
+The video capture computer `VC` does most of the work for ReproStim. The
 software running on this computer runs as a service that is always on as
 long as the computer is running, which is all the time. Therefore, I will
 refer to VC also as the ReproStim server. In a nutshell, the server software
-monitors the video signal coming from SC into MWC. If there is any video
+monitors the video signal coming from `SC` into `MWC`. If there is any video
 coming over the connection, it gets recorded for posterity.
 
 Current development of ReproStim, including our working setup at the DBIC,
 uses a Linux box running Debian Linux. We anticipate that any Nix/Mac setup
 running on a modern desktop will be amply sufficient as a ReproStim Server,
-and should be relatively painless to configure.
+and should be relatively painless to configure. But `reprostim-videocapture`
+utility is currently only available for Linux and not supported on Mac.
 
 The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
 subjects.
 
-# Tools `reprostim-capture`
+
+# Project Structure
+
+## `docs`
+
+Contains all documentation for the `reprostim` project and RTD configuration.
+
+## `src/reprostim`
+
+Contains all code for `reprostim` library. Represented as a set of Python
+APIs, tools and utilities under the umbrella of the `reprostim` library,
+where each tool is a separate subcommand of the `reprostim` CLI.
+
+## `src/reprostim-capture`
+
+Contains all code needed for setting up `reprostim-videocapture`. This
+includes C++ code for interfacing with the video capture device, and
+scheme for setting up a video-capture `server`, along with helper
+utilities.
 
 This subproject is set of native C/C++ tools and utilities to capture
 video/audio signals with Magewell USB Capture devices and save it to a file.
 More detailed information about dependencies and installation provided in
 [reprostim-capture README.md](./src/reprostim-capture/README.md).
 
-
-# CLI `reprostim`
-
-Represented as a set of Python tools and utilities under the umbrella of
-the `reprostim` library, where each tool is a separate subcommand of
-the `reprostim` CLI.
-
-
-
-## Subdirectories Structure
-
-### src/reprostim
-
-Contains all code for `reprostim` library.
-
-### src/reprostim-capture
-
-Contains all code needed for setting up video capture. This includes C++
-code for interfacing with the video capture device, and scheme for setting
-up a video-capture "server", along with helper utilities.
-
-### tests
+## `tests`
 
 Directory with reprostim pytests and test data.
 
-## Documentation
+# Documentation
 Full documentation is available at [Read the Docs](https://reprostim.readthedocs.io/en/latest/).
