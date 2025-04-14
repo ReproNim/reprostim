@@ -190,6 +190,7 @@ Full documentation is available at [Read the Docs](https://reprostim.readthedocs
 
 - [BIDS](https://github.com/bids-standard) - brain imaging data structure standard.
 - [Birch](https://wiki.curdes.com/bin/view/CdiDocs/BirchUsersManual) - birch interface documentation.
+- [CON](https://centerforopenneuroscience.org/) - center for open neuroscience homepage.
 - [con/noisseur](https://github.com/con/noisseur) - system for automated verification of entered/displayed information (on another computer).
 - [containers/repronim](https://github.com/ReproNim/containers/tree/master/images/repronim) - repronim containers binary `distribution` for reproducible neuroimaging.
 - [containers/repronim-reprostim](https://github.com/ReproNim/reprostim/tree/master/containers/repronim-reprostim) - reprostim containers metadata and tools to generate/build binaries.
