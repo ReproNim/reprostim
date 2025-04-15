@@ -30,7 +30,7 @@ valuable data (which can be especially costly in cases of fMRI of ECog, for
 example) can be recoded and recovered using the audiovisual record provided
 by ReproStim.
 
-![](/_static/images/reproflow-projects.png)
+![](docs/source/_static/images/reproflow-projects.png)
 **Fig. 2:** [ReproFlow projects, automate collection of all related metadata (audio/video stimuli, events)](https://datasets.datalad.org/repronim/artwork/talks/webinar-2024-reproflow/#/10)
 
 ReproStim requires minimal effort on behalf of investigators.  Once it is
@@ -40,7 +40,7 @@ effort on the part of individual experimenters.  When successfully set up,
 ReproStim runs in the background, silently collecting, cataloging, and
 storing all audio and visual stimulation delivered to experimental subjects.
 
-![](/_static/images/reproflow-sciops-video.png)
+![](docs/source/_static/images/reproflow-sciops-video.png)
 **Fig. 3:** [SciOps from ReproNim/ ReproFlow (Webinar, Jun 2024) Video [31:30]](https://youtu.be/SZ96Q6pwJzQ?t=1890s)
 
 
