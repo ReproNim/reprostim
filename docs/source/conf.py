@@ -122,6 +122,7 @@ suppress_warnings = [
 _URI_MAP = {
     "docs/images/clion_version_auto_inc.png": "../../../src/reprostim-capture/docs/images/clion_version_auto_inc.png",  # noqa
     "docs/images/project_structure.png": "../../../src/reprostim-capture/docs/images/project_structure.png",  # noqa
+    "docs/source/_static/images/reproflow.svg": "/_static/images/reproflow.svg",  # noqa
     "docs/source/_static/images/reproflow-projects.png": "/_static/images/reproflow-projects.png",  # noqa
     "docs/source/_static/images/reproflow-sciops-video.png": "/_static/images/reproflow-sciops-video.png",  # noqa
     "docs/source/_static/images/mwc-dvi-plus.png": "/_static/images/mwc-dvi-plus.png",  # noqa

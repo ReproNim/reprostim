@@ -15,7 +15,7 @@ actual stimuli shown to each subject in the form of video files that can be
 stored alongside  behavioral or neuroimaging data in public repositories.
 ReproStim is part of large ReproFlow process represented in the diagram below:
 
-![](/_static/images/reproflow.svg)
+![](docs/source/_static/images/reproflow.svg)
 **Fig. 1:** [ReproNim ReproFlow Diagram, OHBM 2024 #2277](https://github.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster.svg)
 
 ReproStim provides for enhanced experimental reproducibility and a safeguard
