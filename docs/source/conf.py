@@ -124,6 +124,8 @@ _URI_MAP = {
     "docs/images/project_structure.png": "../../../src/reprostim-capture/docs/images/project_structure.png",  # noqa
     "docs/source/_static/images/reproflow-projects.png": "/_static/images/reproflow-projects.png",  # noqa
     "docs/source/_static/images/reproflow-sciops-video.png": "/_static/images/reproflow-sciops-video.png",  # noqa
+    "docs/source/_static/images/mwc-dvi-plus.png": "/_static/images/mwc-dvi-plus.png",  # noqa
+    "docs/source/_static/images/mwc-hdmi-plus.png": "/_static/images/mwc-hdmi-plus.png",  # noqa
     # "./src/reprostim-capture/README.md" : "https://github.com/
     # ReproNim/reprostim/tree/master/src/reprostim-capture/README.md", #noqa
     # "./Parsing/repro-vidsort" : "https://github.com/
