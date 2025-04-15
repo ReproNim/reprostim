@@ -110,6 +110,92 @@ singularity exec \
 More details can be found in
 [Container `repronim-reprostim`](../notes/containers.rst) section.
 
+## Reproiner
+
+We have installed and configured `reprostim-videocapture` utility
+on `reproiner` Debian box manually as it's not available as a package yet.
+
+Utility configuration and captured video files are stored under
+`/data/reprostim/` location. The `config.yaml` file was copied from
+default GitHub version and manually modified to match the system,
+connected devices and `reproiner` environment. This directory should be
+used as working directory for `reprostim-videocapture` utility.
+
+Video files are stored under `/data/reprostim/Videos/` location.
+
+
+We use `screen` utility to run sessions in the background, under `reprostim`
+user and share it between other users. The command below will list all
+available sessions:
+
+```shell
+    screen -ls
+```
+
+And connect to the target session with `reprostim-videocapture` utility with:
+
+```shell
+    screen -r <SESSION_ID>
+```
+
+To create the latest build - checkout `reprostim` project, build and install
+it as described in [Developers Install](install.md#developers-install) and
+[Local](install.md#local) sections.
+
+```shell
+    git clone https://github.com/ReproNim/reprostim.git
+
+    cd src/reprostim-capture
+
+    mkdir build
+    cd build
+    cmake ..
+    make
+
+    cd ..
+    cmake --install build
+```
+As result, it will install `reprostim` package under `/usr/local/bin` location.
+
+Usually in `screen` we have three sessions running under `/data/reprostim/`
+location:
+- **(A)** `reprostim proc` to run `reprostim-videocapture` utility:
+```shell
+  reprostim-videocapture -d /data/reprostim -f /data/reprostim/logs/$(date --iso=minutes).log
+```
+Note: when manually restarting `reprostim-videocapture` utility, make sure that
+old `ffmpeg` and `reprostim-videocapture` processes are killed first, e.g.:
+```shell
+  ps aux | grep videocapture
+  ps aux | grep ffmpeg
+```
+- **(B)** `reprostim logs` to view logs in realtime, e.g.:
+```shell
+  tail -f /data/reprostim/logs/2024-06-21T08:38-04:00.log
+```
+- **(C)** `repromon podman` to run `repromon` service.
+```shell
+  cd /home/reprostim/repromon
+
+  ( set -a &&  source ./.env.dev && podman-compose  -f docker-compose.dev.yml up -d  ; )
+
+  podman ps -a
+  podman logs repromon_db_1
+  podman logs repromon_web_1
+```
+- **(D)** `bash` to monitor system and run miscellaneous tasks.
+
+Recently were added cron job to run `reprostim-videocapture` utility
+automatically under `/data/reprostim/code/reprostim-videocapture-cron`
+location.
+
+Videos captured by `reprostim-videocapture` utility @`reproiner` under
+`/data/reprostim/Videos` location are populated and distributed to other
+servers (like `rolando` or `typhon`) with `git-annex` assistant help.
+E.g. @`typhon` git-annex repository is stored under
+`/data/repronim/reprostim-reproiner` location.
+
+
 ## Developers Install
 
 `reprostim-videocapture` utility can be built from source with CMake:
