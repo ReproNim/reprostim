@@ -13,6 +13,7 @@ complete record of audio and visual stimulation for every data collection
 session by making it possible to easily collect high fidelity copies of the
 actual stimuli shown to each subject in the form of video files that can be
 stored alongside  behavioral or neuroimaging data in public repositories.
+ReproStim is part of large ReproFlow process represented in the diagram below:
 
 ![](/_static/images/reproflow.svg)
 **Fig. 1:** [ReproNim ReproFlow Diagram, OHBM 2024 #2277](https://github.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster.svg)
@@ -145,7 +146,6 @@ The current DBIC computer is a small-profile desktop that resides in the
 control of the scan suite, quietly recording all video presented to all
 subjects.
 
-
 # Project Structure
 
 ## `docs`
@@ -186,7 +186,37 @@ Full documentation is available at [Read the Docs](https://reprostim.readthedocs
 
 # Appendix
 
-## ReproFlow Projects
+## A: ReproFlow Time Synchronization
+
+As shown above on ReproFlow diagram `Fig. 1`, many devices and computers
+are used in this workflow. Each system like MRI, Birch, ReproEvents,
+video recorded by MWC, ReproIn server etc. has its own clock, and the clocks
+are not synchronized. This is a problem for reproducibility, and strict
+data matching. ReproStim provides some tools and APIs to help with this
+problem.
+
+We do calibration of the clocks monthly and store results in the
+[reproflow-data-sync](https://github.com/ReproNim/reproflow-data-sync)
+project. By now this is manual process, but we are working on automating it,
+so that the time synchronization is done automatically, and the results
+are stored in the same dataset.
+
+The `timesync-stimuli` command is used to generate test A/V output
+with embedded timecodes (QR and audiocode).
+
+Also `qr-parse` command is used to parse the QR/audio codes from the video
+recordings and convert it to JSONL format.
+
+[reproflow-data-sync/code](https://github.com/ReproNim/reproflow-data-sync/tree/master/code)
+project provides tools to match clocks between different devices/swimlanes
+like `DICOMs`, `Birch`, `ReproEvents`, `PsychoPy`, `QR/audio` codes etc.
+As result global `tmap` table is populated with time offsets between
+different devices. This table is used to match the time of events
+between different devices with `repronim_timing` API. Probably some of
+this code with time will be migrated/moved to ReproStim project.
+
+
+## B: ReproFlow Projects
 
 - [BIDS](https://github.com/bids-standard) - brain imaging data structure standard.
 - [Birch](https://wiki.curdes.com/bin/view/CdiDocs/BirchUsersManual) - birch interface documentation.
