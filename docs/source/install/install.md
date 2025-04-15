@@ -121,6 +121,12 @@ default GitHub version and manually modified to match the system,
 connected devices and `reproiner` environment. This directory should be
 used as working directory for `reprostim-videocapture` utility.
 
+```shell
+  ssh reprostim@reproiner
+
+  cd /data/reprostim
+```
+
 Video files are stored under `/data/reprostim/Videos/` location.
 
 
@@ -157,8 +163,8 @@ it as described in [Developers Install](install.md#developers-install) and
 ```
 As result, it will install `reprostim` package under `/usr/local/bin` location.
 
-Usually in `screen` we have three sessions running under `/data/reprostim/`
-location:
+Usually in `screen` we have multiple sessions running under `/data/reprostim/`
+location like listed below:
 - **(A)** `reprostim proc` to run `reprostim-videocapture` utility:
 ```shell
   reprostim-videocapture -d /data/reprostim -f /data/reprostim/logs/$(date --iso=minutes).log
