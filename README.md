@@ -225,12 +225,16 @@ this code with time will be migrated/moved to ReproStim project.
 - [containers/repronim](https://github.com/ReproNim/containers/tree/master/images/repronim) - repronim containers binary `distribution` for reproducible neuroimaging.
 - [containers/repronim-reprostim](https://github.com/ReproNim/reprostim/tree/master/containers/repronim-reprostim) - reprostim containers metadata and tools to generate/build binaries.
 - [DataLad](https://www.datalad.org/) - distributed data management free and open source tool.
+- [DBIC](https://www.dartmouth.edu/dbic/) - Dartmouth brain imaging center.
+- [DICOM](https://www.dicomstandard.org/) - digital imaging and communications in medicine standard.
 - [HeuDiConv](https://heudiconv.readthedocs.io/en/latest/) - heuristic-centric DICOM converter.
+- [Magewell USB Capture](https://www.magewell.com/capture/usb-capture) - Magewell USB Capture devices.
 - [MWCapture SDK](https://www.magewell.com/sdk) - Magewell USB Capture SDK and APIs.
+- [NeuroDebian](https://neuro.debian.net/) - ultimate neuroscience software platform.
 - [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) - network time protocol wiki.
 - [ReproEvents](https://github.com/ReproNim/reprostim/tree/master/Events) - events listener server and micropython-based firweware for Raspberry Pi event relay devices.
 - [reproflow-data-sync](https://github.com/ReproNim/reproflow-data-sync) - DataLad dataset with all samples of recorded `ReproEvents`, `ReproStim`, etc. data for purpose of calibration and establishing processing pipelines.
 - [ReproIn](https://github.com/ReproNim/reproin) - setup for automatic generation of shareable, version-controlled BIDS datasets from MR scanners.
 - [ReproMon](https://github.com/ReproNim/repromon) - service to monitor data acquisition to alert if anything goes wrong in ReproFlow.
 - [ReproStim](https://github.com/ReproNim/reprostim) - automated capture of audio-visual stimuli into BIDS datasets.
-- [reprostim-videocapture](https://github.com/ReproNim/reprostim/tree/master/src/reprostim-capture) - set of tools and utilities to capture video/audio signal with Magewell USB Capture devices and save it to a file. It is a part of the ReproStim project.
+- [reprostim-capture](https://github.com/ReproNim/reprostim/tree/master/src/reprostim-capture) - set of tools and utilities to capture video/audio signal with Magewell USB Capture devices and save it to a file. It is a part of the ReproStim project.
