@@ -227,6 +227,7 @@ this code with time will be migrated/moved to ReproStim project.
 - [DataLad](https://www.datalad.org/) - distributed data management free and open source tool.
 - [HeuDiConv](https://heudiconv.readthedocs.io/en/latest/) - heuristic-centric DICOM converter.
 - [MWCapture SDK](https://www.magewell.com/sdk) - Magewell USB Capture SDK and APIs.
+- [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) - network time protocol wiki.
 - [ReproEvents](https://github.com/ReproNim/reprostim/tree/master/Events) - events listener server and micropython-based firweware for Raspberry Pi event relay devices.
 - [reproflow-data-sync](https://github.com/ReproNim/reproflow-data-sync) - DataLad dataset with all samples of recorded `ReproEvents`, `ReproStim`, etc. data for purpose of calibration and establishing processing pipelines.
 - [ReproIn](https://github.com/ReproNim/reproin) - setup for automatic generation of shareable, version-controlled BIDS datasets from MR scanners.

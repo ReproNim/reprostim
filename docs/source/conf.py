@@ -41,7 +41,9 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns = [
+    'cli/reprostim-*-help.txt',
+]
 
 autodoc_default_options = {
     "members": True,
