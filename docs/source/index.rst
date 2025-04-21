@@ -17,10 +17,10 @@ Contents
 
    overview/index
    install/index
-   changes/index
+   dev/index
    cli/index
-   capture/index
    notes/index
+   changes/index
    api/index
 
 Indices and tables
