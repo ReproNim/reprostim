@@ -872,5 +872,38 @@
          y="215.47975"
          ry="0" />
     </a>
+    <a
+       id="a16"
+       xlink:href="https://github.com/ReproNim/reprostim/tree/master/src/reprostim-capture">
+      <rect
+         style="fill:#000000;fill-opacity:0;stroke-width:0.17"
+         id="rect15"
+         width="127.46692"
+         height="20.030527"
+         x="89.226837"
+         y="339.30478" />
+    </a>
+    <a
+       id="a17"
+       xlink:href="https://reprostim.readthedocs.io/en/latest/cli/timesync-stimuli.html">
+      <rect
+         style="fill:#000000;fill-opacity:0;stroke-width:0.17"
+         id="rect16"
+         width="72.231247"
+         height="18.816544"
+         x="461.30881"
+         y="340.51874" />
+    </a>
+    <a
+       id="a18"
+       xlink:href="https://github.com/con/noisseur">
+      <rect
+         style="fill:#000000;fill-opacity:0;stroke-width:0.17"
+         id="rect17"
+         width="129.89484"
+         height="18.816544"
+         x="182.09558"
+         y="93.475731" />
+    </a>
   </g>
 </svg>
