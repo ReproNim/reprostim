@@ -47,21 +47,17 @@ storing all audio and visual stimulation delivered to experimental subjects.
 **Fig. 3:** [SciOps from ReproNim/ ReproFlow (Webinar, Jun 2024) Video [31:30]](https://youtu.be/SZ96Q6pwJzQ?t=1890s)
 
 
-# Development
+# Deployment
 
-## Hardware needed
+## Hardware
 
 Before using ReproStim you will need a minimum of the following
 components:
 
 1. Magewell USB Capture Plus device `MWC`
-
 2. Stimulus control computer `SC` with A/V out to presentation device
-
 3. External presentation device `EPD`
-
 4. Video capture computer `VC` with USB-C port
-
 5. Supporting cables including `A/V` splitter cables
 
 ### Simple setup schematic
@@ -130,7 +126,9 @@ Capture Plus Family. Information about these devices and supporting software
 can all be found at [Magewell](https://www.magewell.com/capture/usb-capture)
 website.
 
-#### Video Capture computer `VC`, AKA ReproStim Server
+
+## Software
+### Video Capture computer `VC`, AKA ReproStim Server
 
 The video capture computer `VC` does most of the work for ReproStim. The
 software running on this computer runs as a service that is always on as
