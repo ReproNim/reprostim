@@ -1,5 +1,3 @@
-Development docs
-
 # Project Structure
 
 ## `docs`
