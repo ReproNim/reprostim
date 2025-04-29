@@ -1,7 +1,7 @@
 # Introduction
 
 [![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
-[![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg?event=push)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
+[![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
 [![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
 [![Conda](https://img.shields.io/conda/vn/conda-forge/reprostim.svg)](https://anaconda.org/conda-forge/reprostim)
 [![GitHub release](https://img.shields.io/github/release/ReproNim/reprostim.svg)](https://GitHub.com/ReproNim/reprostim/releases/)
@@ -14,6 +14,9 @@ session by making it possible to easily collect high fidelity copies of the
 actual stimuli shown to each subject in the form of video files that can be
 stored alongside  behavioral or neuroimaging data in public repositories.
 ReproStim is part of large ReproFlow process represented in the diagram below:
+
+<object type="image/svg+xml" data="./docs/source/_static/images/reproflow.svg" width="100%" height="600px"></object>
+
 
 ![](docs/source/_static/images/reproflow.svg)
 **Fig. 1:** [ReproNim ReproFlow Diagram, OHBM 2024 #2277](https://github.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster.svg)
