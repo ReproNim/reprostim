@@ -1,10 +1,6 @@
 Welcome to the ReproStim documentation
 ======================================
 
-The `reprostim <https://github.com/ReproNim/reprostim>`_ library provides both a
-command line interface (CLI) and a Python API to automate capture of audio-visual
-stimuli into BIDS datasets.
-
 .. include:: ../../README.md
    :parser: myst_parser.sphinx_
 
@@ -15,6 +11,7 @@ Contents
    :maxdepth: 2
    :caption: Contents:
 
+   intro/index
    overview/index
    install/index
    dev/index
