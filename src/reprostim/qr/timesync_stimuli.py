@@ -262,6 +262,7 @@ def do_main(
     win_size: tuple[int, int],
     display: int,
     qr_scale: float,
+    qr_duration: float,
     audio_codec: str,
     mute: bool,
     ntrials: int,
@@ -294,6 +295,9 @@ def do_main(
 
     :param qr_scale: The scale factor for the QR code size.
     :type qr_scale: float
+
+    :param qr_duration: The duration of the QR code display in seconds.
+    :type qr_duration: float
 
     :param audio_codec: The audio codec to use for the audio code.
     :type audio_codec: str
@@ -628,7 +632,7 @@ def do_main(
         tflip, tflip_str = get_times()
         rec["time_flip"] = tflip
         rec["time_flip_formatted"] = tflip_str
-        core.wait(0.5)
+        core.wait(qr_duration)
         fixation.draw()
         win.flip()
         toff, toff_str = get_times()

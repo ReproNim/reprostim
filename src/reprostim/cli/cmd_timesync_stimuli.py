@@ -65,6 +65,14 @@ logger = logging.getLogger(__name__)
     "Use 1.0 to fit full height (default: 0.8).",
 )
 @click.option(
+    "-r",
+    "--qr-duration",
+    default=0.5,
+    type=float,
+    help="Specifies QR code and possibly audio code (NFE) "
+    "duration in seconds. Default is 0.5 sec.",
+)
+@click.option(
     "-a",
     "--audio-lib",
     type=click.Choice(
@@ -122,6 +130,7 @@ def timesync_stimuli(
     win_size: tuple[int, int],
     display: int,
     qr_scale: float,
+    qr_duration: float,
     audio_lib: str,
     audio_codec: str,
     mute: bool,
@@ -151,6 +160,7 @@ def timesync_stimuli(
     logger.debug(f"    audio_lib  : {audio_lib}")
     logger.debug(f"    mute       : {mute}")
     logger.debug(f"    duration   : {duration}")
+    logger.debug(f"    QR duration: {qr_duration}")
     logger.debug(f"    interval   : {interval}")
 
     output: str = get_output_file_name(output_prefix, start_ts)
@@ -170,6 +180,7 @@ def timesync_stimuli(
         win_size,
         display,
         qr_scale,
+        qr_duration,
         audio_codec,
         mute,
         trials,
