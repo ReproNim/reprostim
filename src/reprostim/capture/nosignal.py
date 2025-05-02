@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+Provides functionality to search no-signal/rainbow frames in
+the video files (`*.mkv`) recorded by `reprostim-videocapture`
+utility.
+"""
+
 import logging.config
 import subprocess
 import time
@@ -16,20 +22,37 @@ logger.debug(f"name={__name__}")
 
 
 class VideoInfo(BaseModel):
+    """
+    Class representing information about a video file.
+    """
+
     error: str = Field(None, description="Error message")
+    """Error message if any."""
     fps: float = Field(..., description="Frames per second (FPS)")
+    """Video frame rate (FPS)."""
     width: int = Field(..., description="Video frame width")
+    """Video frame width in px."""
     height: int = Field(..., description="Video frame height")
+    """Video frame height in px."""
     is_invalid_timing: bool = Field(
         False, description="Is video with invalid duration/timing"
     )
+    """
+    Specifies if video has invalid duration and needs in fixup
+    (when calculated duration is 0 or greater than 2 days).
+    """
     is_truncated: bool = Field(False, description="Is video truncated")
+    """Specifies truncated video which needs in fixup."""
     frames_count: int = Field(..., description="Total number of frames")
+    """Specifies total number of frames."""
     nosignal_count: int = Field(..., description="Total number of nosignal " "frames")
+    """Specifies total number of nosignal frames."""
     nosignal_rate: float = Field(
         ..., description="Rate of nosignal frames " "in fraction of total frames"
     )
+    """Specifies rate of nosignal frames in fraction of total frames."""
     scanned_count: int = Field(..., description="Total number of scanned frames")
+    """Specifies total number of scanned frames."""
 
     def __str__(self):
         return (
@@ -54,6 +77,19 @@ grid_colors = [[None for _ in range(grid_cols)] for _ in range(grid_rows)]
 
 
 def auto_fix_video(video_path: str, temp_path: str):
+    """
+    Fixes `*.mkv` video file with invalid audio/video timing by
+    copying only video stream data.
+
+    Note: audio data will be lost in generated file with fixup.
+
+    :param video_path: The path to the video file that needs to be fixed.
+    :param temp_path: The temporary path where the fixed video will be saved.
+
+    Example
+    -------
+        >>> auto_fix_video("path/to/video.mp4", "path/to/fixed_video.mp4")
+    """
     logger.info(f"Run mediainfo to get video information: mediainfo -i {video_path}")
     res = subprocess.run(
         f"mediainfo -i {video_path}",
@@ -82,12 +118,39 @@ def auto_fix_video(video_path: str, temp_path: str):
 
 # Function to calculate opencv2 color difference
 def calc_color_diff(color1, color2):
+    """
+    Calculates the color difference between two colors based on their
+    RGB components.
+
+    The color difference is computed as the sum of the absolute differences between
+    the `red`, `green`, and `blue` channels of the two colors.
+
+    :param color1: The first color, which should be in the format of a
+                   NumPy array or tuple containing the `blue`, `green`, and
+                   `red` components of the color.
+    :param color2: The second color, which should also be in the same format
+                   as `color1`.
+
+    :return: The absolute sum of the differences between the `red`, `green`,
+             and `blue` components of `color1` and `color2`.
+    """
     b1, g1, r1 = color1.astype(np.int32)
     b2, g2, r2 = color2.astype(np.int32)
     return abs(r1 - r2) + abs(g1 - g2) + abs(b1 - b2)
 
 
 def has_rainbow(frame):
+    """
+    Detects the presence of rainbow colors in a given frame.
+
+    Note: produce false positive results on real data and was
+    improved in has_rainbow2 API implementation.
+
+    :param frame: The input frame (image) in as a NumPy array.
+
+    :return: `True` if a significant number of rainbow pixels are detected,
+             `False` otherwise.
+    """
     # Convert frame to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     # Threshold the frame to extract rainbow colors
@@ -99,9 +162,19 @@ def has_rainbow(frame):
     return pixel_count > 10000  # Adjust threshold as needed
 
 
-# match nosignal grid colors using custom algorithm
-# based on reference image sample
 def has_rainbow2(frame):
+    """
+    Detects the presence of rainbow colors in a given frame
+    (recommended).
+
+    Match nosignal grid colors using custom algorithm
+    based on reference rainbow image sample data.
+
+    :param frame: The input frame (image) in as a NumPy array.
+
+    :return: `True` if a significant number of rainbow pixels are detected,
+             `False` otherwise.
+    """
     height, width, _ = frame.shape
     cy = height // grid_rows
     cx = width // grid_cols
@@ -122,6 +195,14 @@ def has_rainbow2(frame):
 
 
 def init_grid_colors(ref_image_path: str):
+    """
+    Initializes rainbow screen image color table
+    based on frame reference image.
+
+    Note: necessary for has_rainbow2 API only.
+
+    :param frame: The reference image path.
+    """
     logger.debug(f"ref_image_path={ref_image_path}")
 
     # Load reference image
@@ -163,6 +244,36 @@ def find_no_signal(
     show_progress_sec: float = 0.0,
     check_first_frames: int = 0,
 ) -> VideoInfo:
+    """
+    Scans a video `*.mkv` file to detect frames that contain a rainbow pattern
+    (no signal frames).
+
+    This function opens a video file, scans frames for a specific nosignal
+    image pattern, and returns statistics on the frames scanned, the frames
+    with no signal, and the rate of no-signal frames.
+
+    :param video_path: The path to the video `*.mkv` file to scan.
+    :param step: The step size for frame scanning. The function skips frames
+                 by this step.
+    :param number_of_checks: The number of checks to perform. If greater than
+                             0, this limits the number of frames to check in
+                             the video in range from 1st to the last one.
+    :param show_progress_sec: The interval (in seconds) to display progress
+                              during the scan in stdout. Progress is shown
+                              when `show_progress_sec` is greater than 0.0.
+    :param check_first_frames: The number of frames to check at the start of
+                               the video. If greater than 0, the scan will stop
+                               right after analyzing these frames.
+
+    :return: A `VideoInfo` object with scan details.
+
+    Example
+    -------
+    .. code-block:: python
+
+       video_info = find_no_signal("path/to/video.mp4", number_of_checks=5)
+       print(video_info.nosignal_rate)
+    """
     vi: VideoInfo = VideoInfo(
         fps=0,
         width=0,

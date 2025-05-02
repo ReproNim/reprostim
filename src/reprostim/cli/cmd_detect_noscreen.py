@@ -28,22 +28,22 @@ def _main_exit(code: int) -> int:
 
 
 @click.command(
-    help="Utility to determine no-signal frames in "
-    "reprostim-videocapture recorded *.mkv videos."
+    help="Utility to determine no-signal rainbow frames in "
+    "`*.mkv` videos recorded by `reprostim-videocapture` tool."
 )
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
     "--step",
     default=1,
     type=int,
-    help="Specify the step " "for processing " "frames, default is 1.",
+    help="Specify the step " "for processing " "frames, " "default is 1 frame.",
 )
 @click.option(
     "--number-of-checks",
     default=0,
     type=int,
     help="Specify the number "
-    "of checks across entire video"
+    "of checks across entire video "
     "frames. When set to 0, "
     "all frames are checked.",
 )
@@ -52,36 +52,35 @@ def _main_exit(code: int) -> int:
     default=1.0,
     type=float,
     help="Specify the interval for showing progress, "
-    "default is 1.0 seconds. When set to 0 or less,"
+    "default is 1.0 seconds. When set to 0 or less, "
     "progress is not shown.",
 )
 @click.option(
     "--truncated",
     type=click.Choice(["exit2", "fixup", "check5"], case_sensitive=False),
     default="exit2",
-    help="\b\nSpecify behavior on truncated video detection:\n \n"
-    " [exit2] -  exit with error code 2, default value.\n"
-    " [fixup] -  use ffmpeg to fix the video by copying\n"
-    "            it into a temporary location with\n"
-    '            "ffmpeg -i <video_file> -an -c copy <video_fixed>"\n'
-    "            command.\n"
-    " [check5] - check for nosignal first 5 frames only in\n"
-    "            truncated video.\n \n"
-    "To check if video is truncated, use:\n"
-    '            mediainfo -i <video_file> | grep "IsTruncated"',
+    help="\b\nSpecify behavior on truncated video detection. "
+    "Default is `exit2`:\n\n"
+    "`exit2`  -  exit with error code 2, default value.\n\n"
+    "`fixup`  -  use ffmpeg to fix the video by copying "
+    "it into a temporary location with command:\n\n"
+    "``ffmpeg -i {video_file} -an -c copy {video_fixed}`` \n\n"
+    "`check5` - check for nosignal first 5 frames only in "
+    "truncated video.\n\n"
+    "Note: to check if video is truncated, use command:\n\n"
+    '``mediainfo -i <video_file> | grep "IsTruncated"``',
 )
 @click.option(
     "--invalid-timing",
     type=click.Choice(["exit3", "fixup", "check5"], case_sensitive=False),
     default="exit3",
     help="\b\nSpecify behavior on video with invalid duration:\n \n"
-    " [exit3] -  exit with error code 3, default value.\n"
-    " [fixup] -  use ffmpeg to fix the video by copying\n"
-    "            it into a temporary location with\n"
-    '            "ffmpeg -i <video_file> -an -c copy <video_fixed>"\n'
-    "            command.\n"
-    " [check5] - check for nosignal first 5 frames only in\n"
-    "            truncated video.\n \n",
+    "`exit3`  - exit with error code 3, default value.\n\n"
+    "`fixup`  - use `ffmpeg` to fix the video by copying "
+    "it into a temporary location with command:\n\n"
+    "``ffmpeg -i {video_file} -an -c copy {video_fixed}``\n\n"
+    "`check5` - check for nosignal first 5 frames only in \n"
+    "truncated video.",
 )
 @click.option(
     "--threshold",

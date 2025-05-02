@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
+
+"""
+PsychoPy-based script to produce time calibration session
+with embedded video QR-codes and audiocodes integrated
+with `MRI`/`BIRCH`/`Magewell USB capture` devices.
+
+API to parse `(*.mkv)` video files recorded by `reprostim-videocapture`
+utility and extract embedded video media info, QR-codes and audiocodes into
+JSONL format.
+"""
+
 from dataclasses import dataclass
 from time import sleep, time
 
@@ -32,22 +43,30 @@ MAX_TR_TIMEOUT: float = 4.0
 
 # Enum for the log event names
 class EventName(str, Enum):
+    """Enum for the log event names."""
+
     STARTED = "started"
+    """Script started event."""
     SERIES_BEGIN = "series_begin"
+    """Series begin event."""
     SERIES_END = "series_end"
+    """Series end event."""
     TRIGGER = "trigger"
+    """Trigger event."""
 
 
-# Enum for the mode of the script operation
 class Mode(str, Enum):
-    # Listen for keyboard events to show codes
+    """Enum for the mode of the script operation."""
+
     EVENT = "event"
-    # Show codes at regular intervals
+    """Listen for keyboard events or MRI pulse and generate QR/audio codes."""
     INTERVAL = "interval"
+    """Produce QR/audio codes at regular intervals."""
     # Just play a beep
     BEEP = "beep"
-    # List audio/video devices
+    """Play a beep sound for audio test purposes."""
     DEVICES = "devices"
+    """List available audio devices to the console output."""
 
 
 #######################################################
@@ -56,10 +75,16 @@ class Mode(str, Enum):
 
 @dataclass
 class SeriesData:
-    num: int  # series number
-    tr_count: int = 0  # trigger events count in the series
-    tr_last_time: float = None  # last trigger event time()
-    tr_timeout: float = MAX_TR_TIMEOUT  # trigger event max timeout
+    """Class to hold series data for trigger events."""
+
+    num: int
+    """Series number."""
+    tr_count: int = 0
+    """Trigger events count in the series."""
+    tr_last_time: float = None
+    """Last trigger event time."""
+    tr_timeout: float = MAX_TR_TIMEOUT
+    """Trigger event max interval/timeout in seconds."""
 
 
 #######################################################
@@ -67,34 +92,99 @@ class SeriesData:
 
 
 def get_iso_time(t):
+    """Converts a timestamp into an ISO 8601 formatted string
+    with local timezone.
+
+    This function takes a timestamp in seconds and converts it into a
+    datetime object with local timezone.
+
+    :param t: The timestamp to be converted in seconds.
+    :type t: float
+
+    :return: The ISO 8601 formatted string with local timezone.
+    :rtype: str
+    """
     return datetime.fromtimestamp(t).astimezone().isoformat()
 
 
 def get_output_file_name(
     prefix: str, start_ts: datetime, end_ts: datetime = None
 ) -> str:
+    """
+    Generates an output file name based on the given prefix and timestamps.
+
+    This function creates a file name by formatting the provided start and
+    optional end timestamps into a string and appending them to the provided
+    prefix. The timestamps are converted to strings using the `get_ts_str`
+    function.
+
+    :param prefix: The prefix to use for the file name.
+    :type prefix: str
+
+    :param start_ts: The start timestamp to be included in the file name.
+    :type start_ts: datetime
+
+    :param end_ts: The optional end timestamp to be included in the file name.
+    :type end_ts: datetime, optional
+
+    :return: The generated file name.
+    :rtype: str
+    """
     start_str: str = get_ts_str(start_ts)
     end_str: str = get_ts_str(end_ts) if end_ts else ""
     return f"{prefix}{start_str}--{end_str}.log"
 
 
 def get_times():
+    """Get the current time and its ISO formatted string.
+
+    This function retrieves the current time in seconds since the epoch
+    and formats it into an ISO 8601 string with local timezone.
+
+    :return: A tuple containing the current time in seconds and its
+             ISO formatted string.
+    :rtype: tuple[float, str]
+    """
     t = time()
     return t, get_iso_time(t)
 
 
 def get_ts_str(ts: datetime) -> str:
+    """Get a formatted string representation of a timestamp.
+
+    This function formats the provided timestamp into a string using
+    the specified format (`%Y.%m.%d-%H.%M.%S.%f`). The format includes
+    year, month, day, hour, minute, second, and microsecond.
+
+    :param ts: The timestamp to be formatted.
+    :type ts: datetime
+
+    :return: The formatted string representation of the timestamp.
+    :rtype: str
+    """
     ts_format = "%Y.%m.%d-%H.%M.%S.%f"
     return f"{ts.strftime(ts_format)[:-3]}"
 
 
 def log(f, rec):
+    """Log a QR record to a file.
+
+    This function takes a file handle and a record dictionary,
+    converts the record to a JSON string, and writes it to the file.
+
+    :param f: The file handle to write the log to.
+    :type f: file object
+
+    :param rec: The record dictionary to be logged.
+    :type rec: dict
+    """
     s = json.dumps(rec).rstrip()
     f.write(s + os.linesep)
     logger.debug(f"LOG {s}")
 
 
 def mkrec(**kwargs):
+    """Create a basic QR record dictionary."""
     t, tstr = get_times()
     kwargs.update(
         {
@@ -106,6 +196,15 @@ def mkrec(**kwargs):
 
 
 def safe_remove(file_name: str):
+    """Safely remove a file if it exists.
+
+    This function checks if the specified file exists and is a valid file.
+    If it is, it attempts to remove the file. If the removal fails,
+    it logs an error message.
+
+    :param file_name: The name of the file to be removed.
+    :type file_name: str
+    """
     if file_name:
         if os.path.isfile(file_name):  # Check if it's a file
             try:
@@ -118,6 +217,17 @@ def safe_remove(file_name: str):
 
 
 def store_audiocode(audio_file: str, audio_data: int, logfn: str):
+    """Store the audio code data in to the standalone `*.wav` file.
+
+    :param audio_file: The path to the audio file to be copied.
+    :type audio_file: str
+
+    :param audio_data: The audio data used in audio code.
+    :type audio_data: int
+
+    :param logfn: The current log file name.
+    :type logfn: str
+    """
     # if audio_file exits, copy it to {logfn}audiocode_{audio_data}.wav
     if os.path.isfile(audio_file):
         sfile = f"{os.path.splitext(logfn)[0]}audiocode_{audio_data}.wav"
@@ -129,6 +239,16 @@ def store_audiocode(audio_file: str, audio_data: int, logfn: str):
 
 
 def do_init(logfn: str) -> bool:
+    """
+    Initializes a log file.
+
+    :param logfn: The path to the log file to be checked.
+    :type logfn: str
+
+    :return: `True` if the log file does not exist and can be
+              initialized, `False` otherwise.
+    :rtype: bool
+    """
     if os.path.exists(logfn):
         logger.error(f"Log file {logfn} already exists")
         return False
@@ -150,6 +270,55 @@ def do_main(
     keep_audiocode: bool,
     out_func=print,
 ) -> int:
+    """Main function to run the `timesync-stimuli` PsychoPy-based script.
+
+    This function initializes the PsychoPy environment, sets up the window,
+    and handles the main loop for displaying QR codes and audio codes.
+    It also handles keyboard events and manages the series of trigger events.
+    The function takes various parameters to configure the behavior of the script.
+
+    :param mode: The mode of operation (e.g., EVENT, INTERVAL, BEEP, DEVICES).
+    :type mode: Mode
+
+    :param logfn: The name of the log file to write to.
+    :type logfn: str
+
+    :param is_fullscreen: Whether to run the window in fullscreen mode.
+    :type is_fullscreen: bool
+
+    :param win_size: The size of the window (width, height) in pixels.
+    :type win_size: tuple[int, int]
+
+    :param display: The display number to use.
+    :type display: int
+
+    :param qr_scale: The scale factor for the QR code size.
+    :type qr_scale: float
+
+    :param audio_codec: The audio codec to use for the audio code.
+    :type audio_codec: str
+
+    :param mute: Whether to mute the audio output.
+    :type mute: bool
+
+    :param ntrials: The number of trials to run.
+    :type ntrials: int
+
+    :param duration: The duration of the experiment in seconds.
+    :type duration: float
+
+    :param interval: The interval between trials in seconds.
+    :type interval: float
+
+    :param keep_audiocode: Whether to keep the audio code file after use.
+    :type keep_audiocode: bool
+
+    :param out_func: The function to use for output (default is `print`).
+    :type out_func: callable
+
+    :return: 0 on success, -1 on error.
+    :rtype: int
+    """
     logger.info("main script started")
 
     if not importlib.util.find_spec("psychopy"):
@@ -191,7 +360,7 @@ def do_main(
 
     def on_signal(signum, frame):
         logger.info(f"Received system signal: {signum}")
-        if signum in [2, 15] :
+        if signum in [2, 15]:
             nonlocal sys_shutdown
             logger.debug("setting sys_shutdown=True")
             sys_shutdown = True
@@ -244,7 +413,6 @@ def do_main(
     # register signal hook
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
-
 
     audio_data: int = 0
     audio_file: str = None

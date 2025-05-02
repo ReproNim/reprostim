@@ -1,6 +1,14 @@
 # SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
+
+"""
+Display monitoring service and cross-platform API used to list
+available GUI displays and monitor information, status and
+functionality to automatically attach external command for
+certain screen.
+"""
+
 import fnmatch
 import json
 import logging
@@ -15,10 +23,6 @@ from typing import Generator, Iterable
 
 import psutil
 
-# Display monitoring service: cross-platform API to list
-# available GUI displays and monitor status
-
-
 # initialize the logger
 logger = logging.getLogger(__name__)
 # logging.getLogger().setLevel(logging.DEBUG)
@@ -26,25 +30,40 @@ logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
-# Platform constants
 class DmPlatform(str, Enum):
+    """
+    Enum representing OS platform constants.
+    """
+
     LINUX = "linux"
+    """Linux platform"""
     XOS = "xos"
-    # WINDOWS = "win64"
+    """MacOS platform"""
+    WINDOWS = "win64"
+    """Windows platform"""
 
 
 # Service provider constants
 class DmProvider(str, Enum):
-    """Enum to represent the display monitoring provider/engine
-    depending on used OS environment."""
+    """
+    Enum to represent the display monitoring provider/engine
+    depending on used OS environment.
+    """
 
-    ALL = "all"  # use all available providers
-    PLATFORM = "platform"  # use the best OS specific providers
-    PYGAME = "pygame"  # Cross-platform
-    PYGLET = "pyglet"  # Cross-platform
-    PYUDEV = "pyudev"  # Used in Linux
-    QUARTZ = "quartz"  # Used in macOS
-    RANDR = "randr"  # Used in Linux
+    ALL = "all"
+    """Use all available providers"""
+    PLATFORM = "platform"
+    """Use the best OS specific providers"""
+    PYGAME = "pygame"
+    """Cross-platform pygame-based provider"""
+    PYGLET = "pyglet"
+    """Cross-platform pyglet-based provider"""
+    PYUDEV = "pyudev"
+    """Used in Linux, pyudev-based provider"""
+    QUARTZ = "quartz"
+    """Used in MacOS, Quartz-based provider"""
+    RANDR = "randr"
+    """Used in Linux, randr/xlib-based provider"""
 
 
 # import necessary provider implementation in runtime based on OS type
@@ -67,21 +86,34 @@ logger.debug(f"Use '{_PLATFORM}' platform.")
 MAX_DISPLAYS: int = 16
 
 
-# class representing display info
 @dataclass
 class DisplayInfo:
+    """Class representing display info."""
+
     id: str = None
+    """Display uniue ID"""
     name: str = None
+    """Display name"""
     width: int = 0
+    """Display width in pixels"""
     height: int = 0
+    """Display height in pixels"""
     refresh_rate: float = 0.0
+    """Display refresh rate in Hz"""
     bits_per_pixel: int = 0
+    """Display color depth in bits per pixel"""
     is_connected: bool = False
+    """Indicates if the display is connected"""
     is_active: bool = False
+    """Indicates if the display is active"""
     is_main: bool = False
+    """Indicates if the display is the main one"""
     is_sleeping: bool = False
+    """Indicates if the display is in sleep mode"""
     provider: DmProvider = None
+    """Used display provider"""
     ts: str = datetime.now().isoformat()
+    """Timestamp of the info in ISO format"""
 
     # compare display mode
     def eq_mode(self, di) -> bool:
@@ -105,22 +137,39 @@ class DisplayInfo:
 
 # Display change type
 class DisplayChangeType(str, Enum):
-    CONNECT = "connect"  # display connected
-    DISCONNECT = "disconnect"  # display disconnected
-    MODE = "mode"  # mode, resolution or framerate changed
+    """Enum representing display change event types."""
+
+    CONNECT = "connect"
+    """Display connect event"""
+    DISCONNECT = "disconnect"
+    """Display disconnect event"""
+    MODE = "mode"
+    """Display mode event (resolution or framerate changed)"""
 
 
-# class representing display change event
 @dataclass
 class DisplayChangeEvent:
+    """Class representing display change event."""
+
     type: DisplayChangeType = None
+    """The type of display change event"""
     display: DisplayInfo = None
+    """Current display information"""
     old_display: DisplayInfo = None
+    """Previous display information if any"""
     ts: str = datetime.now().isoformat()
+    """Timestamp of the event in ISO format"""
 
 
-# sample prototype for display change event callback
 def display_change_callback(evt: DisplayChangeEvent):
+    """
+    Callback function sample prototype to handle display
+    change events.
+
+    :param evt: The object containing information about
+                the display change event.
+    :type evt: DisplayChangeEvent
+    """
     logger.debug(
         f"display_change_callback: type={evt.type},"
         f" new={evt.display}, old={evt.old_display}"
@@ -431,6 +480,19 @@ def _enum_displays_quartz() -> Generator[DisplayInfo, None, None]:
 def enum_displays(
     provider: DmProvider = DmProvider.PLATFORM,
 ) -> Generator[DisplayInfo, None, None]:
+    """
+    Enumerates available display devices based on the specified provider.
+
+    :param provider: The display manager provider to use. Defaults to
+                     `DmProvider.PLATFORM`.
+    :type provider: DmProvider
+
+    :return: A generator yielding `DisplayInfo` objects for each detected
+             display.
+    :rtype: Generator[DisplayInfo, None, None]
+
+    :raises NotImplementedError: If the platform or provider is not supported.
+    """
     a = []
     if provider in (DmProvider.PLATFORM, DmProvider.ALL):
         if _PLATFORM == DmPlatform.LINUX:
@@ -463,6 +525,19 @@ def enum_displays(
 # Note: result can be not the same object as provided
 # via di param
 def find_di(lst: Iterable[DisplayInfo], di: DisplayInfo) -> DisplayInfo:
+    """
+    Finds a matching display information object from the provided list.
+
+    Note: The returned result may not be the same object as the one provided
+          via `di` param.
+
+    :param lst: The list of display information objects to search in.
+    :type lst: Iterable[DisplayInfo]
+    :param di: The display information object to match.
+    :type di: DisplayInfo
+    :return: The matching display information object, or None if no match is found.
+    :rtype: DisplayInfo
+    """
     if di is None:
         return None
     for di2 in lst:
@@ -473,6 +548,16 @@ def find_di(lst: Iterable[DisplayInfo], di: DisplayInfo) -> DisplayInfo:
 def do_list_displays(
     provider: DmProvider = DmProvider.PLATFORM, fmt: str = "jsonl", out_func=print
 ):
+    """
+    Lists available displays information and outputs it in the specified format.
+
+    :param provider: The display manager provider to use.
+    :type provider: DmProvider
+    :param fmt: The output format, `jsonl` | `text`.
+    :type fmt: str
+    :param out_func: The function used to output the display list (default: print).
+    :type out_func: Callable[[str], None]
+    """
     logger.debug("do_list_displays()")
 
     last_provider: DmProvider = None
@@ -533,6 +618,49 @@ def do_monitor_displays(
     ext_proc_command: str = None,
     out_func=print,
 ):
+    """
+    Monitors display changes and triggers actions when changes are detected.
+
+    This function continuously monitors display changes and may run in sync
+    mode unless wait timeout reached or function is interrupted externally.
+
+    :param provider: The display manager provider to use. Defaults to
+                     `DmProvider.PLATFORM`.
+    :type provider: DmProvider
+
+    :param poll_interval: The time interval (in seconds) between polling for
+                          display changes. Default is 60 seconds.
+    :type poll_interval: int
+
+    :param max_wait: The maximum time (in seconds) to wait till function exit.
+                     When set to -1, the function will run indefinitely. Default
+                     is 3 seconds.
+    :type max_wait: int
+
+    :param name: A filter for matching display names in Unix shell-style wildcards
+                 format. Use `*` to match all displays. Default is `*`.
+    :type name: str
+
+    :param d_id: A filter for matching display IDs in Unix shell-style wildcards
+                 format. Use `*` to match all displays. Default is `*`.
+    :type d_id: str
+
+    :param on_change: A string indicating a shell script or command to execute
+                      when a display change is detected. Event information in
+                      JSON format is passed as an first argument to the command.
+                      Default is None.
+    :type on_change: str, optional
+
+    :param ext_proc_command: An external process command to execute when a display
+                             change is detected. All subprocesses created by this
+                             command will be automatically terminated when the
+                             display is disconnected. Default is None.
+    :type ext_proc_command: str, optional
+
+    :param out_func: The function used to output messages. Defaults to `print`.
+    :type out_func: Callable[[str], None]
+
+    """
     logger.debug("do_monitor_displays() enter")
 
     _eproc = None
@@ -573,13 +701,18 @@ def do_monitor_displays(
                 logger.debug("starting external process...")
                 try:
                     _eproc = subprocess.Popen(
-                        [ext_proc_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                        [ext_proc_command],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
                     )
                     out_func(
-                        f"Started external process, pid={_eproc.pid}, cmd={ext_proc_command}"
+                        f"Started external process, pid={_eproc.pid}, "
+                        f"cmd={ext_proc_command}"
                     )
                 except Exception as e:
-                    logger.error(f"Failed to start external process {ext_proc_command}: {e}")
+                    logger.error(
+                        f"Failed to start external process {ext_proc_command}: {e}"
+                    )
 
             if evt.type == DisplayChangeType.DISCONNECT:
                 if _eproc is not None:

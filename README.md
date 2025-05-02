@@ -1,4 +1,11 @@
-# ReproStim Introduction
+# Introduction
+
+[![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
+[![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
+[![Conda](https://img.shields.io/conda/vn/conda-forge/reprostim.svg)](https://anaconda.org/conda-forge/reprostim)
+[![GitHub release](https://img.shields.io/github/release/ReproNim/reprostim.svg)](https://GitHub.com/ReproNim/reprostim/releases/)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://raw.githubusercontent.com/ReproNim/reprostim/master/LICENSES/MIT.txt)
 
 ReproStim is a video capture and recording suite for neuroimaging and
 psychology experiments.  Its goal is to provide experimenters with a
@@ -6,9 +13,19 @@ complete record of audio and visual stimulation for every data collection
 session by making it possible to easily collect high fidelity copies of the
 actual stimuli shown to each subject in the form of video files that can be
 stored alongside  behavioral or neuroimaging data in public repositories.
+ReproStim is part of large ReproFlow process represented in the diagram below:
+
+<object type="image/svg+xml" data="./docs/source/_static/images/reproflow.svg" width="100%" height="600px"></object>
+
+
+![](docs/source/_static/images/reproflow.svg)
+**Fig. 1:** [ReproNim ReproFlow Diagram, OHBM 2024 #2277](https://github.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster.svg)
+
+**Note:** This is interactive [SVG diagram](docs/source/_static/images/reproflow.svg), so you can open it in separate
+window and click on the boxes to see more.
 
 ReproStim provides for enhanced experimental reproducibility and a safeguard
-against data loss in cases of data-collection irregularites.  Because
+against data loss in cases of data-collection irregularities.  Because
 ReproStim provides an exact record of the actual stimuli delivered during
 any given experimental session, it makes it possible to precisely reproduce
 experimental sessions, even if the original trial sets were randomized and
@@ -16,316 +33,37 @@ precise trial details not recorded. In cases of experimental irregularities,
 such as aborted fMRI runs, unexpected glitches in trial timing, or
 programming errors that cause records of trial conditions to be lost,
 valuable data (which can be especially costly in cases of fMRI of ECog, for
-example) can be recoded and recovered using the audio-visual record provided
+example) can be recoded and recovered using the audiovisual record provided
 by ReproStim.
 
 ReproStim requires minimal effort on behalf of investigators.  Once it is
 setup as the default mode within a behavioral lab or neuroimaging center,
 investigators can reap the benefits of ReproStim without any additional
-effort on the part of invidiual experimenters.  When successfully set up,
+effort on the part of individual experimenters.  When successfully set up,
 ReproStim runs in the background, silently collecting, cataloging, and
 storing all audio and visual stimulation delivered to experimental subjects.
 
-# Development
-
-## Hardware needed
-
-Before using ReproStim you will need a minimum of the the following
-components:
-
-1. Magewell USB Capture Plus device (MWC)
-
-2. Stimulus control computer (SC) with A/V out to presentation device
-
-3. External presentation device (EPD)
-
-4. Video capture computer (VC) with USB-C port
-
-5. Supporting cables including A/V splitter cables
-
-### Simple setup schematic
-
-Given a stimulus presentation computer (SP) that controls the content and
-flow of the experimental presentation and presents A/V to experimental
-subject on external monitor or projector (EPD), the setup without ReproStim
-would be something like:
-
-1. Schematic A.
-
-       ------                -------
-       | SC | -- A/V Out --> | EPD |
-       ------                -------
-
-    With the addition of ReprosStim, the setup will look like this:
-
-2. Schematic B.
-
-       ------                                 -------
-       | SC | -- A/V Out --> A/V Splitter --> | EPD |
-       ------                     |           -------
-                                  V
-                               -------              ------
-                               | MWC | -- USB-C --> | VC |
-                               -------              ------
-
-### Original set up without ReproStim
-
-Most experimental setups include something like Schematic A, with a stimulus
-control computer (SC) that sends A/V information to the experimental
-subject. For example, in the Dartmouth Brain Imaging Center (DBIC),
-experimenters can use their own laptop or a dedicated computer in the scan
-control room for SC. The External Presentation Device for video (EPDv) in
-the DBIC MRI suite is a projector that projects through the wall of the
-shielded scan room to a rear-projection screen located at the back of the
-MRI scanner bore; and the EPDa (audio) comprises MRI-safe headphones worn on
-the subject's head.
-
-The A/V out connections from SC can be any standard as long as you have the
-appropriate adapters, dongles, etc. However, if your Video out does not
-support embedded audio (e.g. VGA), then you will need a separate audio out
-set of splitters and cables. The Magewell device has standard audio ports to
-accommodate this eventuality.
-
-Note: Missing from Schematics A and B, is any connection back to SC that
-records subject response information. That's because ReproStim is not
-interested in how the subject responds. If you like, imagine arrows pointing
-from EPD to a "subject" node, and then more arrows pointing from the subject
-node to some response input device (RID?) and back to SC for recording...
-ReproStim will not interfere.
-
-#### Magewell USB Capture Plus Family device
-
-The current version of ReproStim has only been developed and tested for the
-Magewell USB Capture DVI Plus device (MWC) . However, we anticipate that it
-will be relatively painless to support at least all devices in the USB
-Capture Plus Family. Information about these devices and supporting software
-can all be found at www.magewell.com
-
-#### Video Capture computer (VC), AKA ReproStim Server
-
-The video capture computer (VC) does most of the work for ReproStim. The
-software running on this computer runs as a service that is always on as
-long as the computer is running, which is all the time. Therefore I will
-refer to VC also as the ReproStim server. In a nutshell, the server software
-monitors the video signal coming from SC into MWC. If there is any video
-coming over the connection, it gets recorded for posterity.
-
-Current development of ReproStim, including our working setup at the DBIC,
-uses a Linux box running Debian Linux. We anticipate that any Nix/Mac setup
-running on a modern desktop will be amply sufficient as a ReproStim Server,
-and should be relatively painless to configure.
-
-The current DBIC computer is a small-profile desktop that resides in the
-control of the scan suite, quietly recording all video presented to all
-subjects.
-
-# reprostim-capture
-
-This subproject is set of native C/C++ tools and utilities to capture
-video/audio signals with Magewell USB Capture devices and save it to a file.
-More detailed information about dependencies and installation provided in
-[reprostim-capture README.md](./src/reprostim-capture/README.md).
-
-
-# reprostim CLI
-
-Represented as a set of Python tools and utilities under the umbrella of
-the `reprostim` library, where each tool is a separate subcommand of
-the `reprostim` CLI.
-
-## Dependencies
-
-`qr-parse` subcommand requires `zbar` to be installed:
- - On Debian
-   ```shell
-       apt-get install -y libzbar0
-   ````
- - On MacOS
-   ```shell
-       brew install zbar
-   ```
-   NOTE: Consider this conversation in case of problems to install it @MacOS:
-         https://github.com/ReproNim/reprostim/pull/124#issuecomment-2599291577
-
-`timesync-stimuli` subcommand requires in `psychopy` and `portaudio` to
-be installed:
- - On Debian
-   ```shell
-       apt-get install portaudio19-dev
-   ```
- - On MacOS
-   ```shell
-       brew install portaudio
-   ```
-
-
-## Installation
-
-Make sure you have strict Python version/venv especially for subcommands working
-with psychopy like `timesync-stimuli`. Recommended Python version is 3.10 ATM:
-
-```shell
-    python3.10 -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    python3 --version
-```
-
-Then it can be installed from PyPI:
-
-```shell
-    pip install reprostim
-```
-
-## Build
-
-To build the project, use `hatch` and `venv` with preferable Python version:
-
-```shell
-    # first setup python and hatch
-    python3.10 -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install hatch
-
-    # build reprostim package
-    hatch build reprostim
-
-    # optionally re-create env
-    hatch env remove
-    hatch env create
-
-    # install all extra dependencies
-    hatch run pip install .[all]
-
-    # run some reprostim commands, e.g.:
-    hatch run reprostim --help
-    hatch run reprostim --version
-    hatch run reprostim echo 'Hello ReproStim CLI!'
-```
-
-## Subdirectories Structure
-
-### src/reprostim
-
-Contains all code for `reprostim` library.
-
-### src/reprostim-capture
-
-Contains all code needed for setting up video capture. This includes C++
-code for interfacing with the video capture device, and scheme for setting
-up a video-capture "server", along with helper utilities.
-
-### tests
-
-Directory with reprostim pytests and test data.
-
-
-### **_Obsolete:_** QRCoding
-
-Contains utilities for embedding QR codes in experimental stimulus-delivery
-programs, such as PsychoPy, or PsychToolbox scripts.
-
-### **_Obsolete:_**  Parsing
-
-Contains code needed for segmenting videos to include just the parts of the
-videos that are demarcated by embedded QR codes marking the beginning and
-end of experimental runs. There are also helper tools for identifying
-experimental runs and matching them to the parent experimental paradigm and
-neuroimaging data acquisitions.
-
-# Hardware Installation and Configuration
-
-## Setup USB device with "udev" access
-
-The `reprostim-videocapture` utility internally uses Magewell Capture SDK and to
-make it working properly should be executed under "root" account or in case of
-other account - special "udev" rules should be applied there. Program will
-produce following error when executed in environment without proper ownership
-and permissions for informational purposes:
-
-    ERROR[003]: Access or permissions issue. Please check /etc/udev/rules.d/ configuration and docs.
-
-For more information refer to item #14 from Magewell FAQ on https://www.magewell.com/kb/detail/010020005/All :
-
-    14. Can the example codes associated with USB Capture (Plus) devices in SDKv3 work
-        without root authority (sudo) on Linux?
-
-    Yes. Click here to download the file "189-usbdev.rules" (http://www.magewell.com/files/sdk/189-usbdev.zip) ,
-    move it to the directory "/etc/udev/rules.d", and then restart your computer.
-
-NOTE: Also make sure that no other processes like ffmpeg, vlc, etc are using this video device, as
-it can accidentally produce the same error message ERROR[003].
-
-### 1) Identify the USB Device:
-
-This is optional step, only for information purposes:
-
-```shell
-    lsusb
-```
-
-And locate line with device, e.g.:
-
-    Bus 004 Device 012: ID 2935:0008 Magewell USB Capture DVI+
-
-In this sample, 2935 is the "Vendor ID", and 0008 is the "Product ID".
-
-Optionally Magewell device name and serial number can be quickly checked with this command:
-
-```shell
-    lsusb -d 2935: -v | grep -E 'iSerial|iProduct'
-```
-
-### 2) Create "udev" rules
-Create text file under "/etc/udev/rules.d/189-reprostim.rules" location with
-appropriate content depending on system type.
-
-For an active/desktop user logged in via session manager it should be like:
-
-    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2935", TAG+="uaccess"
-
-For a daemon configuration we should provide explicit permissions like:
-
-    SUBSYSTEM=="usb", ATTR{idVendor}=="2935", MODE="0660", OWNER="reprostim", GROUP="plugdev"
-
-Note: we can see that "ATTR{idVendor}" value 2935 is equal to one we got in
-step 1) from lsusb utility.
-
-Also sample udev rules configuration added to project under
-"src/reprostim-capture/etc/udev/189-reprostim.rules" location.
-
-Note: make sure the file has owner "root", group "root" and 644 permissions:
-
-```shell
-    ls -l /etc/udev/rules.d/189*
-````
-```
-    -rw-r--r-- 1 root root 72 ... /etc/udev/rules.d/189-reprostim.rules
-```
-
-### 3) Add user to "plugdev" group
-Make sure the user running `reprostim-videocapture` utility is a member of the
-"plugdev" group, e.g.:
-
-```shell
-    sudo usermod -aG plugdev TODO_user
-```
-
-### 4) Restart computer
-Restart computer to make changes effect.
-
-Note: we tested "sudo udevadm control --reload-rules" command without OS
-restart, but somehow it didn't help, and complete restart was necessary
-anyway.
-
-
-## TODO:
-
-- Build (per above) and install in the PATH
-- TODO: cron job
-- TODO: add user/group
-- ...
-- [Parsing/repro-vidsort](./Parsing/repro-vidsort) script (has hardcoded paths) sorts from `incoming/` to
-  folders per DICOM accession
--
+**Documentation:** full documentation is available at [Read the Docs](https://reprostim.readthedocs.io/en/latest/).
+
+**Appendix:** ReproFlow Projects
+
+- [BIDS](https://github.com/bids-standard) - brain imaging data structure standard.
+- [Birch](https://wiki.curdes.com/bin/view/CdiDocs/BirchUsersManual) - birch interface documentation.
+- [CON](https://centerforopenneuroscience.org/) - center for open neuroscience homepage.
+- [con/noisseur](https://github.com/con/noisseur) - system for automated verification of entered/displayed information (on another computer).
+- [containers/repronim](https://github.com/ReproNim/containers/tree/master/images/repronim) - repronim containers binary `distribution` for reproducible neuroimaging.
+- [containers/repronim-reprostim](https://github.com/ReproNim/reprostim/tree/master/containers/repronim-reprostim) - reprostim containers metadata and tools to generate/build binaries.
+- [DataLad](https://www.datalad.org/) - distributed data management free and open source tool.
+- [DBIC](https://www.dartmouth.edu/dbic/) - Dartmouth brain imaging center.
+- [DICOM](https://www.dicomstandard.org/) - digital imaging and communications in medicine standard.
+- [HeuDiConv](https://heudiconv.readthedocs.io/en/latest/) - heuristic-centric DICOM converter.
+- [Magewell USB Capture](https://www.magewell.com/capture/usb-capture) - Magewell USB Capture devices.
+- [MWCapture SDK](https://www.magewell.com/sdk) - Magewell USB Capture SDK and APIs.
+- [NeuroDebian](https://neuro.debian.net/) - ultimate neuroscience software platform.
+- [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) - network time protocol wiki.
+- [ReproEvents](https://github.com/ReproNim/reprostim/tree/master/Events) - events listener server and micropython-based firweware for Raspberry Pi event relay devices.
+- [reproflow-data-sync](https://github.com/ReproNim/reproflow-data-sync) - DataLad dataset with all samples of recorded `ReproEvents`, `ReproStim`, etc. data for purpose of calibration and establishing processing pipelines.
+- [ReproIn](https://github.com/ReproNim/reproin) - setup for automatic generation of shareable, version-controlled BIDS datasets from MR scanners.
+- [ReproMon](https://github.com/ReproNim/repromon) - service to monitor data acquisition to alert if anything goes wrong in ReproFlow.
+- [ReproStim](https://github.com/ReproNim/reprostim) - automated capture of audio-visual stimuli into BIDS datasets.
+- [reprostim-capture](https://github.com/ReproNim/reprostim/tree/master/src/reprostim-capture) - set of tools and utilities to capture video/audio signal with Magewell USB Capture devices and save it to a file. It is a part of the ReproStim project.

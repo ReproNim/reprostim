@@ -11,17 +11,21 @@ import click
 logger = logging.getLogger(__name__)
 
 
-@click.command(help="Utility to parse video and locate integrated " "QR time codes.")
+@click.command(
+    help="Utility to parse video `*.mkv` recorded by "
+    "`reprostim-videocapture` utility and locate "
+    "integrated QR time codes."
+)
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
     "--mode",
     default="PARSE",
     type=click.Choice(["PARSE", "INFO"]),
-    help='Specify execution mode. Default is "PARSE", '
+    help="Specify execution mode. Default is `PARSE`, "
     "normal execution. "
-    'Use "INFO" to dump video file info like duration, '
+    "Use `INFO` to dump video file info like duration, "
     "bitrate, file size etc, (in this case "
-    '"path" argument specifies video file or directory '
+    "`PATH` argument specifies video file or directory "
     "containing video files).",
 )
 @click.pass_context

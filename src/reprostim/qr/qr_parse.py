@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+API to parse `(*.mkv)` video files recorded by `reprostim-videocapture`
+utility and extract embedded video media info, QR-codes and audiocodes into
+JSONL format.
+"""
+
 import logging
 import os
 import re
@@ -23,95 +29,153 @@ logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
-# Define class video info details
 class InfoSummary(BaseModel):
+    """
+    Summary information about a video file.
+
+    Provides video media info details. Contains basic metadata such as
+    path, duration, size, and data rate.
+    """
+
     path: Optional[str] = Field(None, description="Video file path")
+    """Video file path."""
     rate_mbpm: Optional[float] = Field(
         0.0, description="Video file 'byterate' " "in MB per minute."
     )
+    """Video file `byterate` in MB per minute."""
     duration_sec: Optional[float] = Field(
         0.0, description="Duration of the video " "in seconds"
     )
+    """Duration of the video in seconds"""
     size_mb: Optional[float] = Field(0.0, description="Video file size in MB.")
+    """Video file size in MB."""
 
 
 # Define class for video time info
 class VideoTimeInfo(BaseModel):
+    """Metadata for inferred or extracted timing information
+    from a video file.
+
+    This model is populated after parsing video filename
+    timestamps or media metadata.
+    """
+
     success: bool = Field(..., description="Success flag")
+    """Success flag."""
     error: Optional[str] = Field(None, description="Error message if any")
+    """Error message if any."""
     start_time: Optional[datetime] = Field(None, description="Start time of the video")
+    """Start time of the video."""
     end_time: Optional[datetime] = Field(None, description="End time of the video")
+    """End time of the video."""
     duration_sec: Optional[float] = Field(
         None, description="Duration of the video " "in seconds"
     )
+    """Duration of the video in seconds."""
 
 
 # Define model for parsing summary info
 class ParseSummary(BaseModel):
+    """
+    Summary of the QR parsing process and video metadata.
+
+    This model captures information about the parsing results and
+    properties of the video being processed.
+    """
+
     type: Optional[str] = Field("ParseSummary", description="JSON record type/class")
+    """JSON record type/class."""
     qr_count: Optional[int] = Field(0, description="Number of QR codes found")
+    """Number of QR codes found."""
     parsing_duration: Optional[float] = Field(
         0.0, description="Duration of the " "parsing in seconds"
     )
+    """Duration of the parsing in seconds."""
     # exit code
     exit_code: Optional[int] = Field(-1, description="Number of QR codes found")
+    """Exit code of the parsing process."""
     video_full_path: Optional[str] = Field(
         None, description="Full path " "to the video file"
     )
+    """Full path to the video file."""
     video_file_name: Optional[str] = Field(
         None, description="Name of the " "video file"
     )
+    """Name of the video file."""
     video_isotime_start: Optional[datetime] = Field(
         None, description="ISO datetime " "video started"
     )
+    """ISO datetime when the video started."""
     video_isotime_end: Optional[datetime] = Field(
         None, description="ISO datetime " "video ended"
     )
+    """ISO datetime when the video ended."""
     video_duration: Optional[float] = Field(
         None, description="Duration of the video " "in seconds"
     )
+    """Duration of the video in seconds."""
     video_frame_width: Optional[int] = Field(
         None, description="Width of the " "video frame in px"
     )
+    """Width of the video frame in pixels."""
     video_frame_height: Optional[int] = Field(
         None, description="Height of the " "video frame in px"
     )
+    """Height of the video frame in pixels."""
     video_frame_rate: Optional[float] = Field(
         None, description="Frame rate of the " "video in FPS"
     )
+    """Frame rate of the video in frames per second."""
     video_frame_count: Optional[int] = Field(
         None, description="Number of frames " "in video file"
     )
+    """Number of frames in the video file."""
 
 
 # Define the data model for the QR record
 class QrRecord(BaseModel):
+    """
+    Represents a decoded QR code segment extracted from a video stream.
+
+    Contains timing, frame location, and content metadata for each detected QR code.
+    """
+
     type: Optional[str] = Field("QrRecord", description="JSON record type/class")
+    """JSON record type/class."""
     index: Optional[int] = Field(
         None, description="Zero-based i    ndex of the QR code"
     )
+    """Zero-based index of the QR code."""
     frame_start: Optional[int] = Field(
         None, description="Frame number where QR code starts"
     )
+    """Frame number where QR code starts."""
     frame_end: Optional[int] = Field(
         None, description="Frame number where QR code ends"
     )
+    """Frame number where QR code ends."""
     isotime_start: Optional[datetime] = Field(
         None, description="ISO datetime where QR " "code starts"
     )
+    """ISO datetime where QR code starts."""
     isotime_end: Optional[datetime] = Field(
         None, description="ISO datetime where QR " "code ends"
     )
+    """ISO datetime where QR code ends."""
     time_start: Optional[float] = Field(
         None, description="Position in seconds " "where QR code starts"
     )
+    """Position in seconds where QR code starts."""
     time_end: Optional[float] = Field(
         None, description="Position in seconds " "where QR code ends"
     )
+    """Position in seconds where QR code ends."""
     duration: Optional[float] = Field(
         None, description="Duration of the QR code " "in seconds"
     )
+    """Duration of the QR code in seconds."""
     data: Optional[dict] = Field(None, description="QR code data")
+    """QR code data."""
 
     def __str__(self):
         return (
@@ -124,16 +188,55 @@ class QrRecord(BaseModel):
 
 
 def calc_time(ts: datetime, pos_sec: float) -> datetime:
+    """
+    Calculate a new timestamp by adding seconds to a given datetime.
+
+    :param ts: The original timestamp.
+    :type ts: datetime
+
+    :param pos_sec: The number of seconds to add (can be fractional).
+    :type pos_sec: float
+
+    :return: The resulting timestamp after adding the specified seconds.
+    :rtype: datetime
+    """
     return ts + timedelta(seconds=pos_sec)
 
 
 def get_iso_time(ts: str) -> datetime:
+    """
+    Parse an ISO 8601 datetime string and return a naive datetime object.
+
+    :param ts: An ISO 8601 formatted datetime string.
+    :type ts: str
+
+    :return: A naive datetime object (timezone information is removed).
+    :rtype: datetime
+    """
     dt: datetime = datetime.fromisoformat(ts)
     dt = dt.replace(tzinfo=None)
     return dt
 
 
 def get_video_time_info(path_video: str) -> VideoTimeInfo:
+    """
+    Extract start and end timestamps from a video filename and compute duration.
+
+    The function supports two timestamped filename formats:
+    1. `YYYY.MM.DD.HH.MM.SS.mmm_YYYY.MM.DD.HH.MM.SS.mmm.ext`
+    2. `YYYY.MM.DD-HH.MM.SS.mmm--YYYY.MM.DD-HH.MM.SS.mmm.ext`
+
+    Valid extensions are `*.mkv` and `*.mp4`.
+
+    :param path_video: Full path to the video file with timestamped filename.
+    :type path_video: str
+
+    :return: A VideoTimeInfo object containing success flag, optional error,
+             start and end times, and the duration in seconds.
+    :rtype: VideoTimeInfo
+
+    :raises ValueError: If timestamps cannot be parsed or are in invalid order.
+    """
     res: VideoTimeInfo = VideoTimeInfo(
         success=False, error=None, start_time=None, end_time=None
     )
@@ -193,6 +296,17 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
 def finalize_record(
     ps: ParseSummary, vti: VideoTimeInfo, record: QrRecord, iframe: int, pos_sec: float
 ) -> QrRecord:
+    """
+    Internal API, finalizes the QR code record by setting its
+    end time, duration, and index.
+
+    :param ps: parse summary object
+    :param vti: video time info object
+    :param record: QR code record object
+    :param iframe: current frame number
+    :param pos_sec: current position in seconds
+    :return: QR code record object
+    """
     record.frame_end = iframe
     # Note: unclear should we also use last frame duration or not
     record.isotime_end = calc_time(vti.start_time, pos_sec)
@@ -220,6 +334,18 @@ def finalize_record(
 
 
 def do_info_file(path: str):
+    """
+    Extracts summary information from a single video file.
+
+    Parses the filename to extract start and end times, computes duration,
+    file size, and average data rate in MB per minute.
+
+    :param path: Path to the video file.
+    :type path: str
+
+    :return: An InfoSummary object with metadata, or None if parsing fails.
+    :rtype: InfoSummary or None
+    """
     logger.info(f"do_info_file({path})")
     vti: VideoTimeInfo = get_video_time_info(path)
     if not vti.success:
@@ -236,6 +362,18 @@ def do_info_file(path: str):
 
 
 def do_info(path: str):
+    """
+    Yields summary information for a video file or all `*.mkv` files in a directory.
+
+    If the given path is a file, returns its summary.
+    If the path is a directory, recursively processes `*.mkv` files within it.
+
+    :param path: Path to a video file or directory containing video files.
+    :type path: str
+
+    :yield: InfoSummary object for each video file processed.
+    :rtype: Generator[InfoSummary, None, None]
+    """
     p = Path(path)
     if p.is_file():
         yield do_info_file(path)
@@ -252,6 +390,26 @@ def do_info(path: str):
 
 
 def do_parse(path_video: str):
+    """
+    Parse a video file to extract QR code-encoded segments and video metadata.
+
+    The function performs the following steps:
+    - Parses the filename to extract start and end timestamps.
+    - Extracts video metadata such as resolution, frame rate, frame count, and duration.
+    - Iterates through video frames to detect and decode QR codes.
+    - Yields finalized records when a QR code is detected or ends.
+    - At the end, yields a summary object with parsing stats and video info.
+
+    QR codes are expected to be embedded as visual markers in the video. Each
+    QR code corresponds to a data payload which is yielded as a finalized record.
+
+    :param path_video: Path to the input video file (e.g., `*.mkv`, `*.mp4`).
+    :type path_video: str
+
+    :yield: Individual finalized records (`InfoRecord`) and a final
+            `ParseSummary` object.
+    :rtype: Generator[Union[InfoRecord, ParseSummary], None, None]
+    """
     ps: ParseSummary = ParseSummary()
 
     vti: VideoTimeInfo = get_video_time_info(path_video)

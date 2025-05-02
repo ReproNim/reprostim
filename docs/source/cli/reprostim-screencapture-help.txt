@@ -1,0 +1,24 @@
+Usage: reprostim-screencapture -d <path> [-o <path> | -h | -v ]
+
+	-d <path>	$REPROSTIM_HOME directory (not optional)
+	-o <path>	Output directory where to save recordings (optional)
+	         	Defaults to $REPROSTIM_HOME/Screens
+	-c <path>	Path to configuration config.yaml file (optional)
+	         	Defaults to $REPROSTIM_HOME/config.yaml
+	-f <path>	Path to file for stdout/stderr logs (optional)
+	         	Defaults to console output
+	-v, --verbose
+	         	Verbose, provides detailed information to stdout
+	-l, --list-devices <devices>
+	         	List connected capture devices information.
+	         	Supported <devices> values:
+	         	  all   : list all available information
+	         	  audio : list only audio devices information
+	         	  video : list only video devices information
+	         	Default value is "all"
+	-V
+	         	Print version number only
+	--version
+	         	Print expanded version information
+	-h, --help
+	         	Print this help string
