@@ -21,8 +21,8 @@ ReproStim is part of large ReproFlow process represented in the diagram below:
 ![](docs/source/_static/images/reproflow.svg)
 **Fig. 1:** [ReproNim ReproFlow Diagram, OHBM 2024 #2277](https://github.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster.svg)
 
-**Note:** This is interactive [SVG diagram](https://reprostim.readthedocs.io/en/latest/_images/reproflow.svg), so you can open it in separate
-window and click on the boxes to see more.
+**Note:** This is interactive [SVG diagram](https://reprostim.readthedocs.io/en/latest/_images/reproflow.svg), so you
+can open it in separate window and click on the boxes to see more.
 
 ReproStim provides for enhanced experimental reproducibility and a safeguard
 against data loss in cases of data-collection irregularities.  Because
