@@ -1,3 +1,20 @@
+# 0.7.10 (Fri May 02 2025)
+
+#### 🐛 Bug Fix
+
+- User-oriented documentation website (sphinx and RTD) [#145](https://github.com/ReproNim/reprostim/pull/145) ([@vmdocua](https://github.com/vmdocua) [@yarikoptic](https://github.com/yarikoptic))
+
+#### 🏠 Internal
+
+- Generate  `repronim-reprostim-0.7.9` container metadata [#144](https://github.com/ReproNim/reprostim/pull/144) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.9 (Wed Mar 12 2025)
 
 #### 🐛 Bug Fix
