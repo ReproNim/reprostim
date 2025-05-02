@@ -505,7 +505,7 @@ def do_main(
             safe_remove(audio_file)
             audio_data = acqNum
             audio_file, audio_info_ = save_audiocode(
-                code_uint16=audio_data, codec=audio_codec
+                code_uint16=audio_data, codec=audio_codec, code_duration=qr_duration
             )
             audio_info = audio_info_
             logger.debug(f"  {audio_info}")
