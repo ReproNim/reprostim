@@ -1,3 +1,19 @@
+# 0.7.11 (Fri May 02 2025)
+
+#### 🐛 Bug Fix
+
+- Re-release and point SVG diagram link to RTD site, #125. [#149](https://github.com/ReproNim/reprostim/pull/149) ([@vmdocua](https://github.com/vmdocua))
+
+#### ⚠️ Pushed to `master`
+
+- Re-release and point SVG diagram link to RTD site, #125. ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.10 (Fri May 02 2025)
 
 #### 🐛 Bug Fix
