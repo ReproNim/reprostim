@@ -263,6 +263,7 @@ def do_main(
     display: int,
     qr_scale: float,
     qr_duration: float,
+    qr_async: bool,
     audio_codec: str,
     mute: bool,
     ntrials: int,
@@ -298,6 +299,9 @@ def do_main(
 
     :param qr_duration: The duration of the QR code display in seconds.
     :type qr_duration: float
+
+    :param qr_async: Whether to display the QR code asynchronously.
+    :type qr_async: bool
 
     :param audio_codec: The audio codec to use for the audio code.
     :type audio_codec: str
@@ -352,9 +356,18 @@ def do_main(
     )
 
     sys_shutdown: bool = False
+    w_keys: list[str] = []
 
     def check_keys(max_wait: float = 0) -> list[str]:
+        nonlocal w_keys
         keys: list[str]
+
+        # use cached keys if any
+        if w_keys:
+            keys = w_keys
+            w_keys = []
+            return keys
+
         if max_wait > 0:
             keys = event.waitKeys(maxWait=max_wait)
         else:
@@ -403,6 +416,26 @@ def do_main(
             )
             out_func(f"Series [{sd.num}] ended, trigger count: {sd.tr_count}")
         return None
+
+    def wait_or_keys(
+        timeout: float = 0,
+        async_: bool = False,
+        break_keys=None,
+    ) -> list[str]:
+        if async_:
+            # use manual wait loop
+            start_time = core.getTime()
+
+            # wait loop
+            while core.getTime() - start_time < timeout:
+                keys = event.getKeys(keyList=break_keys)
+                if keys:
+                    return keys
+                core.wait(0.001)  # reduce CPU usage and pass control to other threads
+        else:
+            core.wait(timeout)
+
+        return []
 
     if mode == Mode.BEEP:
         for _ in range(ntrials):
@@ -632,7 +665,7 @@ def do_main(
         tflip, tflip_str = get_times()
         rec["time_flip"] = tflip
         rec["time_flip_formatted"] = tflip_str
-        core.wait(qr_duration)
+        w_keys = wait_or_keys(qr_duration, qr_async, ["5", "num_5", "escape", "q"])
         fixation.draw()
         win.flip()
         toff, toff_str = get_times()
