@@ -519,7 +519,7 @@ class AudioCodeEngine:
     :type bit_duration: float
 
     :param nfe_duration: The duration for each frequency in NFE encoding.
-                         Defaults to 0.3 seconds.
+                         Defaults to 0.5 seconds.
     :type nfe_duration: float
 
     :param volume: The volume level for the audio output. Defaults to 0.80.
@@ -550,7 +550,7 @@ class AudioCodeEngine:
         nfe_df=100,  # used only in NFE
         sample_rate=44100,
         bit_duration=0.0070,  # used only in FSK
-        nfe_duration=0.3,  # used only in NFE
+        nfe_duration=0.5,  # used only in NFE
         volume=0.80,
         pre_delay=0.1,
         pre_f=0,  # 1780
@@ -1042,6 +1042,7 @@ def save_audiocode(
     code_uint64: int = None,
     code_str: str = None,
     code_bytes: bytes = None,
+    code_duration: float = 0.5,
     codec: AudioCodec = AudioCodec.FSK,
     engine=None,
 ) -> (str, AudioCodeInfo):
@@ -1070,6 +1071,11 @@ def save_audiocode(
 
     :param code_bytes: The audio code as bytes.
     :type code_bytes: bytes, optional
+
+    :param code_duration: The duration of the audio code in seconds,
+                          used only for NFE codec ATM. Default is 0.5
+                          seconds.
+    :type code_bytes: float, optional
 
     :param codec: The audio codec to use for encoding the audio code.
                   Default is `AudioCodec.FSK`.
@@ -1114,7 +1120,7 @@ def save_audiocode(
         raise ValueError("No code data provided.")
 
     if not engine:
-        engine = AudioCodeEngine(codec=codec)
+        engine = AudioCodeEngine(codec=codec, nfe_duration=code_duration)
     sci: AudioCodeInfo = engine.save(data, fname)
     logger.debug(f" -> {fname}")
     return (fname, sci)

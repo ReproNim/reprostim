@@ -65,6 +65,26 @@ logger = logging.getLogger(__name__)
     "Use 1.0 to fit full height (default: 0.8).",
 )
 @click.option(
+    "-r",
+    "--qr-duration",
+    default=0.5,
+    type=float,
+    help="Specifies QR code and possibly audio code (NFE) "
+    "duration in seconds. Default is 0.5 sec.",
+)
+@click.option(
+    "-y",
+    "--qr-async",
+    is_flag=True,
+    default=False,
+    help="Use async QR code generation (default is False). In async "
+    "mode script doesn't wait for the end of QR code presentation "
+    "(controlled by `qr_duration` parameter) and break current "
+    "QR code and display the new one. Can be used for testing "
+    "purposes or MRI scans with very short or irregular TR "
+    "intervals.",
+)
+@click.option(
     "-a",
     "--audio-lib",
     type=click.Choice(
@@ -122,6 +142,8 @@ def timesync_stimuli(
     win_size: tuple[int, int],
     display: int,
     qr_scale: float,
+    qr_duration: float,
+    qr_async: bool,
     audio_lib: str,
     audio_codec: str,
     mute: bool,
@@ -151,6 +173,8 @@ def timesync_stimuli(
     logger.debug(f"    audio_lib  : {audio_lib}")
     logger.debug(f"    mute       : {mute}")
     logger.debug(f"    duration   : {duration}")
+    logger.debug(f"    qr duration: {qr_duration}")
+    logger.debug(f"    qr async   : {qr_async}")
     logger.debug(f"    interval   : {interval}")
 
     output: str = get_output_file_name(output_prefix, start_ts)
@@ -170,6 +194,8 @@ def timesync_stimuli(
         win_size,
         display,
         qr_scale,
+        qr_duration,
+        qr_async,
         audio_codec,
         mute,
         trials,
