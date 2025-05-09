@@ -1,3 +1,15 @@
+# 0.7.12 (Fri May 09 2025)
+
+#### 🐛 Bug Fix
+
+- Extend `timesync-stimuli` script to support short TRs (500ms and smaller) [#150](https://github.com/ReproNim/reprostim/pull/150) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.11 (Fri May 02 2025)
 
 #### 🐛 Bug Fix
