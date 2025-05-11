@@ -1021,9 +1021,13 @@ def play_audio(
     Example
     -------
     >>> play_audio("sound.wav", duration=5, volume=0.5)
-    # Plays the audio file "sound.wav" for 5 seconds at half volume.
+    # Plays the audio file "sound.wav" for 5 seconds at half-volume.
     """
-    logger.debug(f"play_audio(name={name}, duration={duration}, async_={async_})")
+    logger.info(
+        f"play_audio: name={name}, duration={duration}, "
+        f"volume={volume}, sample_rate={sample_rate}, "
+        f"async_={async_}"
+    )
     if (
         _audio_lib == AudioLib.PSYCHOPY_SOUNDDEVICE
         or _audio_lib == AudioLib.PSYCHOPY_PTB  # noqa: W503
