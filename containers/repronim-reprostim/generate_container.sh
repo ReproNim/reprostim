@@ -2,6 +2,7 @@
 
 set -eu
 
+thisdir=$(dirname "$0")
 
 PYTHON_VERSION=3.10
 
@@ -45,7 +46,7 @@ generate() {
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
 echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
-generate docker > Dockerfile.${REPROSTIM_SUFFIX}
+generate docker > $thisdir/Dockerfile.${REPROSTIM_SUFFIX}
 
 echo "Singularity.${REPROSTIM_SUFFIX} ..."
-generate singularity > Singularity.${REPROSTIM_SUFFIX}
+generate singularity > $thisdir/Singularity.${REPROSTIM_SUFFIX}
