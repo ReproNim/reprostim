@@ -480,9 +480,9 @@ class AudioCodeInfo:
             f"bit_count={self.bit_count}, "
             f"nfe_freq={self.nfe_freq}, "
             f"volume={self.volume}, "
-            f"duration={self.duration})"
+            f"duration={self.duration},"
             f"pre_delay={self.pre_delay}, "
-            f"post_delay={self.post_delay}"
+            f"post_delay={self.post_delay})"
         )
 
 

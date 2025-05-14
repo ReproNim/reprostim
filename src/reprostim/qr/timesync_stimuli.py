@@ -483,6 +483,20 @@ def do_main(
         ),
     )
 
+    # test audio first on startup
+    if not mute:
+        logger.info("test audio code and output...")
+        test_duration: float = 0.05
+        # decrease volume
+        test_volume: float = 0.05
+        a_file, a_info = save_audiocode(
+            code_uint16=0, codec=AudioCodec.NFE, code_duration=test_duration
+        )
+        logger.info(f"test audio code info:  {a_info}")
+        play_audio(a_file, volume=test_volume, async_=True)
+        wait_or_keys(test_duration, async_=False)
+        safe_remove(a_file)
+
     message = visual.TextStim(
         win,
         text="""Waiting for scanner trigger.\nInstructions
