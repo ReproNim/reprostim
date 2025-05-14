@@ -68,7 +68,7 @@ git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-inst
 
 /opt/psychopy-installer/psychopy_linux_installer --install-dir=/opt/psychopy --psychopy-version=2024.2.5 --additional-packages=psychopy_bids==2024.2.2 --python-version=3.10 --wxpython-version=4.2.2 -v -f
 
-/opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install reprostim[all,disp_mon]==0.7.9
+/opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install reprostim[all,disp_mon]==0.7.13
 
 bash -c 'ln -s /opt/psychopy/psychopy_2024.2.5_py3.10/bin/psychopy /usr/local/bin/'
 
@@ -158,7 +158,7 @@ printf '{ \
     { \
       "name": "run", \
       "kwds": { \
-        "command": "/opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install reprostim[all,disp_mon]==0.7.9" \
+        "command": "/opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install reprostim[all,disp_mon]==0.7.13" \
       } \
     }, \
     { \
