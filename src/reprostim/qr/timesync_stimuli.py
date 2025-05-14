@@ -471,6 +471,13 @@ def do_main(
     win.mouseVisible = False  # hides the mouse pointer
     # win.winHandle.activate()
 
+    if win.monitor:
+        logger.info(f"display [{display}] info:")
+        logger.info(
+            f"    {win.size[0]}x{win.size[1]} px, "
+            f"{round(win.getActualFrameRate(), 2)} Hz"
+        )
+
     # log script started event
     log(
         f,
@@ -482,6 +489,20 @@ def do_main(
             start_time_formatted=get_iso_time(t0),
         ),
     )
+
+    # test audio first on startup
+    if not mute:
+        logger.info("check audio code and output...")
+        test_duration: float = 0.05
+        # decrease volume
+        test_volume: float = 0.05
+        a_file, a_info = save_audiocode(
+            code_uint16=0, codec=AudioCodec.NFE, code_duration=test_duration
+        )
+        logger.info(f"    {a_info}")
+        play_audio(a_file, volume=test_volume, async_=True)
+        wait_or_keys(test_duration, async_=False)
+        safe_remove(a_file)
 
     message = visual.TextStim(
         win,
