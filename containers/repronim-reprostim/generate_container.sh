@@ -2,6 +2,7 @@
 
 set -eu
 
+thisdir=$(dirname "$0")
 
 PYTHON_VERSION=3.10
 
@@ -10,12 +11,13 @@ PSYCHOPY_INSTALL_DIR=/opt/psychopy
 PSYCHOPY_HOME=${PSYCHOPY_INSTALL_DIR}/psychopy_${PSYCHOPY_VERSION}_py${PYTHON_VERSION}
 
 REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
-REPROSTIM_SUFFIX=repronim-reprostim-${REPROSTIM_VERSION}
+# Decided to go without version to make diff easier to analyze etc
+REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 
 
 generate() {
 	[ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
-	ndversion=1.0.1
+	ndversion=2.0.0
     # Thought to use conda-forge for this, but feedstock is not maintained:
     #  https://github.com/conda-forge/psychopy-feedstock/issues/64
     #   --miniconda version=py312_24.5.0-0 conda_install="conda-forge::psychopy conda-forge::qrcode" \
@@ -44,7 +46,7 @@ generate() {
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
 echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
-generate docker > Dockerfile.${REPROSTIM_SUFFIX}
+generate docker > $thisdir/Dockerfile.${REPROSTIM_SUFFIX}
 
 echo "Singularity.${REPROSTIM_SUFFIX} ..."
-generate singularity > Singularity.${REPROSTIM_SUFFIX}
+generate singularity > $thisdir/Singularity.${REPROSTIM_SUFFIX}
