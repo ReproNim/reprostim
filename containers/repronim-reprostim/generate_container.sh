@@ -16,7 +16,7 @@ REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 
 generate() {
 	[ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
-	ndversion=1.0.1
+	ndversion=2.0.0
     # Thought to use conda-forge for this, but feedstock is not maintained:
     #  https://github.com/conda-forge/psychopy-feedstock/issues/64
     #   --miniconda version=py312_24.5.0-0 conda_install="conda-forge::psychopy conda-forge::qrcode" \
