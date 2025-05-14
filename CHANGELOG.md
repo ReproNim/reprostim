@@ -1,3 +1,15 @@
+# 0.7.13 (Wed May 14 2025)
+
+#### 🐛 Bug Fix
+
+- Fixes timesync-stimuly issues found during container setup on reproiner for automatic calibration [#155](https://github.com/ReproNim/reprostim/pull/155) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.12 (Fri May 09 2025)
 
 #### 🐛 Bug Fix
