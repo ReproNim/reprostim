@@ -10,7 +10,8 @@ PSYCHOPY_INSTALL_DIR=/opt/psychopy
 PSYCHOPY_HOME=${PSYCHOPY_INSTALL_DIR}/psychopy_${PSYCHOPY_VERSION}_py${PYTHON_VERSION}
 
 REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
-REPROSTIM_SUFFIX=repronim-reprostim-${REPROSTIM_VERSION}
+# Decided to go without version to make diff easier to analyze etc
+REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 
 
 generate() {
