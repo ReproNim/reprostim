@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - master
-      - nf-issue146
   pull_request:
     branches:
       - master
@@ -71,7 +70,10 @@ jobs:
       - name: Build Singularity container
         run: |
           pwd
-          sudo singularity build my_container.sif Singularity.def
+          cd tools/ci
+          ./build_reprostim_container.sh
+          cd ../..
+          pwd
 
       - name: Test Singularity container run
         run: |
