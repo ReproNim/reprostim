@@ -80,6 +80,6 @@ jobs:
           singularity --version
           pwd
           cd tools/ci
-          ./run_reprostim_container.sh --version
+          ./test_reprostim_container.sh --version
           cd ../..
           pwd
