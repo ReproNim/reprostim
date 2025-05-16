@@ -7,9 +7,17 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'src/reprostim/**'
+      - 'tools/ci/**'
+      - 'containers/repronim-reprostim/**'
   pull_request:
     branches:
       - master
+    paths:
+      - 'src/reprostim/**'
+      - 'tools/ci/**'
+      - 'containers/repronim-reprostim/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
