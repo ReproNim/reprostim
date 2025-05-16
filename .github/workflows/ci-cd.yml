@@ -78,3 +78,6 @@ jobs:
       - name: Test Singularity container run
         run: |
           singularity --version
+          cd containers/repronim-reprostim
+          ./run_reprostim.sh --version
+          cd ../..

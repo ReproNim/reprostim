@@ -16,3 +16,5 @@ ls -l
 
 echo Execute build_singularity.sh
 ./build_singularity.sh
+
+ls -l
