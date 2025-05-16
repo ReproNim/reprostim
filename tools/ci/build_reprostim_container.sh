@@ -9,8 +9,10 @@ echo "Building containers for ReproStim.."
 cd ../../containers/repronim-reprostim
 pwd
 
-echo execute generate_container.sh
+echo Execute generate_container.sh
 ./generate_container.sh
 
-echo execute build_singularity.sh
+ls -l
+
+echo Execute build_singularity.sh
 ./build_singularity.sh
