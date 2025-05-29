@@ -16,15 +16,17 @@ REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
 REPROSTIM_HOME=/opt/reprostim
 
+MODE=${1:-default}
 
-if ["$1" == "ci" ]; then
+
+if [[ "$MODE" == "ci" ]]; then
   echo "Running in CI/CD mode, install reprostim from current worktree"
-  REPROSTIM_COPY=--copy "${REPROSTIM_GIT_HOME}" "${REPROSTIM_HOME}"
-  REPROSTIM_RUN_INSTALL=--run "${PSYCHOPY_HOME}/bin/pip install ${REPROSTIM_HOME}[all,disp_mon]"
+  REPROSTIM_COPY="${REPROSTIM_GIT_HOME} ${REPROSTIM_HOME}"
+  REPROSTIM_RUN_INSTALL="${PSYCHOPY_HOME}/bin/pip install ${REPROSTIM_HOME}[all,disp_mon]"
 else
   echo "Running in default mode, install reprostim from PyPI"
-  REPROSTIM_COPY=
-  REPROSTIM_INSTALL="${PSYCHOPY_HOME}/bin/pip install reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
+  REPROSTIM_COPY="/dev/null /tmp"
+  REPROSTIM_RUN_INSTALL="${PSYCHOPY_HOME}/bin/pip install reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
 fi
 
 
@@ -50,8 +52,8 @@ generate() {
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
         --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v1.4.3" \
         --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2024.2.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.2 -v -f" \
-        ${REPROSTIM_COPY} \
-        ${REPROSTIM_RUN_INSTALL} \
+        --copy ${REPROSTIM_COPY} \
+        --run "${REPROSTIM_RUN_INSTALL}" \
         --run "bash -c 'ln -s ${PSYCHOPY_HOME}/bin/psychopy /usr/local/bin/'" \
         --run "bash -c 'b=\$(ls ${PSYCHOPY_HOME}/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
         --entrypoint python3
