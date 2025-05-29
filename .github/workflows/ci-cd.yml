@@ -1,0 +1,85 @@
+# This workflows build and test reprostim singularity container.
+
+name: CI/CD Container
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Force tox and pytest to use color
+  FORCE_COLOR: true
+
+jobs:
+  build-singularity:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Set env
+        run: |
+          echo "RELEASE_VERSION=v3.7.1" >> $GITHUB_ENV
+          echo "NO_ET=TRUE" >> $GITHUB_ENV
+
+      - name: Checkout Singularity source
+        uses: actions/checkout@v4
+        with:
+          repository: hpcng/singularity
+          ref: 'v3.7.1'
+          path: 'singularity'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.13'
+
+      - name: Install OS dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            flawfinder squashfs-tools uuid-dev libuuid1 libffi-dev libssl-dev libssl1.1 \
+            libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config
+
+      - name: Build and install Singularity
+        run: |
+          cd singularity
+          ./mconfig --without-suid -p /usr/local/
+          make -C builddir
+          sudo make -C builddir install
+          cd ..
+
+      - name: Verify Singularity version
+        run: singularity --version
+
+      - name: Checkout your repo (for Singularity.def)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Singularity container
+        run: |
+          pwd
+          cd tools/ci
+          ./build_reprostim_container.sh
+          cd ../..
+          pwd
+
+      - name: Test Singularity container run
+        run: |
+          singularity --version
+          pwd
+          cd tools/ci
+          ./test_reprostim_container.sh --version
+          cd ../..
+          pwd
