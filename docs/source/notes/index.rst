@@ -10,3 +10,4 @@ Miscellaneous Notes
     containers
     audiocodes-notes
     disp_mon-notes
+    automated-setup
