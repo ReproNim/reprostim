@@ -343,7 +343,7 @@ void VideoCaptureApp::onCaptureIdle() {
 					_INFO("Restart Recording: Ffmpeg thread terminated, restarting capture");
 					onCaptureStartInternal(true);
 				} else {
-					_INFO("Skip Restart Recording, waiting for recovery timeout");
+					_VERBOSE("Skip Restart Recording, waiting for recovery timeout");
 				}
 			} else {
 				_INFO("Skip Restart Recording, system break/shutdown activity detected");
