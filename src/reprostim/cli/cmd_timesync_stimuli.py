@@ -52,9 +52,10 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-d",
     "--display",
-    default=1,
-    type=int,
-    help="Specify display number as an integer (default: 1).",
+    default="1",
+    type=str,
+    help="Specify display number as an integer or as X11 format like "
+         ":display_num (default: 1).",
 )
 @click.option(
     "-s",
@@ -140,7 +141,7 @@ def timesync_stimuli(
     output_prefix: str,
     windowed: bool,
     win_size: tuple[int, int],
-    display: int,
+    display: str,
     qr_scale: float,
     qr_duration: float,
     qr_async: bool,
@@ -177,6 +178,8 @@ def timesync_stimuli(
     logger.debug(f"    qr async   : {qr_async}")
     logger.debug(f"    interval   : {interval}")
 
+    display_num: int = int(display.lstrip(':'))
+
     output: str = get_output_file_name(output_prefix, start_ts)
     logger.debug(f"    output     : {output}")
 
@@ -192,7 +195,7 @@ def timesync_stimuli(
         output,
         is_fullscreen,
         win_size,
-        display,
+        display_num,
         qr_scale,
         qr_duration,
         qr_async,
