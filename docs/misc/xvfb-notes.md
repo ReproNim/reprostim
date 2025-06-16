@@ -50,11 +50,11 @@ which xvfb-run
 # setup params
 export XVFB_OPTS="-screen 0 1920x1080x24 -ac +extension GLX +render -noreset"
 export DISPLAY_START=20
-export REPROSTIM_CMD=xclock
+export REPROSTIM_CMD=xterm
 
 # run Xvfb in background with REPROSTIM_CMD
-xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" xclock \
-  bash -c 'echo $DISPLAY > /tmp/reprostim_last_display.txt; $REPROSTIM_CMD' &
+xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" \
+  bash -c 'echo $DISPLAY > /tmp/reprostim_last_display.txt; $REPROSTIM_CMD'&
 
 
 XVFB_RUN_PID=$!
@@ -70,7 +70,7 @@ echo "Xvfb started on display: $DISPLAY"
 sleep 5
 
 # make screenshot
-import -display $DISPLAY -window root "/tmp/reprostim_screenshot_$(DISPLAY)_$(date +%Y-%m-%d_%H:%M:%S).png"
+import -display $DISPLAY -window root "/tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).png"
 
 # kill Xvfb at the end
 sleep 1
