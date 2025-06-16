@@ -50,7 +50,7 @@ which xvfb-run
 # setup params
 export XVFB_OPTS="-screen 0 1920x1080x24 -ac +extension GLX +render -noreset"
 export DISPLAY_START=20
-export REPROSTIM_CMD=xterm
+export REPROSTIM_CMD="hatch run reprostim timesync-stimuli --mute -d $(cat /tmp/reprostim_last_display.txt)"
 
 # run Xvfb in background with REPROSTIM_CMD
 xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" \
