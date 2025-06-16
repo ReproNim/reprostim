@@ -5,6 +5,7 @@
 ```shell
 sudo apt update
 sudo apt install xvfb
+sudo apt install xdotool
 
 which xvfb-run
 ```
@@ -45,6 +46,7 @@ Now all together in a script:
 # install Xvfb
 sudo apt update
 sudo apt install xvfb
+sudo apt install xdotool
 which xvfb-run
 
 # setup params
@@ -55,7 +57,7 @@ export FRAME_BPP=24
 export DISPLAY_PATH="/tmp/reprostim_last_display.txt"
 export XVFB_OPTS="-screen 0 ${FRAME_WIDTH}x${FRAME_HEIGHT}x${FRAME_BPP} -ac +extension GLX +render -noreset"
 export DISPLAY_START=25
-export REPROSTIM_CMD="hatch run reprostim timesync-stimuli -m interval --mute -d $(cat /tmp/reprostim_last_display.txt)"
+export REPROSTIM_CMD="hatch run reprostim timesync-stimuli -m event --mute -d $(cat /tmp/reprostim_last_display.txt)"
 
 # run Xvfb in background with REPROSTIM_CMD
 xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" \
@@ -77,11 +79,14 @@ echo "Xvfb started on display: $DISPLAY"
 # make screenshot
 # import -display $DISPLAY -window root "/tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).png"
 
-# record video for 20 seconds
-ffmpeg -video_size ${FRAME_WIDTH}x${FRAME_HEIGHT} -framerate ${FRAME_RATE} -f x11grab -i $DISPLAY \
-  -t 20 -c:v libx264 -pix_fmt yuv420p /tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).mp4
+# send test pulse events
+./tools/ci/test_reprostim_events.sh 2 5 5 1.5 20&
 
-sleep 20
+# record video for 45 seconds
+ffmpeg -video_size ${FRAME_WIDTH}x${FRAME_HEIGHT} -framerate ${FRAME_RATE} -f x11grab -i $DISPLAY \
+  -t 45 -c:v libx264 -pix_fmt yuv420p /tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).mp4
+
+sleep 45 
 
 # kill Xvfb at the end
 sleep 1
