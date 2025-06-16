@@ -50,7 +50,7 @@ which xvfb-run
 # setup params
 export XVFB_OPTS="-screen 0 1920x1080x24 -ac +extension GLX +render -noreset"
 export DISPLAY_START=20
-export REPROSTIM_CMD="hatch run reprostim timesync-stimuli --mute -d $(cat /tmp/reprostim_last_display.txt)"
+export REPROSTIM_CMD="hatch run reprostim timesync-stimuli -m interval --mute -d $(cat /tmp/reprostim_last_display.txt)"
 
 # run Xvfb in background with REPROSTIM_CMD
 xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" \
@@ -67,10 +67,16 @@ export DISPLAY=$(cat /tmp/reprostim_last_display.txt)
 echo "Xvfb started on display: $DISPLAY"
 
 # wait some time to start command
-sleep 5
+# sleep 5
 
 # make screenshot
-import -display $DISPLAY -window root "/tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).png"
+# import -display $DISPLAY -window root "/tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).png"
+
+# record video for 20 seconds
+ffmpeg -video_size 1920x1080 -framerate 60 -f x11grab -i $DISPLAY \
+  -t 20 -c:v libx264 -pix_fmt yuv420p /tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).mp4
+
+sleep 20
 
 # kill Xvfb at the end
 sleep 1
