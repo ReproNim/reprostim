@@ -111,7 +111,7 @@ logger = logging.getLogger(__name__)
     "-t", "--trials", default=300, type=int, help="Specifies number of trials."
 )
 @click.option(
-    "-d",
+    "-x",
     "--duration",
     default=-1,
     type=float,
