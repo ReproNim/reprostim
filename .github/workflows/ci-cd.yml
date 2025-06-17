@@ -97,12 +97,12 @@ jobs:
           export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event --mute -d $(cat /tmp/reprostim_last_display.txt)"
           cd tools/ci
           echo "Run Xvfb in background with REPROSTIM_CMD"
-          xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c 'echo $DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD'&
+          xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD"&
           XVFB_RUN_PID=$!
           echo "Started xvfb-run with PID $XVFB_RUN_PID"
           echo "Wait for Xvfb to start"
-          sleep 5
-          export DISPLAY=$DISPLAY_START
+          sleep 2
+          export DISPLAY=$(cat ${DISPLAY_PATH})
           echo "Xvfb started on display: $DISPLAY"
           echo "Send test pulse events"
           ./test_reprostim_events.sh 2 5 5 1.5 20&
