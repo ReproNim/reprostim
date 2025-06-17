@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to simulate pulse events using xdotool
-# Usage: ./test_reprostim_events.sh NUM_SERIES SERIES_INTERVAL NUM_EVT EVT_INTERVAL
+# Usage: ./test_reprostim_events.sh NUM_SERIES SERIES_INTERVAL NUM_EVT EVT_INTERVAL [SLEEP_DELAY] [DISPLAY]
 # Make sure to set DISPLAY if using Xvfb
 
 NUM_SERIES="$1"
@@ -9,6 +9,12 @@ SERIES_INTERVAL="$2"
 NUM_EVT="$3"
 EVT_INTERVAL="$4"
 SLEEP_DELAY="${5:-0}"
+DISPLAY_PARAM="$6"
+
+# Use passed-in DISPLAY if provided
+if [[ -n "$DISPLAY_PARAM" ]]; then
+  export DISPLAY="$DISPLAY_PARAM"
+fi
 
 echo "DISPLAY is set to: $DISPLAY"
 
@@ -16,7 +22,7 @@ sleep "$SLEEP_DELAY"
 
 # Validate inputs
 if [ -z "$NUM_SERIES" ] || [ -z "$SERIES_INTERVAL" ] || [ -z "$NUM_EVT" ] || [ -z "$EVT_INTERVAL" ]; then
-  echo "Usage: $0 <number_of_series> <series_interval> <number_of_events> <events_interval>"
+  echo "Usage: $0 <number_of_series> <series_interval> <number_of_events> <events_interval> [<sleep_delay>] [<display>]"
   exit 1
 fi
 

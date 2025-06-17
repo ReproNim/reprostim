@@ -105,12 +105,12 @@ jobs:
           export DISPLAY=$(cat ${DISPLAY_PATH})
           echo "Xvfb started on display: $DISPLAY"
           echo "Send test pulse events"
-          ./test_reprostim_events.sh 2 5 5 1.5 20&
+          ./test_reprostim_events.sh 2 5 5 1.5 20 $DISPLAY&
           echo "Record video for 45 seconds"
           ffmpeg -video_size ${FRAME_WIDTH}x${FRAME_HEIGHT} -framerate ${FRAME_RATE} -f x11grab -i $DISPLAY -t 45 -c:v libx264 -pix_fmt yuv420p /tmp/reprostim_screenshot${DISPLAY}_$(date +%Y-%m-%d_%H:%M:%S).mp4
           sleep 45
           ls -l /tmp/reprostim_*
           echo "Kill Xvfb at the end"
           sleep 1
-          kill $XVFB_RUN_PID
-          wait $XVFB_RUN_PID 2>/dev/null
+          kill $XVFB_RUN_PID 2>/dev/null || true
+          wait $XVFB_RUN_PID 2>/dev/null || true
