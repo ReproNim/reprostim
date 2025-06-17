@@ -94,7 +94,7 @@ jobs:
           export DISPLAY_PATH="/tmp/reprostim_last_display.txt"
           export XVFB_OPTS="-screen 0 ${FRAME_WIDTH}x${FRAME_HEIGHT}x${FRAME_BPP} -ac +extension GLX +render -noreset"
           export DISPLAY_START=25
-          export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event --mute -d $(cat /tmp/reprostim_last_display.txt)"
+          export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event --mute -d \$(cat /tmp/reprostim_last_display.txt)"
           cd tools/ci
           echo "Run Xvfb in background with REPROSTIM_CMD"
           xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD"&
