@@ -102,7 +102,7 @@ jobs:
           echo "Started xvfb-run with PID $XVFB_RUN_PID"
           echo "Wait for Xvfb to start"
           sleep 5
-          export DISPLAY=$(cat ${DISPLAY_PATH})
+          export DISPLAY=$DISPLAY_START
           echo "Xvfb started on display: $DISPLAY"
           echo "Send test pulse events"
           ./test_reprostim_events.sh 2 5 5 1.5 20&
