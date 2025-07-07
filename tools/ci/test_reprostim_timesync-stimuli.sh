@@ -41,7 +41,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   echo "tmp_dir=$tmp_dir" >> "$GITHUB_ENV"
 
   export FRAME_WIDTH=1920
-  export FRAME_HEIGHT=108055
+  export FRAME_HEIGHT=1080
   export FRAME_RATE=60
   export FRAME_BPP=24
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display.txt"
@@ -73,7 +73,7 @@ else
 
 fi
 
-echo "Display[$DISPLAY_ID]: ${FRAME_WIDTH}x${FRAME_HEIGHT}, ${FRAME_RATE}Hz"
+echo "Display[$DISPLAY_ID]: ${FRAME_WIDTH}x${FRAME_HEIGHT}, ${FRAME_RATE} Hz"
 echo "ReproStim command to run: $REPROSTIM_CMD"
 
 echo "Send test pulse events"
