@@ -87,11 +87,9 @@ jobs:
 
       - name: Test timesync-stimuli run
         run: |
-          tmp_dir="${TMPDIR:-/tmp}"
-          echo "tmp_dir=$tmp_dir" >> "$GITHUB_ENV"
           pwd
           cd tools/ci
-          ./test_reprostim_timesync-stimuli.sh
+          ./test_reprostim_timesync-stimuli.sh xvfb
           cd ../..
           pwd
 
@@ -99,4 +97,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reprostim-screenshot
-          path: ${{ env.tmp_dir }}//reprostim_screenshot*.mp4
+          path: ${{ env.tmp_dir }}/reprostim_screenshot*.mp4

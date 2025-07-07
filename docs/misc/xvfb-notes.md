@@ -50,7 +50,7 @@ sudo apt install xdotool
 which xvfb-run
 
 cd tools/ci
-./test_reprostim_timesync-stimuli.sh
+./test_reprostim_timesync-stimuli.sh xvfb
 ```
 
 For more details, see the script: [tools/ci/test_reprostim_timesync-stimuli.sh](https://github.com/ReproNim/reprostim/blob/master/tools/ci/test_reprostim_timesync-stimuli.sh).

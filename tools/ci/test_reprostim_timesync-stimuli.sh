@@ -1,12 +1,21 @@
 #!/bin/bash
 
 thisdir=$(dirname "$0")
+tmp_dir="${TMPDIR:-/tmp}"
+MODE=${1:-default}
 
 echo "Test CI/CD ReproStim timesync-stimuli.."
 
+echo "tmp_dir=${tmp_dir}"
 
-# setup tmp directory
-tmp_dir="${TMPDIR:-/tmp}"
+if [[ "$MODE" == "xvfb" ]]; then
+  echo "Running in CI/CD mode on virtual screen"
+  # store the tmp_dir in GITHUB_ENV for later use
+  echo "tmp_dir=$tmp_dir" >> "$GITHUB_ENV"
+else
+  echo "Running in default mode on current DISPLAY=$DISPLAY"
+fi
+
 
 export FRAME_WIDTH=1920
 export FRAME_HEIGHT=1080
