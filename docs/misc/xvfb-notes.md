@@ -96,8 +96,3 @@ sleep 1
 kill $XVFB_RUN_PID
 wait $XVFB_RUN_PID 2>/dev/null
 ```
-
-
-
-
-
