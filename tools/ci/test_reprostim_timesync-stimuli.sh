@@ -35,6 +35,14 @@ echo "Test CI/CD ReproStim timesync-stimuli.."
 echo "tmp_dir=${tmp_dir}"
 cd ${thisdir}
 
+# Specify test events scenario configuration
+SERIES_COUNT=2
+SERIES_INTERVAL_SEC=5
+EVENTS_IN_SERIES_COUNT=5
+EVENTS_INTERVAL_SEC=1.5
+EVENTS_STARTUP_DELAY_SEC=20
+
+
 if [[ "$MODE" == "xvfb" ]]; then
   echo "Running in CI/CD mode on virtual screen"
   # store the tmp_dir in GITHUB_ENV for later use
@@ -77,11 +85,12 @@ echo "Display[$DISPLAY_ID]: ${FRAME_WIDTH}x${FRAME_HEIGHT}, ${FRAME_RATE} Hz"
 echo "ReproStim command to run: $REPROSTIM_CMD"
 
 echo "Send test pulse events"
-./test_reprostim_events.sh 2 5 5 1.5 20 "${DISPLAY_ID}" &
+./test_reprostim_events.sh "$SERIES_COUNT" "$SERIES_INTERVAL_SEC" "$EVENTS_IN_SERIES_COUNT" "$EVENTS_INTERVAL_SEC" "$EVENTS_STARTUP_DELAY_SEC" "${DISPLAY_ID}" &
 
 echo "Record video for 45 seconds"
-echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" -t 45 -c:v libx264 -pix_fmt yuv420p \"$tmp_dir/reprostim_screenshot_$(date +%Y-%m-%d_%H-%M-%S).mp4\""
-ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" -t 45 -c:v libx264 -pix_fmt yuv420p "$tmp_dir/reprostim_screenshot_$(date +%Y-%m-%d_%H-%M-%S).mp4"
+export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_$(date +%Y-%m-%d_%H-%M-%S).mp4"
+echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" -t 45 -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
+ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" -t 45 -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep 45
 ls -l $tmp_dir/reprostim_*
 
@@ -92,3 +101,4 @@ if [[ "$MODE" == "xvfb" ]]; then
   kill $XVFB_RUN_PID 2>/dev/null || true
   wait $XVFB_RUN_PID 2>/dev/null || true
 fi
+
