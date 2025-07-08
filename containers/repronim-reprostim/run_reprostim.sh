@@ -22,6 +22,7 @@ echo "  [ARGS]           : $@"
 
 singularity exec \
   --cleanenv --contain \
+  -B ${TMPDIR:-/tmp} \
   -B /run/user/$(id -u)/pulse \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \

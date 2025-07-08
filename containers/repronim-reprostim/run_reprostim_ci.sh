@@ -22,6 +22,7 @@ echo "  [ARGS]           : $@"
 
 singularity exec \
   --cleanenv --contain \
+  -B ${TMPDIR:-/tmp} \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \
   ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER} \
