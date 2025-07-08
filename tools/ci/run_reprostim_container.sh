@@ -13,7 +13,7 @@ log() {
 log "Run CI/CD containers for ReproStim.."
 
 cd ../../containers/repronim-reprostim
-pwd
+# pwd
 
 log "Execute run_reprostim_ci.sh"
 ./run_reprostim_ci.sh $@
