@@ -29,6 +29,8 @@ fi
 thisdir=$(dirname "$0")
 tmp_dir="${TMPDIR:-/tmp}"
 MODE=${1:-default}
+LOG_LEVEL=DEBUG
+
 
 echo "Test CI/CD ReproStim timesync-stimuli.."
 
@@ -41,6 +43,7 @@ SERIES_INTERVAL_SEC=5
 EVENTS_IN_SERIES_COUNT=5
 EVENTS_INTERVAL_SEC=1.5
 EVENTS_STARTUP_DELAY_SEC=20
+VIDEO_DURATION_SEC=45
 
 
 if [[ "$MODE" == "xvfb" ]]; then
@@ -87,11 +90,14 @@ echo "ReproStim command to run: $REPROSTIM_CMD"
 echo "Send test pulse events"
 ./test_reprostim_events.sh "$SERIES_COUNT" "$SERIES_INTERVAL_SEC" "$EVENTS_IN_SERIES_COUNT" "$EVENTS_INTERVAL_SEC" "$EVENTS_STARTUP_DELAY_SEC" "${DISPLAY_ID}" &
 
-echo "Record video for 45 seconds"
-export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_$(date +%Y-%m-%d_%H-%M-%S).mp4"
-echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" -t 45 -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
+echo "Record video for $VIDEO_DURATION_SEC seconds"
+START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
+END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
+export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_${START_TS}--${END_TS}.mkv"
+echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
 ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" -t 45 -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
-sleep 45
+sleep $VIDEO_DURATION_SEC
+sleep 3
 ls -l $tmp_dir/reprostim_*
 
 # terminate xvfb process if it was started
@@ -100,5 +106,20 @@ if [[ "$MODE" == "xvfb" ]]; then
   sleep 1
   kill $XVFB_RUN_PID 2>/dev/null || true
   wait $XVFB_RUN_PID 2>/dev/null || true
+fi
+
+if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then
+  echo "ReproStim screenshot video recorded: $REPROSTIM_SCREENSHOT_PATH"
+  echo "Parse QR code from the video..."
+  QRINFO_VIDEO_PATH="$tmp_dir/${START_TS}--${END_TS}.mkv"
+  QRINFO_JSONL_PATH="$REPROSTIM_SCREENSHOT_PATH.qrinfo.jsonl"
+  QRINFO_LOG_PATH="$REPROSTIM_SCREENSHOT_PATH.qrinfo.log"
+  echo "Create temp QR video file: $QRINFO_VIDEO_PATH"
+  cp "$REPROSTIM_SCREENSHOT_PATH" "$QRINFO_VIDEO_PATH"
+  ./run_reprostim_container.sh --log-level $LOG_LEVEL qr-parse "$QRINFO_VIDEO_PATH" >"$QRINFO_JSONL_PATH" 2>"$QRINFO_LOG_PATH"
+  echo "Remove temp QR video file: $QRINFO_VIDEO_PATH"
+  rm -f "$QRINFO_VIDEO_PATH"
+else
+  echo "ReproStim screenshot video not found"
 fi
 
