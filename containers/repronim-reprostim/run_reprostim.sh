@@ -13,11 +13,18 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 REPROSTIM_OVERLAY=
 REPROSTIM_CONTAINER=./repronim-reprostim-${REPROSTIM_VERSION}.sing
 
-echo "Run ReproStim Singularity Container v${REPROSTIM_VERSION}.."
-echo "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
-echo "  [CONTAINER]      : ${SINGULARITY_CONTAINER}"
-echo "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
-echo "  [ARGS]           : $@"
+log() {
+  if [[ "${REPROSTIM_QUIET:-0}" == "0" ]]; then
+    echo "$@"
+  fi
+}
+
+
+log "Run ReproStim Singularity Container v${REPROSTIM_VERSION}.."
+log "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
+log "  [CONTAINER]      : ${SINGULARITY_CONTAINER}"
+log "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
+log "  [ARGS]           : $@"
 
 
 singularity exec \

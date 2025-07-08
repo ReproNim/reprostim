@@ -91,6 +91,7 @@ echo "Send test pulse events"
 ./test_reprostim_events.sh "$SERIES_COUNT" "$SERIES_INTERVAL_SEC" "$EVENTS_IN_SERIES_COUNT" "$EVENTS_INTERVAL_SEC" "$EVENTS_STARTUP_DELAY_SEC" "${DISPLAY_ID}" &
 
 echo "Record video for $VIDEO_DURATION_SEC seconds"
+# NOTE: video timestamps are rounded to seconds, might be reviewed in the future for better accuracy
 START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
 END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
 export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_${START_TS}--${END_TS}.mkv"
@@ -110,16 +111,17 @@ fi
 
 if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then
   echo "ReproStim screenshot video recorded: $REPROSTIM_SCREENSHOT_PATH"
-  echo "Parse QR code from the video..."
   QRINFO_VIDEO_PATH="$tmp_dir/${START_TS}--${END_TS}.mkv"
   QRINFO_JSONL_PATH="$REPROSTIM_SCREENSHOT_PATH.qrinfo.jsonl"
   QRINFO_LOG_PATH="$REPROSTIM_SCREENSHOT_PATH.qrinfo.log"
   echo "Create temp QR video file: $QRINFO_VIDEO_PATH"
   cp "$REPROSTIM_SCREENSHOT_PATH" "$QRINFO_VIDEO_PATH"
-  ./run_reprostim_container.sh --log-level $LOG_LEVEL qr-parse "$QRINFO_VIDEO_PATH" >"$QRINFO_JSONL_PATH" 2>"$QRINFO_LOG_PATH"
+  echo "Parse QR code from the video..."
+  REPROSTIM_QUIET=1 ./run_reprostim_container.sh --log-level $LOG_LEVEL qr-parse "$QRINFO_VIDEO_PATH" >"$QRINFO_JSONL_PATH" 2>"$QRINFO_LOG_PATH"
   echo "Remove temp QR video file: $QRINFO_VIDEO_PATH"
   rm -f "$QRINFO_VIDEO_PATH"
+  echo "QR info JSONL file : $QRINFO_JSONL_PATH"
+  echo "QR info log file   : $QRINFO_LOG_PATH"
 else
   echo "ReproStim screenshot video not found"
 fi
-

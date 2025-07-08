@@ -97,4 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reprostim-screenshot
-          path: ${{ env.tmp_dir }}/reprostim_screenshot*.mp4
+          path: |
+            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv
+            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.jsonl
+            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
