@@ -35,7 +35,7 @@ LOG_LEVEL=DEBUG
 echo "Test CI/CD ReproStim timesync-stimuli.."
 
 echo "tmp_dir=${tmp_dir}"
-cd ${thisdir}
+cd "$thisdir"
 
 # Specify test events scenario configuration
 SERIES_COUNT=2
@@ -111,17 +111,47 @@ fi
 
 if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then
   echo "ReproStim screenshot video recorded: $REPROSTIM_SCREENSHOT_PATH"
+
   QRINFO_VIDEO_PATH="$tmp_dir/${START_TS}--${END_TS}.mkv"
   QRINFO_JSONL_PATH="$REPROSTIM_SCREENSHOT_PATH.qrinfo.jsonl"
   QRINFO_LOG_PATH="$REPROSTIM_SCREENSHOT_PATH.qrinfo.log"
+
   echo "Create temp QR video file: $QRINFO_VIDEO_PATH"
   cp "$REPROSTIM_SCREENSHOT_PATH" "$QRINFO_VIDEO_PATH"
   echo "Parse QR code from the video..."
   REPROSTIM_QUIET=1 ./run_reprostim_container.sh --log-level $LOG_LEVEL qr-parse "$QRINFO_VIDEO_PATH" >"$QRINFO_JSONL_PATH" 2>"$QRINFO_LOG_PATH"
+
   echo "Remove temp QR video file: $QRINFO_VIDEO_PATH"
   rm -f "$QRINFO_VIDEO_PATH"
+
   echo "QR info JSONL file : $QRINFO_JSONL_PATH"
   echo "QR info log file   : $QRINFO_LOG_PATH"
+
+  # do some checks on the parsed QR info if any
+  if [[ -f "$QRINFO_JSONL_PATH" ]]; then
+    # validate jq is installed
+    command -v jq >/dev/null || { echo >&2 "jq is required but not installed."; exit 1; }
+
+    count_series_0=$(jq -c 'select(.type == "QrRecord" and .data.series_num == 0 and .data.keys[0] == "5")' "$QRINFO_JSONL_PATH" | wc -l)
+    count_series_1=$(jq -c 'select(.type == "QrRecord" and .data.series_num == 1 and .data.keys[0] == "5")' "$QRINFO_JSONL_PATH" | wc -l)
+
+    echo "Series #0: $count_series_0 records"
+    echo "Series #1: $count_series_1 records"
+
+    if [[ "$count_series_0" -eq 5 && "$count_series_1" -eq 5 ]]; then
+        echo "[+]  Valid: 5 records in two series"
+        # exit 0
+    else
+        echo "[-] Invalid:"
+        [[ "$count_series_0" -ne 5 ]] && echo "  -> Series 0 has $count_series_0 records (expected 5)"
+        [[ "$count_series_1" -ne 5 ]] && echo "  -> Series 1 has $count_series_1 records (expected 5)"
+        exit 1
+    fi
+  else
+    echo "Parsed QR info JSONL file not found: $QRINFO_JSONL_PATH"
+    exit 1
+  fi
 else
   echo "ReproStim screenshot video not found"
+  exit 1
 fi
