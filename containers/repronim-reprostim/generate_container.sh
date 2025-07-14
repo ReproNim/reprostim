@@ -15,6 +15,15 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
 REPROSTIM_HOME=/opt/reprostim
+REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
+REPROSTIM_CAPTURE_PACKAGES=""
+REPROSTIM_CAPTURE_BUILD="echo 'ReproStim capture build is disabled'"
+
+if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
+  REPROSTIM_CAPTURE_PACKAGES="libyaml-cpp-dev libspdlog-dev catch2 libasound2-dev libv4l-dev libudev-dev libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++"
+  REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; reprostim-videocapture -V"
+fi
+
 
 MODE=${1:-default}
 
@@ -50,13 +59,15 @@ generate() {
           libgtk-3-dev libwxgtk3.2-dev libwxgtk-media3.2-dev libwxgtk-webview3.2-dev libcanberra-gtk3-module \
           libusb-1.0-0-dev portaudio19-dev libasound2-dev pulseaudio pavucontrol pulseaudio-utils \
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
+          "${REPROSTIM_CAPTURE_PACKAGES}" \
         --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v1.4.3" \
         --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2024.2.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.2 -v -f" \
         --copy ${REPROSTIM_COPY} \
         --run "${REPROSTIM_RUN_INSTALL}" \
         --run "bash -c 'ln -s ${PSYCHOPY_HOME}/bin/psychopy /usr/local/bin/'" \
         --run "bash -c 'b=\$(ls ${PSYCHOPY_HOME}/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
-        --entrypoint python3
+        --entrypoint python3 \
+        --run "bash -c '$REPROSTIM_CAPTURE_BUILD'"
 #       --user=reproin \
 }
 

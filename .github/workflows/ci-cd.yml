@@ -70,11 +70,12 @@ jobs:
 
       - name: Build Singularity container
         run: |
-          pwd
-          cd tools/ci
-          ./build_reprostim_container.sh
-          cd ../..
-          pwd
+          (
+            echo "$PWD"
+            cd tools/ci
+            export REPROSTIM_CAPTURE_ENABLED=1
+            ./build_reprostim_container.sh
+          )
 
       - name: Test Singularity container run
         run: |
