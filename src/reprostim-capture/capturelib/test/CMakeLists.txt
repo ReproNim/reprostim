@@ -11,11 +11,19 @@ add_executable(${PROJECT_NAME}
     TestCaptureApp.cpp
 )
 
-target_link_libraries(
-        ${PROJECT_NAME}
-        capturelib
-        Catch2::Catch2WithMain
-)
+if(CATCH2_VERSION EQUAL 2)
+    target_link_libraries(
+            ${PROJECT_NAME}
+            capturelib
+            Catch2::Catch2
+    )
+else()
+    target_link_libraries(
+            ${PROJECT_NAME}
+            capturelib
+            Catch2::Catch2WithMain
+    )
+endif()
 
 include(CTest)
 include(Catch)
