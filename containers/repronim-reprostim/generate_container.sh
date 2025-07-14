@@ -18,10 +18,12 @@ REPROSTIM_HOME=/opt/reprostim
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES=""
 REPROSTIM_CAPTURE_BUILD="echo 'ReproStim capture build is disabled'"
+REPROSTIM_CAPTURE_CLEAN="echo 'ReproStim capture clean is disabled'"
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   REPROSTIM_CAPTURE_PACKAGES="libyaml-cpp-dev libspdlog-dev catch2 libasound2-dev libv4l-dev libudev-dev libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++"
-  REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; reprostim-videocapture -V"
+  REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; rm -rf \"$REPROSTIM_HOME/src/reprostim-capture/build\"; reprostim-videocapture -V"
+  REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES && apt-get autoremove -y"
 fi
 
 
@@ -67,7 +69,8 @@ generate() {
         --run "bash -c 'ln -s ${PSYCHOPY_HOME}/bin/psychopy /usr/local/bin/'" \
         --run "bash -c 'b=\$(ls ${PSYCHOPY_HOME}/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
         --entrypoint python3 \
-        --run "bash -c '$REPROSTIM_CAPTURE_BUILD'"
+        --run "bash -c '$REPROSTIM_CAPTURE_BUILD'" \
+        --run "bash -c '$REPROSTIM_CAPTURE_CLEAN'"
 #       --user=reproin \
 }
 
