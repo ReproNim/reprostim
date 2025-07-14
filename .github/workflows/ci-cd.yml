@@ -80,20 +80,20 @@ jobs:
 
       - name: Test Singularity container run
         run: |
-          (
-            singularity --version
-            echo "$PWD"
-            cd tools/ci
-            ./test_reprostim_container.sh --version
-          )
+          singularity --version
+          pwd
+          cd tools/ci
+          ./test_reprostim_container.sh --version
+          cd ../..
+          pwd
 
       - name: Test timesync-stimuli run
         run: |
-          echo "$PWD"
+          pwd
           cd tools/ci
           ./test_reprostim_timesync-stimuli.sh xvfb
           cd ../..
-          echo "$PWD"
+          pwd
 
       - name: Upload screenshot video artifact
         uses: actions/upload-artifact@v4
