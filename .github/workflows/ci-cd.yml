@@ -54,11 +54,12 @@ jobs:
 
       - name: Build and install Singularity
         run: |
-          cd singularity
-          ./mconfig --without-suid -p /usr/local/
-          make -C builddir
-          sudo make -C builddir install
-          cd ..
+          (
+            cd singularity
+            ./mconfig --without-suid -p /usr/local/
+            make -C builddir
+            sudo make -C builddir install
+          )
 
       - name: Verify Singularity version
         run: singularity --version
@@ -79,20 +80,20 @@ jobs:
 
       - name: Test Singularity container run
         run: |
-          singularity --version
-          pwd
-          cd tools/ci
-          ./test_reprostim_container.sh --version
-          cd ../..
-          pwd
+          (
+            singularity --version
+            echo "$PWD"
+            cd tools/ci
+            ./test_reprostim_container.sh --version
+          )
 
       - name: Test timesync-stimuli run
         run: |
-          pwd
-          cd tools/ci
-          ./test_reprostim_timesync-stimuli.sh xvfb
-          cd ../..
-          pwd
+          (
+            echo "$PWD"
+            cd tools/ci
+            ./test_reprostim_timesync-stimuli.sh xvfb
+          )
 
       - name: Upload screenshot video artifact
         uses: actions/upload-artifact@v4
