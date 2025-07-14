@@ -54,12 +54,11 @@ jobs:
 
       - name: Build and install Singularity
         run: |
-          (
-            cd singularity
-            ./mconfig --without-suid -p /usr/local/
-            make -C builddir
-            sudo make -C builddir install
-          )
+          cd singularity
+          ./mconfig --without-suid -p /usr/local/
+          make -C builddir
+          sudo make -C builddir install
+          cd ..
 
       - name: Verify Singularity version
         run: singularity --version
