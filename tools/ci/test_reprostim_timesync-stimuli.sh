@@ -66,9 +66,15 @@ if [[ "$MODE" == "xvfb" ]]; then
 
   echo "Started xvfb-run with PID $XVFB_RUN_PID"
   echo "Wait for Xvfb to start"
-  sleep 4
+  sleep 15
 
   export DISPLAY_ID=$(cat ${DISPLAY_PATH})
+
+  if [ -z "$DISPLAY_ID" ]; then
+    echo "[-] DISPLAY_ID is empty. Xvfb may not have started properly, terminating the script."
+    exit 1
+  fi
+
   echo "Xvfb started on display: $DISPLAY_ID"
 else
   echo "Running in default mode on current DISPLAY=$DISPLAY"
