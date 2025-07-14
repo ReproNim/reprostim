@@ -89,11 +89,11 @@ jobs:
 
       - name: Test timesync-stimuli run
         run: |
-          (
-            echo "$PWD"
-            cd tools/ci
-            ./test_reprostim_timesync-stimuli.sh xvfb
-          )
+          echo "$PWD"
+          cd tools/ci
+          ./test_reprostim_timesync-stimuli.sh xvfb
+          cd ../..
+          echo "$PWD"
 
       - name: Upload screenshot video artifact
         uses: actions/upload-artifact@v4
