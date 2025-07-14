@@ -5,7 +5,15 @@
 #include <sysexits.h>
 #include <getopt.h>
 #include "ScreenCapture.h"
-#include <catch2/catch_all.hpp>
+
+// Catch2 v2/v3 includes
+#if __has_include(<catch2/catch_all.hpp>)
+    // Catch2 v3
+    #include <catch2/catch_all.hpp>
+#else
+  // Catch2 v2 fallback
+  #include <catch2/catch.hpp>
+#endif
 
 // Function to test
 int add(int a, int b) {
