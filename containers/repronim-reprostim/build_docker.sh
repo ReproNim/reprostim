@@ -8,6 +8,9 @@ REPROSTIM_SUFFIX_NOTAG=repronim-reprostim
 REPROSTIM_SUFFIX=${REPROSTIM_SUFFIX_NOTAG}-${REPROSTIM_VERSION}
 
 (
+  set -e
+  trap 'echo "[-] Docker build failed"; exit 1' ERR
+
   cd ../../..
   echo "$PWD"
 
