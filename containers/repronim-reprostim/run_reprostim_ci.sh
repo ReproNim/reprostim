@@ -15,9 +15,14 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 REPROSTIM_OVERLAY=
 if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
   REPROSTIM_CONTAINER_IMAGE="repronim/reprostim:${REPROSTIM_VERSION}"
+  DOCKER_TTY=""
+  if [ -t 1 ]; then
+    DOCKER_TTY="-t"
+  fi
 elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
   REPROSTIM_CONTAINER_IMAGE="./repronim-reprostim-${REPROSTIM_VERSION}.sing"
 fi
+
 
 log() {
   if [[ "${REPROSTIM_QUIET:-0}" == "0" ]]; then
@@ -33,7 +38,7 @@ log "  [ARGS]           : $@"
 
 
 if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
-  docker run --rm -it \
+  docker run --rm -i ${DOCKER_TTY} \
     -v "${REPROSTIM_PATH}:${REPROSTIM_PATH}" \
     -w "${REPROSTIM_PATH}" \
     --env DISPLAY=$DISPLAY \
