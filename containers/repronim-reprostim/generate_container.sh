@@ -43,8 +43,14 @@ fi
 
 
 generate() {
-	[ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
-	ndversion=2.0.0
+  if [[ "$1" == docker && "$MODE" == "ci" ]]; then
+    REPROSTIM_COPY="reprostim ${REPROSTIM_HOME}"
+  fi
+  if [[ "$1" == singularity && "$MODE" == "ci" ]]; then
+    REPROSTIM_COPY="${REPROSTIM_GIT_HOME} ${REPROSTIM_HOME}"
+  fi
+  [ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
+  ndversion=2.0.0
     # Thought to use conda-forge for this, but feedstock is not maintained:
     #  https://github.com/conda-forge/psychopy-feedstock/issues/64
     #   --miniconda version=py312_24.5.0-0 conda_install="conda-forge::psychopy conda-forge::qrcode" \
