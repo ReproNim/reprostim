@@ -75,7 +75,7 @@ jobs:
             echo "$PWD"
             cd tools/ci
             export REPROSTIM_CAPTURE_ENABLED=1
-            ./build_reprostim_container.sh
+            ./build_reprostim_container.sh singularity
           )
 
       - name: Test Singularity container run
