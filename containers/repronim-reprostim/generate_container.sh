@@ -36,7 +36,7 @@ if [[ "$MODE" == "ci" ]]; then
   REPROSTIM_RUN_INSTALL="${PSYCHOPY_HOME}/bin/pip install ${REPROSTIM_HOME}[all,disp_mon]"
 else
   echo "Running in default mode, install reprostim from PyPI"
-  REPROSTIM_COPY="/dev/null /tmp"
+  REPROSTIM_COPY=""
   REPROSTIM_RUN_INSTALL="${PSYCHOPY_HOME}/bin/pip install reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
 fi
 
@@ -46,9 +46,17 @@ generate() {
   if [[ "$1" == docker && "$MODE" == "ci" ]]; then
     REPROSTIM_COPY="reprostim ${REPROSTIM_HOME}"
   fi
+
   if [[ "$1" == singularity && "$MODE" == "ci" ]]; then
     REPROSTIM_COPY="${REPROSTIM_GIT_HOME} ${REPROSTIM_HOME}"
   fi
+
+  if [[ -n "${REPROSTIM_COPY:-}" ]]; then
+    REPROSTIM_COPY_ARG="--copy ${REPROSTIM_COPY}"
+  else
+    REPROSTIM_COPY_ARG=""
+  fi
+
   [ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
   ndversion=2.0.0
     # Thought to use conda-forge for this, but feedstock is not maintained:
@@ -70,7 +78,7 @@ generate() {
           "${REPROSTIM_CAPTURE_PACKAGES}" \
     --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v1.4.3" \
     --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2024.2.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.2 -v -f" \
-    --copy ${REPROSTIM_COPY} \
+    ${REPROSTIM_COPY_ARG} \
     --run "${REPROSTIM_RUN_INSTALL}" \
     --run "bash -c 'ln -s ${PSYCHOPY_HOME}/bin/psychopy /usr/local/bin/'" \
     --run "bash -c 'b=\$(ls ${PSYCHOPY_HOME}/bin/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \

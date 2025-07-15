@@ -27,3 +27,12 @@ jobs:
             ./build_reprostim_container.sh docker
           )
         working-directory: tools/ci
+
+      - name: Test Docker Container Run
+        run: |
+          (
+            echo "$PWD"
+            export REPROSTIM_CONTAINER_TYPE=docker
+            ./test_reprostim_container.sh --version
+          )
+        working-directory: tools/ci
