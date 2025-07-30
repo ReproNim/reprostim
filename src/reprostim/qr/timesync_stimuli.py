@@ -484,9 +484,10 @@ def do_main(
 
     if win.monitor:
         logger.info(f"display [{display}] info:")
+        fr = win.getActualFrameRate()
         logger.info(
             f"    {win.size[0]}x{win.size[1]} px, "
-            f"{round(win.getActualFrameRate(), 2)} Hz"
+            f"    {round(fr, 2)} Hz" if fr else "    N/A Hz"
         )
 
     # log script started event

@@ -79,7 +79,19 @@ if(CTEST_ENABLED)
     message(STATUS "CTests are ENABLED")
     enable_testing()
 
-    find_package(Catch2 3 REQUIRED)
+    # Try to find Catch2 v3 first
+    find_package(Catch2 3 QUIET)
+
+    if(Catch2_FOUND)
+        message(STATUS "Using Catch2 v3")
+        set(CATCH2_VERSION 3)
+    else()
+        # Fallback to Catch2 v2
+        find_package(Catch2 REQUIRED)
+        message(STATUS "Using Catch2 v2")
+        set(CATCH2_VERSION 2)
+    endif()
+
     include_directories(${Catch2_INCLUDE_DIRS})
 
     add_subdirectory(test)

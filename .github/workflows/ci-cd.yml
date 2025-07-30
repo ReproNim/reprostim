@@ -49,15 +49,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             flawfinder squashfs-tools uuid-dev libuuid1 libffi-dev libssl-dev libssl1.1 \
-            libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config
+            libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config \
+            xvfb xdotool ffmpeg
 
       - name: Build and install Singularity
         run: |
-          cd singularity
-          ./mconfig --without-suid -p /usr/local/
-          make -C builddir
-          sudo make -C builddir install
-          cd ..
+          (
+            cd singularity
+            ./mconfig --without-suid -p /usr/local/
+            make -C builddir
+            sudo make -C builddir install
+          )
 
       - name: Verify Singularity version
         run: singularity --version
@@ -69,17 +71,35 @@ jobs:
 
       - name: Build Singularity container
         run: |
-          pwd
-          cd tools/ci
-          ./build_reprostim_container.sh
-          cd ../..
-          pwd
+          (
+            echo "$PWD"
+            cd tools/ci
+            export REPROSTIM_CAPTURE_ENABLED=1
+            ./build_reprostim_container.sh singularity
+          )
 
       - name: Test Singularity container run
         run: |
-          singularity --version
-          pwd
-          cd tools/ci
-          ./test_reprostim_container.sh --version
-          cd ../..
-          pwd
+          (
+            singularity --version
+            echo "$PWD"
+            cd tools/ci
+            ./test_reprostim_container.sh --version
+          )
+
+      - name: Test timesync-stimuli run
+        run: |
+          (
+            echo "$PWD"
+            cd tools/ci
+            ./test_reprostim_timesync-stimuli.sh xvfb
+          )
+
+      - name: Upload screenshot video artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reprostim-screenshot
+          path: |
+            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv
+            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.jsonl
+            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
