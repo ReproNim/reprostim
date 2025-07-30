@@ -1,3 +1,23 @@
+# 0.7.14 (Wed Jul 30 2025)
+
+#### 🐛 Bug Fix
+
+- Add testing of synchronization script with virtual screen buffer [#167](https://github.com/ReproNim/reprostim/pull/167) ([@vmdocua](https://github.com/vmdocua))
+- Streamline container recipes generation: do not bother with version in the recipe name, place in the folder of the script [#156](https://github.com/ReproNim/reprostim/pull/156) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### 🏠 Internal
+
+- Move "Skip Restart Recording" logs to verbose level [#166](https://github.com/ReproNim/reprostim/pull/166) ([@vmdocua](https://github.com/vmdocua))
+- Provide custom filter function for Psychopy logs [#165](https://github.com/ReproNim/reprostim/pull/165) ([@vmdocua](https://github.com/vmdocua))
+- Setup CI/CD container workflow action [#158](https://github.com/ReproNim/reprostim/pull/158) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.13 (Wed May 14 2025)
 
 #### 🐛 Bug Fix
