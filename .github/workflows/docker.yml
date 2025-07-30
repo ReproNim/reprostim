@@ -23,12 +23,16 @@ jobs:
           (
             echo "$PWD"
             export REPROSTIM_CAPTURE_ENABLED=1
+            export REPROSTIM_DOCKER_TAGS="master unstable"
             ./build_reprostim_container.sh docker
           )
         working-directory: tools/ci
 
       - name: Test Docker Container Run
         run: |
+          # build only if not release tag, and has some "-" in describe
+          # so we do not duplicate work with release workflow.
+          git describe --match '[0-9]*\.[0-9]*\.[0-9]*' | grep -q -e - && \
           (
             echo "$PWD"
             export REPROSTIM_CONTAINER_TYPE=docker
@@ -37,13 +41,16 @@ jobs:
         working-directory: tools/ci
 
       - name: Push Docker Image
+        # publish to docker hub only on push to master branch
+        if: github.event_name == 'push'
         run: |
+          git describe --match '[0-9]*\.[0-9]*\.[0-9]*' | grep -q -e - && \
           (
             REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
             echo "Pushing Docker image with version: $REPROSTIM_VERSION"
             docker login -u "$DOCKER_LOGIN" --password-stdin <<<"$DOCKER_TOKEN"
-            docker push repronim/reprostim:${REPROSTIM_VERSION}
-            docker push repronim/reprostim:latest
+            docker push repronim/reprostim:master
+            docker push repronim/reprostim:unstable
           )
         env:
           DOCKER_LOGIN: ${{ secrets.DOCKER_LOGIN }}

@@ -37,4 +37,29 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
+      - name: Build docker image
+        run: |
+          (
+            echo "$PWD"
+            export REPROSTIM_CAPTURE_ENABLED=1
+            REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+            echo "REPROSTIM_VERSION: $REPROSTIM_VERSION"
+            # specify tags for the docker image to be built under repronim/reprostim:<tag>
+            export REPROSTIM_DOCKER_TAGS="master latest $REPROSTIM_VERSION"
+            ./build_reprostim_container.sh docker
+          )
+        working-directory: tools/ci
+
+      - name: Push docker image
+        run: |
+          (
+            REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+            echo "Pushing release docker image with version: $REPROSTIM_VERSION"
+            docker login -u "$DOCKER_LOGIN" --password-stdin <<<"$DOCKER_TOKEN"
+            docker push --all-tags repronim/reprostim
+          )
+        env:
+          DOCKER_LOGIN: ${{ secrets.DOCKER_LOGIN }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+
 # vim:set sts=2:
