@@ -10,4 +10,5 @@ Miscellaneous Notes
     containers
     audiocodes-notes
     disp_mon-notes
+    xvfb-notes
     automated-setup
