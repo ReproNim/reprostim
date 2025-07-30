@@ -11,3 +11,4 @@ Miscellaneous Notes
     audiocodes-notes
     disp_mon-notes
     xvfb-notes
+    automated-setup

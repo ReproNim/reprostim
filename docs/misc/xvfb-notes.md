@@ -12,7 +12,7 @@ which xvfb-run
 
 Run in background mode as FullHD:
 ```shell
-# use FullHD resolution, disables access control, enables GLX and 
+# use FullHD resolution, disables access control, enables GLX and
 # render extensions, no reset at last client exit
 export XVFB_OPTS="-screen 0 1920x1080x24 -ac +extension GLX +render -noreset"
 
