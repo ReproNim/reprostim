@@ -11,7 +11,7 @@ API to parse `(*.mkv)` video files recorded by `reprostim-videocapture`
 utility and extract embedded video media info, QR-codes and audiocodes into
 JSONL format.
 """
-
+import types
 from dataclasses import dataclass
 from time import sleep, time
 
@@ -339,6 +339,17 @@ def do_main(
     # setup psychopy logs
     from psychopy import logging as pl
 
+    # psychopy logging doesn't support filtering by message content,
+    # so this is a patch to filter out flooding messages like "No keypress"
+    _pl_log_method = pl.root.log
+
+    def pl_filtered_log(self, message_, level, t=None, obj=None):
+        if "No keypress (maxWait exceeded)" in str(message_):
+            return
+        _pl_log_method(message_, level, t, obj)
+
+    pl.root.log = types.MethodType(pl_filtered_log, pl.root)
+
     # pl.console.setLevel(pl.NOTSET)
     pl.console.setLevel(pl.DEBUG)
 
@@ -473,9 +484,10 @@ def do_main(
 
     if win.monitor:
         logger.info(f"display [{display}] info:")
+        fr = win.getActualFrameRate()
         logger.info(
             f"    {win.size[0]}x{win.size[1]} px, "
-            f"{round(win.getActualFrameRate(), 2)} Hz"
+            f"    {round(fr, 2)} Hz" if fr else "    N/A Hz"
         )
 
     # log script started event
