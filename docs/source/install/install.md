@@ -250,6 +250,7 @@ appropriate OS and Python version, e.g.:
 
 ```shell
     hatch run pip install https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04/wxpython-4.2.3-cp310-cp310-linux_x86_64.whl
+    sudo apt install libsdl2-2.0-0
 ```
 
 
