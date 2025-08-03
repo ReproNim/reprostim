@@ -243,6 +243,16 @@ To build the project, use `hatch` and `venv` with preferable Python
     hatch run reprostim --version
     hatch run reprostim echo 'Hello ReproStim CLI!'
 ```
+Note: in case `hatch run pip install -e .[all]` fails with errors like 
+` ERROR: Failed building wheel for wxPython`, try to install wxPython package
+manually from https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ specifying 
+appropriate OS and Python version, e.g.:
+
+```shell
+    hatch run pip install https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04/wxpython-4.2.3-cp310-cp310-linux_x86_64.whl
+```
+
+
 
 ## Hardware Setup
 
