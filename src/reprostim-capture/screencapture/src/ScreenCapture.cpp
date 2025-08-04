@@ -64,9 +64,9 @@ void ScreenCaptureApp::onCaptureStop(const std::string& message) {
 bool ScreenCaptureApp::onLoadConfig(AppConfig &cfg, const std::string &pathConfig, YAML::Node doc) {
 	if( doc["sc_opts"] ) {
 		YAML::Node node = doc["sc_opts"];
-		m_scOpts.dump_raw = node["dump_raw"].as<bool>();
-		m_scOpts.interval_ms = node["interval_ms"].as<int>();
-		m_scOpts.threshold = node["threshold"].as<int>();
+		m_scOpts.dump_raw = getYamlProp<bool>(node, "dump_raw");
+		m_scOpts.interval_ms = getYamlProp<int>(node,"interval_ms");
+		m_scOpts.threshold = getYamlProp<int>(node, "threshold");
 	} else {
 		m_scOpts.dump_raw = false;
 		m_scOpts.interval_ms = 0;
