@@ -143,7 +143,7 @@ namespace reprostim {
 		}
 
 		if( doc["device_serial_number"] ) {
-			cfg.device_serial_number = doc["device_serial_number"].as<std::string>();
+			cfg.device_serial_number = getYamlProp<std::string>(doc, "device_serial_number");
 			cfg.has_device_serial_number = !cfg.device_serial_number.empty() &&
 										   cfg.device_serial_number!="auto";
 		} else {
@@ -151,22 +151,22 @@ namespace reprostim {
 		}
 
 		if( doc["video_device_path_pattern"] ) {
-			cfg.video_device_path_pattern = doc["video_device_path_pattern"].as<std::string>();
+			cfg.video_device_path_pattern = getYamlProp<std::string>(doc, "video_device_path_pattern");
 		}
 
 		if( doc["session_logger_enabled"] ) {
-			cfg.session_logger_enabled = doc["session_logger_enabled"].as<bool>();
-			cfg.session_logger_level = parseLogLevel(doc["session_logger_level"].as<std::string >());
-			cfg.session_logger_pattern = doc["session_logger_pattern"].as<std::string>();
+			cfg.session_logger_enabled = getYamlProp<bool>(doc, "session_logger_enabled");
+			cfg.session_logger_level = parseLogLevel(getYamlProp<std::string>(doc, "session_logger_level"));
+			cfg.session_logger_pattern = getYamlProp<std::string>(doc, "session_logger_pattern");
 		}
 
 		if( doc["ffm_opts"] ) {
 			YAML::Node node = doc["ffm_opts"];
 			FfmpegOpts& opts = cfg.ffm_opts;
-			opts.a_fmt = node["a_fmt"].as<std::string>();
-			opts.a_nchan = node["a_nchan"].as<std::string>();
-			opts.a_opt = node["a_opt"].as<std::string>();
-			opts.a_dev = node["a_dev"].as<std::string>();
+			opts.a_fmt = getYamlProp<std::string>(node, "a_fmt");
+			opts.a_nchan = getYamlProp<std::string>(node, "a_nchan");
+			opts.a_opt = getYamlProp<std::string>(node, "a_opt");
+			opts.a_dev = getYamlProp<std::string>(node, "a_dev");
 			opts.has_a_dev = !opts.a_dev.empty() && opts.a_dev.find("auto")==std::string::npos;
 			opts.a_alsa_dev = DEFAULT_AUDIO_IN_DEVICE;
 			opts.has_a_alsa_dev = false;
@@ -197,24 +197,24 @@ namespace reprostim {
 					}
 				}
 			}
-			opts.v_fmt = node["v_fmt"].as<std::string>();
-			opts.v_opt = node["v_opt"].as<std::string>();
-			opts.v_dev = node["v_dev"].as<std::string>();
-			opts.v_enc = node["v_enc"].as<std::string>();
+			opts.v_fmt = getYamlProp<std::string>(node, "v_fmt");
+			opts.v_opt = getYamlProp<std::string>(node, "v_opt");
+			opts.v_dev = getYamlProp<std::string>(node, "v_dev");
+			opts.v_enc = getYamlProp<std::string>(node, "v_enc");
 			opts.has_v_dev = !opts.v_dev.empty() && opts.v_dev != "auto";
-			opts.pix_fmt = node["pix_fmt"].as<std::string>();
-			opts.n_threads = node["n_threads"].as<std::string>();
-			opts.a_enc = node["a_enc"].as<std::string>();
-			opts.out_fmt = node["out_fmt"].as<std::string>();
+			opts.pix_fmt = getYamlProp<std::string>(node, "pix_fmt");
+			opts.n_threads = getYamlProp<std::string>(node, "n_threads");
+			opts.a_enc = getYamlProp<std::string>(node, "a_enc");
+			opts.out_fmt = getYamlProp<std::string>(node, "out_fmt");
 		}
 
 		// load conduct_opts
 		if( doc["conduct_opts"] ) {
 			YAML::Node node = doc["conduct_opts"];
 			ConductOpts& opts = cfg.conduct_opts;
-			opts.enabled = node["enabled"].as<bool>();
-			opts.cmd = node["cmd"].as<std::string>();
-			opts.duct_bin = node["duct_bin"].as<std::string>();
+			opts.enabled = getYamlProp<bool>(node, "enabled");
+			opts.cmd = getYamlProp<std::string>(node, "cmd");
+			opts.duct_bin = getYamlProp<std::string>(node, "duct_bin");
 		}
 
 
@@ -222,21 +222,21 @@ namespace reprostim {
 		if( doc["ext_proc_opts"] ) {
 			YAML::Node node = doc["ext_proc_opts"];
 			ExtProcOpts& opts = cfg.ext_proc_opts;
-			opts.enabled = node["enabled"].as<bool>();
-			opts.status_command = node["status_command"].as<std::string>();
-			opts.status_delay_ms = node["status_delay_ms"].as<int>();
-			opts.status_regex = node["status_regex"].as<std::string>();
-			opts.exec_command = node["exec_command"].as<std::string>();
-			opts.exec_restart_on_exit = node["exec_restart_on_exit"].as<bool>();
+			opts.enabled = getYamlProp<bool>(node, "enabled");
+			opts.status_command = getYamlProp<std::string>(node, "status_command");
+			opts.status_delay_ms = getYamlProp<int>(node,"status_delay_ms");
+			opts.status_regex = getYamlProp<std::string>(node, "status_regex");
+			opts.exec_command = getYamlProp<std::string>(node, "exec_command");
+			opts.exec_restart_on_exit = getYamlProp<bool>(node,"exec_restart_on_exit");
 		}
 
 		// load repromon_opts
 		if( doc["repromon_opts"] ) {
 			YAML::Node node = doc["repromon_opts"];
 			RepromonOpts& opts = cfg.repromon_opts;
-			opts.enabled = node["enabled"].as<bool>();
-			opts.api_base_url = node["api_base_url"].as<std::string>();
-			opts.api_key = node["api_key"].as<std::string>();
+			opts.enabled = getYamlProp<bool>(node,"enabled");
+			opts.api_base_url = getYamlProp<std::string>(node, "api_base_url");
+			opts.api_key = getYamlProp<std::string>(node, "api_key");
 			if( opts.enabled && opts.api_key=="${REPROMON_API_KEY}" ) {
 				const char* envApiKey = std::getenv("REPROMON_API_KEY");
 				if( envApiKey!=nullptr ) {
@@ -249,11 +249,11 @@ namespace reprostim {
 					return false;
 				}
 			}
-			opts.verify_ssl_cert = node["verify_ssl_cert"].as<bool>();
-			opts.data_provider_id = node["data_provider_id"].as<int>();
-			opts.device_id = node["device_id"].as<int>();
-			opts.message_category_id = node["message_category_id"].as<int>();
-			opts.message_level_id = node["message_level_id"].as<int>();
+			opts.verify_ssl_cert = getYamlProp<bool>(node, "verify_ssl_cert");
+			opts.data_provider_id = getYamlProp<int>(node, "data_provider_id");
+			opts.device_id = getYamlProp<int>(node,"device_id");
+			opts.message_category_id = getYamlProp<int>(node, "message_category_id");
+			opts.message_level_id = getYamlProp<int>(node, "message_level_id");
 		}
 		return this->onLoadConfig(cfg, pathConfig, doc);
 	}

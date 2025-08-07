@@ -11,4 +11,5 @@ Miscellaneous Notes
     audiocodes-notes
     disp_mon-notes
     xvfb-notes
+    vaapi-notes
     automated-setup
