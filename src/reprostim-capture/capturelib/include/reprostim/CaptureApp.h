@@ -163,6 +163,21 @@ namespace reprostim {
 		m_disconnDevs.erase(devPath);
 	}
 
+	// YAML helper to read config
+	template <typename T>
+	T getYamlProp(const YAML::Node& node, const std::string& key, const bool required=true) {
+		if (required && !node[key]) {
+			_ERROR("Missing required YAML key in config file: " << key)
+			throw std::runtime_error("Missing required YAML key in config file: '" + key + "'");
+		}
+		try {
+			return node[key].as<T>();
+		} catch (const YAML::TypedBadConversion<T>&) {
+			_ERROR("Invalid type for YAML key in config file: " << key)
+			throw std::runtime_error("Invalid type for YAML key in config file '" + key + "'");
+		}
+	}
+
 	// Default main entry point implementation
 	// for use in main.cpp in application based
 	// on CaptureApp
