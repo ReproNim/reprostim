@@ -18,12 +18,12 @@ MR_settings = {
     'sound': False
 }
 
-logging.info("Starting fMRI scan emulator in test interval mode")
+logging.info("Starting fMRI scan emulator in scan event mode")
 
 seq = 0
-# Wait for first sync pulse (Test mode will generate them automatically)
+# Wait for first sync pulse
 seq += launchScan(win, MR_settings, globalClock=globalClock,
-           mode='Test',  log=True)
+           mode='Scan',  log=True)
 logging.info(f"Pulse[0], initial detected at {globalClock.getTime():.3f} sec")
 
 # Main loop to react to pulses

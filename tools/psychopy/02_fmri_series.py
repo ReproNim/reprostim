@@ -75,7 +75,7 @@ MR_settings = {
     'sound': False
 }
 
-logging.info("Starting fMRI scan emulator")
+logging.info("Starting fMRI scan emulator in test series mode")
 logging.info(f"Simulating {n_series} series of {pulses_per_series} pulses each "
              f"({n_pulses} total)")
 # logging.debug(f"simResponses: {sim_responses}")
