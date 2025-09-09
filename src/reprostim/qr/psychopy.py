@@ -7,11 +7,14 @@ API to generate visual QR-codes and audio codes
 and embed them into PsychoPy scripts for fMRI experiments
 """
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from time import time
 from typing import Any
 
+import qrcode
+from psychopy import visual
 from pydantic import BaseModel, Field, model_validator
 
 #######################################################
@@ -182,5 +185,21 @@ class _QrCode_Pydantic(BaseModel):
         return self.time_formatted
 
 
-# class QrCodeStim(visual.ImageStim):
-#    """Class to represent/draw QR code stimulus."""
+@dataclass
+class QrConfig:
+    """Class representing QR and audio codes configuration."""
+
+
+class QrStim(visual.ImageStim):
+    """Class to represent/draw/play QR and audio code stimulus."""
+
+    def __init__(
+        self,
+        win,
+        qr_code: QrCode,
+        qr_config: QrConfig = None,
+        **kwargs: Any,
+    ):
+        self.qr_code = qr_code
+        self.qr_config = QrConfig() if qr_config is None else qr_config
+        super().__init__(win, qrcode.make(to_json(qr_code)), **kwargs)

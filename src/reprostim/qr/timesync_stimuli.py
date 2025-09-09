@@ -25,8 +25,6 @@ import signal
 from datetime import datetime
 from enum import Enum
 
-import qrcode
-
 from ..__about__ import __version__
 
 # setup logging
@@ -268,6 +266,7 @@ def do_main(
     from reprostim.qr.psychopy import (
         EventType,
         QrCode,
+        QrStim,
         get_iso_time,
         get_times,
         to_json,
@@ -644,8 +643,8 @@ def do_main(
         tkeys, tkeys_str = get_times()
         rec["keys_time"] = tkeys
         rec["keys_time_str"] = tkeys_str
-        qr = visual.ImageStim(win, qrcode.make(to_json(rec)), pos=(0, 0))
-        qr.size = qr.size * qr_scale
+        qr = QrStim(win, rec, pos=(0, 0))
+        qr.size = qr.size * qr_scale  # TODO: move to QrConfig
         qr.draw()
         win.flip()
         tflip, tflip_str = get_times()
