@@ -1,5 +1,10 @@
+# `PsychoPy` Integration Notes
 
-# Overview
+## TBD
+
+TODO: add notes about using `reprostim` with `PsychoPy`
+
+## Installation
 
 On Linux used `reprostim` dev venv and hatch with PsychoPy v2024.2.5:
 
@@ -17,13 +22,15 @@ or install it manually:
 pip install psychopy-mri-emulator
 ```
 
-# Environments tested
+## Appendix
+
+## A: Environments tested
 
 
-## [1]
+#### Env[1]
 Ubuntu 24.04.2 LTS
 PsychoPy v2024.2.4
-Problem: 
+Problem:
 ```
 Welcome to PsychoPy3!
 v2024.2.4
@@ -61,13 +68,13 @@ AttributeError: 'NoneType' object has no attribute 'close'
 ################# Experiment ended with exit code 1 [pid:6335] #################
 ```
 
-## [2]
+#### Env[2]
 
 Ubuntu 24.04.2 LTS
 PsychoPy v2024.2.5
 Works fine under `hatch run psychopy`
 
-## [3]
+#### Env[3]
 
 MacOS 12.7.6
 PsychoPy v2024.2.5
@@ -99,8 +106,3 @@ v2024.2.5
 libc++abi: terminating with uncaught exception of type NSException
 ################ Experiment ended with exit code -6 [pid:56653] ################
 ```
-
-
-
-
-
