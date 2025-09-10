@@ -266,6 +266,7 @@ def do_main(
     from reprostim.qr.psychopy import (
         EventType,
         QrCode,
+        QrConfig,
         QrStim,
         get_iso_time,
         get_times,
@@ -415,6 +416,8 @@ def do_main(
     audio_file: str = None
     audio_info: AudioCodeInfo = None
     f = open(logfn, "w")
+
+    qr_config: QrConfig = QrConfig(scale=qr_scale)
 
     win = visual.Window(
         fullscr=is_fullscreen,
@@ -643,8 +646,7 @@ def do_main(
         tkeys, tkeys_str = get_times()
         rec["keys_time"] = tkeys
         rec["keys_time_str"] = tkeys_str
-        qr = QrStim(win, rec, pos=(0, 0))
-        qr.size = qr.size * qr_scale  # TODO: move to QrConfig
+        qr = QrStim(win, rec, qr_config)
         qr.draw()
         win.flip()
         tflip, tflip_str = get_times()

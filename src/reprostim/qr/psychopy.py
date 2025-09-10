@@ -13,9 +13,9 @@ from enum import Enum
 from time import time
 from typing import Any
 
-import qrcode
 from psychopy import visual
 from pydantic import BaseModel, Field, model_validator
+from qrcode import QRCode
 
 #######################################################
 # Constants
@@ -189,6 +189,22 @@ class _QrCode_Pydantic(BaseModel):
 class QrConfig:
     """Class representing QR and audio codes configuration."""
 
+    align: str = "center"
+    """Alignment of the QR code, default is 'center' ."""
+    anchor: str = "center"
+    """Anchor position of the QR code, default is 'center' ."""
+    back_color: str = "white"
+    """Background color of the QR code, default is 'white'.
+    Use 'transparent' for opaque background ."""
+    border: int = 2
+    """Border size of the QR code, default is 2 ."""
+    fill_color: str = "black"
+    """Fill color of the QR code, default is 'black' ."""
+    pos = None
+    """Position of the QR code center, default is (0.0, 0.0) ."""
+    scale: float = 1.0
+    """Scale factor for the QR code size, default is 1.0 ."""
+
 
 class QrStim(visual.ImageStim):
     """Class to represent/draw/play QR and audio code stimulus."""
@@ -200,6 +216,48 @@ class QrStim(visual.ImageStim):
         qr_config: QrConfig = None,
         **kwargs: Any,
     ):
+        """Initialize the QR code stimulus.
+        :param win: The PsychoPy window where the QR code will be displayed.
+        :param qr_code: The QR code data to be encoded and displayed.
+        :param qr_config: Configuration for the QR code appearance and position.
+        :param kwargs: Additional keyword arguments for the PsychoPy ImageStim.
+        """
         self.qr_code = qr_code
         self.qr_config = QrConfig() if qr_config is None else qr_config
-        super().__init__(win, qrcode.make(to_json(qr_code)), **kwargs)
+        pos = self.qr_config.pos if self.qr_config.pos else (0.0, 0.0)
+        super().__init__(
+            win,
+            self.make_qr(border=self.qr_config.border),
+            anchor=self.qr_config.anchor,
+            pos=pos,
+            units="pix",
+            **kwargs,
+        )
+        self.size = self.size * self.qr_config.scale
+        dx = (win.size[0] - self.size[0]) / 2
+        dy = (win.size[1] - self.size[1]) / 2
+        x = pos[0]
+        y = pos[1]
+        if qr_config.align.startswith("left-"):
+            x = -dx / 2
+        if qr_config.align.startswith("right-"):
+            x = dx / 2
+        if qr_config.align.endswith("-top"):
+            y = -dy / 2
+        if qr_config.align.endswith("-bottom"):
+            y = dy / 2
+        self.pos = (x, y)
+
+    def make_qr(self, data=None, **kwargs):
+        """Generate the QR code image from the QR code data.
+        :param data: Optional data to encode in the QR code. If not provided,
+        the QR code will be generated from the `qr_code` attribute.
+        :param kwargs: Additional keyword arguments for the QRCode constructor.
+        :return: The generated QR code image.
+        """
+        qr = QRCode(**kwargs)
+        qr.add_data(data if data else to_json(self.qr_code))
+        return qr.make_image(
+            fill_color=self.qr_config.fill_color,
+            back_color=self.qr_config.back_color,
+        )
