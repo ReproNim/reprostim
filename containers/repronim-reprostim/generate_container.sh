@@ -79,7 +79,7 @@ generate() {
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
           "${REPROSTIM_CAPTURE_PACKAGES}" \
     --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v2.2.1" \
-    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2024.2.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.2 -v -f" \
+    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2024.2.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.2 -v -f" \
     ${REPROSTIM_COPY_ARG} \
     --run "${REPROSTIM_RUN_INSTALL}" \
     --run "bash -c 'ln -s ${PSYCHOPY_HOME}/start_psychopy /usr/local/bin/psychopy'" \
