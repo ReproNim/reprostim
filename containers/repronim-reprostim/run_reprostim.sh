@@ -22,7 +22,7 @@ log() {
 
 log "Run ReproStim Singularity Container v${REPROSTIM_VERSION}.."
 log "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
-log "  [CONTAINER]      : ${SINGULARITY_CONTAINER}"
+log "  [CONTAINER]      : ${REPROSTIM_CONTAINER}"
 log "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
 log "  [ARGS]           : $@"
 
