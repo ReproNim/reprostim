@@ -13,7 +13,7 @@ from enum import Enum
 from time import time
 from typing import Any
 
-from psychopy import visual
+from psychopy import core, visual
 from pydantic import BaseModel, Field, model_validator
 from qrcode import QRCode
 
@@ -198,10 +198,16 @@ class QrConfig:
     Use 'transparent' for opaque background ."""
     border: int = 2
     """Border size of the QR code, default is 2 ."""
+    duration: float = 0.5
+    """Duration to display the QR code in seconds, default is 0.5 ."""
     fill_color: str = "black"
     """Fill color of the QR code, default is 'black' ."""
+    padding: int = 10
+    """Window padding of QR code, default is 10."""
     pos = None
     """Position of the QR code center, default is (0.0, 0.0) ."""
+    retina_scale: float = 2.0
+    """Retina scale factor for high-DPI displays, default is 2.0 ."""
     scale: float = 1.0
     """Scale factor for the QR code size, default is 1.0 ."""
 
@@ -225,27 +231,35 @@ class QrStim(visual.ImageStim):
         self.qr_code = qr_code
         self.qr_config = QrConfig() if qr_config is None else qr_config
         pos = self.qr_config.pos if self.qr_config.pos else (0.0, 0.0)
+        image = self.make_qr(border=self.qr_config.border)
+        size = (
+            image.size[0] * self.qr_config.scale,
+            image.size[1] * self.qr_config.scale,
+        )
+        # logging.debug(f"Image size={image.size}, scaled size={size}")
         super().__init__(
             win,
-            self.make_qr(border=self.qr_config.border),
+            image,
             anchor=self.qr_config.anchor,
             pos=pos,
             units="pix",
+            size=size,
             **kwargs,
         )
-        self.size = self.size * self.qr_config.scale
-        dx = (win.size[0] - self.size[0]) / 2
-        dy = (win.size[1] - self.size[1]) / 2
+        dx = int((win.size[0] / self.qr_config.retina_scale - self.size[0]) / 2)
+        dy = int((win.size[1] / self.qr_config.retina_scale - self.size[1]) / 2)
         x = pos[0]
         y = pos[1]
         if qr_config.align.startswith("left-"):
-            x = -dx / 2
+            x = -dx + self.qr_config.padding
         if qr_config.align.startswith("right-"):
-            x = dx / 2
-        if qr_config.align.endswith("-top"):
-            y = -dy / 2
+            x = dx - self.qr_config.padding
         if qr_config.align.endswith("-bottom"):
-            y = dy / 2
+            y = -dy + self.qr_config.padding
+        if qr_config.align.endswith("-top"):
+            y = dy - self.qr_config.padding
+        # logging.debug("win size={win.size},qr size={self.size},
+        # pos={pos},dx={dx},dy={dy},x={x},y={y}")
         self.pos = (x, y)
 
     def make_qr(self, data=None, **kwargs):
@@ -261,3 +275,7 @@ class QrStim(visual.ImageStim):
             fill_color=self.qr_config.fill_color,
             back_color=self.qr_config.back_color,
         )
+
+    def wait(self):
+        """Wait for the duration specified in the QR code configuration."""
+        core.wait(self.qr_config.duration)
