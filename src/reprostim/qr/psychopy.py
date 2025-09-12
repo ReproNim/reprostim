@@ -206,8 +206,8 @@ class QrConfig:
     """Window padding of QR code, default is 10."""
     pos = None
     """Position of the QR code center, default is (0.0, 0.0) ."""
-    retina_scale: float = 2.0
-    """Retina scale factor for high-DPI displays, default is 2.0 ."""
+    retina_scale: float = 1.0
+    """Retina scale factor for high-DPI displays, default is 1.0 ."""
     scale: float = 1.0
     """Scale factor for the QR code size, default is 1.0 ."""
 
