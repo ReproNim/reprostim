@@ -104,6 +104,7 @@ include = [
 include = [
   "/src/reprostim/",
   "/tests",
+  "/examples/psychopy",
 ]
 
 [tool.hatch.envs.all]

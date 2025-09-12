@@ -250,13 +250,13 @@ class QrStim(visual.ImageStim):
         dy = int((win.size[1] / self.qr_config.retina_scale - self.size[1]) / 2)
         x = pos[0]
         y = pos[1]
-        if qr_config.align.startswith("left-"):
+        if self.qr_config.align.startswith("left-"):
             x = -dx + self.qr_config.padding
-        if qr_config.align.startswith("right-"):
+        if self.qr_config.align.startswith("right-"):
             x = dx - self.qr_config.padding
-        if qr_config.align.endswith("-bottom"):
+        if self.qr_config.align.endswith("-bottom"):
             y = -dy + self.qr_config.padding
-        if qr_config.align.endswith("-top"):
+        if self.qr_config.align.endswith("-top"):
             y = dy - self.qr_config.padding
         # logging.debug("win size={win.size},qr size={self.size},
         # pos={pos},dx={dx},dy={dy},x={x},y={y}")
