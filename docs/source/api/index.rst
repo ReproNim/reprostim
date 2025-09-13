@@ -14,3 +14,4 @@ API Reference
    qr.disp_mon
    qr.qr_parse
    qr.timesync_stimuli
+   qr.video_audit
