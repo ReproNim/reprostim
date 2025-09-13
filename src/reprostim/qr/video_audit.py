@@ -35,7 +35,7 @@ class VaRecord(BaseModel):
     present: bool = False  # Whether the file is present
     complete: bool = False  # Whether the recording was completed
     # and end timestamp is present
-    name: str = "n/a"  # Short fase name of the file
+    name: str = "n/a"  # Short base name of the file
 
     # Start and end timestamps
     start_date: str = "n/a"
