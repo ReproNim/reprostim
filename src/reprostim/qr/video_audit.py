@@ -9,11 +9,14 @@ information about each recording and produces a summary table (videos.tsv)
 suitable for quality control, sharing, and further analysis.
 """
 
+import getpass
 import json
 import logging
 import os
 import re
+import socket
 from datetime import datetime
+from time import time
 from typing import Dict, Generator, Optional
 
 from pydantic import BaseModel
@@ -25,6 +28,15 @@ from reprostim.qr.qr_parse import InfoSummary, ParseSummary, do_info_file, do_pa
 logger = logging.getLogger(__name__)
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
+
+
+# Precalculated globals
+
+# User@Host string
+UPDATED_BY = f"{getpass.getuser()}@{socket.gethostname()}"
+
+# Global REPROSTIM-METADATA-JSON regex pattern
+JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
 
 
 class VaRecord(BaseModel):
@@ -64,6 +76,10 @@ class VaRecord(BaseModel):
 
     # Coherence check
     file_log_coherent: bool = False  # whether video/audio info matches extracted
+
+    # Update info
+    updated_on: str = "n/a"
+    updated_by: str = "n/a"
 
 
 def check_coherent(vr: VaRecord) -> bool:
@@ -120,21 +136,6 @@ def format_date(dt: datetime) -> str:
     return dt.date().isoformat()
 
 
-def format_time(dt: datetime) -> str:
-    """
-    Extract time from datetime as 'HH:MM:SS.mmm' string.
-    Ignores timezone.
-
-    :param dt: datetime object
-    :return: formatted time string
-    """
-    if dt is None:
-        return "n/a"
-    # Convert microseconds to milliseconds
-    ms = dt.microsecond // 1000
-    return f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}.{ms:03d}"
-
-
 def format_duration(duration_sec: float) -> str:
     """
     Convert duration in seconds to human-readable string HH:MM:SS
@@ -153,8 +154,36 @@ def format_duration(duration_sec: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"  # HH:MM:SS.mmm
 
 
-# Global REPROSTIM-METADATA-JSON regex pattern
-JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
+def format_time(dt: datetime) -> str:
+    """
+    Extract time from datetime as 'HH:MM:SS.mmm' string.
+    Ignores timezone.
+
+    :param dt: datetime object
+    :return: formatted time string
+    """
+    if dt is None:
+        return "n/a"
+    # Convert microseconds to milliseconds
+    ms = dt.microsecond // 1000
+    return f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}.{ms:03d}"
+
+
+def format_tts(t: float) -> str:
+    """Converts a time.time() timestamp into an ISO 8601 formatted string
+    with local timezone.
+
+    This function takes a timestamp in seconds and converts it into a
+    datetime object with local timezone.
+
+    :param t: The timestamp to be converted in seconds.
+    :type t: float
+
+    :return: The ISO 8601 formatted string with local timezone.
+    :rtype: str
+    """
+    dt: datetime = datetime.fromtimestamp(t)
+    return f"{format_date(dt)} {format_time(dt)}"
 
 
 def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
@@ -234,6 +263,8 @@ def do_audit_file(path: str):
                 vr.video_fps_recorded = f"{ps.video_frame_rate}"
 
     vr.file_log_coherent = check_coherent(vr)
+    vr.updated_on = format_tts(time())
+    vr.updated_by = UPDATED_BY
     yield vr
 
 
