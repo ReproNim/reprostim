@@ -389,7 +389,7 @@ def do_info(path: str):
         logger.error(f"Path not found: {path}")
 
 
-def do_parse(path_video: str):
+def do_parse(path_video: str, summary_only: bool = False):
     """
     Parse a video file to extract QR code-encoded segments and video metadata.
 
@@ -405,6 +405,9 @@ def do_parse(path_video: str):
 
     :param path_video: Path to the input video file (e.g., `*.mkv`, `*.mp4`).
     :type path_video: str
+
+    :param summary_only: If True, only video metadata summary is returned without
+    parsing for QR codes. Default is False.
 
     :yield: Individual finalized records (`InfoRecord`) and a final
             `ParseSummary` object.
@@ -449,6 +452,12 @@ def do_parse(path_video: str):
     ps.video_isotime_end = vti.end_time
     ps.video_full_path = path_video
     ps.video_file_name = os.path.basename(path_video)
+
+    if summary_only:
+        ps.exit_code = 0
+        ps.parsing_duration = round(time.time() - dt, 1)
+        yield ps
+        return
 
     if abs(duration_sec - vti.duration_sec) > 120.0:
         logger.error(
