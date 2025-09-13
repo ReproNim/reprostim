@@ -40,14 +40,14 @@ class InfoSummary(BaseModel):
     path: Optional[str] = Field(None, description="Video file path")
     """Video file path."""
     rate_mbpm: Optional[float] = Field(
-        0.0, description="Video file 'byterate' " "in MB per minute."
+        None, description="Video file 'byterate' " "in MB per minute."
     )
     """Video file `byterate` in MB per minute."""
     duration_sec: Optional[float] = Field(
-        0.0, description="Duration of the video " "in seconds"
+        None, description="Duration of the video " "in seconds"
     )
     """Duration of the video in seconds"""
-    size_mb: Optional[float] = Field(0.0, description="Video file size in MB.")
+    size_mb: Optional[float] = Field(None, description="Video file size in MB.")
     """Video file size in MB."""
 
 
@@ -246,11 +246,15 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
         r"^(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})"
         r"_(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$"
     )
+    pattern1b = r"^(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{3})" r"_\.(mkv|mp4)$"
 
     # add support for new file format
     pattern2 = (
         r"^(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})"
         r"\-\-(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})\.(mkv|mp4)$"
+    )
+    pattern2b = (
+        r"^(\d{4}\.\d{2}\.\d{2}\-\d{2}\.\d{2}\.\d{2}\.\d{3})" r"\-\-\.(mkv|mp4)$"
     )
 
     file_name: str = os.path.basename(path_video)
@@ -268,6 +272,25 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
             ts_format = "%Y.%m.%d-%H.%M.%S.%f"
         else:
             res.error = f"Filename '{path_video}' does not match the required pattern."
+            # but maybe it is just start time only incomplete file
+            match1b: str = re.match(pattern1b, file_name)
+            if match1b:
+                ts_format = "%Y.%m.%d.%H.%M.%S.%f"
+            else:
+                match1b = re.match(pattern2b, file_name)
+                if match1b:
+                    ts_format = "%Y.%m.%d-%H.%M.%S.%f"
+                else:
+                    return res
+
+            start_ts, extension = match1b.groups()
+            try:
+                # Parse the timestamps
+                res.start_time = datetime.strptime(start_ts, ts_format)
+            except ValueError as e:
+                res.error = f"Timestamp parsing error: {e}"
+                return res
+
             return res
 
     start_ts, end_ts, extension = match1.groups()
@@ -333,7 +356,7 @@ def finalize_record(
     return record
 
 
-def do_info_file(path: str):
+def do_info_file(path: str, ignore_errors: bool = False):
     """
     Extracts summary information from a single video file.
 
@@ -343,6 +366,9 @@ def do_info_file(path: str):
     :param path: Path to the video file.
     :type path: str
 
+    :param ignore_errors: If True, ignores parsing errors and
+                          returns incomplete data. Default is False.
+
     :return: An InfoSummary object with metadata, or None if parsing fails.
     :rtype: InfoSummary or None
     """
@@ -350,13 +376,16 @@ def do_info_file(path: str):
     vti: VideoTimeInfo = get_video_time_info(path)
     if not vti.success:
         logger.error(f"Failed parse file name time pattern, error: {vti.error}")
-        return
+        if not ignore_errors:
+            return None
+
     o: InfoSummary = InfoSummary()
     o.path = path
-    o.duration_sec = round(vti.duration_sec, 1)
+    if vti.duration_sec is not None:
+        o.duration_sec = round(vti.duration_sec, 1)
     size: float = os.path.getsize(path)
     o.size_mb = round(size / (1000 * 1000), 1)
-    if o.duration_sec > 0.0001:
+    if o.duration_sec is not None and o.duration_sec > 0.0001:
         o.rate_mbpm = round(size * 60 / (o.duration_sec * 1000 * 1000), 1)
     return o
 
@@ -389,7 +418,7 @@ def do_info(path: str):
         logger.error(f"Path not found: {path}")
 
 
-def do_parse(path_video: str, summary_only: bool = False):
+def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = False):
     """
     Parse a video file to extract QR code-encoded segments and video metadata.
 
@@ -409,6 +438,9 @@ def do_parse(path_video: str, summary_only: bool = False):
     :param summary_only: If True, only video metadata summary is returned without
                          parsing for QR codes. Default is False.
 
+    :param ignore_errors: If True, ignores parsing errors and returns incomplete
+                          data. Default is False.
+
     :yield: Individual finalized records (`InfoRecord`) and a final
             `ParseSummary` object.
     :rtype: Generator[Union[InfoRecord, ParseSummary], None, None]
@@ -418,7 +450,8 @@ def do_parse(path_video: str, summary_only: bool = False):
     vti: VideoTimeInfo = get_video_time_info(path_video)
     if not vti.success:
         logger.error(f"Failed parse file name time pattern, error: {vti.error}")
-        return
+        if not ignore_errors:
+            return
 
     logger.info(f"Video start time : {vti.start_time}")
     logger.info(f"Video end time   : {vti.end_time}")
