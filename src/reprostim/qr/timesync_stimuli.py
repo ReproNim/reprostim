@@ -642,22 +642,16 @@ def do_main(
             # NOTE: should we add codec info to the log?
             # like f0, f1, sampleRate, bit_duration, duration, etc
 
-        rec["keys"] = keys
-        tkeys, tkeys_str = get_times()
-        rec["keys_time"] = tkeys
-        rec["keys_time_str"] = tkeys_str
+        tkeys = time()
+        rec.apply_keys(keys, tkeys)
         qr = QrStim(win, rec, qr_config)
         qr.draw()
         win.flip()
-        tflip, tflip_str = get_times()
-        rec["time_flip"] = tflip
-        rec["time_flip_formatted"] = tflip_str
+        rec.apply_times("time_flip", "time_flip_formatted")
         w_keys = wait_or_keys(qr_duration, qr_async, ["5", "num_5", "escape", "q"])
         fixation.draw()
         win.flip()
-        toff, toff_str = get_times()
-        rec["prior_time_off"] = toff
-        rec["prior_time_off_str"] = toff_str
+        rec.apply_times("prior_time_off", "prior_time_off_str")
         log(f, rec)
         out_func(
             f"Trigger pulse: acq={acqNum}, "

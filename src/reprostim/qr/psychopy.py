@@ -40,17 +40,21 @@ def get_iso_time(t):
     return datetime.fromtimestamp(t).astimezone().isoformat()
 
 
-def get_times():
+def get_times(t=None):
     """Get the current time and its ISO formatted string.
 
     This function retrieves the current time in seconds since the epoch
     and formats it into an ISO 8601 string with local timezone.
 
+    :param t: Optional timestamp to be converted. If not provided, the
+              current time will be used.
+
     :return: A tuple containing the current time in seconds and its
              ISO formatted string.
     :rtype: tuple[float, str]
     """
-    t = time()
+    if t is None:
+        t = time()
     return t, get_iso_time(t)
 
 
@@ -121,6 +125,10 @@ class QrCode(dict):
         kwargs.setdefault("time_formatted", tstr)
         kwargs["event"] = event
 
+        # Apply keys if provided implicitly
+        if "keys" in kwargs:
+            self.apply_keys(kwargs.pop("keys"))
+
         super().__init__(kwargs)
 
     # Convenience properties
@@ -138,6 +146,28 @@ class QrCode(dict):
     def time_formatted(self) -> str:
         """ISO 8601 time of the event"""
         return self["time_formatted"]
+
+    def apply_keys(self, keys, keys_time=None):
+        """Apply keys and timestamp to the QR code data.
+        :param keys: The keys to be applied to the QR code data.
+        :param keys_time: Optional timestamp for the keys. If not provided,
+        the current time will be used.
+        """
+
+        self["keys"] = keys
+        self.apply_times("keys_time", "keys_time_str", keys_time)
+
+    def apply_times(self, t_prop: str, t_str_prop: str, t=None):
+        """Apply custom timestamp to the QR code data.
+        :param t_prop: The key under which to store the timestamp.
+        :param t_str_prop: The key under which to store the ISO formatted
+        timestamp.
+        :param t: Optional timestamp to be applied. If not provided,
+        the current time will be used.
+        """
+        t_val, t_str = get_times(t)
+        self[t_prop] = t_val
+        self[t_str_prop] = t_str
 
 
 class _QrCode_Pydantic(BaseModel):
@@ -187,7 +217,8 @@ class _QrCode_Pydantic(BaseModel):
 
 @dataclass
 class QrConfig:
-    """Class representing QR and audio codes configuration."""
+    """Class representing default QR and audio codes
+    configuration and system properties."""
 
     align: str = "center"
     """Alignment of the QR code, default is 'center' ."""
