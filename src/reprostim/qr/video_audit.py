@@ -294,6 +294,9 @@ def do_audit_file(path: str):
 
 
 def do_main(path: str, path_tsv: str, out_func=print):
+    """The main function invoked by CLI to analyze video files with
+    logs and save the results to a TSV file."""
+
     logger.debug("video-audit command")
     logger.debug(f"path      : {path}")
     logger.debug(f"path_tsv  : {path_tsv}")
