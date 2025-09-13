@@ -20,8 +20,17 @@ logger = logging.getLogger(__name__)
     "(videos.tsv) ."
 )
 @click.argument("path", type=click.Path(exists=True))
+@click.option(
+    "-o",
+    "--output",
+    default="videos.tsv",
+    show_default=True,
+    type=click.Path(),
+    help="Output TSV file to store the video audit summary. "
+    "Default is 'videos.tsv' in the current directory.",
+)
 @click.pass_context
-def video_audit(ctx, path: str):
+def video_audit(ctx, path: str, output: str):
     """Analyze recorded video files."""
 
     from ..qr.video_audit import do_main
@@ -29,10 +38,11 @@ def video_audit(ctx, path: str):
     logger.debug("video_audit(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
+    logger.info(f"Output TSV file  : {output}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    do_main(path, click.echo)
+    do_main(path, output, click.echo)
     return 0

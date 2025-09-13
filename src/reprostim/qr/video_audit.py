@@ -9,6 +9,7 @@ information about each recording and produces a summary table (videos.tsv)
 suitable for quality control, sharing, and further analysis.
 """
 
+import csv
 import getpass
 import json
 import logging
@@ -17,7 +18,7 @@ import re
 import socket
 from datetime import datetime
 from time import time
-from typing import Dict, Generator, Optional
+from typing import Dict, Generator, List, Optional
 
 from pydantic import BaseModel
 
@@ -221,6 +222,26 @@ def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     )
 
 
+def _save_tsv(records: List[VaRecord], path_out: str):
+    if not records:
+        return
+    fieldnames = list(records[0].dict().keys())
+    with open(path_out, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        for r in records:
+            writer.writerow(r.model_dump())
+
+
+def _load_tsv(path_in: str) -> List[VaRecord]:
+    records = []
+    with open(path_in, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            records.append(VaRecord(**row))
+    return records
+
+
 def do_audit_file(path: str):
     """Audit a single video file."""
 
@@ -272,16 +293,22 @@ def do_audit_file(path: str):
     yield vr
 
 
-def do_main(path: str, out_func=print):
+def do_main(path: str, path_tsv: str, out_func=print):
     logger.debug("video-audit command")
-    logger.debug(f"path  : {path}")
+    logger.debug(f"path      : {path}")
+    logger.debug(f"path_tsv  : {path_tsv}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
 
+    recs: List[VaRecord] = []
+
     vr: VaRecord = next(do_audit_file(path))
     logger.debug(f"vr: {vr}")
+    recs.append(vr)
+
+    _save_tsv(recs, path_tsv)
 
     out_func(f"{vr.model_dump_json()}")
     return 0
