@@ -407,7 +407,7 @@ def do_parse(path_video: str, summary_only: bool = False):
     :type path_video: str
 
     :param summary_only: If True, only video metadata summary is returned without
-    parsing for QR codes. Default is False.
+                         parsing for QR codes. Default is False.
 
     :yield: Individual finalized records (`InfoRecord`) and a final
             `ParseSummary` object.
