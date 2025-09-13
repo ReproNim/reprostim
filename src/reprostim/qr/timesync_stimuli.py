@@ -343,10 +343,10 @@ def do_main(
     # so this is a patch to filter out flooding messages like "No keypress"
     _pl_log_method = pl.root.log
 
-    def pl_filtered_log(self, message_, level, t=None, obj=None):
+    def pl_filtered_log(self, message_, level, t=None, obj=None, **kwargs):
         if "No keypress (maxWait exceeded)" in str(message_):
             return
-        _pl_log_method(message_, level, t, obj)
+        _pl_log_method(message_, level, t, obj, **kwargs)
 
     pl.root.log = types.MethodType(pl_filtered_log, pl.root)
 
@@ -486,8 +486,9 @@ def do_main(
         logger.info(f"display [{display}] info:")
         fr = win.getActualFrameRate()
         logger.info(
-            f"    {win.size[0]}x{win.size[1]} px, "
-            f"    {round(fr, 2)} Hz" if fr else "    N/A Hz"
+            f"    {win.size[0]}x{win.size[1]} px, " f"    {round(fr, 2)} Hz"
+            if fr
+            else "    N/A Hz"
         )
 
     # log script started event
