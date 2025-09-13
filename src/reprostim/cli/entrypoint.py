@@ -63,6 +63,7 @@ from .cmd_list_displays import list_displays  # noqa: E402
 from .cmd_monitor_displays import monitor_displays  # noqa: E402
 from .cmd_qr_parse import qr_parse  # noqa: E402
 from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
+from .cmd_video_audit import video_audit  # noqa: E402
 
 # List all CLI commands to be included in the main group
 __all_commands__ = (
@@ -72,6 +73,7 @@ __all_commands__ = (
     monitor_displays,
     qr_parse,
     timesync_stimuli,
+    video_audit,
 )
 
 # Register all CLI commands
