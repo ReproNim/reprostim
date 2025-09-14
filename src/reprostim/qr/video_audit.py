@@ -270,8 +270,10 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
                 if vi.duration_sec is not None:
                     vr.duration = str(round(vi.duration_sec, 1))
                     vr.duration_h = format_duration(vi.duration_sec)
-                vr.video_size_mb = str(vi.size_mb)
-                vr.video_rate_mbpm = str(vi.rate_mbpm)
+                if vi.size_mb is not None:
+                    vr.video_size_mb = str(vi.size_mb)
+                if vi.rate_mbpm is not None:
+                    vr.video_rate_mbpm = str(vi.rate_mbpm)
 
                 ps: ParseSummary = next(do_parse(path, True, True))
                 logger.info(f"ps: {ps}")
