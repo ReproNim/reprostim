@@ -295,9 +295,12 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
 
 
 def do_audit_dir(path: str, recursive: bool = False) -> Generator[VaRecord, None, None]:
-    """Audit video files in directory with *.mkv, *.mp4, *.avi extensions.
+    """Audit video files in directory with .mkv, .mp4, .avi extensions.
+
     :param path: Path to the directory
+
     :param recursive: Whether to scan directories recursively. Default: False
+
     :return: Generator of VaRecord objects
     """
     logger.debug(f"do_audit_dir(path={path}, recursive={recursive})")
@@ -326,8 +329,11 @@ def do_audit(
     path_dir_or_file: str, recursive: bool = False
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file or all video files in a directory.
+
     :param path_dir_or_file: Path to the video file or directory
+
     :param recursive: Whether to scan directories recursively. Default: False
+
     :return: Generator of VaRecord objects
     """
     logger.debug(
