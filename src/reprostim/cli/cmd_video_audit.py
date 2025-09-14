@@ -29,8 +29,15 @@ logger = logging.getLogger(__name__)
     help="Output TSV file to store the video audit summary. "
     "Default is 'videos.tsv' in the current directory.",
 )
+@click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Recursively scan subdirectories for video files.",
+)
 @click.pass_context
-def video_audit(ctx, path: str, output: str):
+def video_audit(ctx, path: str, output: str, recursive: bool):
     """Analyze recorded video files."""
 
     from ..qr.video_audit import do_main
@@ -39,10 +46,11 @@ def video_audit(ctx, path: str, output: str):
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
     logger.info(f"Output TSV file  : {output}")
+    logger.info(f"Recursive scan   : {recursive}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    do_main(path, output, click.echo)
+    do_main(path, output, recursive, click.echo)
     return 0

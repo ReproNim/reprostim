@@ -223,11 +223,9 @@ def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
 
 
 def _save_tsv(records: List[VaRecord], path_out: str):
-    if not records:
-        return
-    fieldnames = list(records[0].dict().keys())
+    fields = list(VaRecord.model_fields.keys())
     with open(path_out, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+        writer = csv.DictWriter(f, fieldnames=fields, delimiter="\t")
         writer.writeheader()
         for r in records:
             writer.writerow(r.model_dump())
@@ -242,8 +240,11 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
-def do_audit_file(path: str):
-    """Audit a single video file."""
+def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
+    """Audit a single video file.
+    :param path: Path to the video file
+    :return: Generator of VaRecord objects
+    """
 
     logger.debug(f"do_audit_file(path={path})")
     vr: VaRecord = VaRecord()
@@ -265,7 +266,7 @@ def do_audit_file(path: str):
 
         if vi is not None:
             if vi.duration_sec is not None:
-                vr.duration = str(vi.duration_sec)
+                vr.duration = str(round(vi.duration_sec, 1))
                 vr.duration_h = format_duration(vi.duration_sec)
             vr.video_size_mb = str(vi.size_mb)
             vr.video_rate_mbpm = str(vi.rate_mbpm)
@@ -274,7 +275,7 @@ def do_audit_file(path: str):
             logger.info(f"ps: {ps}")
             if ps is not None:
                 if vr.duration is None or vr.duration == "n/a":
-                    vr.duration = str(ps.video_duration)
+                    vr.duration = str(round(ps.video_duration, 1))
                     vr.duration_h = format_duration(ps.video_duration)
                 vr.start_date = format_date(ps.video_isotime_start)
                 vr.start_time = format_time(ps.video_isotime_start)
@@ -293,9 +294,64 @@ def do_audit_file(path: str):
     yield vr
 
 
-def do_main(path: str, path_tsv: str, out_func=print):
+def do_audit_dir(path: str, recursive: bool = False) -> Generator[VaRecord, None, None]:
+    """Audit video files in directory with *.mkv, *.mp4, *.avi extensions.
+    :param path: Path to the directory
+    :param recursive: Whether to scan directories recursively. Default: False
+    :return: Generator of VaRecord objects
+    """
+    logger.debug(f"do_audit_dir(path={path}, recursive={recursive})")
+
+    # check if path exists
+    if not os.path.exists(path):
+        logger.error(f"Path does not exist: {path}")
+        return
+
+    # check if path is a directory
+    if not os.path.isdir(path):
+        logger.error(f"Path is not a directory: {path}")
+        return
+
+    for name in sorted(os.listdir(path)):
+        path2 = os.path.join(path, name)
+        if os.path.isfile(path2) and name.lower().endswith((".mkv", ".mp4", ".avi")):
+            logger.debug(f"Found video: {path2}")
+            yield from do_audit_file(path2)
+        elif recursive and os.path.isdir(path2):
+            logger.debug(f"Descending into directory: {path2}")
+            yield from do_audit_dir(path2, recursive=recursive)
+
+
+def do_audit(
+    path_dir_or_file: str, recursive: bool = False
+) -> Generator[VaRecord, None, None]:
+    """Audit a single video file or all video files in a directory.
+    :param path_dir_or_file: Path to the video file or directory
+    :param recursive: Whether to scan directories recursively. Default: False
+    :return: Generator of VaRecord objects
+    """
+    logger.debug(
+        f"do_audit(path_dir_or_file={path_dir_or_file}, " f"recursive={recursive})"
+    )
+    if not os.path.exists(path_dir_or_file):
+        logger.error(f"Path does not exist: {path_dir_or_file}")
+        return
+
+    if os.path.isfile(path_dir_or_file):
+        yield from do_audit_file(path_dir_or_file)
+    elif os.path.isdir(path_dir_or_file):
+        yield from do_audit_dir(path_dir_or_file, recursive)
+
+
+def do_main(path: str, path_tsv: str, recursive: bool = False, out_func=print):
     """The main function invoked by CLI to analyze video files with
-    logs and save the results to a TSV file."""
+    logs and save the results to a TSV file.
+    :param path: Path to the video file or directory
+    :param path_tsv: Path to the output TSV file, default 'videos.tsv'.
+    :param recursive: Whether to scan directories recursively. Default: False
+    :param out_func: Function to stdout results (default: print)
+    :return: 0 on success, 1 on failure
+    """
 
     logger.debug("video-audit command")
     logger.debug(f"path      : {path}")
@@ -305,13 +361,12 @@ def do_main(path: str, path_tsv: str, out_func=print):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    recs: List[VaRecord] = []
+    # collect all records from generator into a list
+    recs: List[VaRecord] = list(do_audit(path, recursive))
 
-    vr: VaRecord = next(do_audit_file(path))
-    logger.debug(f"vr: {vr}")
-    recs.append(vr)
-
+    logger.info(f"Saving results to TSV file: {path_tsv}")
     _save_tsv(recs, path_tsv)
 
-    out_func(f"{vr.model_dump_json()}")
+    for vr in recs:
+        out_func(f"{vr.model_dump_json()}")
     return 0
