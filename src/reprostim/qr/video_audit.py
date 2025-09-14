@@ -267,7 +267,7 @@ def do_audit_file(
     """Audit a single video file.
     :param path: Path to the video file
     :param skip_names: Optional set of file base names
-                       to skip (for incremental mode)
+    to skip (for incremental mode)
     :return: Generator of VaRecord objects
     """
 
@@ -423,7 +423,7 @@ def do_main(
     :param recursive: Whether to scan directories recursively. Default: False
     :param mode: Operation mode, one of VaMode values (default: INCREMENTAL)
     :param verbose: Whether to print verbose JSON output
-                    to stdout (default: False)
+    to stdout (default: False)
     :param out_func: Function to stdout results (default: print)
     :return: 0 on success, 1 on failure
     """
