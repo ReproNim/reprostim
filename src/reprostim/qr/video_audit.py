@@ -288,7 +288,7 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
                     vr.video_res_recorded = (
                         f"{ps.video_frame_width}x{ps.video_frame_height}"
                     )
-                    vr.video_fps_recorded = f"{ps.video_frame_rate}"
+                    vr.video_fps_recorded = f"{round(ps.video_frame_rate, 1)}"
     # catch all exceptions
     except Exception as e:
         logger.error(f"Unhandled exception occurred when processing file: {path}")
