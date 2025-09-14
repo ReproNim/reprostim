@@ -1,8 +1,26 @@
 # `PsychoPy` Integration Notes
 
-## TBD
+## Overview
 
-TODO: add notes about using `reprostim` with `PsychoPy`
+Reprostim package can be used with `PsychoPy` for creating and running fMRI experiments.
+The `MRI emulator` plugin for PsychoPy provides a way to simulate MRI scanner triggers and
+responses, allowing researchers to test and develop their experiments without needing access
+to an actual MRI scanner.
+
+We created a simple `PsychoPy` example script `01_fmri_interval.py` that
+demonstrates how to use `reprostim` package and inject simple session start QR code
+into experiment presentation:
+
+![](../_static/images/01_fmri_interval.png)
+
+Example `02_fmri_series.py` demonstrates how to use QR code with custom configuration,
+where QR background is transparent, QR code color is blue and QR size is scaled to
+be 20% of the original one:
+![](../_static/images/02_fmri_series.png)
+
+In addition, `03_fmri_series_audiocode.py` demonstrates how to use QR code
+in response to the fMRI scanner trigger/pulse event:
+![](../_static/images/03_fmri_event.png)
 
 ## Installation
 
