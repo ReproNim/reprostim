@@ -18,6 +18,7 @@ import re
 import socket
 import traceback
 from datetime import datetime
+from enum import Enum
 from time import time
 from typing import Dict, Generator, List, Optional
 
@@ -39,6 +40,19 @@ UPDATED_BY = f"{getpass.getuser()}@{socket.gethostname()}"
 
 # Global REPROSTIM-METADATA-JSON regex pattern
 JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
+
+
+class VaMode(str, Enum):
+    """Video audit processing mode constants."""
+
+    FULL = "full"
+    """Process all files, overwrite existing records in TSV
+    completely."""
+    INCREMENTAL = "incremental"
+    """Process only new files not present in existing TSV and
+    keep existing records."""
+    FORCE = "force"
+    """Force redo/overwrite specified records in TSV"""
 
 
 class VaRecord(BaseModel):
@@ -241,13 +255,22 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
-def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
+def do_audit_file(
+    path: str, skip_names: Optional[set] = None
+) -> Generator[VaRecord, None, None]:
     """Audit a single video file.
     :param path: Path to the video file
+    :param skip_names: Optional set of file base names
+                       to skip (for incremental mode)
     :return: Generator of VaRecord objects
     """
 
     logger.debug(f"do_audit_file(path={path})")
+
+    if skip_names and path in skip_names:
+        logger.info(f"Skipping file by path : {path}")
+        return
+
     vr: VaRecord = VaRecord()
 
     try:
@@ -255,6 +278,10 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
             vr.present = True
             vr.path = path
             vr.name = os.path.basename(path)
+
+            if skip_names and vr.name in skip_names:
+                logger.info(f"Skipping file by name : {vr.name}")
+                return
 
             # try to find session_begin in log file
             sb = find_metadata_json(path + ".log", "type", "session_begin")
@@ -264,7 +291,7 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
                 vr.video_res_detected = f"{sb['cx']}x{sb['cy']}"
 
             vi: InfoSummary = do_info_file(path, True)
-            logger.debug(f"viZZ: {vi}")
+            logger.debug(f"vi: {vi}")
 
             if vi is not None:
                 if vi.duration_sec is not None:
@@ -303,13 +330,15 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
     yield vr
 
 
-def do_audit_dir(path: str, recursive: bool = False) -> Generator[VaRecord, None, None]:
+def do_audit_dir(
+    path: str, recursive: bool = False, skip_names: Optional[set] = None
+) -> Generator[VaRecord, None, None]:
     """Audit video files in directory with .mkv, .mp4, .avi extensions.
 
     :param path: Path to the directory
-
     :param recursive: Whether to scan directories recursively. Default: False
-
+    :param skip_names: Optional set of file base names
+                       to skip (for incremental mode)
     :return: Generator of VaRecord objects
     """
     logger.debug(f"do_audit_dir(path={path}, recursive={recursive})")
@@ -324,18 +353,22 @@ def do_audit_dir(path: str, recursive: bool = False) -> Generator[VaRecord, None
         logger.error(f"Path is not a directory: {path}")
         return
 
+    if skip_names and path in skip_names:
+        logger.info(f"Skipping directory by path : {path}")
+        return
+
     for name in sorted(os.listdir(path)):
         path2 = os.path.join(path, name)
         if os.path.isfile(path2) and name.lower().endswith((".mkv", ".mp4", ".avi")):
             logger.debug(f"Found video: {path2}")
-            yield from do_audit_file(path2)
+            yield from do_audit_file(path2, skip_names)
         elif recursive and os.path.isdir(path2):
             logger.debug(f"Descending into directory: {path2}")
-            yield from do_audit_dir(path2, recursive=recursive)
+            yield from do_audit_dir(path2, recursive, skip_names)
 
 
 def do_audit(
-    path_dir_or_file: str, recursive: bool = False
+    path_dir_or_file: str, recursive: bool = False, skip_names: Optional[set] = None
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file or all video files in a directory.
 
@@ -353,17 +386,27 @@ def do_audit(
         return
 
     if os.path.isfile(path_dir_or_file):
-        yield from do_audit_file(path_dir_or_file)
+        yield from do_audit_file(path_dir_or_file, skip_names)
     elif os.path.isdir(path_dir_or_file):
-        yield from do_audit_dir(path_dir_or_file, recursive)
+        yield from do_audit_dir(path_dir_or_file, recursive, skip_names)
 
 
-def do_main(path: str, path_tsv: str, recursive: bool = False, out_func=print):
+def do_main(
+    path: str,
+    path_tsv: str,
+    recursive: bool = False,
+    mode: VaMode = VaMode.INCREMENTAL,
+    verbose: bool = False,
+    out_func=print,
+):
     """The main function invoked by CLI to analyze video files with
     logs and save the results to a TSV file.
     :param path: Path to the video file or directory
     :param path_tsv: Path to the output TSV file, default 'videos.tsv'.
     :param recursive: Whether to scan directories recursively. Default: False
+    :param mode: Operation mode, one of VaMode values (default: INCREMENTAL)
+    :param verbose: Whether to print verbose JSON output
+                    to stdout (default: False)
     :param out_func: Function to stdout results (default: print)
     :return: 0 on success, 1 on failure
     """
@@ -376,12 +419,38 @@ def do_main(path: str, path_tsv: str, recursive: bool = False, out_func=print):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    # collect all records from generator into a list
-    recs: List[VaRecord] = list(do_audit(path, recursive))
+    recs0: List[VaRecord] = []
+    # in case path_tsv exists, and mode is not FULL,
+    # load existing records
+    if mode != VaMode.FULL and os.path.exists(path_tsv):
+        logger.info(f"Loading existing TSV file: {path_tsv}")
+        recs0 = _load_tsv(path_tsv)
+        logger.info(f"Loaded {len(recs0)} existing records from TSV")
 
-    logger.info(f"Saving results to TSV file: {path_tsv}")
+    # skip files set in case of INCREMENTAL mode
+    skip_names = None
+    if mode == VaMode.INCREMENTAL and len(recs0) > 0:
+        skip_names = {r.name for r in recs0}
+
+    # collect all records from generator into a list
+    recs1: List[VaRecord] = list(do_audit(path, recursive, skip_names))
+    logger.info(f"Audited records count: {len(recs1)}")
+
+    if verbose:
+        for vr in recs1:
+            out_func(f"{vr.model_dump_json()}")
+
+    # merge recs0 and recs1, with recs1 taking precedence by .name key
+    recs = recs1
+    if len(recs0) > 0:
+        merged_dict = {r.name: r for r in recs0}
+        merged_dict.update({r.name: r for r in recs1})
+        recs = list(merged_dict.values())
+
+    logger.info(f"Saving results to TSV file : {path_tsv}")
+    logger.info(f"Total records to save      : {len(recs)}")
+    # sort records by name
+    recs.sort(key=lambda r: r.name)
     _save_tsv(recs, path_tsv)
 
-    for vr in recs:
-        out_func(f"{vr.model_dump_json()}")
     return 0
