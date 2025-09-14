@@ -24,7 +24,13 @@ from typing import Dict, Generator, List, Optional
 
 from pydantic import BaseModel
 
-from reprostim.qr.qr_parse import InfoSummary, ParseSummary, do_info_file, do_parse
+from reprostim.qr.qr_parse import (
+    InfoSummary,
+    ParseSummary,
+    VideoTimeInfo,
+    do_info_file,
+    do_parse,
+)
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -290,8 +296,19 @@ def do_audit_file(
                 vr.video_fps_detected = sb["frameRate"]
                 vr.video_res_detected = f"{sb['cx']}x{sb['cy']}"
 
-            vi: InfoSummary = do_info_file(path, True)
+            vi: InfoSummary
+            vti: VideoTimeInfo
+            vi, vti = do_info_file(path, True)
             logger.debug(f"vi: {vi}")
+            logger.debug(f"vti: {vi}")
+
+            if vti is not None:
+                vr.start_date = format_date(vti.start_time)
+                vr.start_time = format_time(vti.start_time)
+                vr.end_date = format_date(vti.end_time)
+                vr.end_time = format_time(vti.end_time)
+                if vti.end_time is not None:
+                    vr.complete = True
 
             if vi is not None:
                 if vi.duration_sec is not None:
@@ -308,12 +325,12 @@ def do_audit_file(
                     if vr.duration is None or vr.duration == "n/a":
                         vr.duration = str(round(ps.video_duration, 1))
                         vr.duration_h = format_duration(ps.video_duration)
-                    vr.start_date = format_date(ps.video_isotime_start)
-                    vr.start_time = format_time(ps.video_isotime_start)
-                    vr.end_date = format_date(ps.video_isotime_end)
-                    vr.end_time = format_time(ps.video_isotime_end)
-                    if ps.video_isotime_end is not None:
-                        vr.complete = True
+                    # vr.start_date = format_date(ps.video_isotime_start)
+                    # vr.start_time = format_time(ps.video_isotime_start)
+                    # vr.end_date = format_date(ps.video_isotime_end)
+                    # vr.end_time = format_time(ps.video_isotime_end)
+                    # if ps.video_isotime_end is not None:
+                    #    vr.complete = True
                     vr.video_res_recorded = (
                         f"{ps.video_frame_width}x{ps.video_frame_height}"
                     )

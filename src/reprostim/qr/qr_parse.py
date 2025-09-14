@@ -369,15 +369,15 @@ def do_info_file(path: str, ignore_errors: bool = False):
     :param ignore_errors: If True, ignores parsing errors and
                           returns incomplete data. Default is False.
 
-    :return: An InfoSummary object with metadata, or None if parsing fails.
-    :rtype: InfoSummary or None
+    :return: A tuple containing an InfoSummary object and a
+             VideoTimeInfo object.
     """
     logger.info(f"do_info_file({path})")
     vti: VideoTimeInfo = get_video_time_info(path)
     if not vti.success:
         logger.error(f"Failed parse file name time pattern, error: {vti.error}")
         if not ignore_errors:
-            return None
+            return None, vti
 
     o: InfoSummary = InfoSummary()
     o.path = path
@@ -387,7 +387,7 @@ def do_info_file(path: str, ignore_errors: bool = False):
     o.size_mb = round(size / (1000 * 1000), 1)
     if o.duration_sec is not None and o.duration_sec > 0.0001:
         o.rate_mbpm = round(size * 60 / (o.duration_sec * 1000 * 1000), 1)
-    return o
+    return o, vti
 
 
 def do_info(path: str):
@@ -405,13 +405,13 @@ def do_info(path: str):
     """
     p = Path(path)
     if p.is_file():
-        yield do_info_file(path)
+        yield do_info_file(path)[0]
     elif p.is_dir():
         logger.info(f"Processing video directory: {path}")
         for root, _, files in os.walk(path):
             for file in files:
                 if file.endswith(".mkv"):
-                    yield do_info_file(os.path.join(root, file))
+                    yield do_info_file(os.path.join(root, file))[0]
             # Uncomment to visit only top-level dir
             # break
     else:
