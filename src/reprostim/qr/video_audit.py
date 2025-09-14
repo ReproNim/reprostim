@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import socket
+import traceback
 from datetime import datetime
 from time import time
 from typing import Dict, Generator, List, Optional
@@ -249,44 +250,50 @@ def do_audit_file(path: str) -> Generator[VaRecord, None, None]:
     logger.debug(f"do_audit_file(path={path})")
     vr: VaRecord = VaRecord()
 
-    if os.path.exists(path):
-        vr.present = True
-        vr.path = path
-        vr.name = os.path.basename(path)
+    try:
+        if os.path.exists(path):
+            vr.present = True
+            vr.path = path
+            vr.name = os.path.basename(path)
 
-        # try to find session_begin in log file
-        sb = find_metadata_json(path + ".log", "type", "session_begin")
-        if sb is not None:
-            logger.debug(f"sb: {sb}")
-            vr.video_fps_detected = sb["frameRate"]
-            vr.video_res_detected = f"{sb['cx']}x{sb['cy']}"
+            # try to find session_begin in log file
+            sb = find_metadata_json(path + ".log", "type", "session_begin")
+            if sb is not None:
+                logger.debug(f"sb: {sb}")
+                vr.video_fps_detected = sb["frameRate"]
+                vr.video_res_detected = f"{sb['cx']}x{sb['cy']}"
 
-        vi: InfoSummary = do_info_file(path, True)
-        logger.debug(f"viZZ: {vi}")
+            vi: InfoSummary = do_info_file(path, True)
+            logger.debug(f"viZZ: {vi}")
 
-        if vi is not None:
-            if vi.duration_sec is not None:
-                vr.duration = str(round(vi.duration_sec, 1))
-                vr.duration_h = format_duration(vi.duration_sec)
-            vr.video_size_mb = str(vi.size_mb)
-            vr.video_rate_mbpm = str(vi.rate_mbpm)
+            if vi is not None:
+                if vi.duration_sec is not None:
+                    vr.duration = str(round(vi.duration_sec, 1))
+                    vr.duration_h = format_duration(vi.duration_sec)
+                vr.video_size_mb = str(vi.size_mb)
+                vr.video_rate_mbpm = str(vi.rate_mbpm)
 
-            ps: ParseSummary = next(do_parse(path, True, True))
-            logger.info(f"ps: {ps}")
-            if ps is not None:
-                if vr.duration is None or vr.duration == "n/a":
-                    vr.duration = str(round(ps.video_duration, 1))
-                    vr.duration_h = format_duration(ps.video_duration)
-                vr.start_date = format_date(ps.video_isotime_start)
-                vr.start_time = format_time(ps.video_isotime_start)
-                vr.end_date = format_date(ps.video_isotime_end)
-                vr.end_time = format_time(ps.video_isotime_end)
-                if ps.video_isotime_end is not None:
-                    vr.complete = True
-                vr.video_res_recorded = (
-                    f"{ps.video_frame_width}x{ps.video_frame_height}"
-                )
-                vr.video_fps_recorded = f"{ps.video_frame_rate}"
+                ps: ParseSummary = next(do_parse(path, True, True))
+                logger.info(f"ps: {ps}")
+                if ps is not None:
+                    if vr.duration is None or vr.duration == "n/a":
+                        vr.duration = str(round(ps.video_duration, 1))
+                        vr.duration_h = format_duration(ps.video_duration)
+                    vr.start_date = format_date(ps.video_isotime_start)
+                    vr.start_time = format_time(ps.video_isotime_start)
+                    vr.end_date = format_date(ps.video_isotime_end)
+                    vr.end_time = format_time(ps.video_isotime_end)
+                    if ps.video_isotime_end is not None:
+                        vr.complete = True
+                    vr.video_res_recorded = (
+                        f"{ps.video_frame_width}x{ps.video_frame_height}"
+                    )
+                    vr.video_fps_recorded = f"{ps.video_frame_rate}"
+    # catch all exceptions
+    except Exception as e:
+        logger.error(f"Unhandled exception occurred when processing file: {path}")
+        logger.error(f"Details: {e}")
+        logger.error(traceback.format_exc())  # logs full stack trace
 
     vr.file_log_coherent = check_coherent(vr)
     vr.updated_on = format_tts(time())
