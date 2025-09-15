@@ -1,3 +1,22 @@
+# 0.7.15 (Mon Sep 15 2025)
+
+#### 🐛 Bug Fix
+
+- Create `video-audit` tool to analyze all recorded videos #1 [#179](https://github.com/ReproNim/reprostim/pull/179) ([@vmdocua](https://github.com/vmdocua))
+- Integrate reprostim package with PsychoPy experiment scripts and examples #1 [#174](https://github.com/ReproNim/reprostim/pull/174) ([@vmdocua](https://github.com/vmdocua))
+- Fixes for `reprostim-videocapture` config issues [#170](https://github.com/ReproNim/reprostim/pull/170) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🏠 Internal
+
+- Notes from today session to configure reprostim on reproinner [#164](https://github.com/ReproNim/reprostim/pull/164) ([@yarikoptic](https://github.com/yarikoptic) [@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.14 (Wed Jul 30 2025)
 
 #### 🐛 Bug Fix
