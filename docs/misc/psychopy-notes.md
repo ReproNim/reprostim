@@ -7,19 +7,104 @@ The `MRI emulator` plugin for PsychoPy provides a way to simulate MRI scanner tr
 responses, allowing researchers to test and develop their experiments without needing access
 to an actual MRI scanner.
 
-We created a simple `PsychoPy` example script `01_fmri_interval.py` that
+We created a simple `PsychoPy` example script
+[01_fmri_interval.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/01_fmri_interval.py) that
 demonstrates how to use `reprostim` package and inject simple session start QR code
 into experiment presentation:
 
+```python
+from psychopy import core, event, logging, visual
+from reprostim.qr.psychopy import EventType, QrCode, QrStim
+
+# Create a window
+win = visual.Window([800, 600], units="pix", fullscr=False)
+
+# Display a QR code indicating the start of the session
+qr = QrStim(win, QrCode(EventType.SESSION_START))
+qr.draw()
+win.flip()
+# wait for its duration
+qr.wait()
+win.flip()
+
+core.wait(2)
+```
+
+
 ![](../_static/images/01_fmri_interval.png)
 
-Example `02_fmri_series.py` demonstrates how to use QR code with custom configuration,
+Example
+[02_fmri_series.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/02_fmri_series.py)
+demonstrates how to use QR code with custom configuration,
 where QR background is transparent, QR code color is blue and QR size is scaled to
-be 20% of the original one:
+be 30% of the original one:
+
+```python
+from psychopy import core, event, logging, visual
+from reprostim.qr.psychopy import EventType, QrCode, QrConfig, QrStim
+
+# Create a window
+win = visual.Window([800, 600], units="pix", fullscr=False)
+
+# Optionally specify a QR code config
+qr_config = QrConfig(
+    scale=0.3,
+    duration=1.0,
+    fill_color="blue",
+    back_color="transparent",
+)
+
+# Display a QR code indicating the start of the session
+qr = QrStim(win, QrCode(EventType.SESSION_START), qr_config)
+qr.draw()
+win.flip()
+qr.wait()
+win.flip()
+```
+
+
 ![](../_static/images/02_fmri_series.png)
 
-In addition, `03_fmri_series_audiocode.py` demonstrates how to use QR code
+In addition,
+[03_fmri_series_audiocode.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/03_fmri_series_audiocode.py)
+demonstrates how to use QR code
 in response to the fMRI scanner trigger/pulse event:
+
+```python
+from psychopy import core, event, logging, visual
+from psychopy_mri_emulator import launchScan
+from reprostim.qr.psychopy import EventType, QrCode, QrConfig, QrStim
+
+def show_qr(event, win, fix, qr_config, **kwargs):
+    # draw a QR code with given parameters
+    qr = QrStim(win, QrCode(event, **kwargs), qr_config)
+    fix.draw()
+    qr.draw()
+    win.flip()
+    # wait for its duration
+    qr.wait()
+
+    # restore fixation cross
+    fix.draw()
+    win.flip()
+
+# Create a window and fixation cross
+win = visual.Window([800, 600], units="pix", fullscr=False)
+fix = visual.TextStim(win, text="+", pos=(0, 0))
+fix.draw()
+win.flip()
+
+
+# Custom QR code config
+qr_config = QrConfig(
+    padding=30,
+    align="right-bottom",
+)
+
+# show QR code on pulse received
+show_qr(EventType.MRI_TRIGGER_RECEIVED, win, fix, qr_config, seq=seq, keys=keys)
+```
+
 ![](../_static/images/03_fmri_event.png)
 
 ## Installation

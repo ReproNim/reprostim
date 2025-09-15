@@ -57,8 +57,6 @@ win = visual.Window([800, 600], fullscr=False)
 qr_config = QrConfig(
     scale=0.3,
     duration=1.0,
-    padding=30,
-    # align="right-bottom",
     fill_color="blue",
     back_color="transparent",
 )
