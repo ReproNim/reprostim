@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import socket
+import subprocess
 import traceback
 from datetime import datetime
 from enum import Enum
@@ -46,6 +47,17 @@ UPDATED_BY = f"{getpass.getuser()}@{socket.gethostname()}"
 
 # Global REPROSTIM-METADATA-JSON regex pattern
 JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
+
+
+# NB: move in future to audio package or tool?
+class AudioInfo(BaseModel):
+    """Audio information extracted from the video file."""
+
+    bits_per_sample: Optional[int] = None  # Bits per sample
+    channels: Optional[int] = None  # Number of audio channels
+    codec: Optional[str] = None  # Audio codec used
+    duration_sec: Optional[float] = None  # Duration in seconds
+    sample_rate: Optional[int] = None  # Sample rate in Hz
 
 
 class VaMode(str, Enum):
@@ -143,6 +155,25 @@ def check_coherent(vr: VaRecord) -> bool:
         return False
 
     return True
+
+
+def check_ffprobe():
+    """Check if ffprobe is installed and available in PATH.
+    :return: True if ffprobe is available, False otherwise
+    """
+    try:
+        # Try running `ffprobe -version` to see if it's installed
+        subprocess.run(
+            ["ffprobe", "-version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+        logger.debug("ffprobe is installed")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.error("Error: ffprobe is not installed")
+        return False
 
 
 def format_date(dt: datetime) -> str:
@@ -243,6 +274,68 @@ def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     )
 
 
+# NB: move in future to audio package or tool?
+def get_audio_info_ffprobe(path: str) -> AudioInfo:
+    """Extract audio information from the video file using ffprobe.
+    :param path: Path to the video file(.mkv, .mp4, .avi)
+    :return: AudioInfo object with extracted audio information
+    """
+
+    logger.debug(f"get_audio_info: {path}")
+    ai: AudioInfo = AudioInfo()
+
+    try:
+        cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",  # suppress logs
+            "-print_format",
+            "json",  # JSON output
+            "-show_streams",  # streams
+            "-select_streams",
+            "a",  # filter all audio streams
+            path,
+        ]
+        # cmd = ["ffprobe", "-h"]
+        logger.debug(f"run: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        # logger.debug(f"ffprobe -> {result.stdout}")
+        o = json.loads(result.stdout)
+        logger.debug(f"ffprobe output: {o}")
+
+        streams = o.get("streams", [])
+        audio_streams = [s for s in streams if s.get("codec_type") == "audio"]
+
+        if audio_streams:
+            stream = audio_streams[
+                0
+            ]  # take first audio stream (or iterate if multiple)
+
+            bps = stream.get("bits_per_sample")
+            if bps is not None and bps != 0:
+                ai.bits_per_sample = bps
+            ai.channels = stream.get("channels")
+            ai.codec = stream.get("codec_name")
+            ai.sample_rate = (
+                int(stream["sample_rate"]) if "sample_rate" in stream else None
+            )
+
+            # duration is usually in tags, but sometimes in stream
+            if "tags" in stream and "DURATION" in stream["tags"]:
+                # Example: "00:00:17.150000000"
+                h, m, s = stream["tags"]["DURATION"].split(":")
+                ai.duration_sec = int(h) * 3600 + int(m) * 60 + float(s)
+            elif "duration" in stream:
+                ai.duration_sec = float(stream["duration"])
+
+    except FileNotFoundError:
+        logger.error("ffprobe is not installed or not in PATH")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"ffprobe error: {e} {e.stdout} {e.stderr}")
+
+    return ai
+
+
 def _save_tsv(records: List[VaRecord], path_out: str):
     fields = list(VaRecord.model_fields.keys())
     with open(path_out, "w", newline="", encoding="utf-8") as f:
@@ -335,6 +428,20 @@ def do_audit_file(
                         f"{ps.video_frame_width}x{ps.video_frame_height}"
                     )
                     vr.video_fps_recorded = f"{round(ps.video_frame_rate, 1)}"
+
+            # try to get audio info
+            ai: AudioInfo = get_audio_info_ffprobe(path)
+            if ai is not None:
+                logger.debug(f"ai: {ai}")
+                if ai.sample_rate is not None:
+                    vr.audio_sr = f"{ai.sample_rate}Hz"
+                if ai.bits_per_sample is not None:
+                    vr.audio_sr += f" {ai.bits_per_sample}b"
+                if ai.channels is not None:
+                    vr.audio_sr += f" {ai.channels}ch"
+                if ai.codec is not None:
+                    vr.audio_sr += f" {ai.codec}"
+
     # catch all exceptions
     except Exception as e:
         logger.error(f"Unhandled exception occurred when processing file: {path}")
@@ -435,6 +542,15 @@ def do_main(
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
+
+    if not check_ffprobe():
+        out_func(
+            "Error: ffprobe is not installed. Make sure" " ffmpeg package is installed."
+        )
+        logger.error(
+            "!!! ffprobe is required to parse audio but"
+            " not found. Make sure ffmpeg package is installed."
+        )
 
     recs0: List[VaRecord] = []
     # in case path_tsv exists, and mode is not FULL,
