@@ -160,6 +160,7 @@ def check_coherent(vr: VaRecord) -> bool:
 def check_ffprobe():
     """Check if ffprobe is installed and available in PATH.
     :return: True if ffprobe is available, False otherwise
+    :rtype: bool
     """
     try:
         # Try running `ffprobe -version` to see if it's installed
@@ -182,7 +183,10 @@ def format_date(dt: datetime) -> str:
     Ignores timezone.
 
     :param dt: datetime object
+    :type dt: datetime
+
     :return: formatted date string
+    :rtype: str
     """
     if dt is None:
         return "n/a"
@@ -195,7 +199,10 @@ def format_duration(duration_sec: float) -> str:
     or HH:MM:SS.mmm. If duration_sec is None, return "n/a"
 
     :param duration_sec: Duration in seconds
+    :type duration_sec: float
+
     :return: Formatted duration string
+    :rtype: str
     """
     if duration_sec is None:
         return "n/a"
@@ -213,7 +220,10 @@ def format_time(dt: datetime) -> str:
     Ignores timezone.
 
     :param dt: datetime object
+    :type dt: datetime
+
     :return: formatted time string
+    :rtype: str
     """
     if dt is None:
         return "n/a"
@@ -243,8 +253,12 @@ def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
     """
     Iterate over all REPROSTIM-METADATA-JSON lines in the log file.
     Yields parsed JSON dictionaries.
+
     :param log_path: Path to the log file
+    :type log_path: str
+
     :return: Generator of parsed JSON dictionaries
+    :rtype: Generator[Dict, None, None]
     """
     if not os.path.exists(log_path):
         logger.error(f"Log file does not exist: {log_path}")
@@ -264,10 +278,18 @@ def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
 
 def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     """Find the first metadata JSON entry with a specific key-value pair.
+
     :param path: Path to the log file
+    :type path: str
+
     :param key: Key to search for
+    :type key: str
+
     :param value: Value to match
+    :type value: Any
+
     :return: The first matching dictionary or None if not found
+    :rtype: Optional[Dict]
     """
     return next(
         (msg for msg in iter_metadata_json(path) if msg.get(key) == value), None
@@ -277,8 +299,12 @@ def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
 # NB: move in future to audio package or tool?
 def get_audio_info_ffprobe(path: str) -> AudioInfo:
     """Extract audio information from the video file using ffprobe.
+
     :param path: Path to the video file(.mkv, .mp4, .avi)
+    :type path: str
+
     :return: AudioInfo object with extracted audio information
+    :rtype: AudioInfo
     """
 
     logger.debug(f"get_audio_info: {path}")
@@ -358,10 +384,16 @@ def do_audit_file(
     path: str, skip_names: Optional[set] = None
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file.
+
     :param path: Path to the video file
+    :type path: str
+
     :param skip_names: Optional set of file base names
-    to skip (for incremental mode)
+                       to skip (for incremental mode)
+    :type skip_names: Optional[set]
+
     :return: Generator of VaRecord objects
+    :rtype: Generator[VaRecord, None, None]
     """
 
     logger.debug(f"do_audit_file(path={path})")
@@ -460,10 +492,17 @@ def do_audit_dir(
     """Audit video files in directory with .mkv, .mp4, .avi extensions.
 
     :param path: Path to the directory
+    :type path: str
+
     :param recursive: Whether to scan directories recursively. Default: False
+    :type recursive: bool
+
     :param skip_names: Optional set of file base names
                        to skip (for incremental mode)
+    :type  skip_names: Optional[set]
+
     :return: Generator of VaRecord objects
+    :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(f"do_audit_dir(path={path}, recursive={recursive})")
 
@@ -497,10 +536,13 @@ def do_audit(
     """Audit a single video file or all video files in a directory.
 
     :param path_dir_or_file: Path to the video file or directory
+    :type path_dir_or_file: str
 
     :param recursive: Whether to scan directories recursively. Default: False
+    :type recursive: bool
 
     :return: Generator of VaRecord objects
+    :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(
         f"do_audit(path_dir_or_file={path_dir_or_file}, " f"recursive={recursive})"
@@ -525,14 +567,28 @@ def do_main(
 ):
     """The main function invoked by CLI to analyze video files with
     logs and save the results to a TSV file.
+
     :param path: Path to the video file or directory
+    :type path: str
+
     :param path_tsv: Path to the output TSV file, default 'videos.tsv'.
+    :type path_tsv: str
+
     :param recursive: Whether to scan directories recursively. Default: False
+    :type recursive: bool
+
     :param mode: Operation mode, one of VaMode values (default: INCREMENTAL)
+    :type mode: VaMode
+
     :param verbose: Whether to print verbose JSON output
-    to stdout (default: False)
+                    to stdout (default: False)
+    :type verbose: bool
+
     :param out_func: Function to stdout results (default: print)
+    :type out_func: Callable[[str], None]
+
     :return: 0 on success, 1 on failure
+    :rtype: int
     """
 
     logger.debug("video-audit command")
