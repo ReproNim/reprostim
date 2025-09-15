@@ -13,5 +13,6 @@ Command-Line Interface
     monitor-displays
     qr-parse
     timesync-stimuli
+    video-audit
     reprostim-screencapture
     reprostim-videocapture

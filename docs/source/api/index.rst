@@ -15,3 +15,4 @@ API Reference
    qr.psychopy
    qr.qr_parse
    qr.timesync_stimuli
+   qr.video_audit
