@@ -18,15 +18,12 @@ from time import sleep, time
 t0 = time()
 
 import importlib.util
-import json
 import logging
 import os
 import shutil
 import signal
 from datetime import datetime
 from enum import Enum
-
-import qrcode
 
 from ..__about__ import __version__
 
@@ -39,20 +36,6 @@ logger.info("reprostim timesync-stimuli script started")
 # Constants
 
 MAX_TR_TIMEOUT: float = 4.0
-
-
-# Enum for the log event names
-class EventName(str, Enum):
-    """Enum for the log event names."""
-
-    STARTED = "started"
-    """Script started event."""
-    SERIES_BEGIN = "series_begin"
-    """Series begin event."""
-    SERIES_END = "series_end"
-    """Series end event."""
-    TRIGGER = "trigger"
-    """Trigger event."""
 
 
 class Mode(str, Enum):
@@ -91,22 +74,6 @@ class SeriesData:
 # Functions
 
 
-def get_iso_time(t):
-    """Converts a timestamp into an ISO 8601 formatted string
-    with local timezone.
-
-    This function takes a timestamp in seconds and converts it into a
-    datetime object with local timezone.
-
-    :param t: The timestamp to be converted in seconds.
-    :type t: float
-
-    :return: The ISO 8601 formatted string with local timezone.
-    :rtype: str
-    """
-    return datetime.fromtimestamp(t).astimezone().isoformat()
-
-
 def get_output_file_name(
     prefix: str, start_ts: datetime, end_ts: datetime = None
 ) -> str:
@@ -135,20 +102,6 @@ def get_output_file_name(
     return f"{prefix}{start_str}--{end_str}.log"
 
 
-def get_times():
-    """Get the current time and its ISO formatted string.
-
-    This function retrieves the current time in seconds since the epoch
-    and formats it into an ISO 8601 string with local timezone.
-
-    :return: A tuple containing the current time in seconds and its
-             ISO formatted string.
-    :rtype: tuple[float, str]
-    """
-    t = time()
-    return t, get_iso_time(t)
-
-
 def get_ts_str(ts: datetime) -> str:
     """Get a formatted string representation of a timestamp.
 
@@ -164,35 +117,6 @@ def get_ts_str(ts: datetime) -> str:
     """
     ts_format = "%Y.%m.%d-%H.%M.%S.%f"
     return f"{ts.strftime(ts_format)[:-3]}"
-
-
-def log(f, rec):
-    """Log a QR record to a file.
-
-    This function takes a file handle and a record dictionary,
-    converts the record to a JSON string, and writes it to the file.
-
-    :param f: The file handle to write the log to.
-    :type f: file object
-
-    :param rec: The record dictionary to be logged.
-    :type rec: dict
-    """
-    s = json.dumps(rec).rstrip()
-    f.write(s + os.linesep)
-    logger.debug(f"LOG {s}")
-
-
-def mkrec(**kwargs):
-    """Create a basic QR record dictionary."""
-    t, tstr = get_times()
-    kwargs.update(
-        {
-            "time": t,
-            "time_formatted": tstr,
-        }
-    )
-    return kwargs
 
 
 def safe_remove(file_name: str):
@@ -339,19 +263,45 @@ def do_main(
     # setup psychopy logs
     from psychopy import logging as pl
 
+    from reprostim.qr.psychopy import (
+        EventType,
+        QrCode,
+        QrConfig,
+        QrStim,
+        get_iso_time,
+        get_times,
+        to_json,
+    )
+
     # psychopy logging doesn't support filtering by message content,
     # so this is a patch to filter out flooding messages like "No keypress"
     _pl_log_method = pl.root.log
 
-    def pl_filtered_log(self, message_, level, t=None, obj=None):
+    def pl_filtered_log(self, message_, level, t=None, obj=None, **kwargs):
         if "No keypress (maxWait exceeded)" in str(message_):
             return
-        _pl_log_method(message_, level, t, obj)
+        _pl_log_method(message_, level, t, obj, **kwargs)
 
     pl.root.log = types.MethodType(pl_filtered_log, pl.root)
 
     # pl.console.setLevel(pl.NOTSET)
     pl.console.setLevel(pl.DEBUG)
+
+    def log(f, rec):
+        """Log a QR record to a file.
+
+        This function takes a file handle and a record dictionary,
+        converts the record to a JSON string, and writes it to the file.
+
+        :param f: The file handle to write the log to.
+        :type f: file object
+
+        :param rec: The record dictionary to be logged.
+        :type rec: dict
+        """
+        s = to_json(rec).rstrip()
+        f.write(s + os.linesep)
+        logger.debug(f"LOG {s}")
 
     from psychopy import core, event, visual
 
@@ -400,8 +350,8 @@ def do_main(
         nonlocal f
         log(
             f,
-            mkrec(
-                event=EventName.SERIES_BEGIN,
+            QrCode(
+                event=EventType.SERIES_START,
                 mode=mode,
                 logfn=logfn,
                 series_num=sd.num,
@@ -417,8 +367,8 @@ def do_main(
             nonlocal f
             log(
                 f,
-                mkrec(
-                    event=EventName.SERIES_END,
+                QrCode(
+                    event=EventType.SERIES_END,
                     mode=mode,
                     logfn=logfn,
                     series_num=sd.num,
@@ -467,6 +417,8 @@ def do_main(
     audio_info: AudioCodeInfo = None
     f = open(logfn, "w")
 
+    qr_config: QrConfig = QrConfig(scale=qr_scale)
+
     win = visual.Window(
         fullscr=is_fullscreen,
         title=f"ReproStim timesync-stimuli v{__version__}",
@@ -486,15 +438,16 @@ def do_main(
         logger.info(f"display [{display}] info:")
         fr = win.getActualFrameRate()
         logger.info(
-            f"    {win.size[0]}x{win.size[1]} px, "
-            f"    {round(fr, 2)} Hz" if fr else "    N/A Hz"
+            f"    {win.size[0]}x{win.size[1]} px, " f"    {round(fr, 2)} Hz"
+            if fr
+            else "    N/A Hz"
         )
 
     # log script started event
     log(
         f,
-        mkrec(
-            event=EventName.STARTED,
+        QrCode(
+            event=EventType.SESSION_START,
             mode=mode,
             logfn=logfn,
             start_time=t0,
@@ -660,7 +613,9 @@ def do_main(
             series_num += 1
 
         # trigger record,
-        rec = mkrec(event=EventName.TRIGGER, mode=mode, logfn=logfn, acqNum=acqNum)
+        rec = QrCode(
+            event=EventType.MRI_TRIGGER_RECEIVED, mode=mode, logfn=logfn, acqNum=acqNum
+        )
 
         if cur_series:
             rec["series_num"] = cur_series.num
@@ -687,23 +642,16 @@ def do_main(
             # NOTE: should we add codec info to the log?
             # like f0, f1, sampleRate, bit_duration, duration, etc
 
-        rec["keys"] = keys
-        tkeys, tkeys_str = get_times()
-        rec["keys_time"] = tkeys
-        rec["keys_time_str"] = tkeys_str
-        qr = visual.ImageStim(win, qrcode.make(json.dumps(rec)), pos=(0, 0))
-        qr.size = qr.size * qr_scale
+        tkeys = time()
+        rec.apply_keys(keys, tkeys)
+        qr = QrStim(win, rec, qr_config)
         qr.draw()
         win.flip()
-        tflip, tflip_str = get_times()
-        rec["time_flip"] = tflip
-        rec["time_flip_formatted"] = tflip_str
+        rec.apply_times("time_flip", "time_flip_formatted")
         w_keys = wait_or_keys(qr_duration, qr_async, ["5", "num_5", "escape", "q"])
         fixation.draw()
         win.flip()
-        toff, toff_str = get_times()
-        rec["prior_time_off"] = toff
-        rec["prior_time_off_str"] = toff_str
+        rec.apply_times("prior_time_off", "prior_time_off_str")
         log(f, rec)
         out_func(
             f"Trigger pulse: acq={acqNum}, "

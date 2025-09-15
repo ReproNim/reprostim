@@ -38,4 +38,4 @@ repos:
           - flake8-builtins
           # - flake8-unused-arguments
 
-exclude: '^src/reprostim-capture/.*|.codespellrc'
+exclude: '^src/reprostim-capture/.*|.codespellrc|^examples/exp-alpha/'

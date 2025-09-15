@@ -10,6 +10,7 @@ Miscellaneous Notes
     containers
     audiocodes-notes
     disp_mon-notes
+    psychopy-notes
     xvfb-notes
     vaapi-notes
     automated-setup

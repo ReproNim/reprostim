@@ -28,7 +28,7 @@ path = [
     ".*",
     "Parsing/**",
     "Events/**",
-    "Examples/**",
+    "examples/**",
     "QRCoding/**",
     "venv/**"
 ]
