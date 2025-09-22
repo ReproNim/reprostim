@@ -30,7 +30,7 @@ if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES_DEV && apt-get autoremove -y"
   # Extend with packages hold if runtime packages env exist
   if [[ -n "$REPROSTIM_CAPTURE_PACKAGES_RUNTIME" ]]; then
-      REPROSTIM_CAPTURE_CLEAN="apt-mark hold $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && $REPROSTIM_CAPTURE_CLEAN"
+      REPROSTIM_CAPTURE_CLEAN="apt-mark manual $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && apt-mark hold $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && $REPROSTIM_CAPTURE_CLEAN"
   fi
 fi
 
