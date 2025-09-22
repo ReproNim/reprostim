@@ -26,7 +26,7 @@ fi
 
 # Calculate entry point
 if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "reprostim-videocapture" ]; then
-    REPROSTIM_CONTAINER_ENTRY_POINT="reprostim-videocapture"
+    REPROSTIM_CONTAINER_ENTRY_POINT="/usr/local/bin/reprostim-videocapture"
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
     REPROSTIM_CONTAINER_ENTRY_POINT="-m reprostim"
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
