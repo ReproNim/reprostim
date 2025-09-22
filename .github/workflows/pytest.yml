@@ -41,10 +41,15 @@ jobs:
       run: |
         pwd
         ls -l
+        echo "- STEP 1"
         pip install --user --upgrade pip hatch
+        echo "- STEP 2"
         hatch env create
+        echo "- STEP 3"
         hatch run pip install --upgrade pip
+        echo "- STEP 4"
         hatch run pip install --upgrade "click==8.2.1"
+        echo "- STEP 5"
         hatch run pip install pytest pytest-cov reedsolo scipy
       shell: bash
 
