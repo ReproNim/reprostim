@@ -25,14 +25,18 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
 fi
 
 # Calculate entry point
+REPROSTIM_CONTAINER_ENTRYPOINT=""
 if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "reprostim-videocapture" ]; then
-    REPROSTIM_CONTAINER_ENTRY_POINT="/usr/local/bin/reprostim-videocapture"
+    REPROSTIM_CONTAINER_APP="reprostim-videocapture"
+    if [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
+        REPROSTIM_CONTAINER_ENTRYPOINT="--entrypoint="
+    fi
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
-    REPROSTIM_CONTAINER_ENTRY_POINT="-m reprostim"
+    REPROSTIM_CONTAINER_APP="-m reprostim"
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
-    REPROSTIM_CONTAINER_ENTRY_POINT="python3 -m reprostim"
+    REPROSTIM_CONTAINER_APP="python3 -m reprostim"
 else
-    REPROSTIM_CONTAINER_ENTRY_POINT="-m reprostim"
+    REPROSTIM_CONTAINER_APP="-m reprostim"
 fi
 
 
@@ -46,16 +50,17 @@ log "Run ReproStim ${REPROSTIM_CONTAINER_TYPE} CI/CD Container v${REPROSTIM_VERS
 log "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
 log "  [IMAGE]          : ${REPROSTIM_CONTAINER_IMAGE}"
 log "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
-log "  [ARGS]           : $@"
+log "  [ARGS]           : $*"
 
 
 if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
   docker run --rm -i ${DOCKER_TTY} \
+    ${REPROSTIM_CONTAINER_ENTRYPOINT} \
     -v "${REPROSTIM_PATH}:${REPROSTIM_PATH}" \
     -w "${REPROSTIM_PATH}" \
     --env DISPLAY=$DISPLAY \
     ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
-    ${REPROSTIM_CONTAINER_ENTRY_POINT} $@
+    ${REPROSTIM_CONTAINER_APP} "$@"
 elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
   singularity exec \
     --cleanenv --contain \
@@ -63,7 +68,7 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
     -B ${REPROSTIM_PATH} \
     --env DISPLAY=$DISPLAY \
     ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
-    ${REPROSTIM_CONTAINER_ENTRY_POINT} $@
+    ${REPROSTIM_CONTAINER_APP} "$@"
 else
   log "Unknown REPROSTIM_CONTAINER_TYPE: ${REPROSTIM_CONTAINER_TYPE}"
   exit 1
