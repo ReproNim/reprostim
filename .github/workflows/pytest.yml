@@ -41,9 +41,9 @@ jobs:
       run: |
         pwd
         ls -l
-        pip install --upgrade pip
-        pip install hatch
+        pip install --user --upgrade pip hatch
         hatch env create
+        hatch run pip install --upgrade pip
         hatch run pip install pytest pytest-cov reedsolo scipy
       shell: bash
 
