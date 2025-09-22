@@ -6,6 +6,7 @@
 #
 
 REPROSTIM_CONTAINER_TYPE="${REPROSTIM_CONTAINER_TYPE:-singularity}"
+REPROSTIM_CONTAINER_RUN_MODE="${REPROSTIM_CONTAINER_RUN_MODE:-reprostim}"
 
 export REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -21,6 +22,17 @@ if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
   fi
 elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
   REPROSTIM_CONTAINER_IMAGE="./repronim-reprostim-${REPROSTIM_VERSION}.sing"
+fi
+
+# Calculate entry point
+if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "reprostim-videocapture" ]; then
+    REPROSTIM_CONTAINER_ENTRY_POINT="reprostim-videocapture"
+elif [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
+    REPROSTIM_CONTAINER_ENTRY_POINT="-m reprostim"
+elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
+    REPROSTIM_CONTAINER_ENTRY_POINT="python3 -m reprostim"
+else
+    REPROSTIM_CONTAINER_ENTRY_POINT="-m reprostim"
 fi
 
 
@@ -43,7 +55,7 @@ if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
     -w "${REPROSTIM_PATH}" \
     --env DISPLAY=$DISPLAY \
     ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
-    -m reprostim $@
+    ${REPROSTIM_CONTAINER_ENTRY_POINT} $@
 elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
   singularity exec \
     --cleanenv --contain \
@@ -51,7 +63,7 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
     -B ${REPROSTIM_PATH} \
     --env DISPLAY=$DISPLAY \
     ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
-    python3 -m reprostim $@
+    ${REPROSTIM_CONTAINER_ENTRY_POINT} $@
 else
   log "Unknown REPROSTIM_CONTAINER_TYPE: ${REPROSTIM_CONTAINER_TYPE}"
   exit 1
