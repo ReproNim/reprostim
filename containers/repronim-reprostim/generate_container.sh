@@ -27,7 +27,7 @@ if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   REPROSTIM_CAPTURE_PACKAGES_DEV="catch2 libv4l-dev libudev-dev libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++"
   REPROSTIM_CAPTURE_PACKAGES_RUNTIME="libyaml-cpp-dev libspdlog-dev"
   REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; rm -rf \"$REPROSTIM_HOME/src/reprostim-capture/build\"; reprostim-videocapture -V"
-  REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES_DEV && apt-get autoremove -y"
+  REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES_DEV && apt-get autoremove -y && apt-get install -y $REPROSTIM_CAPTURE_RUNTIME_PACKAGES"
 fi
 
 
