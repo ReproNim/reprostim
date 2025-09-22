@@ -44,6 +44,7 @@ jobs:
         pip install --user --upgrade pip hatch
         hatch env create
         hatch run pip install --upgrade pip
+        hatch run pip install --upgrade "click==8.2.1"
         hatch run pip install pytest pytest-cov reedsolo scipy
       shell: bash
 
