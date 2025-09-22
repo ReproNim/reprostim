@@ -32,6 +32,7 @@ if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   if [[ -n "$REPROSTIM_CAPTURE_PACKAGES_RUNTIME" ]]; then
       REPROSTIM_CAPTURE_CLEAN="apt-mark manual $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && apt-mark hold $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && $REPROSTIM_CAPTURE_CLEAN"
   fi
+  REPROSTIM_CAPTURE_CLEAN="echo 'ReproStim capture clean is disabled for debug purposes'"
 fi
 
 
