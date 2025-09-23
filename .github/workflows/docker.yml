@@ -22,9 +22,16 @@ jobs:
         run: |
           (
             echo "$PWD"
+
+            echo "Docker images BEFORE build:"
+            docker images
+
             export REPROSTIM_CAPTURE_ENABLED=1
             export REPROSTIM_DOCKER_TAGS="master unstable"
             ./build_reprostim_container.sh docker
+
+            echo "Docker images AFTER build:"
+            docker images
           )
         working-directory: tools/ci
 
@@ -36,6 +43,8 @@ jobs:
           (
             echo "$PWD"
             export REPROSTIM_CONTAINER_TYPE=docker
+            # specify latest unstable image to test
+            export REPROSTIM_CONTAINER_IMAGE=repronim/reprostim:unstable
             ./test_reprostim_container.sh
           )
         working-directory: tools/ci

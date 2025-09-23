@@ -15,13 +15,13 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 # REPROSTIM_OVERLAY=--overlay ./repronim-reprostim-${REPROSTIM_VERSION}.overlay
 REPROSTIM_OVERLAY=
 if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
-  REPROSTIM_CONTAINER_IMAGE="repronim/reprostim:${REPROSTIM_VERSION}"
+  REPROSTIM_CONTAINER_IMAGE="${REPROSTIM_CONTAINER_IMAGE:-repronim/reprostim:${REPROSTIM_VERSION}}"
   DOCKER_TTY=""
   if [ -t 1 ]; then
     DOCKER_TTY="-t"
   fi
 elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
-  REPROSTIM_CONTAINER_IMAGE="./repronim-reprostim-${REPROSTIM_VERSION}.sing"
+  REPROSTIM_CONTAINER_IMAGE="${REPROSTIM_CONTAINER_IMAGE:-./repronim-reprostim-${REPROSTIM_VERSION}.sing}"
 fi
 
 # Calculate entry point
