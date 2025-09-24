@@ -448,8 +448,13 @@ def do_audit_file(
                 logger.info(f"ps: {ps}")
                 if ps is not None:
                     if vr.duration is None or vr.duration == "n/a":
-                        vr.duration = str(round(ps.video_duration, 1))
-                        vr.duration_h = format_duration(ps.video_duration)
+                        video_duration = ps.video_duration
+                        if video_duration is not None:
+                            if video_duration < 0 or video_duration >= 604800.0:
+                                video_duration = None
+                            else:
+                                vr.duration = str(round(video_duration, 1))
+                                vr.duration_h = format_duration(video_duration)
                     # vr.start_date = format_date(ps.video_isotime_start)
                     # vr.start_time = format_time(ps.video_isotime_start)
                     # vr.end_date = format_date(ps.video_isotime_end)
