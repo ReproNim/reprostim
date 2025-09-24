@@ -32,7 +32,7 @@ DISPLAY_HEIGHT=$(echo "$DCE_JSON" | jq -r '.display.height')
 DISPLAY_RATE=$(echo "$DCE_JSON" | jq -r '.display.refresh_rate*100|round/100')
 DISPLAY_CONNECTED=$(echo "$DCE_JSON" | jq -r '.display.is_connected')
 
-echo $DCE_TYPE
+echo "$DCE_TYPE"
 echo "reprostim-display-on-change"
 echo "[event type]   : $DCE_TYPE"
 echo "[event ts]     : $DCE_TS"

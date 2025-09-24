@@ -29,10 +29,10 @@ log "  [ARGS]           : $@"
 
 singularity exec \
   --cleanenv --contain \
-  -B ${TMPDIR:-/tmp} \
+  -B "${TMPDIR:-/tmp}" \
   -B /run/user/$(id -u)/pulse \
-  -B ${REPROSTIM_PATH} \
-  --env DISPLAY=$DISPLAY \
+  -B "${REPROSTIM_PATH}" \
+  --env DISPLAY="$DISPLAY" \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
-  ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER} \
+  "${REPROSTIM_OVERLAY}" "${REPROSTIM_CONTAINER}" \
   python3 -m reprostim $@
