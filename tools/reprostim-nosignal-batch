@@ -51,7 +51,7 @@ do
   echo "----------------------------------------------"
   TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
   echo "[$TIMESTAMP] Processing ($COUNTER of $TOTAL_FILES) $FILE ..."
-  reprostim --log-level $LOG_LEVEL detect-noscreen $NOSIGNAL_ARGS "$FILE"
+  reprostim --log-level $LOG_LEVEL detect-noscreen "$NOSIGNAL_ARGS" "$FILE"
   EXIT_CODE=$?
   echo "EXIT_CODE=$EXIT_CODE"
   if [ $EXIT_CODE -eq 1 ]; then
