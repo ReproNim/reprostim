@@ -42,7 +42,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.13'
+          go-version: '^1.20'
 
       - name: Install OS dependencies
         run: |
@@ -55,11 +55,11 @@ jobs:
       - name: Build and install Singularity
         run: |
           (
-            cd singularity
             ./mconfig --without-suid -p /usr/local/
             make -C builddir
             sudo make -C builddir install
           )
+        working-directory: singularity
 
       - name: Verify Singularity version
         run: singularity --version
@@ -73,27 +73,28 @@ jobs:
         run: |
           (
             echo "$PWD"
-            cd tools/ci
             export REPROSTIM_CAPTURE_ENABLED=1
             ./build_reprostim_container.sh singularity
           )
+        working-directory: tools/ci
 
       - name: Test Singularity container run
         run: |
           (
             singularity --version
             echo "$PWD"
-            cd tools/ci
             ./test_reprostim_container.sh --version
           )
+        working-directory: tools/ci
 
       - name: Test timesync-stimuli run
         run: |
           (
             echo "$PWD"
-            cd tools/ci
             ./test_reprostim_timesync-stimuli.sh xvfb
           )
+        working-directory: tools/ci
+
 
       - name: Upload screenshot video artifact
         uses: actions/upload-artifact@v4
