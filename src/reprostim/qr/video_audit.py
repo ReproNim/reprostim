@@ -452,14 +452,19 @@ def do_audit_file(
                 ps: ParseSummary = next(do_parse(path, True, True))
                 logger.info(f"ps: {ps}")
                 if ps is not None:
+                    if (
+                        ps.video_duration is not None
+                        and 0 <= ps.video_duration < 604800.0
+                    ):
+                        vr.video_dur_recorded = str(round(ps.video_duration, 1))
+
                     if vr.duration is None or vr.duration == "n/a":
                         video_duration = ps.video_duration
                         if video_duration is not None:
-                            if video_duration < 0 or video_duration >= 604800.0:
+                            if 0 <= video_duration < 604800.0:
                                 video_duration = None
                             else:
-                                vr.video_dur_recorded = str(round(video_duration, 1))
-                                vr.duration = vr.video_dur_recorded
+                                vr.duration = str(round(video_duration, 1))
                                 vr.duration_h = format_duration(video_duration)
                     # vr.start_date = format_date(ps.video_isotime_start)
                     # vr.start_time = format_time(ps.video_isotime_start)
