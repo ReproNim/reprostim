@@ -116,8 +116,8 @@ then
         python -c "from Events import conveyor; conveyor.main($DEBUG)" &
         pid=$!
         cleanup () {
-                echo killing "$pid"
-                kill -9 "$pid"
+                echo killing $pid
+                kill -9 $pid
         }
         trap cleanup EXIT
         python -c "from Events import predefined_events; predefined_events.send_events()" &> /dev/null

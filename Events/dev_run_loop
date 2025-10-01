@@ -1,14 +1,14 @@
 #!/bin/bash
 
 set -u
-cd $(dirname "$0") || exit
+cd $(dirname $0)
 
 source venvs/dev3/bin/activate || { echo "Failed to start venv"; exit 1; }
 
 while true; do
 	ts=$(date --iso-8601=seconds)
 	echo "$ts starting" >> log
-	./dev_run.sh -l data/"$ts".csv XIAO-RP2040
+	./dev_run.sh -l data/$ts.csv XIAO-RP2040
 	echo "$ts exited with $?" >> log
 	sleep 60;
 done

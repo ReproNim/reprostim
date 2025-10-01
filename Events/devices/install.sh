@@ -1,3 +1,3 @@
 #!/bin/sh
-cd "${1}" || exit
+cd "${1}"
 bash install_script.sh
