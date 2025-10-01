@@ -92,13 +92,17 @@ class VaRecord(BaseModel):
     # Video detection info
     video_res_detected: str = "n/a"  # e.g., "1920x1080"
     video_fps_detected: str = "n/a"
+    video_dur_detected: str = "n/a"  # video duration in seconds
+    #                                 based on timestamps
     video_res_recorded: str = "n/a"  # e.g., "1920x1080"
     video_fps_recorded: str = "n/a"
+    video_dur_recorded: str = "n/a"  # video duration in seconds
     video_size_mb: str = "n/a"  # size of the video file in MB
     video_rate_mbpm: str = "n/a"  # bitrate in mbpm
 
     # Audio info
     audio_sr: str = "n/a"  # sample rate
+    audio_dur: str = "n/a"  # audio stream duration in seconds
 
     # Duration
     duration: str = "n/a"  # seconds
@@ -437,7 +441,8 @@ def do_audit_file(
 
             if vi is not None:
                 if vi.duration_sec is not None:
-                    vr.duration = str(round(vi.duration_sec, 1))
+                    vr.video_dur_detected = str(round(vi.duration_sec, 1))
+                    vr.duration = vr.video_dur_detected
                     vr.duration_h = format_duration(vi.duration_sec)
                 if vi.size_mb is not None:
                     vr.video_size_mb = str(vi.size_mb)
@@ -447,9 +452,20 @@ def do_audit_file(
                 ps: ParseSummary = next(do_parse(path, True, True))
                 logger.info(f"ps: {ps}")
                 if ps is not None:
+                    if (
+                        ps.video_duration is not None
+                        and 0 <= ps.video_duration < 604800.0
+                    ):
+                        vr.video_dur_recorded = str(round(ps.video_duration, 1))
+
                     if vr.duration is None or vr.duration == "n/a":
-                        vr.duration = str(round(ps.video_duration, 1))
-                        vr.duration_h = format_duration(ps.video_duration)
+                        video_duration = ps.video_duration
+                        if video_duration is not None:
+                            if 0 <= video_duration < 604800.0:
+                                vr.duration = str(round(video_duration, 1))
+                                vr.duration_h = format_duration(video_duration)
+                            else:
+                                video_duration = None
                     # vr.start_date = format_date(ps.video_isotime_start)
                     # vr.start_time = format_time(ps.video_isotime_start)
                     # vr.end_date = format_date(ps.video_isotime_end)
@@ -473,6 +489,11 @@ def do_audit_file(
                     vr.audio_sr += f" {ai.channels}ch"
                 if ai.codec is not None:
                     vr.audio_sr += f" {ai.codec}"
+                if ai.duration_sec is not None:
+                    vr.audio_dur = str(round(ai.duration_sec, 1))
+                    if vr.duration == "n/a" or vr.duration is None:
+                        vr.duration = vr.audio_dur
+                        vr.duration_h = format_duration(ai.duration_sec)
 
     # catch all exceptions
     except Exception as e:
