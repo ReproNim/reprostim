@@ -42,13 +42,13 @@ process_video () {
     # check_day function checks to see that beginning and end times are on the
     # same day, and if they are not, ( which should only regularly happen when
     # the video begins before midnight and ends after ), it changes the add24h
-    # variable from 0 to 1224
+    # variable from 0 to 1224 
 	add24h=0
 
 	check_day () {
-		echo $1 $2
+		echo $1 $2 
 		echo $(( 31 - "$1" ))
-		if  [ $(( "$2" - "$1" )) -eq 1 ]
+		if  [ $(( "$2" - "$1" )) -eq 1 ]    
 		then
 			add24h=$(( 24 * 60 ))
 		elif [ $(( 31 - "$1" )) -lt 4 ] && [ "$2" = "01" ]
@@ -106,12 +106,12 @@ process_video () {
 		if [ $(( "$vt1" )) -gt $(( "$acend" )) ]
 		then
 			x=1 # pass/continue
-
+			
 		elif [ $(( "$acbeg" )) -gt $(( "$vt2" )) ]
 		then
 			x=2 # pass/continue
 		else
-			d=`date`
+			d=`date`		
 			echo "$d	$v:	Found match --> $ac"
 			matches="$matches $ac"
 			nmatches=$(( $nmatches + 1 ))
@@ -127,21 +127,21 @@ process_video () {
 			echo "\t ---> $m"
 		done
 	else
-
+		
 		mv $inbox/$v $orphans
 		return 0
 	fi
 
 	if [[ "$nmatches" == 1 ]]
 	then
-
-		ac=`echo ${matches} | awk -F / '{print $7}'`
+		
+		ac=`echo ${matches} | awk -F / '{print $7}'`		
 		mkdir -p ${viddir}$ac
 		ownr=`ls -ld ${matches} | awk '{print $4}'`
 		chown ${dftl_owner}:${ownr} ${viddir}$ac
 		mv $inbox/$v ${viddir}$ac
 		chown -R ${dftl_owner}:${ownr} ${viddir}$ac
-
+		
 		echo "-------------------------------------------------------------------"
 	else
 		acs=""

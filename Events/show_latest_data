@@ -2,10 +2,10 @@
 
 set -eu
 
-f=$(ls `readlink -f "$0" | xargs dirname`/data/* -t | head -n 1);
+f=$(ls `readlink -f "$0" | xargs dirname`/data/* -t | head -n 1); 
 
 PS4='\n> '
 set -x
-ls -ld $f;
-head $f;
+ls -ld $f; 
+head $f; 
 tail $f
