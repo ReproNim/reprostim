@@ -462,10 +462,10 @@ def do_audit_file(
                         video_duration = ps.video_duration
                         if video_duration is not None:
                             if 0 <= video_duration < 604800.0:
-                                video_duration = None
-                            else:
                                 vr.duration = str(round(video_duration, 1))
                                 vr.duration_h = format_duration(video_duration)
+                            else:
+                                video_duration = None
                     # vr.start_date = format_date(ps.video_isotime_start)
                     # vr.start_time = format_time(ps.video_isotime_start)
                     # vr.end_date = format_date(ps.video_isotime_end)
