@@ -28,7 +28,7 @@ TAGS=${REPROSTIM_DOCKER_TAGS:-unstable}
 
   #
   docker build -f ./reprostim/containers/repronim-reprostim/Dockerfile.${REPROSTIM_SUFFIX_NOTAG} \
-    "$TAG_ARGS" \
+    $TAG_ARGS \
     .
 )
 echo "Done."
