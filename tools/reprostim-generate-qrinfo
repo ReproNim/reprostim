@@ -23,6 +23,7 @@ if [ ! -d "$OUT_DIR" ]; then
 fi
 
 # Count the number of .mkv files
+# shellcheck disable=SC2012
 total_files=$(ls "$IN_DIR"/*.mkv 2>/dev/null | wc -l | xargs)
 echo "Total *.mkv files count: $total_files"
 counter=1
