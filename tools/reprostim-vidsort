@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034,SC2010
 
 vidsroot=/inbox/VIDS
 inbox=${vidsroot}/incoming
@@ -71,7 +71,7 @@ process_video () {
 	# video time: $vt1 $vt2
 	vt1=$(echo "$a" | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }')
 	vt2=$(echo "$b" | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }')
-	vt2=$(( $vt2 + $add24h ))
+	vt2=$(( vt2 + add24h ))
 
 
 	viddir=${vidsroot}/${ya}/${ma}/${da}/
