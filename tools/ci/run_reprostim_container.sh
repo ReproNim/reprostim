@@ -16,4 +16,4 @@ cd ../../containers/repronim-reprostim
 # pwd
 
 log "Execute run_reprostim_ci.sh"
-./run_reprostim_ci.sh $@
+./run_reprostim_ci.sh "$@"
