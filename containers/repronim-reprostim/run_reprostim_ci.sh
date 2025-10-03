@@ -8,7 +8,8 @@
 REPROSTIM_CONTAINER_TYPE="${REPROSTIM_CONTAINER_TYPE:-singularity}"
 REPROSTIM_CONTAINER_RUN_MODE="${REPROSTIM_CONTAINER_RUN_MODE:-reprostim}"
 
-export REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
+REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
+export REPROSTIM_PATH
 
 
 REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
