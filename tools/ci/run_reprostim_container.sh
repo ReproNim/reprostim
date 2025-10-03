@@ -2,7 +2,7 @@
 
 set -eu
 
-thisdir=$(dirname "$0")
+# thisdir=$(dirname "$0")
 
 log() {
   if [[ "${REPROSTIM_QUIET:-0}" == "0" ]]; then
