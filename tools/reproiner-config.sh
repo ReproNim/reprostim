@@ -75,6 +75,7 @@ apt-get install -y ffmpeg libudev-dev libasound-dev libv4l-dev libyaml-cpp-dev v
 	# seems to not work: https://git-annex.branchable.com/forum/Is_there_a_way_to_have_assistant_add_files_locked__63__/?updated#comment-f24e81205fec4165237a27a53886349c
 	git -C "$data_path" config annex.addunlocked  false
 	chown "$user_name:$user_name" -R "$data_path"
+	# shellcheck disable=SC2046
 	if [ $(lsusb | grep -c "ID 2935") -gt 1 ]; then
 		echo "Multiple magewell devices detected -- adjust $data_path/config.yaml with device id"
 	fi
