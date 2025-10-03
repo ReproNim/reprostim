@@ -4,6 +4,7 @@ set -eu
 
 generate() {
 	# more details might come on https://github.com/ReproNim/neurodocker/issues/330
+	# shellcheck disable=SC2034
 	[ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
 	#neurodocker generate "$1" \
 	ndversion=0.9.5

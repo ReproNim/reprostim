@@ -66,6 +66,7 @@ generate() {
     REPROSTIM_COPY_ARG=""
   fi
 
+  # shellcheck disable=SC2034
   [ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
   ndversion=2.0.0
     # Thought to use conda-forge for this, but feedstock is not maintained:
