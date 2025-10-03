@@ -55,21 +55,21 @@ log "  [ARGS]           : $*"
 
 
 if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
-  docker run --rm -i "${DOCKER_TTY}" \
+  docker run --rm -i ${DOCKER_TTY} \
     ${REPROSTIM_CONTAINER_ENTRYPOINT} \
     -v "${REPROSTIM_PATH}:${REPROSTIM_PATH}" \
     -w "${REPROSTIM_PATH}" \
-    --env DISPLAY="$DISPLAY" \
-    "${REPROSTIM_OVERLAY}" "${REPROSTIM_CONTAINER_IMAGE}" \
-    "${REPROSTIM_CONTAINER_APP}" "$@"
+    --env DISPLAY=$DISPLAY \
+    ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
+    ${REPROSTIM_CONTAINER_APP} "$@"
 elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
   singularity exec \
     --cleanenv --contain \
-    -B "${TMPDIR:-/tmp}" \
-    -B "${REPROSTIM_PATH}" \
-    --env DISPLAY="$DISPLAY" \
-    "${REPROSTIM_OVERLAY}" "${REPROSTIM_CONTAINER_IMAGE}" \
-    "${REPROSTIM_CONTAINER_APP}" "$@"
+    -B ${TMPDIR:-/tmp} \
+    -B ${REPROSTIM_PATH} \
+    --env DISPLAY=$DISPLAY \
+    ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
+    ${REPROSTIM_CONTAINER_APP} "$@"
 else
   log "Unknown REPROSTIM_CONTAINER_TYPE: ${REPROSTIM_CONTAINER_TYPE}"
   exit 1

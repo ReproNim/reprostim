@@ -25,15 +25,15 @@ log "Run ReproStim Singularity Container v${REPROSTIM_VERSION}.."
 log "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
 log "  [CONTAINER]      : ${REPROSTIM_CONTAINER}"
 log "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
-log "  [ARGS]           : $*"
+log "  [ARGS]           : $@"
 
 
 singularity exec \
   --cleanenv --contain \
-  -B "${TMPDIR:-/tmp}" \
-  -B "/run/user/$(id -u)/pulse" \
-  -B "${REPROSTIM_PATH}" \
-  --env DISPLAY="$DISPLAY" \
-  --env "PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native" \
-  "${REPROSTIM_OVERLAY}" "${REPROSTIM_CONTAINER}" \
+  -B ${TMPDIR:-/tmp} \
+  -B /run/user/$(id -u)/pulse \
+  -B ${REPROSTIM_PATH} \
+  --env DISPLAY=$DISPLAY \
+  --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
+  ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER} \
   python3 -m reprostim "$@"
