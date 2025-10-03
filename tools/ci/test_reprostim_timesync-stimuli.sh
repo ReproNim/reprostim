@@ -68,7 +68,8 @@ if [[ "$MODE" == "xvfb" ]]; then
   echo "Wait for Xvfb to start"
   sleep 15
 
-  export DISPLAY_ID=$(cat "${DISPLAY_PATH}")
+  DISPLAY_ID=$(cat "${DISPLAY_PATH}")
+  export DISPLAY_ID
 
   if [ -z "$DISPLAY_ID" ]; then
     echo "[-] DISPLAY_ID is empty. Xvfb may not have started properly, terminating the script."
@@ -79,7 +80,7 @@ if [[ "$MODE" == "xvfb" ]]; then
 else
   echo "Running in default mode on current DISPLAY=$DISPLAY"
 
-  read resolution refresh_rate < <(xrandr | grep '*' | awk '{print $1, $2}')
+  read -r resolution refresh_rate < <(xrandr | grep '\*' | awk '{print $1, $2}')
 
   export DISPLAY_ID="${DISPLAY#:}"
   export FRAME_WIDTH=${resolution%x*}
