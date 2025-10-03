@@ -8,7 +8,6 @@ generate() {
 	#neurodocker generate "$1" \
 	ndversion=0.9.5
 	#ndversion=master
-	echo "Using Neurodocker version: $ndversion, add_entry='$add_entry'"
 	docker run --rm repronim/neurodocker:$ndversion generate "$1" \
 		--base-image=neurodebian:bookworm \
 		--ndfreeze date=20240505 \

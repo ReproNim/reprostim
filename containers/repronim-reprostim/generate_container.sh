@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=all
+# shellcheck disable=SC2086
 
 set -eu
 
@@ -68,7 +68,6 @@ generate() {
 
   [ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
   ndversion=2.0.0
-  echo "add_entry: $add_entry"
     # Thought to use conda-forge for this, but feedstock is not maintained:
     #  https://github.com/conda-forge/psychopy-feedstock/issues/64
     #   --miniconda version=py312_24.5.0-0 conda_install="conda-forge::psychopy conda-forge::qrcode" \
