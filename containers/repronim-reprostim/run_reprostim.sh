@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2086
+# shellcheck disable=SC2086,SC2046
 
 #
 # This script is test script to run Singularity container
@@ -26,7 +26,7 @@ log "Run ReproStim Singularity Container v${REPROSTIM_VERSION}.."
 log "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
 log "  [CONTAINER]      : ${REPROSTIM_CONTAINER}"
 log "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
-log "  [ARGS]           : $@"
+log "  [ARGS]           : $*"
 
 
 singularity exec \
