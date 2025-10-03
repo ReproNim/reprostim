@@ -22,25 +22,24 @@ echo "Run timesync-stimuli command in singularity container"
 # export REPROSTIM_PATH=~/Projects/Dartmouth/branches/reprostim
 #
 # Set REPROSTIM_PATH to the parent directory of the bash script location
-export REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
+REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
+export REPROSTIM_PATH
 
 echo "REPROSTIM_PATH: $REPROSTIM_PATH"
 
 
-cd $REPROSTIM_PATH/containers/repronim-reprostim
+cd "$REPROSTIM_PATH"/containers/repronim-reprostim || exit
 pwd
 
 
 singularity exec \
   --cleanenv --contain \
-  -B /run/user/$(id -u)/pulse \
-  -B ${REPROSTIM_PATH} \
-  --env DISPLAY=$DISPLAY \
-  --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
+  -B "/run/user/$(id -u)/pulse" \
+  -B "${REPROSTIM_PATH}" \
+  --env DISPLAY="$DISPLAY" \
+  --env "PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native" \
   --overlay ./repronim-reprostim-0.7.5.overlay \
   ./repronim-reprostim-0.7.5.sing \
-  python3 -m reprostim timesync-stimuli --display 1 --output-prefix $REPROSTIM_PATH/output_
+  python3 -m reprostim timesync-stimuli --display 1 --output-prefix "$REPROSTIM_PATH"/output_
 
-cd "$OLD_CUR_DIR"
-
-
+cd "$OLD_CUR_DIR" || exit

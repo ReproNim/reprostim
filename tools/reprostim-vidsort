@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2010,SC2012
 
 vidsroot=/inbox/VIDS
 inbox=${vidsroot}/incoming
@@ -7,7 +8,7 @@ dcms=/inbox/DICOM
 dflt_owner=zhark
 dflt_bids=DBIC-bids
 
-umask 027 
+umask 027
 
 #accStem="A00" # Trying without this
 
@@ -16,10 +17,10 @@ process_video () {
 	v=$1
 
 	# If this is a stub exit
-	isstub=`grep -q '_.mp4' <<< $v && echo $? || echo $?`
+	isstub=$(grep -q '_.mp4' <<< "$v" && echo $? || echo $?)
 	if [[ $isstub == 0 ]]
 	then
-		rm $inbox/$v
+		rm $inbox/"$v"
 		return 0
 	fi
 
@@ -28,15 +29,15 @@ process_video () {
 	samemonth=1
 	sameday=1
 
-	a=`echo $v | awk -F _ '{print $1}'`
-	b=`echo $v | awk -F _ '{print $2}'`
+	a=$(echo "$v" | awk -F _ '{print $1}')
+	b=$(echo "$v" | awk -F _ '{print $2}')
 
-	ya=`echo $a | awk -F . '{print $1}'` # year
-	yb=`echo $b | awk -F . '{print $1}'`
-	ma=`echo $a | awk -F . '{print $2}'` # month
-	mb=`echo $b | awk -F . '{print $2}'`
-	da=`echo $a | awk -F . '{print $3}'` # day
-	db=`echo $b | awk -F . '{print $3}'`
+	ya=$(echo "$a" | awk -F . '{print $1}') # year
+	yb=$(echo "$b" | awk -F . '{print $1}')
+	ma=$(echo "$a" | awk -F . '{print $2}') # month
+	mb=$(echo "$b" | awk -F . '{print $2}')
+	da=$(echo "$a" | awk -F . '{print $3}') # day
+	db=$(echo "$b" | awk -F . '{print $3}')
 
 
 
@@ -44,13 +45,13 @@ process_video () {
     # check_day function checks to see that beginning and end times are on the
     # same day, and if they are not, ( which should only regularly happen when
     # the video begins before midnight and ends after ), it changes the add24h
-    # variable from 0 to 1224 
+    # variable from 0 to 1224
 	add24h=0
 
 	check_day () {
-		echo $1 $2 
+		echo "$1" "$2"
 		echo $(( 31 - "$1" ))
-		if  [ $(( "$2" - "$1" )) -eq 1 ]    
+		if  [ $(( "$2" - "$1" )) -eq 1 ]
 		then
 			add24h=$(( 24 * 60 ))
 		elif [ $(( 31 - "$1" )) -lt 4 ] && [ "$2" = "01" ]
@@ -58,19 +59,19 @@ process_video () {
 			add24h=$(( 24 * 3600 ))
 		else
 			# exists whenever there is more than a whole day
-			d=`date`
+			d=$(date)
 			echo "$d:	Incomprehensible dates for $3"
 			return 1
 		fi
 		}
 
-	if [ "$da" != "$db" ];  then check_day $da $db $v; fi
+	if [ "$da" != "$db" ];  then check_day "$da" "$db" "$v"; fi
 
 	# get running time in minutes
 	# video time: $vt1 $vt2
-	vt1=`echo $a | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }'`
-	vt2=`echo $b | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }'`
-	vt2=$(( $vt2 + $add24h ))
+	vt1=$(echo "$a" | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }')
+	vt2=$(echo "$b" | awk -F . '{ print $4 * 3600 + $5 * 60 + $6 }')
+	vt2=$(( vt2 + add24h ))
 
 
 	viddir=${vidsroot}/${ya}/${ma}/${da}/
@@ -82,18 +83,18 @@ process_video () {
     # assurance acquisitions from getting assigned an videos. I will try to
     # avoid this. and revert back if it fails.
 	#acqs=`ls -d $dcmdir/${accStem}* 2>/dev/null`
-    acqs=`ls -d $dcmdir/* 2>/dev/null`
+    acqs=$(ls -d "$dcmdir"/* 2>/dev/null)
 
 
-	echo $acqs
+	echo "$acqs"
 
 	if [ ${#acqs} == 0 ]
 		then
 		echo "  $v NACCS is ZERO --> Moving to Orphans"
         echo "-----------------------------------------------"
 		mkdir -p $orphans
-		mv $inbox/$v $orphans
-		chown ${dflt_owner}:${dflt_bids} $orphans/$v
+		mv $inbox/"$v" $orphans
+		chown ${dflt_owner}:${dflt_bids} $orphans/"$v"
 		return 0
 	fi
 
@@ -104,30 +105,30 @@ process_video () {
 	for ac in $acqs
 	do
 		#test1=`ls -l $ac`; echo $test1
-		acbeg=`ls -lTU $ac | grep -v total | head -n 1| awk '{print $8}' | awk -F : '{t=$1*3600+$2*60+$3; print t}'`
-		acbeg_day=`ls -lTU $ac | grep -v total | head -n 1| awk '{print $7}'`
+		acbeg=$(ls -lTU "$ac" | grep -v total | head -n 1| awk '{print $8}' | awk -F : '{t=$1*3600+$2*60+$3; print t}')
+		acbeg_day=$(ls -lTU "$ac" | grep -v total | head -n 1| awk '{print $7}')
 
-		acend=`ls -l $ac | tail -n 1| awk '{print $8}' | awk -F : '{t=$1*3600+$2*60+$3; print t}'`
-		acend_day=`ls -l $ac | tail -n 1| awk '{print $7}'`
+		acend=$(ls -l "$ac" | tail -n 1| awk '{print $8}' | awk -F : '{t=$1*3600+$2*60+$3; print t}')
+		acend_day=$(ls -l "$ac" | tail -n 1| awk '{print $7}')
 
-		if [ $acend_day != $acbeg_day ]
+		if [ "$acend_day" != "$acbeg_day" ]
 		then
-			acend=$(( $acend + 24*3600 ))
+			acend=$(( acend + 24*3600 ))
 		fi
 		echo TIME: "$acbeg --- $acend"
 
 		if [ $(( "$vt1" )) -gt $(( "$acend" )) ]
 		then
 			x=1 # pass/continue
-			
+
 		elif [ $(( "$acbeg" )) -gt $(( "$vt2" )) ]
 		then
 			x=2 # pass/continue
 		else
-			d=`date`		
+			d=$(date)
 			echo "$d	$v:	Found match --> $ac"
 			matches="$matches $ac"
-			nmatches=$(( $nmatches + 1 ))
+			nmatches=$(( nmatches + 1 ))
 		fi
 	done
 
@@ -137,29 +138,30 @@ process_video () {
 		echo "Found $nmatches "
 		for m in $matches
 		do
+		  # shellcheck disable=SC2028
 			echo "\t ---> $m"
 		done
 	else
         echo "[NO MATCH] $v : --> Moving to orphans"
         echo "--------------------------------------------------"
-		mv $inbox/$v $orphans
-		chown ${dflt_owner}:${dflt_bids} $orphans/$v
+		mv $inbox/"$v" $orphans
+		chown ${dflt_owner}:${dflt_bids} $orphans/"$v"
 		return 0
 	fi
 
 	if [[ "$nmatches" == 1 ]]
 	then
-		
-		ac=`echo ${matches} | awk -F / '{print $7}'`		
-		ownr=`ls -ld ${matches} | awk '{print $4}'`
-		
+
+		ac=$(echo "${matches}" | awk -F / '{print $7}')
+		ownr=$(ls -ld "${matches}" | awk '{print $4}')
+
 		echo "-------------------------------------------------------------------"
 	else
 		acs=""
 		for match in $matches
 		do
-			ownr=`ls -ld ${match} | awk '{print $4}'`
-			ac=`echo ${match} | awk -F / '{print $7}'`
+			ownr=$(ls -ld "${match}" | awk '{print $4}')
+			ac=$(echo "${match}" | awk -F / '{print $7}')
 			if [ ${#acs} == 0 ]
 			then
 				acs=${ac}
@@ -170,8 +172,8 @@ process_video () {
 		done
 		for match in $matches
 		do
-			own=`ls -ld ${match} | awk '{print $4}'`
-			if [ ${own} != ${ownr} ]
+			own=$(ls -ld "${match}" | awk '{print $4}')
+			if [ "${own}" != "${ownr}" ]
 			then
 				ownr=${dflt_bids}
 			fi
@@ -180,25 +182,25 @@ process_video () {
 
 	fi
 
-	mkdir -p ${viddir}${ac}
-	chmod g+s ${viddir}${ac}
-	mv $inbox/$v ${viddir}${ac}
-	chown -R ${dflt_owner}:${dflt_bids} ${viddir}${ac}
-	
+	mkdir -p "${viddir}""${ac}"
+	chmod g+s "${viddir}""${ac}"
+	mv $inbox/"$v" "${viddir}""${ac}"
+	chown -R ${dflt_owner}:${dflt_bids} "${viddir}""${ac}"
+
 
 }
 
 
-vids=`ls $inbox | grep [0123456789].mkv`
+# shellcheck disable=SC2062
+vids=$(ls $inbox | grep [0123456789].mkv)
 for vid in $vids
-do 
-	echo $vid
-	process_video $vid
+do
+	echo "$vid"
+	process_video "$vid"
 done
 
-_vids=`ls $inbox | grep _.mkv`
+_vids=$(ls $inbox | grep _.mkv)
 for _v in $_vids
 do
-	rm ${inbox}/${_v}
+	rm ${inbox}/"${_v}"
 done
-

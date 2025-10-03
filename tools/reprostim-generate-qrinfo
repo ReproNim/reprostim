@@ -23,6 +23,7 @@ if [ ! -d "$OUT_DIR" ]; then
 fi
 
 # Count the number of .mkv files
+# shellcheck disable=SC2012
 total_files=$(ls "$IN_DIR"/*.mkv 2>/dev/null | wc -l | xargs)
 echo "Total *.mkv files count: $total_files"
 counter=1
@@ -38,8 +39,8 @@ do
   # but we have invalid videos, so cleanup it first
   tmp_mkv_file=$OUT_DIR/$base_name.mkv
   echo "Generating tmp *.mkv file $tmp_mkv_file..."
-  ffmpeg -i $file -an -c copy $tmp_mkv_file
-  reprostim --log-level $LOG_LEVEL qr-parse $tmp_mkv_file >$OUT_DIR/$base_name.qrinfo.jsonl 2>$OUT_DIR/$base_name.qrinfo.log
+  ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
+  reprostim --log-level $LOG_LEVEL qr-parse "$tmp_mkv_file" >"$OUT_DIR"/"$base_name".qrinfo.jsonl 2>"$OUT_DIR"/"$base_name".qrinfo.log
   if [ -e "$tmp_mkv_file" ]; then
     echo "Deleting tmp *.mkv file: $tmp_mkv_file"
     rm "$tmp_mkv_file"

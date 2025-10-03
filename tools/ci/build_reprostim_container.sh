@@ -2,7 +2,7 @@
 
 set -eu
 
-thisdir=$(dirname "$0")
+# thisdir=$(dirname "$0")
 
 print_help() {
   cat <<EOF

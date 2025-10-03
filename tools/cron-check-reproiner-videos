@@ -27,5 +27,6 @@ if ! ssh bids@rolando.cns.dartmouth.edu ls -d "$DICOMS_DATE_DIR/*/*_task-*" | gr
 	exit 0
 fi
 
+# shellcheck disable=SC2029
 ssh reproiner "ls -ld $VIDEOS_PREFIX*" | grep -q .
 

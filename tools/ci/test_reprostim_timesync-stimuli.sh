@@ -35,7 +35,7 @@ LOG_LEVEL=DEBUG
 echo "Test CI/CD ReproStim timesync-stimuli.."
 
 echo "tmp_dir=${tmp_dir}"
-cd "$thisdir"
+cd "$thisdir" || exit
 
 # Specify test events scenario configuration
 SERIES_COUNT=2
@@ -68,7 +68,8 @@ if [[ "$MODE" == "xvfb" ]]; then
   echo "Wait for Xvfb to start"
   sleep 15
 
-  export DISPLAY_ID=$(cat ${DISPLAY_PATH})
+  DISPLAY_ID=$(cat "${DISPLAY_PATH}")
+  export DISPLAY_ID
 
   if [ -z "$DISPLAY_ID" ]; then
     echo "[-] DISPLAY_ID is empty. Xvfb may not have started properly, terminating the script."
@@ -79,7 +80,7 @@ if [[ "$MODE" == "xvfb" ]]; then
 else
   echo "Running in default mode on current DISPLAY=$DISPLAY"
 
-  read resolution refresh_rate < <(xrandr | grep '*' | awk '{print $1, $2}')
+  read -r resolution refresh_rate < <(xrandr | grep '\*' | awk '{print $1, $2}')
 
   export DISPLAY_ID="${DISPLAY#:}"
   export FRAME_WIDTH=${resolution%x*}
@@ -105,14 +106,14 @@ echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME
 ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" -t 45 -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep $VIDEO_DURATION_SEC
 sleep 3
-ls -l $tmp_dir/reprostim_*
+ls -l "$tmp_dir"/reprostim_*
 
 # terminate xvfb process if it was started
 if [[ "$MODE" == "xvfb" ]]; then
   echo "Kill Xvfb at the end if any"
   sleep 1
-  kill $XVFB_RUN_PID 2>/dev/null || true
-  wait $XVFB_RUN_PID 2>/dev/null || true
+  kill "$XVFB_RUN_PID" 2>/dev/null || true
+  wait "$XVFB_RUN_PID" 2>/dev/null || true
 fi
 
 if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then

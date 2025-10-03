@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 set -eu
 
@@ -65,6 +66,7 @@ generate() {
     REPROSTIM_COPY_ARG=""
   fi
 
+  # shellcheck disable=SC2034
   [ "$1" == singularity ] && add_entry=' "$@"' || add_entry=''
   ndversion=2.0.0
     # Thought to use conda-forge for this, but feedstock is not maintained:
@@ -100,7 +102,7 @@ generate() {
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
 echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
-generate docker > $thisdir/Dockerfile.${REPROSTIM_SUFFIX}
+generate docker > "$thisdir"/Dockerfile.${REPROSTIM_SUFFIX}
 
 echo "Singularity.${REPROSTIM_SUFFIX} ..."
-generate singularity > $thisdir/Singularity.${REPROSTIM_SUFFIX}
+generate singularity > "$thisdir"/Singularity.${REPROSTIM_SUFFIX}
