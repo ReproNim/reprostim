@@ -5,7 +5,8 @@
 # with the latest git tag version of ReproStim
 #
 
-export REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
+REPROSTIM_PATH="$(cd "$(dirname "$0")/.." && pwd)"
+export REPROSTIM_PATH
 
 
 REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
@@ -24,7 +25,7 @@ log "Run ReproStim Singularity Container v${REPROSTIM_VERSION}.."
 log "  [REPROSTIM_PATH] : ${REPROSTIM_PATH}"
 log "  [CONTAINER]      : ${REPROSTIM_CONTAINER}"
 log "  [OVERLAY]        : ${REPROSTIM_OVERLAY}"
-log "  [ARGS]           : $@"
+log "  [ARGS]           : $*"
 
 
 singularity exec \
@@ -35,4 +36,4 @@ singularity exec \
   --env DISPLAY="$DISPLAY" \
   --env "PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native" \
   "${REPROSTIM_OVERLAY}" "${REPROSTIM_CONTAINER}" \
-  python3 -m reprostim $@
+  python3 -m reprostim "$@"
