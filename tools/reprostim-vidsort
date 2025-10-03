@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034,SC2010
+# shellcheck disable=SC2034,SC2010,SC2012
 
 vidsroot=/inbox/VIDS
 inbox=${vidsroot}/incoming
@@ -113,7 +113,7 @@ process_video () {
 
 		if [ "$acend_day" != "$acbeg_day" ]
 		then
-			acend=$(( $acend + 24*3600 ))
+			acend=$(( acend + 24*3600 ))
 		fi
 		echo TIME: "$acbeg --- $acend"
 
@@ -128,7 +128,7 @@ process_video () {
 			d=$(date)
 			echo "$d	$v:	Found match --> $ac"
 			matches="$matches $ac"
-			nmatches=$(( $nmatches + 1 ))
+			nmatches=$(( nmatches + 1 ))
 		fi
 	done
 
@@ -138,6 +138,7 @@ process_video () {
 		echo "Found $nmatches "
 		for m in $matches
 		do
+		  # shellcheck disable=SC2028
 			echo "\t ---> $m"
 		done
 	else
@@ -190,6 +191,7 @@ process_video () {
 }
 
 
+# shellcheck disable=SC2062
 vids=$(ls $inbox | grep [0123456789].mkv)
 for vid in $vids
 do
