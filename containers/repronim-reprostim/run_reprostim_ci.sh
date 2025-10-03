@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 #
 # This script is test script to run Singularity or Docker container
