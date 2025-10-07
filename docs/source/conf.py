@@ -84,6 +84,12 @@ html_sidebars = {
 }
 html_logo = "_static/images/logo256.png"
 
+# linkcheck options
+linkcheck_ignore = [
+    r"https://datasets\.datalad\.org/repronim/artwork/talks/webinar-2024-reproflow/#/10",
+    r"https://github\.com/conda-forge/reprostim-feedstock#installing-reprostim"
+]
+
 # configure myst_parser
 
 # myst_enable_extensions = [
