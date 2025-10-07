@@ -46,8 +46,13 @@ jobs:
 
     - name: Build docs
       run: |
-        cd docs
         make html
+      working-directory: docs
+
+    - name: Check links in docs
+      run: |
+        sphinx-build -b linkcheck source _build/linkcheck
+      working-directory: docs
 
 #    - name: Upload docs/artifacts
 #      uses: actions/upload-artifact@v4
