@@ -66,7 +66,7 @@ win.flip()
 ![](../_static/images/02_fmri_series.png)
 
 In addition,
-[03_fmri_series_audiocode.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/03_fmri_series_audiocode.py)
+[03_fmri_event.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/03_fmri_event.py)
 demonstrates how to use QR code
 in response to the fMRI scanner trigger/pulse event:
 
