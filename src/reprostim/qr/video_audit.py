@@ -600,6 +600,7 @@ def do_main(
     recursive: bool = False,
     mode: VaMode = VaMode.INCREMENTAL,
     va_src: Set[VaSource] = {VaSource.INTERNAL},
+    max_files: int = -1,
     verbose: bool = False,
     out_func=print,
 ):
@@ -620,6 +621,10 @@ def do_main(
 
     :param va_src: Set of VaSource values to specify audit sources
     :type va_src: Set[VaSource]
+
+    :param max_files: Maximum number of video files/records to process.
+                      Use -1 for unlimited (default: -1)
+    :type max_files: int
 
     :param verbose: Whether to print verbose JSON output
                     to stdout (default: False)

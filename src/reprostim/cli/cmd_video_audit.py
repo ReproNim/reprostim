@@ -77,6 +77,14 @@ logger = logging.getLogger(__name__)
     ),
 )
 @click.option(
+    "-l",
+    "--max-files",
+    type=int,
+    default=-1,
+    show_default=True,
+    help='Maximum number of video files/records to process. Use -1 for unlimited.'
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -86,7 +94,8 @@ logger = logging.getLogger(__name__)
 @click.pass_context
 def video_audit(
     ctx, path: str, mode: str, output: str,
-    recursive: bool, audit_src, verbose: bool
+    recursive: bool, audit_src,
+    max_files: int, verbose: bool
 ):
     """Analyze recorded video files."""
 
@@ -98,8 +107,9 @@ def video_audit(
     logger.info(f"Output TSV file  : {output}")
     logger.info(f"Recursive scan   : {recursive}")
     logger.info(f"Operation mode   : {mode}")
-    logger.info(f"Verbose output   : {verbose}")
     logger.info(f"Audit sources    : {audit_src}")
+    logger.info(f"Max files        : {max_files}")
+    logger.info(f"Verbose output   : {verbose}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -107,5 +117,5 @@ def video_audit(
 
     do_main(path, output, recursive, VaMode(mode),
             {VaSource(s) for s in audit_src},
-            verbose, click.echo)
+            max_files, verbose, click.echo)
     return 0
