@@ -21,7 +21,7 @@ import traceback
 from datetime import datetime
 from enum import Enum
 from time import time
-from typing import Dict, Generator, List, Optional
+from typing import Dict, Generator, List, Set, Optional
 
 from pydantic import BaseModel
 
@@ -118,6 +118,22 @@ class VaRecord(BaseModel):
     # Update info
     updated_on: str = "n/a"
     updated_by: str = "n/a"
+
+
+class VaSource(str, Enum):
+    """Video audit source constants."""
+
+    ALL = "all"
+    """Run all available audit sources."""
+    INTERNAL = "internal"
+    """Basic and default behaviour to process quickly video files 
+    using only mediainfo and logs metadata."""
+    NOSIGNAL = "nosignal"
+    """Process video files to detect no-signal frames. This is slow process and
+    can take some time depending on the video length."""
+    QR = "qr"
+    """Process video files to extract QR codes metadata. This is very slow 
+    process and time is almost the same as video duration at this moment."""
 
 
 def check_coherent(vr: VaRecord) -> bool:
@@ -583,6 +599,7 @@ def do_main(
     path_tsv: str,
     recursive: bool = False,
     mode: VaMode = VaMode.INCREMENTAL,
+    va_src: Set[VaSource] = {VaSource.INTERNAL},
     verbose: bool = False,
     out_func=print,
 ):
@@ -600,6 +617,9 @@ def do_main(
 
     :param mode: Operation mode, one of VaMode values (default: INCREMENTAL)
     :type mode: VaMode
+
+    :param va_src: Set of VaSource values to specify audit sources
+    :type va_src: Set[VaSource]
 
     :param verbose: Whether to print verbose JSON output
                     to stdout (default: False)
