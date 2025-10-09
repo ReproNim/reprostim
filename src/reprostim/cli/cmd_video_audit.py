@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 
 - [incremental] : process only new files and merge into existing dataset,
 
-- [force] : redo/update existing records
+- [force] : redo/update existing records,
 
 - [rerun-for-na] : process only records with N/A values in related fields
-for external tools like 'nosignal' or 'qr' etc.
+                   for external tools like 'nosignal' or 'qr' etc
 
 """
     ),
