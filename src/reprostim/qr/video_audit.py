@@ -19,6 +19,7 @@ import re
 import socket
 import subprocess
 import traceback
+import tempfile
 from datetime import datetime
 from enum import Enum
 from time import time
@@ -185,6 +186,9 @@ class VaContext(BaseModel):
     """
     qr_log_dir: Optional[str] = "logs/qr"
     """Directory to store qr-parse logs.
+    """
+    qr_opts: Optional[List] = []
+    """Additional options to pass to qr-parse tool if any.
     """
     recursive: Optional[bool] = False
     """Whether to scan directories recursively. Default: False
@@ -845,11 +849,102 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
             logger.debug(f"c_qr -> {ctx.c_qr}")
         return vr
 
-    vr.qr_records_number = "n/a"
-    logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
-    _set_updated(ctx, vr)
-    ctx.c_qr += 1
-    logger.debug(f"c_qr -> {ctx.c_qr}")
+    if ctx.mode == VaMode.RERUN_FOR_NA:
+        if vr.qr_records_number != "n/a":
+            logger.debug("Skipping qr source as per context (not n/a)")
+            return vr
+
+    # make sure data and logs dirs exist
+    os.makedirs(ctx.qr_data_dir, exist_ok=True)
+    os.makedirs(ctx.qr_log_dir, exist_ok=True)
+
+    # build paths
+    base_name = os.path.basename(vr.path)
+    jsonl_path = _build_dated_path(vr, ctx.qr_data_dir, "qrinfo.jsonl")
+    log_path = _build_dated_path(vr, ctx.qr_log_dir, "qrinfo.log")
+    ffmpeg_log_path = _build_dated_path(vr, ctx.qr_log_dir, "ffmpeg.log")
+
+
+    with (tempfile.TemporaryDirectory() as tmpdir):
+        logger.debug(f"tmpdir : {tmpdir}")
+
+        tmp_video: str = os.path.join(tmpdir, base_name)
+        logger.debug(f"tmp_video : {tmp_video}")
+
+        try:
+            # convert to mkv without audio
+            # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
+            logger.debug(f"ffmpeg_log_path : {ffmpeg_log_path}")
+            with open(ffmpeg_log_path, "w", encoding="utf-8") as ffmpeg_log_file:
+                cmd = [
+                    "ffmpeg",
+                    "-i", vr.path,
+                    "-an",
+                    "-c", "copy",
+                    tmp_video
+                ]
+                logger.debug(f"cmd: {' '.join(cmd)}")
+                result = subprocess.run(cmd,
+                               stdout = ffmpeg_log_file,
+                               stderr = subprocess.STDOUT,
+                               text = True,
+                               check = True,)
+                logger.debug(f"ffmpeg completed with return code {result.returncode}")
+
+            # execute qr-parse action like below:
+            #
+            # reprostim --log-level $LOG_LEVEL
+            #   qr-parse "$tmp_mkv_file"
+            #   >"$OUT_DIR"/"$base_name".qrinfo.jsonl
+            #   2>"$OUT_DIR"/"$base_name".qrinfo.log
+            #
+
+            # prepare command-line to run
+            cmd = ["reprostim"]
+
+            # optionally add log level
+            if ctx.log_level is not None:
+                cmd += ["--log-level", ctx.log_level]
+
+            cmd += ["qr-parse"]
+            cmd += ctx.qr_opts
+            cmd += [tmp_video]
+            logger.debug(f"cmd: {' '.join(cmd)}")
+
+            # run reprostim qr-parse command and capture output
+            logger.debug(f"log_path: {log_path}")
+            logger.debug(f"jsonl_path: {jsonl_path}")
+            with open(log_path, "w", encoding="utf-8") as log_file:
+                with open(jsonl_path, "w", encoding="utf-8") as jsonl_file:
+                    result = subprocess.run(
+                        cmd,
+                        stdout=jsonl_file,
+                        stderr=log_file,
+                        text=True,
+                        check=True,
+                    )
+                    logger.debug(f"qr-parse completed with return code {result.returncode}")
+
+            # now read the output JSON file
+            if os.path.exists(jsonl_path):
+                try:
+                    with open(jsonl_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            record = json.loads(line)
+                            if record.get('type') == 'ParseSummary':
+                                logger.debug(f"qr-parse summary: {record}")
+                                vr.qr_records_number = str(record.get('qr_count', '0'))
+                                logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
+                                _set_updated(ctx, vr)
+                                ctx.c_qr += 1
+                                logger.debug(f"c_qr -> {ctx.c_qr}")
+                                break
+                except (json.JSONDecodeError, IOError) as e:
+                    logger.error(f"Failed to read/parse qr JSON output: {e}")
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"qr failed: {e} {e.stdout} {e.stderr}")
+
     return vr
 
 
