@@ -143,9 +143,13 @@ class VaSource(str, Enum):
 
 class VaContext(BaseModel):
     """Context for video audit processing."""
-    skip_names: Optional[set] = None
-    """Optional set of file base names to skip (for incremental mode)
-    """
+
+    c_internal: Optional[int] = 0
+    """Count of files processed with INTERNAL source"""
+    c_nosignal: Optional[int] = 0
+    """Count of files processed with NOSIGNAL source"""
+    c_qr: Optional[int] = 0
+    """Count of files processed with QR source"""
     max_counter: Optional[int] = -1
     """Max number of records to process or -1 for 
     unlimited (default: -1)
@@ -154,6 +158,9 @@ class VaContext(BaseModel):
     """Operation mode, one of VaMode values (default: INCREMENTAL)"""
     recursive: Optional[bool] = False
     """Whether to scan directories recursively. Default: False
+    """
+    skip_names: Optional[set] = None
+    """Optional set of file base names to skip (for incremental mode)
     """
     source: Optional[Set[VaSource]] = { VaSource.INTERNAL }
     """One of VaSource values to specify audit source (default: INTERNAL)"""
@@ -438,6 +445,11 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
 
     logger.debug(f"do_audit_file(path={path})")
 
+    # check max files limit
+    if 0 <= ctx.max_counter <= ctx.c_internal:
+        logger.debug(f"Max files limit reached: {ctx.max_counter}")
+        return
+
     if ctx.skip_names and path in ctx.skip_names:
         logger.info(f"Skipping file by path : {path}")
         return
@@ -540,6 +552,7 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     vr.file_log_coherent = check_coherent(vr)
     vr.updated_on = format_tts(time())
     vr.updated_by = UPDATED_BY
+    ctx.c_internal += 1
     yield vr
 
 
@@ -559,6 +572,11 @@ def do_audit_dir(
     :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(f"do_audit_dir(path={path}, recursive={ctx.recursive})")
+
+    # check max files limit
+    if 0 <= ctx.max_counter <= ctx.c_internal:
+        logger.debug(f"Max files limit reached: {ctx.max_counter}")
+        return
 
     # check if path exists
     if not os.path.exists(path):
@@ -689,6 +707,9 @@ def do_main(
     # setup audit context first
     ctx: VaContext = VaContext(
         skip_names=skip_names,
+        c_internal=0,
+        c_nosignal=0,
+        c_qr=0,
         max_counter=max_files,
         mode=mode,
         recursive=recursive,
