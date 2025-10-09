@@ -164,6 +164,9 @@ class VaContext(BaseModel):
     """
     source: Optional[Set[VaSource]] = { VaSource.INTERNAL }
     """One of VaSource values to specify audit source (default: INTERNAL)"""
+    updated_paths: Optional[set] = set()
+    """Optional set of updated record paths
+    """
 
 
 def check_coherent(vr: VaRecord) -> bool:
@@ -430,6 +433,12 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
+def _set_updated(ctx: VaContext, vr: VaRecord):
+    ctx.updated_paths.add(vr.path)
+    vr.updated_on = format_tts(time())
+    vr.updated_by = UPDATED_BY
+
+
 def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     """Audit a single video file.
 
@@ -550,8 +559,7 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
         logger.error(traceback.format_exc())  # logs full stack trace
 
     vr.file_log_coherent = check_coherent(vr)
-    vr.updated_on = format_tts(time())
-    vr.updated_by = UPDATED_BY
+    _set_updated(ctx, vr)
     ctx.c_internal += 1
     yield vr
 
@@ -618,12 +626,17 @@ def do_audit_internal(
     :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(
-        f"do_audit(path_dir_or_file={path_dir_or_file}, " f"recursive={ctx.recursive})"
+        f"do_audit_internal(path_dir_or_file={path_dir_or_file}, " f"recursive={ctx.recursive})"
     )
 
-    # check mode is INTERNAL or ALL
+    # check source is INTERNAL or ALL
     if not ctx.source & {VaSource.INTERNAL, VaSource.ALL}:
-        logger.debug("Skipping INTERNAL source as per context")
+        logger.debug("Skipping internal source as per context")
+        return
+
+    # prevent run for RERUN_FOR_NA mode
+    if ctx.mode == VaMode.RERUN_FOR_NA:
+        logger.debug("Skipping internal source for rerun-for-na mode")
         return
 
     if not os.path.exists(path_dir_or_file):
@@ -634,6 +647,108 @@ def do_audit_internal(
         yield from do_audit_file(ctx, path_dir_or_file)
     elif os.path.isdir(path_dir_or_file):
         yield from do_audit_dir(ctx, path_dir_or_file)
+
+
+def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
+    """Run detect-nosignal external tools on the specified VaRecord.
+
+    :param ctx: VaContext object with processing context
+    :type ctx: VaContext
+
+    :param vr: VaRecord object to process
+    :type vr: VaRecord
+
+    :return: Updated VaRecord object
+    :rtype: VaRecord
+    """
+    logger.debug(f"run_ext_nosignal(path={vr.path}, no_signal_frames={vr.no_signal_frames})")
+
+    # check mode is NOSIGNAL or ALL
+    if not ctx.source & {VaSource.NOSIGNAL, VaSource.ALL}:
+        logger.debug("Skipping nosignal source as per context")
+        return vr
+
+    # check max files limit
+    if 0 <= ctx.max_counter <= ctx.c_nosignal:
+        logger.debug(f"Max nosignal limit reached: {ctx.max_counter}")
+        return vr
+
+    if ctx.mode == VaMode.RERUN_FOR_NA:
+        if vr.no_signal_frames != "n/a":
+            logger.debug("Skipping nosignal source as per context (not n/a)")
+            return vr
+
+    vr.no_signal_frames = "n/a"
+    logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
+    _set_updated(ctx, vr)
+    ctx.c_nosignal += 1
+    return vr
+
+
+def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
+    """Run qr-parse external tool on the specified VaRecord.
+
+    :param ctx: VaContext object with processing context
+    :type ctx: VaContext
+
+    :param vr: VaRecord object to process
+    :type vr: VaRecord
+
+    :return: Updated VaRecord object
+    :rtype: VaRecord
+    """
+
+    logger.debug(f"run_ext_qr(path={vr.path}, qr_records_number={vr.qr_records_number})")
+
+    # check mode is QR or ALL
+    if not ctx.source & {VaSource.QR, VaSource.ALL}:
+        logger.debug("Skipping qr source as per context")
+        return vr
+
+    # check max files limit
+    if 0 <= ctx.max_counter <= ctx.c_qr:
+        logger.debug(f"Max qr limit reached: {ctx.max_counter}")
+        return vr
+
+    vr.qr_records_number = "n/a"
+    logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
+    _set_updated(ctx, vr)
+    ctx.c_qr += 1
+    return vr
+
+
+def run_ext_all(ctx: VaContext, vr: VaRecord) -> VaRecord:
+    """Run all external tools on the specified VaRecord.
+
+    :param ctx: VaContext object with processing context
+    :type ctx: VaContext
+
+    :param vr: VaRecord object to process
+    :type vr: VaRecord
+
+    :return: Updated VaRecord object
+    :rtype: VaRecord
+    """
+    logger.debug(f"run_ext_all(path={vr.path})")
+    return run_ext_qr(ctx, run_ext_nosignal(ctx, vr))
+
+
+def do_audit(ctx: VaContext, path_dir_or_file: str) -> Generator[VaRecord, None, None]:
+    """Generator that audits files and applies all external tools to
+    each record if any, depending on context and options.
+    """
+    logger.debug(f"do_audit(path_dir_or_file={path_dir_or_file})")
+    for rec in do_audit_internal(ctx, path_dir_or_file):
+        yield run_ext_all(ctx, rec)
+
+
+def do_rerun_ext(ctx: VaContext, recs: List[VaRecord]) -> Generator[VaRecord, None, None]:
+    """Generator that re-runs external tools on existing records
+    depending on context and options.
+    """
+    logger.debug(f"do_rerun_ext(...)")
+    for rec in recs:
+        yield run_ext_all(ctx, rec)
 
 
 def do_main(
@@ -721,8 +836,7 @@ def do_main(
         recursive=recursive,
         source=va_src,
     )
-    recs1: List[VaRecord] = list(do_audit_internal(ctx, path))
-    logger.info(f"Audited records count: {len(recs1)}")
+    recs1: List[VaRecord] = list(do_audit(ctx, path))
 
     if verbose:
         for vr in recs1:
@@ -735,6 +849,10 @@ def do_main(
         merged_dict.update({r.name: r for r in recs1})
         recs = list(merged_dict.values())
 
+    if mode == VaMode.RERUN_FOR_NA:
+        recs = list(do_rerun_ext(ctx, recs))
+
+    logger.info(f"Audited records count: {len(ctx.updated_paths)}")
     logger.info(f"Saving results to TSV file : {path_tsv}")
     logger.info(f"Total records to save      : {len(recs)}")
     # sort records by name
