@@ -466,6 +466,20 @@ def _set_updated(ctx: VaContext, vr: VaRecord):
     vr.updated_by = UPDATED_BY
 
 
+# build dated path for output files with structure base_dir/<YYYY>/<MM>/filename.<ext>
+def _build_dated_path(vr: VaRecord, base_dir: str, ext: str) -> str:
+    path: str = base_dir
+
+    if vr.start_date and vr.start_date != "n/a" and len(vr.start_date) == 10:
+        year, month, day = vr.start_date.split("-")
+        path = os.path.join(path, year)
+        path = os.path.join(path, month)
+
+    os.makedirs(path, exist_ok=True)
+    file_name = f"{os.path.basename(vr.path)}.{ext}"
+    return os.path.join(path, file_name)
+
+
 def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     """Audit a single video file.
 
@@ -722,8 +736,8 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
 
     # build paths
     base_name = os.path.basename(vr.path)
-    json_path = os.path.join(ctx.nosignal_data_dir, base_name + ".nosignal.json")
-    log_path = os.path.join(ctx.nosignal_log_dir, base_name + ".nosignal.log")
+    json_path = _build_dated_path(vr, ctx.nosignal_data_dir, "nosignal.json")
+    log_path = _build_dated_path(vr, ctx.nosignal_log_dir, "nosignal.log")
 
     # prepare command-line to run
     cmd = ["reprostim"]
