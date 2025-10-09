@@ -141,6 +141,24 @@ class VaSource(str, Enum):
     process and time is almost the same as video duration at this moment."""
 
 
+class VaContext(BaseModel):
+    """Context for video audit processing."""
+    skip_names: Optional[set] = None
+    """Optional set of file base names to skip (for incremental mode)
+    """
+    max_counter: Optional[int] = -1
+    """Max number of records to process or -1 for 
+    unlimited (default: -1)
+    """
+    mode: Optional[VaMode] = VaMode.INCREMENTAL
+    """Operation mode, one of VaMode values (default: INCREMENTAL)"""
+    recursive: Optional[bool] = False
+    """Whether to scan directories recursively. Default: False
+    """
+    source: Optional[Set[VaSource]] = { VaSource.INTERNAL }
+    """One of VaSource values to specify audit source (default: INTERNAL)"""
+
+
 def check_coherent(vr: VaRecord) -> bool:
     """Check if the video record is coherent."""
     if not vr.present:
@@ -405,17 +423,14 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
-def do_audit_file(
-    path: str, skip_names: Optional[set] = None
-) -> Generator[VaRecord, None, None]:
+def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     """Audit a single video file.
+
+    :param ctx: VaContext object with processing context
+    :type ctx: VaContext
 
     :param path: Path to the video file
     :type path: str
-
-    :param skip_names: Optional set of file base names
-                       to skip (for incremental mode)
-    :type skip_names: Optional[set]
 
     :return: Generator of VaRecord objects
     :rtype: Generator[VaRecord, None, None]
@@ -423,7 +438,7 @@ def do_audit_file(
 
     logger.debug(f"do_audit_file(path={path})")
 
-    if skip_names and path in skip_names:
+    if ctx.skip_names and path in ctx.skip_names:
         logger.info(f"Skipping file by path : {path}")
         return
 
@@ -435,7 +450,7 @@ def do_audit_file(
             vr.path = path
             vr.name = os.path.basename(path)
 
-            if skip_names and vr.name in skip_names:
+            if ctx.skip_names and vr.name in ctx.skip_names:
                 logger.info(f"Skipping file by name : {vr.name}")
                 return
 
@@ -529,24 +544,21 @@ def do_audit_file(
 
 
 def do_audit_dir(
-    path: str, recursive: bool = False, skip_names: Optional[set] = None
+    ctx:  VaContext,
+    path: str
 ) -> Generator[VaRecord, None, None]:
     """Audit video files in directory with .mkv, .mp4, .avi extensions.
+
+    :param ctx: VaContext object with processing context
+    :type ctx: VaContext
 
     :param path: Path to the directory
     :type path: str
 
-    :param recursive: Whether to scan directories recursively. Default: False
-    :type recursive: bool
-
-    :param skip_names: Optional set of file base names
-                       to skip (for incremental mode)
-    :type  skip_names: Optional[set]
-
     :return: Generator of VaRecord objects
     :rtype: Generator[VaRecord, None, None]
     """
-    logger.debug(f"do_audit_dir(path={path}, recursive={recursive})")
+    logger.debug(f"do_audit_dir(path={path}, recursive={ctx.recursive})")
 
     # check if path exists
     if not os.path.exists(path):
@@ -558,7 +570,7 @@ def do_audit_dir(
         logger.error(f"Path is not a directory: {path}")
         return
 
-    if skip_names and path in skip_names:
+    if ctx.skip_names and path in ctx.skip_names:
         logger.info(f"Skipping directory by path : {path}")
         return
 
@@ -566,37 +578,38 @@ def do_audit_dir(
         path2 = os.path.join(path, name)
         if os.path.isfile(path2) and name.lower().endswith((".mkv", ".mp4", ".avi")):
             logger.debug(f"Found video: {path2}")
-            yield from do_audit_file(path2, skip_names)
-        elif recursive and os.path.isdir(path2):
+            yield from do_audit_file(ctx, path2)
+        elif ctx.recursive and os.path.isdir(path2):
             logger.debug(f"Descending into directory: {path2}")
-            yield from do_audit_dir(path2, recursive, skip_names)
+            yield from do_audit_dir(ctx, path2)
 
 
 def do_audit(
-    path_dir_or_file: str, recursive: bool = False, skip_names: Optional[set] = None
+    ctx: VaContext,
+    path_dir_or_file: str
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file or all video files in a directory.
 
+    :param ctx: VaContext object with processing context
+    :type ctx: VaContext
+
     :param path_dir_or_file: Path to the video file or directory
     :type path_dir_or_file: str
-
-    :param recursive: Whether to scan directories recursively. Default: False
-    :type recursive: bool
 
     :return: Generator of VaRecord objects
     :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(
-        f"do_audit(path_dir_or_file={path_dir_or_file}, " f"recursive={recursive})"
+        f"do_audit(path_dir_or_file={path_dir_or_file}, " f"recursive={ctx.recursive})"
     )
     if not os.path.exists(path_dir_or_file):
         logger.error(f"Path does not exist: {path_dir_or_file}")
         return
 
     if os.path.isfile(path_dir_or_file):
-        yield from do_audit_file(path_dir_or_file, skip_names)
+        yield from do_audit_file(ctx, path_dir_or_file)
     elif os.path.isdir(path_dir_or_file):
-        yield from do_audit_dir(path_dir_or_file, recursive, skip_names)
+        yield from do_audit_dir(ctx, path_dir_or_file)
 
 
 def do_main(
@@ -673,7 +686,15 @@ def do_main(
         skip_names = {r.name for r in recs0}
 
     # collect all records from generator into a list
-    recs1: List[VaRecord] = list(do_audit(path, recursive, skip_names))
+    # setup audit context first
+    ctx: VaContext = VaContext(
+        skip_names=skip_names,
+        max_counter=max_files,
+        mode=mode,
+        recursive=recursive,
+        source=va_src,
+    )
+    recs1: List[VaRecord] = list(do_audit(ctx, path))
     logger.info(f"Audited records count: {len(recs1)}")
 
     if verbose:
