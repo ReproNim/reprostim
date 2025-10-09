@@ -602,7 +602,7 @@ def do_audit_dir(
             yield from do_audit_dir(ctx, path2)
 
 
-def do_audit(
+def do_audit_internal(
     ctx: VaContext,
     path_dir_or_file: str
 ) -> Generator[VaRecord, None, None]:
@@ -620,6 +620,12 @@ def do_audit(
     logger.debug(
         f"do_audit(path_dir_or_file={path_dir_or_file}, " f"recursive={ctx.recursive})"
     )
+
+    # check mode is INTERNAL or ALL
+    if not ctx.source & {VaSource.INTERNAL, VaSource.ALL}:
+        logger.debug("Skipping INTERNAL source as per context")
+        return
+
     if not os.path.exists(path_dir_or_file):
         logger.error(f"Path does not exist: {path_dir_or_file}")
         return
@@ -715,7 +721,7 @@ def do_main(
         recursive=recursive,
         source=va_src,
     )
-    recs1: List[VaRecord] = list(do_audit(ctx, path))
+    recs1: List[VaRecord] = list(do_audit_internal(ctx, path))
     logger.info(f"Audited records count: {len(recs1)}")
 
     if verbose:
