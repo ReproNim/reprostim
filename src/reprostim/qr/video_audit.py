@@ -77,6 +77,10 @@ class VaMode(str, Enum):
     in columns that are usually filled by external tools.
     Intended for run external slow tools like detect-noscreen 
     or qr-parser."""
+    RESET_TO_NA = "reset-to-na"
+    """Reset specified columns to 'n/a' in existing TSV.
+    Intended to clear results of external tools like
+    detect-noscreen or qr-parser to rerun them from scratch."""
 
 
 class VaRecord(BaseModel):
@@ -686,6 +690,11 @@ def do_audit_internal(
         logger.debug("Skipping internal source for rerun-for-na mode")
         return
 
+    # prevent run for RESET_TO_NA mode
+    if ctx.mode == VaMode.RESET_TO_NA:
+        logger.debug("Skipping internal source for reset-to-na mode")
+        return
+
     if not os.path.exists(path_dir_or_file):
         logger.error(f"Path does not exist: {path_dir_or_file}")
         return
@@ -723,6 +732,16 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     # filter by path mask
     if ctx.path_mask and not fnmatch.fnmatch(vr.path, ctx.path_mask):
         logger.info(f"Skipping nosignal by path mask : {vr.path}")
+        return vr
+
+    # reset related fields to n/a if any
+    if ctx.mode == VaMode.RESET_TO_NA:
+        if vr.no_signal_frames != "n/a":
+            vr.no_signal_frames = "n/a"
+            logger.debug(f"Reset no_signal_frames -> {vr.no_signal_frames}")
+            _set_updated(ctx, vr)
+            ctx.c_nosignal += 1
+            logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
         return vr
 
     if ctx.mode == VaMode.RERUN_FOR_NA:
@@ -816,6 +835,16 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
         logger.info(f"Skipping qr by path mask : {vr.path}")
         return vr
 
+    # reset related fields to n/a if any
+    if ctx.mode == VaMode.RESET_TO_NA:
+        if vr.qr_records_number != "n/a":
+            vr.qr_records_number = "n/a"
+            logger.debug(f"Reset qr_records_number -> {vr.qr_records_number}")
+            _set_updated(ctx, vr)
+            ctx.c_qr += 1
+            logger.debug(f"c_qr -> {ctx.c_qr}")
+        return vr
+
     vr.qr_records_number = "n/a"
     logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
     _set_updated(ctx, vr)
@@ -849,11 +878,11 @@ def do_audit(ctx: VaContext, path_dir_or_file: str) -> Generator[VaRecord, None,
         yield run_ext_all(ctx, rec)
 
 
-def do_rerun_ext(ctx: VaContext, recs: List[VaRecord]) -> Generator[VaRecord, None, None]:
-    """Generator that re-runs external tools on existing records
+def do_ext(ctx: VaContext, recs: List[VaRecord]) -> Generator[VaRecord, None, None]:
+    """Generator that runs external tools on existing records
     depending on context and options.
     """
-    logger.debug(f"do_rerun_ext(...)")
+    logger.debug(f"do_ext(...)")
     for rec in recs:
         yield run_ext_all(ctx, rec)
 
@@ -963,8 +992,8 @@ def do_main(
         merged_dict.update({r.name: r for r in recs1})
         recs = list(merged_dict.values())
 
-    if mode == VaMode.RERUN_FOR_NA:
-        recs = list(do_rerun_ext(ctx, recs))
+    if mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA}:
+        recs = list(do_ext(ctx, recs))
 
     logger.info(f"Audited records count: {len(ctx.updated_paths)}")
     logger.info(f"Saving results to TSV file : {path_tsv}")

@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["full", "incremental", "force", "rerun-for-na"],
+    type=click.Choice(["full", "incremental", "force",
+                       "rerun-for-na", "reset-to-na"],
                       case_sensitive=True),
     default="incremental",
     help=(
@@ -36,6 +37,9 @@ logger = logging.getLogger(__name__)
 - [force] : redo/update existing records,
 
 - [rerun-for-na] : process only records with N/A values in related fields
+                   for external tools like 'nosignal' or 'qr' etc
+
+- [reset-to-na] : set to N/A values in related fields
                    for external tools like 'nosignal' or 'qr' etc
 
 """
