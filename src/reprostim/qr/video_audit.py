@@ -74,7 +74,7 @@ class VaMode(str, Enum):
     RERUN_FOR_NA = "rerun-for-na"
     """Process only records with 'n/a' values in existing TSV
     in columns that are usually filled by external tools.
-    Intended for run external slow tools like detect-nosignal 
+    Intended for run external slow tools like detect-noscreen 
     or qr-parser."""
 
 
@@ -150,12 +150,34 @@ class VaContext(BaseModel):
     """Count of files processed with NOSIGNAL source"""
     c_qr: Optional[int] = 0
     """Count of files processed with QR source"""
+    log_level: Optional[str] = None
+    """Logging level to be used in external tool, one of DEBUG, 
+    INFO, WARNING, ERROR, CRITICAL (default: None)"""
     max_counter: Optional[int] = -1
     """Max number of records to process or -1 for 
     unlimited (default: -1)
     """
     mode: Optional[VaMode] = VaMode.INCREMENTAL
-    """Operation mode, one of VaMode values (default: INCREMENTAL)"""
+    """Operation mode, one of VaMode values (default: INCREMENTAL)
+    """
+    nosignal_data_dir: Optional[str] = "derivatives/nosignal"
+    """Directory to store nosignal output data in JSON format.
+    """
+    nosignal_log_dir: Optional[str] = "logs/nosignal"
+    """Directory to store nosignal logs.
+    """
+    nosignal_opts: Optional[List] = ["--number-of-checks", "100",
+                                     "--truncated", "fixup",
+                                     "--invalid-timing", "fixup",
+                                     "--threshold", "1.01",]
+    """Additional options to pass to detect-noscreen tool.
+    """
+    qr_data_dir: Optional[str] = "derivatives/qr"
+    """Directory to store qr-parse output data in JSON format.
+    """
+    qr_log_dir: Optional[str] = "logs/qr"
+    """Directory to store qr-parse logs.
+    """
     recursive: Optional[bool] = False
     """Whether to scan directories recursively. Default: False
     """
@@ -163,7 +185,8 @@ class VaContext(BaseModel):
     """Optional set of file base names to skip (for incremental mode)
     """
     source: Optional[Set[VaSource]] = { VaSource.INTERNAL }
-    """One of VaSource values to specify audit source (default: INTERNAL)"""
+    """One of VaSource values to specify audit source (default: INTERNAL)
+    """
     updated_paths: Optional[set] = set()
     """Optional set of updated record paths
     """
@@ -650,7 +673,7 @@ def do_audit_internal(
 
 
 def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
-    """Run detect-nosignal external tools on the specified VaRecord.
+    """Run detect-noscreen external tools on the specified VaRecord.
 
     :param ctx: VaContext object with processing context
     :type ctx: VaContext
@@ -678,10 +701,58 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
             logger.debug("Skipping nosignal source as per context (not n/a)")
             return vr
 
-    vr.no_signal_frames = "n/a"
-    logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
-    _set_updated(ctx, vr)
-    ctx.c_nosignal += 1
+    # make sure data and logs dirs exist
+    os.makedirs(ctx.nosignal_data_dir, exist_ok=True)
+    os.makedirs(ctx.nosignal_log_dir, exist_ok=True)
+
+    # build paths
+    base_name = os.path.basename(vr.path)
+    json_path = os.path.join(ctx.nosignal_data_dir, base_name + ".nosignal.json")
+    log_path = os.path.join(ctx.nosignal_log_dir, base_name + ".nosignal.log")
+
+    # prepare command-line to run
+    cmd = ["reprostim"]
+
+    # optionally add log level
+    if ctx.log_level is not None:
+        cmd += ["--log-level", ctx.log_level]
+
+    cmd += ["detect-noscreen"]
+    cmd += ctx.nosignal_opts
+    cmd += ["--output", json_path]
+    cmd += [vr.path]
+    logger.debug(f"cmd: {' '.join(cmd)}")
+
+    # run the command and capture output
+    try:
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            result = subprocess.run(
+                cmd,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=True,
+            )
+            logger.debug(f"detect-noscreen completed with return code {result.returncode}")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
+        return vr
+
+    # now read the output JSON file
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                logger.debug(f"detect-noscreen output data: {data}")
+                if "nosignal_rate" in data:
+                    vr.no_signal_frames = f"{float(data['nosignal_rate']) * 100:.1f}"
+                else:
+                    vr.no_signal_frames = "0.0"
+            logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
+            _set_updated(ctx, vr)
+            ctx.c_nosignal += 1
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Failed to read/parse nosignal JSON output: {e}")
     return vr
 
 
@@ -798,6 +869,7 @@ def do_main(
     logger.debug(f"path      : {path}")
     logger.debug(f"path_tsv  : {path_tsv}")
 
+
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
@@ -831,6 +903,7 @@ def do_main(
         c_internal=0,
         c_nosignal=0,
         c_qr=0,
+        log_level=os.environ["REPROSTIM_LOG_LEVEL"],
         max_counter=max_files,
         mode=mode,
         recursive=recursive,
