@@ -12,6 +12,7 @@ suitable for quality control, sharing, and further analysis.
 import csv
 import getpass
 import json
+import fnmatch
 import logging
 import os
 import re
@@ -171,6 +172,9 @@ class VaContext(BaseModel):
                                      "--invalid-timing", "fixup",
                                      "--threshold", "1.01",]
     """Additional options to pass to detect-noscreen tool.
+    """
+    path_mask: Optional[str] = None
+    """Optional path mask to filter video files based on their paths.
     """
     qr_data_dir: Optional[str] = "derivatives/qr"
     """Directory to store qr-parse output data in JSON format.
@@ -486,6 +490,11 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
         logger.info(f"Skipping file by path : {path}")
         return
 
+    # filter by path mask
+    if ctx.path_mask and not fnmatch.fnmatch(path, ctx.path_mask):
+        logger.info(f"Skipping file by path mask : {path}")
+        return
+
     vr: VaRecord = VaRecord()
 
     try:
@@ -697,6 +706,11 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
         logger.debug(f"Max nosignal limit reached: {ctx.max_counter}")
         return vr
 
+    # filter by path mask
+    if ctx.path_mask and not fnmatch.fnmatch(vr.path, ctx.path_mask):
+        logger.info(f"Skipping nosignal by path mask : {vr.path}")
+        return vr
+
     if ctx.mode == VaMode.RERUN_FOR_NA:
         if vr.no_signal_frames != "n/a":
             logger.debug("Skipping nosignal source as per context (not n/a)")
@@ -783,6 +797,11 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
         logger.debug(f"Max qr limit reached: {ctx.max_counter}")
         return vr
 
+    # filter by path mask
+    if ctx.path_mask and not fnmatch.fnmatch(vr.path, ctx.path_mask):
+        logger.info(f"Skipping qr by path mask : {vr.path}")
+        return vr
+
     vr.qr_records_number = "n/a"
     logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
     _set_updated(ctx, vr)
@@ -832,6 +851,7 @@ def do_main(
     mode: VaMode = VaMode.INCREMENTAL,
     va_src: Set[VaSource] = {VaSource.INTERNAL},
     max_files: int = -1,
+    path_mask: str = None,
     verbose: bool = False,
     out_func=print,
 ):
@@ -856,6 +876,9 @@ def do_main(
     :param max_files: Maximum number of video files/records to process.
                       Use -1 for unlimited (default: -1)
     :type max_files: int
+
+    :param path_mask: Optional fnmatch-style mask to filter files
+    :type path_mask: str
 
     :param verbose: Whether to print verbose JSON output
                     to stdout (default: False)
@@ -909,6 +932,7 @@ def do_main(
         log_level=os.environ["REPROSTIM_LOG_LEVEL"],
         max_counter=max_files,
         mode=mode,
+        path_mask=path_mask,
         recursive=recursive,
         source=va_src,
     )

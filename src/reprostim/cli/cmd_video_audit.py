@@ -89,6 +89,14 @@ logger = logging.getLogger(__name__)
     help='Maximum number of video files/records to process. Use -1 for unlimited.'
 )
 @click.option(
+    "-p",
+    "--path-mask",
+    type=str,
+    default=None,
+    help="Optional path mask to filter video files based on their paths. Syntax is "
+         "the same as used in Python's fnmatch module."
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -99,7 +107,8 @@ logger = logging.getLogger(__name__)
 def video_audit(
     ctx, path: str, mode: str, output: str,
     recursive: bool, audit_src,
-    max_files: int, verbose: bool
+    max_files: int, path_mask: str,
+    verbose: bool
 ):
     """Analyze recorded video files."""
 
@@ -113,6 +122,8 @@ def video_audit(
     logger.info(f"Operation mode   : {mode}")
     logger.info(f"Audit sources    : {audit_src}")
     logger.info(f"Max files        : {max_files}")
+    if path_mask:
+        logger.info(f"Path mask        : {path_mask}")
     logger.info(f"Verbose output   : {verbose}")
 
     if not os.path.exists(path):
@@ -121,5 +132,5 @@ def video_audit(
 
     do_main(path, output, recursive, VaMode(mode),
             {VaSource(s) for s in audit_src},
-            max_files, verbose, click.echo)
+            max_files, path_mask, verbose, click.echo)
     return 0
