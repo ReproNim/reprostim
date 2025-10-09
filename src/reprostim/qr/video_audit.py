@@ -584,6 +584,7 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     vr.file_log_coherent = check_coherent(vr)
     _set_updated(ctx, vr)
     ctx.c_internal += 1
+    logger.debug(f"c_internal -> {ctx.c_internal}")
     yield vr
 
 
@@ -751,6 +752,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
             logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
             _set_updated(ctx, vr)
             ctx.c_nosignal += 1
+            logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
         except (json.JSONDecodeError, IOError) as e:
             logger.error(f"Failed to read/parse nosignal JSON output: {e}")
     return vr
@@ -785,6 +787,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
     logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
     _set_updated(ctx, vr)
     ctx.c_qr += 1
+    logger.debug(f"c_qr -> {ctx.c_qr}")
     return vr
 
 
