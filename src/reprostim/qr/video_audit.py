@@ -71,6 +71,11 @@ class VaMode(str, Enum):
     keep existing records."""
     FORCE = "force"
     """Force redo/overwrite specified records in TSV"""
+    RERUN_FOR_NA = "rerun-for-na"
+    """Process only records with 'n/a' values in existing TSV
+    in columns that are usually filled by external tools.
+    Intended for run external slow tools like detect-nosignal 
+    or qr-parser."""
 
 
 class VaRecord(BaseModel):
