@@ -95,7 +95,8 @@ generate() {
     --run "bash -c 'b=\$(ls ${PSYCHOPY_VENV_BIN}/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
     --entrypoint python3 \
     --run "bash -c '$REPROSTIM_CAPTURE_BUILD'" \
-    --run "bash -c '$REPROSTIM_CAPTURE_CLEAN'"
+    --run "bash -c '$REPROSTIM_CAPTURE_CLEAN'" \
+    --run "chmod a+rX -R /opt"
 #    --user=reproin \
 }
 
