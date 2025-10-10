@@ -33,6 +33,13 @@ def _main_exit(code: int) -> int:
 )
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
+    "-o", "--output",
+    default=None,
+    type=str,
+    help="Specify output file to save results in JSON format. If not set, "
+         "results are printed to standard output. Default is None.",
+)
+@click.option(
     "--step",
     default=1,
     type=int,
@@ -93,6 +100,7 @@ def _main_exit(code: int) -> int:
 def detect_noscreen(
     ctx,
     path: str,
+    output:  str,
     step: int,
     number_of_checks: int,
     show_progress: float,
@@ -103,6 +111,7 @@ def detect_noscreen(
     """Detect no screen/no signal frames in captured videos."""
 
     from ..capture.nosignal import auto_fix_video, find_no_signal, init_grid_colors
+    import json
 
     logger.debug("detect_noscreen(...)")
     logger.debug(f"path={path}")
@@ -158,6 +167,10 @@ def detect_noscreen(
         os.remove(temp_path)
 
     logger.info(f"SCAN RESULT    : {str(res)}")
+    if output is not None:
+        with open(output, "w") as f:
+            json.dump(res.model_dump(), f)
+        logger.info(f"RESULT SAVED TO: {output}")
     if res.nosignal_count > 0 and res.nosignal_rate > threshold:
         click.echo(
             f"FAILED         : {res.nosignal_count} nosignal frames detected "

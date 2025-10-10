@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["full", "incremental", "force"], case_sensitive=True),
+    type=click.Choice(["full", "incremental", "force",
+                       "rerun-for-na", "reset-to-na"],
+                      case_sensitive=True),
     default="incremental",
     help=(
         """Specifies operation mode, default is 'incremental' :.
@@ -32,7 +34,13 @@ logger = logging.getLogger(__name__)
 
 - [incremental] : process only new files and merge into existing dataset,
 
-- [force] : redo/update existing records
+- [force] : redo/update existing records,
+
+- [rerun-for-na] : process only records with N/A values in related fields
+                   for external tools like 'nosignal' or 'qr' etc
+
+- [reset-to-na] : set to N/A values in related fields
+                   for external tools like 'nosignal' or 'qr' etc
 
 """
     ),
@@ -54,6 +62,45 @@ logger = logging.getLogger(__name__)
     help="Recursively scan subdirectories for video files.",
 )
 @click.option(
+    "-s",
+    "--audit-src",
+    multiple=True,
+    default=["internal"],
+    show_default=True,
+    type=click.Choice(["internal", "qr", "nosignal", "all"], case_sensitive=False),
+    help=(
+        """Specify audit sources: 'internal' for internal checks, 
+        tool names (e.g., 'qr'), or 'all' to run all: 
+        
+- [internal] : for internal basic and fast checks,
+
+- [qr] : for QR code based analysis and generating qrinfo files, very slow.
+
+- [nosignal] : to detect no-signal segments in the video in percents, slow.
+
+- [all] : run all available audits.
+
+        Can be used multiple times: -s internal -s qr. Default is 'internal'.
+"""
+    ),
+)
+@click.option(
+    "-l",
+    "--max-files",
+    type=int,
+    default=-1,
+    show_default=True,
+    help='Maximum number of video files/records to process. Use -1 for unlimited.'
+)
+@click.option(
+    "-p",
+    "--path-mask",
+    type=str,
+    default=None,
+    help="Optional path mask to filter video files based on their paths. Syntax is "
+         "the same as used in Python's fnmatch module."
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -61,10 +108,15 @@ logger = logging.getLogger(__name__)
     help="Enable verbose output with JSON records.",
 )
 @click.pass_context
-def video_audit(ctx, path: str, mode: str, output: str, recursive: bool, verbose: bool):
+def video_audit(
+    ctx, path: str, mode: str, output: str,
+    recursive: bool, audit_src,
+    max_files: int, path_mask: str,
+    verbose: bool
+):
     """Analyze recorded video files."""
 
-    from ..qr.video_audit import VaMode, do_main
+    from ..qr.video_audit import VaMode, VaSource, do_main
 
     logger.debug("video_audit(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
@@ -72,11 +124,17 @@ def video_audit(ctx, path: str, mode: str, output: str, recursive: bool, verbose
     logger.info(f"Output TSV file  : {output}")
     logger.info(f"Recursive scan   : {recursive}")
     logger.info(f"Operation mode   : {mode}")
+    logger.info(f"Audit sources    : {audit_src}")
+    logger.info(f"Max files        : {max_files}")
+    if path_mask:
+        logger.info(f"Path mask        : {path_mask}")
     logger.info(f"Verbose output   : {verbose}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
 
-    do_main(path, output, recursive, VaMode(mode), verbose, click.echo)
+    do_main(path, output, recursive, VaMode(mode),
+            {VaSource(s) for s in audit_src},
+            max_files, path_mask, verbose, click.echo)
     return 0
