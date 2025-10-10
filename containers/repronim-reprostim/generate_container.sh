@@ -21,14 +21,10 @@ REPROSTIM_HOME=/opt/reprostim
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
 REPROSTIM_CAPTURE_PACKAGES_RUNTIME=""
-REPROSTIM_CAPTURE_BUILD="echo 'ReproStim capture build is disabled'"
-REPROSTIM_CAPTURE_CLEAN="echo 'ReproStim capture clean is disabled'"
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   REPROSTIM_CAPTURE_PACKAGES_DEV="libyaml-cpp-dev libspdlog-dev catch2 libv4l-dev libudev-dev libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++"
   REPROSTIM_CAPTURE_PACKAGES_RUNTIME="libyaml-cpp0.7 libfmt9"
-  REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; rm -rf \"$REPROSTIM_HOME/src/reprostim-capture/build\"; reprostim-videocapture -V"
-  REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES_DEV && apt-get autoremove -y"
   # Extend with packages hold if runtime packages env exist
   if [[ -n "$REPROSTIM_CAPTURE_PACKAGES_RUNTIME" ]]; then
       REPROSTIM_CAPTURE_CLEAN="apt-mark manual $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && apt-mark hold $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && $REPROSTIM_CAPTURE_CLEAN"
@@ -87,16 +83,9 @@ generate() {
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
           "${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}" \
           "${REPROSTIM_CAPTURE_PACKAGES_DEV}" \
-    --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v2.2.3" \
-    --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 -v -f" \
     ${REPROSTIM_COPY_ARG} \
-    --run "${REPROSTIM_RUN_INSTALL}" \
-    --run "bash -c 'ln -s ${PSYCHOPY_HOME}/start_psychopy /usr/local/bin/psychopy'" \
-    --run "bash -c 'b=\$(ls ${PSYCHOPY_VENV_BIN}/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
-    --entrypoint python3 \
-    --run "bash -c '$REPROSTIM_CAPTURE_BUILD'" \
-    --run "bash -c '$REPROSTIM_CAPTURE_CLEAN'" \
-    --run "chmod a+rX -R /opt"
+    --copy build_reprostim.sh /opt/build_reprostim.sh \
+    --run "ENV1=1 ENV2=2 REPROSTIM_HOME=$REPROSTIM_HOME /opt/build_reprostim.sh"
 #    --user=reproin \
 }
 
