@@ -42,12 +42,12 @@ fi
 git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer
 cd /opt/psychopy-installer; git checkout tags/v2.2.3
 
-/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 -v -f"
-# ruined TODO return STIM_COPY_ARG}
+/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 -v -f
+# TODO return REPROSTIM_COPY_ARG}
 
 ${REPROSTIM_RUN_INSTALL}
 ln -s ${PSYCHOPY_HOME}/start_psychopy /usr/local/bin/psychopy
-b=\$(ls ${PSYCHOPY_VENV_BIN}/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'
+b=\$(ls ${PSYCHOPY_VENV_BIN}/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; rm -rf \"$REPROSTIM_HOME/src/reprostim-capture/build\"; reprostim-videocapture -V"
