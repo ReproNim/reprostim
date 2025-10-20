@@ -96,8 +96,10 @@ generate() {
     --entrypoint python3 \
     --run "bash -c '$REPROSTIM_CAPTURE_BUILD'" \
     --run "bash -c '$REPROSTIM_CAPTURE_CLEAN'" \
-    --run "chmod a+rX -R /opt"
+    --run "chmod a+rX -R /opt" \
+    --run "chmod a+rX -R /root/.psychopy3"
 #    --user=reproin \
+#    --copy reprostim/containers/repronim-reprostim/build_reprostim.sh /opt/build_reprostim.sh \
 }
 
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
