@@ -20,13 +20,13 @@ REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
 REPROSTIM_HOME=/opt/reprostim
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
-REPROSTIM_CAPTURE_PACKAGES_RUNTIME=""
+REPROSTIM_CAPTURE_PACKAGES_RUNTIME="mc"
 REPROSTIM_CAPTURE_BUILD="echo 'ReproStim capture build is disabled'"
 REPROSTIM_CAPTURE_CLEAN="echo 'ReproStim capture clean is disabled'"
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   REPROSTIM_CAPTURE_PACKAGES_DEV="libyaml-cpp-dev libspdlog-dev catch2 libv4l-dev libudev-dev libopencv-dev libcurl4-openssl-dev nlohmann-json3-dev cmake g++"
-  REPROSTIM_CAPTURE_PACKAGES_RUNTIME="libyaml-cpp0.7 libfmt9"
+  REPROSTIM_CAPTURE_PACKAGES_RUNTIME="mc libyaml-cpp0.7 libfmt9"
   REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; rm -rf \"$REPROSTIM_HOME/src/reprostim-capture/build\"; reprostim-videocapture -V"
   REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES_DEV && apt-get autoremove -y"
   # Extend with packages hold if runtime packages env exist
@@ -81,7 +81,7 @@ generate() {
     --base-image=neurodebian:bookworm \
     --pkg-manager=apt \
     --install build-essential pkg-config git \
-          sudo mc \
+          sudo \
           libgtk-3-dev libwxgtk3.2-dev libwxgtk-media3.2-dev libwxgtk-webview3.2-dev libcanberra-gtk3-module \
           libusb-1.0-0-dev portaudio19-dev libasound2-dev pulseaudio pavucontrol pulseaudio-utils \
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
