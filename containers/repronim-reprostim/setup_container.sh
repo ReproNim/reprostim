@@ -88,6 +88,27 @@ if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   apt-get autoremove -y
 fi
 
+# Remove psychopy-installer
+echo "Removing psychopy-installer..."
+rm -rf /opt/psychopy-installer
+
+# Remove unnecessary dirs/files from the copied worktree
+echo "Cleaning up copied reprostim worktree..."
+rm -rf "${REPROSTIM_HOME}/.ai"
+rm -rf "${REPROSTIM_HOME}/.git"
+rm -rf "${REPROSTIM_HOME}/.github"
+rm -rf "${REPROSTIM_HOME}/.idea"
+rm -rf "${REPROSTIM_HOME}/.pytest_cache"
+rm -rf "${REPROSTIM_HOME}/Events"
+rm -rf "${REPROSTIM_HOME}/Parsing"
+rm -rf "${REPROSTIM_HOME}/QRCoding"
+rm -rf "${REPROSTIM_HOME}/dist"
+rm -rf "${REPROSTIM_HOME}/docs"
+rm -rf "${REPROSTIM_HOME}/examples/exp-alpha"
+rm -rf "${REPROSTIM_HOME}/temp"
+rm -rf "${REPROSTIM_HOME}/venv"
+rm -rf "${REPROSTIM_HOME}/.gitignore"
+
 # Configure permissions
 echo "Configuring permissions to allow non-root users to run PsychoPy and ReproStim..."
 if [[ -d /opt ]]; then
