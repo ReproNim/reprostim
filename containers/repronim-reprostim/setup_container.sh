@@ -4,61 +4,97 @@
 # This is internal script used by Docker/Singularity to setup the container
 # and it's automatically copied into the container image under /opt/setup_container.sh
 # location. It is not meant to be run directly by users.
+#
+# Note: env variables passed explicitly from generate_container.sh script:
+#   $MODE
+#   $PYTHON_VERSION
+#   $PSYCHOPY_VERSION
+#   $REPROSTIM_VERSION
+#   $REPROSTIM_HOME
+#   $REPROSTIM_GIT_HOME
+#   $REPROSTIM_CAPTURE_ENABLED
+#   $REPROSTIM_CAPTURE_PACKAGES_DEV
+#   $REPROSTIM_CAPTURE_PACKAGES_RUNTIME
 
 set -eu
 
 thisdir=$(dirname "$0")
 
-PYTHON_VERSION=3.10
-
-PSYCHOPY_VERSION=2025.2.0
 PSYCHOPY_INSTALL_DIR=/opt/psychopy
 PSYCHOPY_VENV_NAME=psychopy_${PSYCHOPY_VERSION}_py${PYTHON_VERSION}
 PSYCHOPY_HOME=${PSYCHOPY_INSTALL_DIR}/${PSYCHOPY_VENV_NAME}
 PSYCHOPY_VENV_BIN=${PSYCHOPY_HOME}/.venv/bin
 
-# Decided to go without version to make diff easier to analyze etc
-REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
-REPROSTIM_HOME=/opt/reprostim
-REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
-REPROSTIM_CAPTURE_PACKAGES_DEV=""
-REPROSTIM_CAPTURE_PACKAGES_RUNTIME=""
-REPROSTIM_CAPTURE_BUILD="echo 'ReproStim capture build is disabled'"
-REPROSTIM_CAPTURE_CLEAN="echo 'ReproStim capture clean is disabled'"
 
+# Install psychopy_linux_installer from GitHub
+echo "Install psychopy_linux_installer from GitHub..."
+git clone --branch v2.2.4 --depth 1 https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer
+cd /opt/psychopy-installer
 
+# Install PsychoPy via psychopy_linux_installer
+echo "Install PsychoPy v${PSYCHOPY_VERSION} via psychopy_linux_installer..."
+/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 --cleanup -v -f
+# Create symlink to psychopy executable
+ln -sf "${PSYCHOPY_HOME}/start_psychopy" /usr/local/bin/psychopy
 
-MODE=${1:-default}
-
-
+# Install reprostim package from PyPI or from current worktree in CI mode
 if [[ "$MODE" == "ci" ]]; then
   echo "Running in CI/CD mode, install reprostim from current worktree"
-  REPROSTIM_COPY="${REPROSTIM_GIT_HOME} ${REPROSTIM_HOME}"
-  REPROSTIM_RUN_INSTALL="${PSYCHOPY_VENV_BIN}/pip install ${REPROSTIM_HOME}[all,disp_mon]"
+  "${PSYCHOPY_VENV_BIN}/pip" install "${REPROSTIM_HOME}[all,disp_mon]"
 else
   echo "Running in default mode, install reprostim from PyPI"
-  REPROSTIM_COPY=""
-  REPROSTIM_RUN_INSTALL="${PSYCHOPY_VENV_BIN}/pip install reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
+  "${PSYCHOPY_VENV_BIN}/pip" install "reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
 fi
 
-
-
-git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer
-cd /opt/psychopy-installer; git checkout tags/v2.2.3
-
-/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 -v -f
-# TODO return REPROSTIM_COPY_ARG}
-
-${REPROSTIM_RUN_INSTALL}
-ln -s ${PSYCHOPY_HOME}/start_psychopy /usr/local/bin/psychopy
-b=$(ls ${PSYCHOPY_VENV_BIN}/python3); echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3
+# Create symlink to python3 in psychopy venv as default python3
+echo "Creating symlink to python3 in psychopy venv as default python3"
+b=$(ls "${PSYCHOPY_VENV_BIN}/python3")
+echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3
+chmod a+x /usr/local/bin/python3
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
-  REPROSTIM_CAPTURE_BUILD="cd \"$REPROSTIM_HOME/src/reprostim-capture\"; mkdir build; cd build; cmake ..; make; cd ..; cmake --install build; rm -rf \"$REPROSTIM_HOME/src/reprostim-capture/build\"; reprostim-videocapture -V"
-  REPROSTIM_CAPTURE_CLEAN="apt-get remove --purge -y $REPROSTIM_CAPTURE_PACKAGES_DEV && apt-get autoremove -y"
-  # Extend with packages hold if runtime packages env exist
+  # Build reprostim-capture from source
+  echo "Building reprostim-capture from source..."
+  cd "${REPROSTIM_HOME}/src/reprostim-capture"
+  mkdir build
+  cd build
+  cmake ..
+  make
+  cd ..
+
+  # Install the built binary
+  echo "Installing reprostim-capture..."
+  cmake --install build
+
+  # Clean build files
+  rm -rf "${REPROSTIM_HOME}/src/reprostim-capture/build"
+
+  # Verify installation
+  echo "Verifying reprostim-capture installation..."
+  reprostim-videocapture -V
+
+  # Cleanup reprostim-capture packages
+  #
+  # Keep runtime packages marked as manual to avoid their removal
   if [[ -n "$REPROSTIM_CAPTURE_PACKAGES_RUNTIME" ]]; then
-      REPROSTIM_CAPTURE_CLEAN="apt-mark manual $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && apt-mark hold $REPROSTIM_CAPTURE_PACKAGES_RUNTIME && $REPROSTIM_CAPTURE_CLEAN"
+    echo "Marking reprostim-capture runtime packages as manual to avoid their removal: ${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}"
+    apt-mark manual $REPROSTIM_CAPTURE_PACKAGES_RUNTIME
+    apt-mark hold $REPROSTIM_CAPTURE_PACKAGES_RUNTIME
   fi
+
+  # Remove dev packages
+  echo "Removing reprostim-capture development packages: ${REPROSTIM_CAPTURE_PACKAGES_DEV}"
+  apt-get remove --purge -y ${REPROSTIM_CAPTURE_PACKAGES_DEV}
+  apt-get autoremove -y
 fi
-chmod a+rX -R /opt
+
+# Configure permissions
+echo "Configuring permissions to allow non-root users to run PsychoPy and ReproStim..."
+if [[ -d /opt ]]; then
+  chmod a+rX -R /opt || true
+fi
+if [[ -d /root/.psychopy3 ]]; then
+  chmod a+rX -R /root/.psychopy3 || true
+fi
+
+echo "Container setup completed: Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}"
