@@ -1,6 +1,10 @@
 #!/bin/bash
 # shellcheck disable=SC2086,SC2034
 
+# This is internal script used by Docker/Singularity to setup the container
+# and it's automatically copied into the container image under /opt/setup_container.sh
+# location. It is not meant to be run directly by users.
+
 set -eu
 
 thisdir=$(dirname "$0")

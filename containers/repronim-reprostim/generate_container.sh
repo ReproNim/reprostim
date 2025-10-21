@@ -41,29 +41,30 @@ MODE=${1:-default}
 
 if [[ "$MODE" == "ci" ]]; then
   echo "Running in CI/CD mode, install reprostim from current worktree"
-  REPROSTIM_COPY="${REPROSTIM_GIT_HOME} ${REPROSTIM_HOME}"
   REPROSTIM_RUN_INSTALL="${PSYCHOPY_VENV_BIN}/pip install ${REPROSTIM_HOME}[all,disp_mon]"
 else
   echo "Running in default mode, install reprostim from PyPI"
-  REPROSTIM_COPY=""
   REPROSTIM_RUN_INSTALL="${PSYCHOPY_VENV_BIN}/pip install reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
 fi
 
 
 
 generate() {
-  if [[ "$1" == docker && "$MODE" == "ci" ]]; then
-    REPROSTIM_COPY="reprostim ${REPROSTIM_HOME}"
+  # Somehow --copy source differs between docker and singularity
+  REPROSTIM_COPY_SRC="${REPROSTIM_GIT_HOME}"
+  if [[ "$1" == docker ]]; then
+    REPROSTIM_COPY_SRC="reprostim"
   fi
 
-  if [[ "$1" == singularity && "$MODE" == "ci" ]]; then
-    REPROSTIM_COPY="${REPROSTIM_GIT_HOME} ${REPROSTIM_HOME}"
-  fi
+  # copy the setup script to /opt/setup_container.sh
+  REPROSTIM_COPY_ARGS=( "--copy" "${REPROSTIM_COPY_SRC}/containers/repronim-reprostim/setup_container.sh" "/opt/setup_container.sh" )
 
-  if [[ -n "${REPROSTIM_COPY:-}" ]]; then
-    REPROSTIM_COPY_ARG="--copy ${REPROSTIM_COPY}"
-  else
-    REPROSTIM_COPY_ARG=""
+  # optionally copy the current worktree into the container
+  # for CI mode to build reprostim package from current code
+  # rather than from PyPI
+  if [[ "$MODE" == "ci" ]]; then
+    # add another --copy pair for CI
+    REPROSTIM_COPY_ARGS+=( "--copy" "${REPROSTIM_COPY_SRC}" "${REPROSTIM_HOME}" )
   fi
 
   # shellcheck disable=SC2034
@@ -89,7 +90,7 @@ generate() {
           "${REPROSTIM_CAPTURE_PACKAGES_DEV}" \
     --run "git clone https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer; cd /opt/psychopy-installer; git checkout tags/v2.2.4" \
     --run "/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 --cleanup -v -f" \
-    ${REPROSTIM_COPY_ARG} \
+    "${REPROSTIM_COPY_ARGS[@]}" \
     --run "${REPROSTIM_RUN_INSTALL}" \
     --run "bash -c 'ln -s ${PSYCHOPY_HOME}/start_psychopy /usr/local/bin/psychopy'" \
     --run "bash -c 'b=\$(ls ${PSYCHOPY_VENV_BIN}/python3); echo -e \"#!/bin/sh\n\$b \\\"\\\$@\\\"\" >| /usr/local/bin/python3; chmod a+x /usr/local/bin/python3'" \
@@ -99,7 +100,6 @@ generate() {
     --run "chmod a+rX -R /opt" \
     --run "chmod a+rX -R /root/.psychopy3"
 #    --user=reproin \
-#    --copy reprostim/containers/repronim-reprostim/build_reprostim.sh /opt/build_reprostim.sh \
 }
 
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
