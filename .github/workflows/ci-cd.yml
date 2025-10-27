@@ -95,6 +95,13 @@ jobs:
           )
         working-directory: tools/ci
 
+      - name: Test PsychoPy window visibility
+        run: |
+          (
+            echo "$PWD"
+            ./test_reprostim_psychopy.sh xvfb
+          )
+        working-directory: tools/ci
 
       - name: Upload screenshot video artifact
         uses: actions/upload-artifact@v4
@@ -104,3 +111,5 @@ jobs:
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.jsonl
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
+            ${{ env.tmp_dir }}/reprostim_psychopy_screenshot.png
+            ${{ env.tmp_dir }}/reprostim_psychopy.log
