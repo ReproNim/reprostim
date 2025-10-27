@@ -57,7 +57,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   export FRAME_BPP=24
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display2.txt"
   export XVFB_OPTS="-screen 0 ${FRAME_WIDTH}x${FRAME_HEIGHT}x${FRAME_BPP} -ac +extension GLX +render -noreset"
-  export DISPLAY_START=25
+  export DISPLAY_START=35
 
   echo "Run Xvfb in background with REPROSTIM_CMD"
   xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD > \"${REPROSTIM_LOG}\" 2>&1"&
@@ -101,7 +101,8 @@ echo "TODO: Take screenshot of the PsychoPy window.."
 export REPROSTIM_PSYCHOPY_SCREENSHOT_PATH="$tmp_dir/reprostim_psychopy_screenshot.png"
 
 sleep 1
-ls -l "$tmp_dir"/reprostim_psychopy_*
+# ls -l "$tmp_dir"/reprostim_psychopy_*
+ls -l "$tmp_dir"
 
 # terminate xvfb process if it was started
 if [[ "$MODE" == "xvfb" ]]; then
