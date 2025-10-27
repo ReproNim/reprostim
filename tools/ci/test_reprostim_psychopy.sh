@@ -101,8 +101,7 @@ echo "Taking PsychoPy window screenshot of the virtual screen using ImageMagick.
 export REPROSTIM_PSYCHOPY_SCREENSHOT_PATH="$tmp_dir/reprostim_psychopy_screenshot.png"
 
 # Capture screenshot using ImageMagick's import command
-DISPLAY="$DISPLAY_ID" import -window root "$REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
-if [ $? -eq 0 ]; then
+if DISPLAY="$DISPLAY_ID" import -window root "$REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"; then
   echo "Screenshot captured successfully to: $REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
 else
   echo "Error: Failed to capture screenshot"
@@ -119,7 +118,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   wait "$XVFB_RUN_PID" 2>/dev/null || true
 fi
 
-if [[ -f "REPROSTIM_PSYCHOPY_SCREENSHOT_PATH" ]]; then
+if [[ -f "$REPROSTIM_PSYCHOPY_SCREENSHOT_PATH" ]]; then
   echo "ReproStim PsychoPy screenshot recorded: REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
 else
   echo "ReproStim PsychoPy screenshot not found"
