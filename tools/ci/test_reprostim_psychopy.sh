@@ -34,7 +34,6 @@ fi
 thisdir=$(dirname "$0")
 tmp_dir="${TMPDIR:-/tmp}"
 MODE=${1:-default}
-LOG_LEVEL=DEBUG
 
 
 echo "Test CI/CD ReproStim and PsychoPy UI.."
