@@ -42,7 +42,7 @@ echo "tmp_dir=${tmp_dir}"
 cd "$thisdir" || exit
 
 export REPROSTIM_LOG="$tmp_dir/reprostim_psychopy.log"
-export REPROSTIM_CONTAINER_ENTRYPOINT=psychopy
+export REPROSTIM_CONTAINER_RUN_MODE=psychopy
 export REPROSTIM_CMD="./run_reprostim_container.sh"
 
 
