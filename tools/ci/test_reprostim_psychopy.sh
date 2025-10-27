@@ -97,12 +97,19 @@ echo "ReproStim command to run: $REPROSTIM_CMD"
 echo "Wait for PsychoPy window to appear.."
 sleep 10
 
-echo "TODO: Take screenshot of the PsychoPy window.."
+echo "Taking PsychoPy window screenshot of the virtual screen using ImageMagick.."
 export REPROSTIM_PSYCHOPY_SCREENSHOT_PATH="$tmp_dir/reprostim_psychopy_screenshot.png"
 
+# Capture screenshot using ImageMagick's import command
+DISPLAY="$DISPLAY_ID" import -window root "$REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
+if [ $? -eq 0 ]; then
+  echo "Screenshot captured successfully to: $REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
+else
+  echo "Error: Failed to capture screenshot"
+fi
+
 sleep 1
-# ls -l "$tmp_dir"/reprostim_psychopy*
-ls -l "$tmp_dir"
+ls -l "$tmp_dir"/reprostim_psychopy*
 
 # terminate xvfb process if it was started
 if [[ "$MODE" == "xvfb" ]]; then
@@ -116,5 +123,5 @@ if [[ -f "REPROSTIM_PSYCHOPY_SCREENSHOT_PATH" ]]; then
   echo "ReproStim PsychoPy screenshot recorded: REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
 else
   echo "ReproStim PsychoPy screenshot not found"
-  # TODO: exit 1
+  exit 1
 fi
