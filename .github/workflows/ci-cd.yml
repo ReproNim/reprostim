@@ -87,6 +87,14 @@ jobs:
           )
         working-directory: tools/ci
 
+      - name: Test PsychoPy UI window
+        run: |
+          (
+            echo "$PWD"
+            ./test_reprostim_psychopy.sh xvfb
+          )
+        working-directory: tools/ci
+
       - name: Test timesync-stimuli run
         run: |
           (
