@@ -50,7 +50,7 @@ jobs:
           sudo apt-get install -y \
             flawfinder squashfs-tools uuid-dev libuuid1 libffi-dev libssl-dev libssl1.1 \
             libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config \
-            xvfb xdotool ffmpeg
+            xvfb xdotool imagemagick ffmpeg
 
       - name: Build and install Singularity
         run: |
