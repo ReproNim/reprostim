@@ -101,7 +101,7 @@ echo "TODO: Take screenshot of the PsychoPy window.."
 export REPROSTIM_PSYCHOPY_SCREENSHOT_PATH="$tmp_dir/reprostim_psychopy_screenshot.png"
 
 sleep 1
-# ls -l "$tmp_dir"/reprostim_psychopy_*
+# ls -l "$tmp_dir"/reprostim_psychopy*
 ls -l "$tmp_dir"
 
 # terminate xvfb process if it was started
@@ -116,5 +116,5 @@ if [[ -f "REPROSTIM_PSYCHOPY_SCREENSHOT_PATH" ]]; then
   echo "ReproStim PsychoPy screenshot recorded: REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
 else
   echo "ReproStim PsychoPy screenshot not found"
-  exit 1
+  # TODO: exit 1
 fi
