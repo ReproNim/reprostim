@@ -17,8 +17,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            flawfinder squashfs-tools uuid-dev libuuid1 libffi-dev libssl-dev libssl1.1 \
-            libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config \
             xvfb xdotool ffmpeg imagemagick
 
       - name: Checkout source
