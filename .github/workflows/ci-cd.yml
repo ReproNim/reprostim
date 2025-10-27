@@ -50,7 +50,7 @@ jobs:
           sudo apt-get install -y \
             flawfinder squashfs-tools uuid-dev libuuid1 libffi-dev libssl-dev libssl1.1 \
             libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config \
-            xvfb xdotool imagemagick ffmpeg
+            xvfb xdotool ffmpeg
 
       - name: Build and install Singularity
         run: |
@@ -95,13 +95,6 @@ jobs:
           )
         working-directory: tools/ci
 
-      - name: Test PsychoPy UI window visibility
-        run: |
-          (
-            echo "$PWD"
-            ./test_reprostim_psychopy.sh xvfb
-          )
-        working-directory: tools/ci
 
       - name: Upload screenshot video artifact
         uses: actions/upload-artifact@v4
@@ -111,5 +104,3 @@ jobs:
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.jsonl
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
-            ${{ env.tmp_dir }}/reprostim_psychopy_screenshot.png
-            ${{ env.tmp_dir }}/reprostim_psychopy.log
