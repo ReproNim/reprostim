@@ -60,7 +60,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   export DISPLAY_START=35
 
   echo "Run Xvfb in background with REPROSTIM_CMD"
-  xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD > \"${REPROSTIM_LOG}\" 2>&1"&
+  xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "export REPROSTIM_CONTAINER_RUN_MODE=psychopy; echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD > \"${REPROSTIM_LOG}\" 2>&1"&
   XVFB_RUN_PID=$!
 
   echo "Started xvfb-run with PID $XVFB_RUN_PID"
