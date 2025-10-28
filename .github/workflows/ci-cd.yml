@@ -118,3 +118,22 @@ jobs:
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
             ${{ env.tmp_dir }}/reprostim_psychopy_screenshot.png
             ${{ env.tmp_dir }}/reprostim_psychopy.log
+
+      - name: Double check test results and fail if needed
+        if: always()
+        run: |
+          echo "Checking test results..."
+          failed=0
+          if [[ "${{ steps.timesync-test.outcome }}" == "failure" ]]; then
+            echo "timesync-stimuli test failed"
+            failed=1
+          fi
+          if [[ "${{ steps.psychopy-visibility-test.outcome }}" == "failure" ]]; then
+            echo "PsychoPy visibility test failed"
+            failed=1
+          fi
+          if [[ $failed -eq 1 ]]; then
+            echo "Test failures detected"
+            exit 1
+          fi
+          echo "All tests passed"
