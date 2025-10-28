@@ -50,7 +50,7 @@ jobs:
           sudo apt-get install -y \
             flawfinder squashfs-tools uuid-dev libuuid1 libffi-dev libssl-dev libssl1.1 \
             libarchive-dev libgpgme11-dev libseccomp-dev wget gcc make pkg-config \
-            xvfb xdotool ffmpeg
+            xvfb xdotool imagemagick ffmpeg
 
       - name: Build and install Singularity
         run: |
@@ -88,6 +88,8 @@ jobs:
         working-directory: tools/ci
 
       - name: Test timesync-stimuli run
+        id: timesync-test
+        continue-on-error: true
         run: |
           (
             echo "$PWD"
@@ -95,8 +97,18 @@ jobs:
           )
         working-directory: tools/ci
 
+      - name: Test PsychoPy window visibility
+        id: psychopy-visibility-test
+        continue-on-error: true
+        run: |
+          (
+            echo "$PWD"
+            ./test_reprostim_psychopy.sh xvfb
+          )
+        working-directory: tools/ci
 
       - name: Upload screenshot video artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reprostim-screenshot
@@ -104,3 +116,24 @@ jobs:
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.jsonl
             ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
+            ${{ env.tmp_dir }}/reprostim_psychopy_screenshot.png
+            ${{ env.tmp_dir }}/reprostim_psychopy.log
+
+      - name: Double check test results and fail if needed
+        if: always()
+        run: |
+          echo "Checking test results..."
+          failed=0
+          if [[ "${{ steps.timesync-test.outcome }}" == "failure" ]]; then
+            echo "timesync-stimuli test failed"
+            failed=1
+          fi
+          if [[ "${{ steps.psychopy-visibility-test.outcome }}" == "failure" ]]; then
+            echo "PsychoPy visibility test failed"
+            failed=1
+          fi
+          if [[ $failed -eq 1 ]]; then
+            echo "Test failures detected"
+            exit 1
+          fi
+          echo "All tests passed"

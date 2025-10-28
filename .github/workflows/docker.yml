@@ -13,6 +13,12 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
+      - name: Install OS dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            xvfb xdotool ffmpeg imagemagick
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
@@ -46,6 +52,7 @@ jobs:
             # specify latest unstable image to test
             export REPROSTIM_CONTAINER_IMAGE=repronim/reprostim:unstable
             ./test_reprostim_container.sh
+            ./test_reprostim_psychopy.sh xvfb
           )
         working-directory: tools/ci
 
@@ -64,3 +71,11 @@ jobs:
         env:
           DOCKER_LOGIN: ${{ secrets.DOCKER_LOGIN }}
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Upload Screenshot Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: reprostim-psychopy-screenshot
+          path: |
+            ${{ env.tmp_dir }}/reprostim_psychopy_screenshot.png
+            ${{ env.tmp_dir }}/reprostim_psychopy.log
