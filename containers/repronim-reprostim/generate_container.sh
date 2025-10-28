@@ -63,6 +63,7 @@ generate() {
           libgtk-3-dev libwebkit2gtk-4.1 libwxgtk3.2-dev libwxgtk-media3.2-dev libwxgtk-webview3.2-dev libcanberra-gtk3-module \
           libsdl2-2.0-0 libzbar0 libusb-1.0-0-dev portaudio19-dev libasound2-dev pulseaudio pavucontrol pulseaudio-utils \
           vim wget strace time ncdu gnupg curl procps pigz less tree python3 python3-pip \
+          ffmpeg mediainfo v4l-utils \
           "${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}" \
           "${REPROSTIM_CAPTURE_PACKAGES_DEV}" \
     "${REPROSTIM_COPY_ARGS[@]}" \
