@@ -1,3 +1,28 @@
+# 0.7.16 (Tue Oct 28 2025)
+
+#### 🐛 Bug Fix
+
+- Harmonize/refactor `reprostim` container build and `PsychoPy` [#193](https://github.com/ReproNim/reprostim/pull/193) ([@yarikoptic](https://github.com/yarikoptic) [@vmdocua](https://github.com/vmdocua))
+- Extend `video-audit` command with external tools like `qr` and `nosignal` [#192](https://github.com/ReproNim/reprostim/pull/192) ([@vmdocua](https://github.com/vmdocua))
+- Add shellcheck testing [#187](https://github.com/ReproNim/reprostim/pull/187) ([@yarikoptic](https://github.com/yarikoptic) [@vmdocua](https://github.com/vmdocua))
+- Fix and improve `videos.tsv` video durations statistics [#186](https://github.com/ReproNim/reprostim/pull/186) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🏠 Internal
+
+- Add linkchecker in RTD docs [#191](https://github.com/ReproNim/reprostim/pull/191) ([@vmdocua](https://github.com/vmdocua))
+- Replace `cd` with `working-directory` pattern and upgrade GO up to v1.20 [#190](https://github.com/ReproNim/reprostim/pull/190) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🧪 Tests
+
+- Upgrade `PsychoPy` to version 2025.2.0 and fix docker container libs [#185](https://github.com/ReproNim/reprostim/pull/185) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.15 (Mon Sep 15 2025)
 
 #### 🐛 Bug Fix
