@@ -119,7 +119,7 @@ if [[ "$MODE" == "xvfb" ]]; then
 fi
 
 if [[ -f "$REPROSTIM_PSYCHOPY_SCREENSHOT_PATH" ]]; then
-  echo "ReproStim PsychoPy screenshot recorded: REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"
+  echo "ReproStim PsychoPy screenshot recorded: ${REPROSTIM_PSYCHOPY_SCREENSHOT_PATH}"
 else
   echo "ReproStim PsychoPy screenshot not found"
   exit 1

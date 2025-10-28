@@ -27,8 +27,9 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
 fi
 
 # Calculate entry point and command to run inside container
+REPROSTIM_RUN_RAW_MODES=(reprostim-videocapture psychopy ffmpeg ffprobe v4l2-ctl mediainfo)
 REPROSTIM_CONTAINER_ENTRYPOINT=""
-if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "reprostim-videocapture" ] || [ "$REPROSTIM_CONTAINER_RUN_MODE" = "psychopy" ]; then
+if [[ " ${REPROSTIM_RUN_RAW_MODES[*]} " == *" $REPROSTIM_CONTAINER_RUN_MODE "* ]]; then
     REPROSTIM_CONTAINER_APP="$REPROSTIM_CONTAINER_RUN_MODE"
     # clear/remove python entrypoint for standalone apps
     if [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
