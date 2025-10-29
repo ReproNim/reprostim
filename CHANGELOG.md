@@ -1,3 +1,15 @@
+# 0.7.17 (Wed Oct 29 2025)
+
+#### 📝 Documentation
+
+- Provide basic CLAUDE.md to read context from generic .ai/context.md [#195](https://github.com/ReproNim/reprostim/pull/195) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.16 (Tue Oct 28 2025)
 
 #### 🐛 Bug Fix
