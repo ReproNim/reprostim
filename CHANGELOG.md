@@ -1,3 +1,16 @@
+# 0.7.18 (Fri Oct 31 2025)
+
+#### 🐛 Bug Fix
+
+- Fixes for make docker build/upload part of the auto release process #196 [#198](https://github.com/ReproNim/reprostim/pull/198) ([@vmdocua](https://github.com/vmdocua))
+- Make docker build/upload part of the auto release process #196 [#197](https://github.com/ReproNim/reprostim/pull/197) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.17 (Wed Oct 29 2025)
 
 #### 📝 Documentation
