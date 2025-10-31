@@ -32,3 +32,4 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
           repository: repronim/reprostim
           readme-filepath: ./containers/repronim-reprostim/DOCKERHUB.md
+          short-description: "ReproStim: Reproducible stimuli delivery and synchronization toolkit for neuroimaging"
