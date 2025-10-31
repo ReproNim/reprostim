@@ -8,10 +8,7 @@
         [
             "exec",
             {
-                  "afterRelease": [
-                      "python -m build && twine upload dist/*",
-                      "bash tools/ci/release_reprostim_docker.sh"
-                  ]
+                  "afterRelease": "python -m build && twine upload dist/* && bash tools/ci/release_reprostim_docker.sh"
             }
         ],
         "released"
