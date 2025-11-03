@@ -3,6 +3,7 @@
 [![Read the Docs](https://app.readthedocs.org/projects/reprostim/badge/?version=latest)](https://reprostim.readthedocs.io/en/latest/)
 [![Tests](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml/badge.svg)](https://github.com/ReproNim/reprostim/actions/workflows/pytest.yml)
 [![PyPI Version](https://img.shields.io/pypi/v/reprostim.svg)](https://pypi.org/project/reprostim/)
+[![Docker Image Version](https://img.shields.io/docker/v/repronim/reprostim?sort=semver&label=docker)](https://hub.docker.com/r/repronim/reprostim)
 [![Conda](https://img.shields.io/conda/vn/conda-forge/reprostim.svg)](https://anaconda.org/conda-forge/reprostim)
 [![GitHub release](https://img.shields.io/github/release/ReproNim/reprostim.svg)](https://GitHub.com/ReproNim/reprostim/releases/)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://raw.githubusercontent.com/ReproNim/reprostim/master/LICENSES/MIT.txt)
