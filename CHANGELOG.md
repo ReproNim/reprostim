@@ -1,3 +1,15 @@
+# 0.7.19 (Mon Nov 03 2025)
+
+#### 🐛 Bug Fix
+
+- Update docker hub overview tab for `repronim/reprostim` container [#199](https://github.com/ReproNim/reprostim/pull/199) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.18 (Fri Oct 31 2025)
 
 #### 🐛 Bug Fix
