@@ -317,7 +317,9 @@ namespace reprostim {
 				elemName.find("Capture Channel Map") != std::string::npos &&
 				(pos = elemName.find("device=")) != std::string::npos ) {
 				res = elemName.substr(pos+7);
+				_VERBOSE("Found audio-in device id: " << res << ",  elemName: " << elemName);
 				if( res.empty() ) {
+					_VERBOSE("Empty device id found, use default: " << DEFAULT_AUDIO_IN_DEVICE);
 					res = DEFAULT_AUDIO_IN_DEVICE;
 				} else {
 					_VERBOSE("Found audio-in ALSA device : " << res);
