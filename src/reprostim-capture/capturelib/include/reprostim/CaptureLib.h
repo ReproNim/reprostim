@@ -20,7 +20,7 @@
 
 // hardcoded audio sub device to Line-In by default
 #ifndef DEFAULT_AUDIO_IN_DEVICE
-#define DEFAULT_AUDIO_IN_DEVICE "1"
+#define DEFAULT_AUDIO_IN_DEVICE "0"
 #endif
 
 #ifndef PATH_MAX_LEN

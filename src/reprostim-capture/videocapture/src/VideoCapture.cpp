@@ -668,10 +668,10 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 	}
 
 	if (cfg.ext_proc_opts.enabled) {
-		_INFO("terminating external process with SIGINT");
+		_INFO("terminating external process with SIGINT: " << cfg.ext_proc_opts.exec_command);
 		killExtProc(cfg.ext_proc_opts.exec_command, SIGINT);
 		SLEEP_SEC(1.5);
-		_INFO("terminating external process with SIGTERM");
+		_INFO("terminating external process with SIGTERM: " << cfg.ext_proc_opts.exec_command);
 		killExtProc(cfg.ext_proc_opts.exec_command, SIGTERM);
 	}
 
