@@ -36,7 +36,7 @@ MR_settings = {
     "sound": False,
 }
 
-# Custom QR code config wih audio codes enabled
+# Custom QR code config with audio codes enabled
 qr_config = QrConfig(
     audio_enabled=True,
     audio_codec=AudioCodec.NFE,
