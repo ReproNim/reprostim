@@ -90,6 +90,7 @@ linkcheck_ignore = [
     r"https://github\.com/conda-forge/reprostim-feedstock#installing-reprostim",
     r"https://github\.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster\.svg",
     r"https://wiki\.curdes\.com/bin/view/CdiDocs/BirchUsersManual",
+    r"https://raw\.githubusercontent\.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/04_fmri_audiocode\.py",
 ]
 
 # configure myst_parser

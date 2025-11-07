@@ -7,6 +7,29 @@ The `MRI emulator` plugin for PsychoPy provides a way to simulate MRI scanner tr
 responses, allowing researchers to test and develop their experiments without needing access
 to an actual MRI scanner.
 
+For optimal experiment synchronization and data provenance, QR codes should be displayed 
+at specific time points during your fMRI experiments:
+
+- **At the start of the fMRI session** (
+  marking the beginning of the entire scanning session with `EventType.SESSION_START`)
+- **Right after receiving the initial MRI trigger** for the sequence (
+  marking the start of data acquisition with `EventType.SERIES_START`)
+- **Right after receiving each subsequent MRI trigger** (
+  marking each volume acquisition with `EventType.MRI_TRIGGER_RECEIVED`)
+- **At the end of each functional run** (marking the completion of the scan 
+  with `EventType.SERIES_END`)
+- **At the end of the fMRI session** (marking the end of the entire scanning session 
+  with `EventType.SESSION_END`)
+
+**Audio cues** should be embedded alongside QR codes when conducting 
+**audio-visual experiments**. This provides redundant temporal markers that can be 
+captured both visually (by video recording) and acoustically (by audio recording), 
+improving synchronization accuracy and providing fallback options if one modality 
+fails to capture the markers properly. To enable audio codes, 
+set `audio_enabled=True` in your `QrConfig` (see example `04_fmri_audiocode.py` below).
+
+## Examples
+
 We created a simple `PsychoPy` example script
 [01_fmri_interval.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/01_fmri_interval.py) that
 demonstrates how to use `reprostim` package and inject simple session start QR code
@@ -106,6 +129,57 @@ show_qr(EventType.MRI_TRIGGER_RECEIVED, win, fix, qr_config, seq=seq, keys=keys)
 ```
 
 ![](../_static/images/03_fmri_event.png)
+
+Audio codes functionality is disabled by default in PsychoPy QrStim API, but it can be 
+optionally turned on like in the
+[04_fmri_audiocode.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/04_fmri_audiocode.py)
+example below:
+
+```python
+from psychopy import core, event, logging, visual
+from psychopy_mri_emulator import launchScan
+from reprostim.qr.psychopy import EventType, QrCode, QrConfig, QrStim
+from reprostim.audio.audiocodes import AudioCodec
+
+
+def show_qr(event, win, fix, qr_config, **kwargs):
+    # draw a QR code with given parameters
+    qr = QrStim(win, QrCode(event, **kwargs), qr_config)
+    fix.draw()
+    qr.draw()
+    win.flip()
+    # wait for its duration
+    qr.wait()
+
+    # restore fixation cross
+    fix.draw()
+    win.flip()
+
+# Create a window and fixation cross
+win = visual.Window([800, 600], units="pix", fullscr=False)
+fix = visual.TextStim(win, text="+", pos=(0, 0))
+fix.draw()
+win.flip()
+
+
+# Custom QR code config with audio codes enabled
+qr_config = QrConfig(
+    audio_enabled=True,
+    audio_codec=AudioCodec.NFE,
+    audio_volume=0.61,
+    audio_data_field="seq",
+    audio_sample_rate=44100,
+    scale=0.5,
+    padding=30,
+    align="right-bottom",
+)
+
+# show QR code on pulse received
+show_qr(EventType.MRI_TRIGGER_RECEIVED, win, fix, qr_config, seq=seq, keys=keys)
+```
+
+![](../_static/images/04_fmri_audiocode.png)
+
 
 ## Installation
 

@@ -6,6 +6,7 @@
 API to generate visual QR-codes and audio codes
 and embed them into PsychoPy scripts for fMRI experiments
 """
+import os
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,9 @@ from typing import Any
 from psychopy import core, visual
 from pydantic import BaseModel, Field, model_validator
 from qrcode import QRCode
+
+# All audio-related imports are deferred until audio is enabled
+
 
 #######################################################
 # Constants
@@ -224,6 +228,18 @@ class QrConfig:
     """Alignment of the QR code, default is 'center' ."""
     anchor: str = "center"
     """Anchor position of the QR code, default is 'center' ."""
+    audio_codec: Any = None
+    """Audio codec to use for audio code playback, default is AudioCodec.FSK,
+    can be an AudioCodec enum when audio is enabled."""
+    audio_data_field: str = "seq"
+    """Field in the QR code data to encode as audio data, default is 'seq' ."""
+    audio_enabled: bool = False
+    """Flag to enable audio code playback, default is False ."""
+    audio_sample_rate: int = 44100
+    """Audio sample rate for audio code playback, default is 44100 Hz ."""
+    audio_volume: float = 0.8
+    """Audio playback volume. Should be a value between 0.0 and 1.0,
+    where 1.0 is the maximum volume. Default is 0.8 ."""
     back_color: str = "white"
     """Background color of the QR code, default is 'white'.
     Use 'transparent' for opaque background ."""
@@ -261,6 +277,38 @@ class QrStim(visual.ImageStim):
         """
         self.qr_code = qr_code
         self.qr_config = QrConfig() if qr_config is None else qr_config
+
+        # generate wav file with audio code if enabled and update qr_code data
+        if self.qr_config.audio_enabled:
+            # Lazy import - only load heavy audio processing when needed
+            from reprostim.audio.audiocodes import AudioCodec, save_audiocode
+
+            ac: AudioCodec = self.qr_config.audio_codec \
+                if self.qr_config.audio_codec is not None else AudioCodec.FSK
+
+            self.audio_data = int(self.qr_code.get(self.qr_config.audio_data_field, 0))
+            # logging.debug(f"audio_data: {self.audio_data}")
+            self.audio_file, self.audio_info = save_audiocode(
+                code_uint16=self.audio_data,
+                codec=ac,
+                code_duration=self.qr_config.duration
+            )
+            audio_time, audio_time_str = get_times()
+            # NOTE: for better accuracy, consider to specify time
+            #       close to QR code draw action in future
+            self.qr_code["a_time"] = audio_time
+            self.qr_code["a_time_str"] = audio_time_str
+            self.qr_code["a_data"] = self.audio_data
+            self.qr_code["a_codec"] = ac.value
+            self.qr_code["a_f0"] = self.audio_info.f0
+            self.qr_code["a_f1"] = self.audio_info.f1
+            self.qr_code["a_pre_delay"] = self.audio_info.pre_delay
+            self.qr_code["a_post_delay"] = self.audio_info.post_delay
+            self.qr_code["a_duration"] = self.audio_info.duration
+            if ac == AudioCodec.NFE:
+                self.qr_code["a_freq"] = self.audio_info.nfe_freq
+                self.qr_code["a_df"] = self.audio_info.nfe_df
+
         pos = self.qr_config.pos if self.qr_config.pos else (0.0, 0.0)
         image = self.make_qr(border=self.qr_config.border)
         size = (
@@ -293,6 +341,23 @@ class QrStim(visual.ImageStim):
         # pos={pos},dx={dx},dy={dy},x={x},y={y}")
         self.pos = (x, y)
 
+    def __del__(self):
+        """Cleanup temporary audio file if created."""
+        if self.qr_config.audio_enabled and self.audio_file:
+            try:
+                os.remove(self.audio_file)
+            except Exception as e:
+                pass
+
+    # override draw to play audio if enabled
+    def draw(self, win=None):
+        """Draw the QR code stimulus and play audio code if enabled.
+        :param win: Optional PsychoPy window where the QR code will be displayed.
+        If not provided, the window used during initialization will be used.
+        """
+        super().draw(win)
+        self.play_audio()
+
     def make_qr(self, data=None, **kwargs):
         """Generate the QR code image from the QR code data.
         :param data: Optional data to encode in the QR code. If not provided,
@@ -306,6 +371,17 @@ class QrStim(visual.ImageStim):
             fill_color=self.qr_config.fill_color,
             back_color=self.qr_config.back_color,
         )
+
+    def play_audio(self):
+        """Play the audio code if audio is enabled."""
+        if self.qr_config.audio_enabled and self.audio_file:
+            # Lazy import - only load heavy audio playback when needed
+            from reprostim.audio.audiocodes import play_audio
+
+            play_audio(self.audio_file,
+                       sample_rate=self.qr_config.audio_sample_rate,
+                       volume=self.qr_config.audio_volume,
+                       async_=True)
 
     def wait(self):
         """Wait for the duration specified in the QR code configuration."""
