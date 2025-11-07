@@ -7,6 +7,29 @@ The `MRI emulator` plugin for PsychoPy provides a way to simulate MRI scanner tr
 responses, allowing researchers to test and develop their experiments without needing access
 to an actual MRI scanner.
 
+For optimal experiment synchronization and data provenance, QR codes should be displayed 
+at specific time points during your fMRI experiments:
+
+- **At the start of the fMRI session** (
+  marking the beginning of the entire scanning session with `EventType.SESSION_START`)
+- **Right after receiving the initial MRI trigger** for the sequence (
+  marking the start of data acquisition with `EventType.SERIES_START`)
+- **Right after receiving each subsequent MRI trigger** (
+  marking each volume acquisition with `EventType.MRI_TRIGGER_RECEIVED`)
+- **At the end of each functional run** (marking the completion of the scan 
+  with `EventType.SERIES_END`)
+- **At the end of the fMRI session** (marking the end of the entire scanning session 
+  with `EventType.SESSION_END`)
+
+**Audio cues** should be embedded alongside QR codes when conducting 
+**audio-visual experiments**. This provides redundant temporal markers that can be 
+captured both visually (by video recording) and acoustically (by audio recording), 
+improving synchronization accuracy and providing fallback options if one modality 
+fails to capture the markers properly. To enable audio codes, 
+set `audio_enabled=True` in your `QrConfig` (see example `04_fmri_audiocode.py` below).
+
+## Examples
+
 We created a simple `PsychoPy` example script
 [01_fmri_interval.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/01_fmri_interval.py) that
 demonstrates how to use `reprostim` package and inject simple session start QR code
