@@ -1,3 +1,20 @@
+# 0.7.20 (Fri Nov 07 2025)
+
+#### 🐛 Bug Fix
+
+- Extend PsychoPy API with optional audio code support [#203](https://github.com/ReproNim/reprostim/pull/203) ([@vmdocua](https://github.com/vmdocua))
+- Fix automatic audio input detection in `reprostim-videocapture` for `USB Capture HDMI` device [#204](https://github.com/ReproNim/reprostim/pull/204) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🏠 Internal
+
+- Add docker container badge to README.md and RTD [#200](https://github.com/ReproNim/reprostim/pull/200) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.19 (Mon Nov 03 2025)
 
 #### 🐛 Bug Fix
