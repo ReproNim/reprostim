@@ -107,6 +107,57 @@ show_qr(EventType.MRI_TRIGGER_RECEIVED, win, fix, qr_config, seq=seq, keys=keys)
 
 ![](../_static/images/03_fmri_event.png)
 
+Audio codes functionality is disabled by default in PsychoPy QrStim API, but it can be 
+optionally turned on like in the
+[04_fmri_audiocode.py](https://raw.githubusercontent.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/04_fmri_audiocode.py)
+example below:
+
+```python
+from psychopy import core, event, logging, visual
+from psychopy_mri_emulator import launchScan
+from reprostim.qr.psychopy import EventType, QrCode, QrConfig, QrStim
+from reprostim.audio.audiocodes import AudioCodec
+
+
+def show_qr(event, win, fix, qr_config, **kwargs):
+    # draw a QR code with given parameters
+    qr = QrStim(win, QrCode(event, **kwargs), qr_config)
+    fix.draw()
+    qr.draw()
+    win.flip()
+    # wait for its duration
+    qr.wait()
+
+    # restore fixation cross
+    fix.draw()
+    win.flip()
+
+# Create a window and fixation cross
+win = visual.Window([800, 600], units="pix", fullscr=False)
+fix = visual.TextStim(win, text="+", pos=(0, 0))
+fix.draw()
+win.flip()
+
+
+# Custom QR code config with audio codes enabled
+qr_config = QrConfig(
+    audio_enabled=True,
+    audio_codec=AudioCodec.NFE,
+    audio_volume=0.61,
+    audio_data_field="seq",
+    audio_sample_rate=44100,
+    scale=0.5,
+    padding=30,
+    align="right-bottom",
+)
+
+# show QR code on pulse received
+show_qr(EventType.MRI_TRIGGER_RECEIVED, win, fix, qr_config, seq=seq, keys=keys)
+```
+
+![](../_static/images/04_fmri_audiocode.png)
+
+
 ## Installation
 
 On Linux used `reprostim` dev venv and hatch with PsychoPy v2024.2.5:
