@@ -2,6 +2,8 @@
 
 set -eu
 
+cd "$(dirname "$0")"
+
 REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
 REPROSTIM_SUFFIX_NOTAG=repronim-reprostim
 REPROSTIM_SUFFIX=${REPROSTIM_SUFFIX_NOTAG}-${REPROSTIM_VERSION}

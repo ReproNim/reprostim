@@ -30,7 +30,7 @@ generate() {
   # Somehow --copy source differs between docker and singularity
   REPROSTIM_COPY_SRC="${REPROSTIM_GIT_HOME}"
   if [[ "$1" == docker ]]; then
-    REPROSTIM_COPY_SRC="reprostim"
+    REPROSTIM_COPY_SRC="../../../reprostim"
   fi
 
   # copy the setup script to /opt/setup_container.sh
@@ -67,7 +67,7 @@ generate() {
           "${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}" \
           "${REPROSTIM_CAPTURE_PACKAGES_DEV}" \
     "${REPROSTIM_COPY_ARGS[@]}" \
-    --run "bash -c 'chmod a+rX /opt/setup_container.sh && PYTHON_VERSION=\"${PYTHON_VERSION}\" PSYCHOPY_VERSION=\"${PSYCHOPY_VERSION}\" REPROSTIM_VERSION=\"${REPROSTIM_VERSION}\" REPROSTIM_HOME=\"${REPROSTIM_HOME}\" REPROSTIM_GIT_HOME=\"${REPROSTIM_GIT_HOME}\" MODE=\"${MODE}\" REPROSTIM_CAPTURE_ENABLED=\"${REPROSTIM_CAPTURE_ENABLED}\" REPROSTIM_CAPTURE_PACKAGES_DEV=\"${REPROSTIM_CAPTURE_PACKAGES_DEV}\" REPROSTIM_CAPTURE_PACKAGES_RUNTIME=\"${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}\" /opt/setup_container.sh'" \
+    --run "bash -c 'chmod a+rX /opt/setup_container.sh && PYTHON_VERSION=\"${PYTHON_VERSION}\" PSYCHOPY_VERSION=\"${PSYCHOPY_VERSION}\" REPROSTIM_VERSION=\"${REPROSTIM_VERSION}\" REPROSTIM_HOME=\"${REPROSTIM_HOME}\" MODE=\"${MODE}\" REPROSTIM_CAPTURE_ENABLED=\"${REPROSTIM_CAPTURE_ENABLED}\" REPROSTIM_CAPTURE_PACKAGES_DEV=\"${REPROSTIM_CAPTURE_PACKAGES_DEV}\" REPROSTIM_CAPTURE_PACKAGES_RUNTIME=\"${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}\" /opt/setup_container.sh'" \
     --entrypoint python3
 #    --user=reproin \
 }
