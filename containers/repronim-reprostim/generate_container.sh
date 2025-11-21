@@ -30,7 +30,7 @@ generate() {
   # Somehow --copy source differs between docker and singularity
   REPROSTIM_COPY_SRC="${REPROSTIM_GIT_HOME}"
   if [[ "$1" == docker ]]; then
-    REPROSTIM_COPY_SRC="reprostim"
+    REPROSTIM_COPY_SRC="../../../reprostim"
   fi
 
   # copy the setup script to /opt/setup_container.sh
