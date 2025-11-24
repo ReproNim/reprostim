@@ -14,7 +14,7 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 REPROSTIM_HOME=/opt/reprostim
 REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
-REPROSTIM_CI_HOME="${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/reprostim"
+REPROSTIM_CI_HOME="${thisdir}/reprostim"
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
 REPROSTIM_CAPTURE_PACKAGES_RUNTIME="mc"
