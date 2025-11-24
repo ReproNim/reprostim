@@ -29,7 +29,7 @@ fi
 
 generate() {
   # Somehow --copy source differs between docker and singularity
-  REPROSTIM_COPY_SRC="${REPROSTIM_GIT_HOME}"
+  REPROSTIM_COPY_SRC="${REPROSTIM_CI_HOME}"
   if [[ "$1" == docker ]]; then
     REPROSTIM_COPY_SRC="reprostim"
   fi
@@ -76,16 +76,18 @@ generate() {
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
 
+echo "Copy setup setup_container.sh script to container folder..."
+# delete previous copy if exists
+rm -rf "${REPROSTIM_CI_HOME}"
+mkdir -p "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
+cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
+
 if [[ "$MODE" == "ci" ]]; then
   echo "Copy current worktree into container for CI mode: ${REPROSTIM_GIT_HOME} -> ${REPROSTIM_CI_HOME}"
   # delete previous copy if exists
-  rm -rf "${REPROSTIM_CI_HOME}"
-  mkdir -p "${REPROSTIM_CI_HOME}"
   cp -r "${REPROSTIM_GIT_HOME}"/*.* "${REPROSTIM_CI_HOME}"
   cp -r "${REPROSTIM_GIT_HOME}/.git" "${REPROSTIM_CI_HOME}/.git"
   cp -r "${REPROSTIM_GIT_HOME}/docs" "${REPROSTIM_CI_HOME}/docs"
-  mkdir -p "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
-  cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
   cp -r "${REPROSTIM_GIT_HOME}/examples" "${REPROSTIM_CI_HOME}/examples"
   cp -r "${REPROSTIM_GIT_HOME}/src" "${REPROSTIM_CI_HOME}/src"
   cp -r "${REPROSTIM_GIT_HOME}/LICENSES" "${REPROSTIM_CI_HOME}/LICENSES"
