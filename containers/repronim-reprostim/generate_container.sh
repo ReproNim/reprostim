@@ -13,7 +13,10 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 # Decided to go without version to make diff easier to analyze etc
 REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 REPROSTIM_HOME=/opt/reprostim
-REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
+#REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
+#REPROSTIM_GIT_HOME="$(realpath "${thisdir}/../../..")"
+REPROSTIM_GIT_HOME="${thisdir}/../../.."
+REPROSTIM_CI_HOME="${thisdir}/reprostim"
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
 REPROSTIM_CAPTURE_PACKAGES_RUNTIME="mc"
@@ -30,7 +33,7 @@ generate() {
   # Somehow --copy source differs between docker and singularity
   REPROSTIM_COPY_SRC="${REPROSTIM_GIT_HOME}"
   if [[ "$1" == docker ]]; then
-    REPROSTIM_COPY_SRC="../../../reprostim"
+    REPROSTIM_COPY_SRC="reprostim"
   fi
 
   # copy the setup script to /opt/setup_container.sh
@@ -74,6 +77,22 @@ generate() {
 
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
+
+if [[ "$MODE" == "ci" ]]; then
+  echo "Copy current worktree into container for CI mode -> ${REPROSTIM_CI_HOME}"
+  # delete previous copy if exists
+  rm -rf "${REPROSTIM_CI_HOME}"
+  mkdir -p "${REPROSTIM_CI_HOME}"
+  cp "${REPROSTIM_GIT_HOME}/*.*" "${REPROSTIM_CI_HOME}"
+  cp -r "${REPROSTIM_GIT_HOME}/docs" "${REPROSTIM_CI_HOME}/docs"
+  cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim/setup_container.sh"
+  cp -r "${REPROSTIM_GIT_HOME}/examples" "${REPROSTIM_CI_HOME}/examples"
+  cp -r "${REPROSTIM_GIT_HOME}/src" "${REPROSTIM_CI_HOME}/src"
+  cp -r "${REPROSTIM_GIT_HOME}/LICENSES" "${REPROSTIM_CI_HOME}/LICENSES"
+  cp -r "${REPROSTIM_GIT_HOME}/tests" "${REPROSTIM_CI_HOME}/tests"
+  cp -r "${REPROSTIM_GIT_HOME}/tools" "${REPROSTIM_CI_HOME}/tools"
+fi
+
 echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
 generate docker > "$thisdir"/Dockerfile.${REPROSTIM_SUFFIX}
 
