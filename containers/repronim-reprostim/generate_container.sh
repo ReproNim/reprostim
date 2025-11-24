@@ -85,6 +85,7 @@ if [[ "$MODE" == "ci" ]]; then
   rm -rf "${REPROSTIM_CI_HOME}"
   mkdir -p "${REPROSTIM_CI_HOME}"
   cp -r "${REPROSTIM_GIT_HOME}"/*.* "${REPROSTIM_CI_HOME}"
+  cp -r "${REPROSTIM_GIT_HOME}/.git" "${REPROSTIM_CI_HOME}/.git"
   cp -r "${REPROSTIM_GIT_HOME}/docs" "${REPROSTIM_CI_HOME}/docs"
   mkdir -p "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
   cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
