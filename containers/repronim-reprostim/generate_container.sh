@@ -13,9 +13,9 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 # Decided to go without version to make diff easier to analyze etc
 REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 REPROSTIM_HOME=/opt/reprostim
-#REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
+REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
 #REPROSTIM_GIT_HOME="$(realpath "${thisdir}/../../..")"
-REPROSTIM_GIT_HOME="${thisdir}/../../.."
+#REPROSTIM_GIT_HOME="${thisdir}/../../.."
 REPROSTIM_CI_HOME="${thisdir}/reprostim"
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
@@ -79,7 +79,7 @@ echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY
 #
 
 if [[ "$MODE" == "ci" ]]; then
-  echo "Copy current worktree into container for CI mode -> ${REPROSTIM_CI_HOME}"
+  echo "Copy current worktree into container for CI mode: ${REPROSTIM_GIT_HOME} -> ${REPROSTIM_CI_HOME}"
   # delete previous copy if exists
   rm -rf "${REPROSTIM_CI_HOME}"
   mkdir -p "${REPROSTIM_CI_HOME}"
