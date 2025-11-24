@@ -16,7 +16,8 @@ REPROSTIM_HOME=/opt/reprostim
 REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
 #REPROSTIM_GIT_HOME="$(realpath "${thisdir}/../../..")"
 #REPROSTIM_GIT_HOME="${thisdir}/../../.."
-REPROSTIM_CI_HOME="${thisdir}/reprostim"
+REPROSTIM_CI_HOME="${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/reprostim"
+#REPROSTIM_CI_HOME="${thisdir}/reprostim"
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
 REPROSTIM_CAPTURE_PACKAGES_RUNTIME="mc"
@@ -83,9 +84,10 @@ if [[ "$MODE" == "ci" ]]; then
   # delete previous copy if exists
   rm -rf "${REPROSTIM_CI_HOME}"
   mkdir -p "${REPROSTIM_CI_HOME}"
-  cp "${REPROSTIM_GIT_HOME}/*.*" "${REPROSTIM_CI_HOME}"
+  cp -r "${REPROSTIM_GIT_HOME}"/*.* "${REPROSTIM_CI_HOME}"
   cp -r "${REPROSTIM_GIT_HOME}/docs" "${REPROSTIM_CI_HOME}/docs"
-  cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim/setup_container.sh"
+  mkdir -p "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
+  cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
   cp -r "${REPROSTIM_GIT_HOME}/examples" "${REPROSTIM_CI_HOME}/examples"
   cp -r "${REPROSTIM_GIT_HOME}/src" "${REPROSTIM_CI_HOME}/src"
   cp -r "${REPROSTIM_GIT_HOME}/LICENSES" "${REPROSTIM_CI_HOME}/LICENSES"
