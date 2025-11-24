@@ -14,6 +14,7 @@ REPROSTIM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.1")
 REPROSTIM_SUFFIX=repronim-reprostim # -${REPROSTIM_VERSION}
 REPROSTIM_HOME=/opt/reprostim
 REPROSTIM_GIT_HOME=$(git rev-parse --show-toplevel)
+REPROSTIM_CI_HOME="${thisdir}/reprostim"
 REPROSTIM_CAPTURE_ENABLED="${REPROSTIM_CAPTURE_ENABLED:-0}"
 REPROSTIM_CAPTURE_PACKAGES_DEV=""
 REPROSTIM_CAPTURE_PACKAGES_RUNTIME="mc"
@@ -28,7 +29,7 @@ fi
 
 generate() {
   # Somehow --copy source differs between docker and singularity
-  REPROSTIM_COPY_SRC="${REPROSTIM_GIT_HOME}"
+  REPROSTIM_COPY_SRC="${REPROSTIM_CI_HOME}"
   if [[ "$1" == docker ]]; then
     REPROSTIM_COPY_SRC="reprostim"
   fi
@@ -67,13 +68,33 @@ generate() {
           "${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}" \
           "${REPROSTIM_CAPTURE_PACKAGES_DEV}" \
     "${REPROSTIM_COPY_ARGS[@]}" \
-    --run "bash -c 'chmod a+rX /opt/setup_container.sh && PYTHON_VERSION=\"${PYTHON_VERSION}\" PSYCHOPY_VERSION=\"${PSYCHOPY_VERSION}\" REPROSTIM_VERSION=\"${REPROSTIM_VERSION}\" REPROSTIM_HOME=\"${REPROSTIM_HOME}\" REPROSTIM_GIT_HOME=\"${REPROSTIM_GIT_HOME}\" MODE=\"${MODE}\" REPROSTIM_CAPTURE_ENABLED=\"${REPROSTIM_CAPTURE_ENABLED}\" REPROSTIM_CAPTURE_PACKAGES_DEV=\"${REPROSTIM_CAPTURE_PACKAGES_DEV}\" REPROSTIM_CAPTURE_PACKAGES_RUNTIME=\"${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}\" /opt/setup_container.sh'" \
+    --run "bash -c 'chmod a+rX /opt/setup_container.sh && PYTHON_VERSION=\"${PYTHON_VERSION}\" PSYCHOPY_VERSION=\"${PSYCHOPY_VERSION}\" REPROSTIM_VERSION=\"${REPROSTIM_VERSION}\" REPROSTIM_HOME=\"${REPROSTIM_HOME}\" MODE=\"${MODE}\" REPROSTIM_CAPTURE_ENABLED=\"${REPROSTIM_CAPTURE_ENABLED}\" REPROSTIM_CAPTURE_PACKAGES_DEV=\"${REPROSTIM_CAPTURE_PACKAGES_DEV}\" REPROSTIM_CAPTURE_PACKAGES_RUNTIME=\"${REPROSTIM_CAPTURE_PACKAGES_RUNTIME}\" /opt/setup_container.sh'" \
     --entrypoint python3
 #    --user=reproin \
 }
 
 echo "Generating containers for Python v${PYTHON_VERSION} + PsychoPy v${PSYCHOPY_VERSION} + ReproStim v${REPROSTIM_VERSION}.."
 #
+
+echo "Copy setup setup_container.sh script to container folder..."
+# delete previous copy if exists
+rm -rf "${REPROSTIM_CI_HOME}"
+mkdir -p "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
+cp -r "${REPROSTIM_GIT_HOME}/containers/repronim-reprostim/setup_container.sh" "${REPROSTIM_CI_HOME}/containers/repronim-reprostim"
+
+if [[ "$MODE" == "ci" ]]; then
+  echo "Copy current worktree into container for CI mode: ${REPROSTIM_GIT_HOME} -> ${REPROSTIM_CI_HOME}"
+  # delete previous copy if exists
+  cp -r "${REPROSTIM_GIT_HOME}"/*.* "${REPROSTIM_CI_HOME}"
+  cp -r "${REPROSTIM_GIT_HOME}/.git" "${REPROSTIM_CI_HOME}/.git"
+  cp -r "${REPROSTIM_GIT_HOME}/docs" "${REPROSTIM_CI_HOME}/docs"
+  cp -r "${REPROSTIM_GIT_HOME}/examples" "${REPROSTIM_CI_HOME}/examples"
+  cp -r "${REPROSTIM_GIT_HOME}/src" "${REPROSTIM_CI_HOME}/src"
+  cp -r "${REPROSTIM_GIT_HOME}/LICENSES" "${REPROSTIM_CI_HOME}/LICENSES"
+  cp -r "${REPROSTIM_GIT_HOME}/tests" "${REPROSTIM_CI_HOME}/tests"
+  cp -r "${REPROSTIM_GIT_HOME}/tools" "${REPROSTIM_CI_HOME}/tools"
+fi
+
 echo "Dockerfile.${REPROSTIM_SUFFIX} ..."
 generate docker > "$thisdir"/Dockerfile.${REPROSTIM_SUFFIX}
 
