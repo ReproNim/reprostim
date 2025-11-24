@@ -88,6 +88,8 @@ html_logo = "_static/images/logo256.png"
 linkcheck_ignore = [
     r"https://datasets\.datalad\.org/repronim/artwork/talks/webinar-2024-reproflow/#/10",
     r"https://github\.com/conda-forge/reprostim-feedstock#installing-reprostim",
+    r"https://anaconda\.org/conda-forge/reprostim",
+    r"https://img.shields\.io/conda/vn/conda-forge/reprostim\.svg",
     r"https://github\.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster\.svg",
     r"https://wiki\.curdes\.com/bin/view/CdiDocs/BirchUsersManual",
     r"https://raw\.githubusercontent\.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/04_fmri_audiocode\.py",
