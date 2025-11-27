@@ -45,6 +45,9 @@ else
   "${PSYCHOPY_VENV_BIN}/pip" install "reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
 fi
 
+echo "Install visidata"
+"${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir visidata
+
 # Create symlink to python3 in psychopy venv as default python3
 echo "Creating symlink to python3 in psychopy venv as default python3"
 b=$(ls "${PSYCHOPY_VENV_BIN}/python3")
