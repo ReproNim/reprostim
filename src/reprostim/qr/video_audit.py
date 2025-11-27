@@ -667,21 +667,21 @@ def do_audit_dir(
 
 def do_audit_internal(
     ctx: VaContext,
-    path_dir_or_file: str
+    paths_dir_or_file: List[str]
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file or all video files in a directory.
 
     :param ctx: VaContext object with processing context
     :type ctx: VaContext
 
-    :param path_dir_or_file: Path to the video file or directory
-    :type path_dir_or_file: str
+    :param paths_dir_or_file: List of path to the video file or directory
+    :type paths_dir_or_file: List[str]
 
     :return: Generator of VaRecord objects
     :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(
-        f"do_audit_internal(path_dir_or_file={path_dir_or_file}, " f"recursive={ctx.recursive})"
+        f"do_audit_internal(paths_dir_or_file={paths_dir_or_file}, " f"recursive={ctx.recursive})"
     )
 
     # check source is INTERNAL or ALL
@@ -699,14 +699,15 @@ def do_audit_internal(
         logger.debug("Skipping internal source for reset-to-na mode")
         return
 
-    if not os.path.exists(path_dir_or_file):
-        logger.error(f"Path does not exist: {path_dir_or_file}")
-        return
+    for path in paths_dir_or_file:
+        if not os.path.exists(path):
+            logger.error(f"Path does not exist: {path}")
+            return
 
-    if os.path.isfile(path_dir_or_file):
-        yield from do_audit_file(ctx, path_dir_or_file)
-    elif os.path.isdir(path_dir_or_file):
-        yield from do_audit_dir(ctx, path_dir_or_file)
+        if os.path.isfile(path):
+            yield from do_audit_file(ctx, path)
+        elif os.path.isdir(path):
+            yield from do_audit_dir(ctx, path)
 
 
 def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
@@ -964,12 +965,12 @@ def run_ext_all(ctx: VaContext, vr: VaRecord) -> VaRecord:
     return run_ext_qr(ctx, run_ext_nosignal(ctx, vr))
 
 
-def do_audit(ctx: VaContext, path_dir_or_file: str) -> Generator[VaRecord, None, None]:
+def do_audit(ctx: VaContext, paths_dir_or_file: List[str]) -> Generator[VaRecord, None, None]:
     """Generator that audits files and applies all external tools to
     each record if any, depending on context and options.
     """
-    logger.debug(f"do_audit(path_dir_or_file={path_dir_or_file})")
-    for rec in do_audit_internal(ctx, path_dir_or_file):
+    logger.debug(f"do_audit(paths_dir_or_file={paths_dir_or_file})")
+    for rec in do_audit_internal(ctx, paths_dir_or_file):
         yield run_ext_all(ctx, rec)
 
 
@@ -983,7 +984,7 @@ def do_ext(ctx: VaContext, recs: List[VaRecord]) -> Generator[VaRecord, None, No
 
 
 def do_main(
-    path: str,
+    paths: List[str],
     path_tsv: str,
     recursive: bool = False,
     mode: VaMode = VaMode.INCREMENTAL,
@@ -996,8 +997,8 @@ def do_main(
     """The main function invoked by CLI to analyze video files with
     logs and save the results to a TSV file.
 
-    :param path: Path to the video file or directory
-    :type path: str
+    :param paths: One or more paths to the video file or directory
+    :type paths: List[str]
 
     :param path_tsv: Path to the output TSV file, default 'videos.tsv'.
     :type path_tsv: str
@@ -1030,13 +1031,14 @@ def do_main(
     """
 
     logger.debug("video-audit command")
-    logger.debug(f"path      : {path}")
+    logger.debug(f"paths     : {paths}")
     logger.debug(f"path_tsv  : {path_tsv}")
 
-
-    if not os.path.exists(path):
-        logger.error(f"Path does not exist: {path}")
-        return 1
+    # double validate each path is valid and exists
+    for path in paths:
+        if not os.path.exists(path):
+            logger.error(f"Path does not exist: {path}")
+            return 1
 
     if not check_ffprobe():
         out_func(
@@ -1074,7 +1076,7 @@ def do_main(
         recursive=recursive,
         source=va_src,
     )
-    recs1: List[VaRecord] = list(do_audit(ctx, path))
+    recs1: List[VaRecord] = list(do_audit(ctx, paths))
 
     if verbose:
         for vr in recs1:
