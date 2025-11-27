@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
                        "rerun-for-na", "reset-to-na"],
                       case_sensitive=True),
     default="incremental",
+    show_default=True,
     help=(
-        """Specifies operation mode, default is 'incremental' :.
+        """Specifies operation mode:.
 
 - [full] : regenerate everything from scratch,
 
