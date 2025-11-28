@@ -472,20 +472,27 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
 def _merge_recs(ctx: VaContext,
                recs0: List[VaRecord], # old original videos.tsv records
                recs_cur: List[VaRecord], # current latest transactional videos.tsv records
-               recs: List[VaRecord], # new records to merge based on recs0
+               recs_new: List[VaRecord], # new records to merge based on recs0
                ):
-    # TODO: implement merging logic
-    # when mode is [full] - use recs and override everything in recs_cur
+    # (A) when mode is [full] - use recs and override everything in recs_cur
+    if ctx.mode == VaMode.FULL:
+        return recs_new
 
-    # when mode is [force] - merge all records from recs into recs_cur
+    # (B) when mode is [force] - merge all records from recs into recs_cur
+    if ctx.mode == VaMode.FORCE:
+        if len(recs_cur) > 0:
+            merged_dict = {r.name: r for r in recs_cur}
+            merged_dict.update({r.name: r for r in recs_new})
+            recs_new = list(merged_dict.values())
+        return recs_new
 
-    # when mode is [rerun-for-na] or [reset-to-na]
+    # (C) when mode is [rerun-for-na] or [reset-to-na]
     # merge only records from recs where related fields are updated
     # and use timestamps
 
-    # when mode is [incremental] - add only new records from recs if timestamp
+    # (D) when mode is [incremental] - add only new records from recs if timestamp
     # is older than in recs_cur
-    return recs
+    return recs_new
 
 
 def _set_updated(ctx: VaContext, vr: VaRecord):
@@ -1123,6 +1130,8 @@ def do_main(
     with lock:
         recs_cur: List[VaRecord] = _load_tsv(path_tsv)
         recs = _merge_recs(ctx, recs0, recs_cur, recs)
+        # sort records by name again
+        recs.sort(key=lambda r: r.name)
         _save_tsv(recs, path_tsv)
 
     return 0
