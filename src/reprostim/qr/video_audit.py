@@ -470,11 +470,21 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
 
 
 def _merge_recs(ctx: VaContext,
-               recs0: List[VaRecord], # old orignal videos.tsv records
+               recs0: List[VaRecord], # old original videos.tsv records
                recs_cur: List[VaRecord], # current latest transactional videos.tsv records
                recs: List[VaRecord], # new records to merge based on recs0
                ):
     # TODO: implement merging logic
+    # when mode is [full] - use recs and override everything in recs_cur
+
+    # when mode is [force] - merge all records from recs into recs_cur
+
+    # when mode is [rerun-for-na] or [reset-to-na]
+    # merge only records from recs where related fields are updated
+    # and use timestamps
+
+    # when mode is [incremental] - add only new records from recs if timestamp
+    # is older than in recs_cur
     return recs
 
 
