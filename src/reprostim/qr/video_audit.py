@@ -24,6 +24,7 @@ from datetime import datetime
 from enum import Enum
 from time import time
 from typing import Dict, Generator, List, Set, Optional
+from filelock import FileLock
 
 from pydantic import BaseModel
 
@@ -1049,12 +1050,15 @@ def do_main(
             " not found. Make sure ffmpeg package is installed."
         )
 
+    lock = FileLock(f"{path_tsv}.lock")
+
     recs0: List[VaRecord] = []
     # in case path_tsv exists, and mode is not FULL,
     # load existing records
     if mode != VaMode.FULL and os.path.exists(path_tsv):
         logger.info(f"Loading existing TSV file: {path_tsv}")
-        recs0 = _load_tsv(path_tsv)
+        with lock:
+            recs0 = _load_tsv(path_tsv)
         logger.info(f"Loaded {len(recs0)} existing records from TSV")
 
     # skip files set in case of INCREMENTAL mode
@@ -1097,6 +1101,7 @@ def do_main(
     logger.info(f"Total records to save      : {len(recs)}")
     # sort records by name
     recs.sort(key=lambda r: r.name)
-    _save_tsv(recs, path_tsv)
+    with lock:
+        _save_tsv(recs, path_tsv)
 
     return 0
