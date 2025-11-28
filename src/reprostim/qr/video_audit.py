@@ -469,6 +469,15 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
+def _merge_recs(ctx: VaContext,
+               recs0: List[VaRecord], # old orignal videos.tsv records
+               recs_cur: List[VaRecord], # current latest transactional videos.tsv records
+               recs: List[VaRecord], # new records to merge based on recs0
+               ):
+    # TODO: implement merging logic
+    return recs
+
+
 def _set_updated(ctx: VaContext, vr: VaRecord):
     ctx.updated_paths.add(vr.path)
     vr.updated_on = format_tts(time())
@@ -1102,6 +1111,8 @@ def do_main(
     # sort records by name
     recs.sort(key=lambda r: r.name)
     with lock:
+        recs_cur: List[VaRecord] = _load_tsv(path_tsv)
+        recs = _merge_recs(ctx, recs0, recs_cur, recs)
         _save_tsv(recs, path_tsv)
 
     return 0
