@@ -469,11 +469,28 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
+def _match_recs(recs1: List[VaRecord], recs2: List[VaRecord]) -> bool:
+    """Returns True if records match, False on first mismatch"""
+    if len(recs1) != len(recs2):
+        return False
+
+    for r1, r2 in zip(recs1, recs2):
+        if r1.model_dump_json() != r2.model_dump_json():
+            return False
+
+    return True
+
+
 def _merge_recs(ctx: VaContext,
                recs0: List[VaRecord], # old original videos.tsv records
                recs_cur: List[VaRecord], # current latest transactional videos.tsv records
                recs_new: List[VaRecord], # new records to merge based on recs0
                ):
+    # before any merging check if recs0 and recs_cur are the same and skip merge
+    if _match_recs(recs0, recs_cur):
+        logger.debug("_merge_recs: No changes in recs_cur since load, skipping merge")
+        return recs_new
+
     # (A) when mode is [full] - use recs and override everything in recs_cur
     if ctx.mode == VaMode.FULL:
         return recs_new
