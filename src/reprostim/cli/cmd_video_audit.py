@@ -19,7 +19,11 @@ logger = logging.getLogger(__name__)
     "recording and produces a summary table "
     "(videos.tsv) ."
 )
-@click.argument("path", type=click.Path(exists=True))
+@click.argument(
+    "paths",
+    nargs=-1,              # accept 1 or more arguments
+    type=click.Path(exists=True, dir_okay=True, file_okay=True),
+)
 @click.option(
     "-m",
     "--mode",
@@ -27,8 +31,9 @@ logger = logging.getLogger(__name__)
                        "rerun-for-na", "reset-to-na"],
                       case_sensitive=True),
     default="incremental",
+    show_default=True,
     help=(
-        """Specifies operation mode, default is 'incremental' :.
+        """Specifies operation mode:.
 
 - [full] : regenerate everything from scratch,
 
@@ -109,7 +114,8 @@ logger = logging.getLogger(__name__)
 )
 @click.pass_context
 def video_audit(
-    ctx, path: str, mode: str, output: str,
+    ctx, paths: tuple[str, ...],
+    mode: str, output: str,
     recursive: bool, audit_src,
     max_files: int, path_mask: str,
     verbose: bool
@@ -120,7 +126,7 @@ def video_audit(
 
     logger.debug("video_audit(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
-    logger.info(f"Video full path  : {path}")
+    logger.info(f"Video full paths : {paths}")
     logger.info(f"Output TSV file  : {output}")
     logger.info(f"Recursive scan   : {recursive}")
     logger.info(f"Operation mode   : {mode}")
@@ -130,11 +136,12 @@ def video_audit(
         logger.info(f"Path mask        : {path_mask}")
     logger.info(f"Verbose output   : {verbose}")
 
-    if not os.path.exists(path):
-        logger.error(f"Path does not exist: {path}")
-        return 1
+    for path in paths:
+        if not os.path.exists(path):
+            logger.error(f"Path does not exist: {path}")
+            return 1
 
-    do_main(path, output, recursive, VaMode(mode),
+    do_main(list(paths), output, recursive, VaMode(mode),
             {VaSource(s) for s in audit_src},
             max_files, path_mask, verbose, click.echo)
     return 0

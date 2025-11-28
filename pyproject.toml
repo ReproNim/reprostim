@@ -41,6 +41,7 @@ dependencies = [
   "pyzbar>=0.1.9",
   "qrcode>=8.0",
   "opencv-python>=4.9.0.80",
+  "filelock>=3.16.0",
 ]
 
 [project.optional-dependencies]
