@@ -471,17 +471,95 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
+def _compare_rec_ts(r1: VaRecord, r2: VaRecord, field: str = "updated_on") -> int:
+    """Compare two VaRecord objects based on their timestamp field.
+
+    :param r1: First VaRecord object
+    :type r1: VaRecord
+
+    :param r2: Second VaRecord object
+    :type r2: VaRecord
+
+    :param field: Field name to compare timestamps (default: "updated_on")
+    :type field: str
+
+    :return: -1 if r1 < r2, 0 if equal, 1 if r1 > r2
+    :rtype: int
+    """
+    t1_str = getattr(r1, field)
+    t2_str = getattr(r2, field)
+
+    # quick check for equality to prevent ts parsing
+    if t1_str==t2_str:
+        return 0
+
+    if t1_str == "n/a" and t2_str == "n/a":
+        return 0
+    if t1_str == "n/a":
+        return -1
+    if t2_str == "n/a":
+        return 1
+
+    t1 = datetime.strptime(t1_str, "%Y-%m-%d %H:%M:%S.%f")
+    t2 = datetime.strptime(t2_str, "%Y-%m-%d %H:%M:%S.%f")
+
+    if t1 < t2:
+        return -1
+    elif t1 > t2:
+        return 1
+    else:
+        return 0
+
+
 def _match_recs(recs1: List[VaRecord], recs2: List[VaRecord]) -> bool:
     """Returns True if records match, False on first mismatch"""
     if len(recs1) != len(recs2):
         return False
 
     for r1, r2 in zip(recs1, recs2):
+        # logger.debug(f"r1: {r1}, r2: {r2}")
         if r1.model_dump_json() != r2.model_dump_json():
             return False
 
     return True
 
+
+def _merge_rec(ctx: VaContext, rec_cur: VaRecord, rec_new: VaRecord) -> VaRecord:
+    """Merge two VaRecord objects based on the context mode.
+    Use updated_on, no_signal_updated_on, qr_updated_on timestamps to decide which
+    part of the record to keep.
+    """
+
+    # provide addition check for record key
+    if rec_cur.name != rec_new.name:
+        raise ValueError(
+            f"_merge_rec: Record names do not match: "
+            f"{rec_cur.name} != {rec_new.name}"
+        )
+
+    c_internal: int = _compare_rec_ts(rec_new, rec_cur)
+    c_nosignal: int = _compare_rec_ts(rec_new, rec_cur, field="no_signal_updated_on")
+    c_qr: int = _compare_rec_ts(rec_new, rec_cur, field="qr_updated_on")
+
+    # when timestamps are the same, select the latest record:
+    if c_internal == 0 and c_nosignal == 0 and c_qr == 0:
+        return rec_new
+
+    # otherwise build merged record first by internal basic data:
+    rec_latest: VaRecord = rec_new if c_internal >= 0 else rec_cur
+    rec: VaRecord = rec_latest.model_copy()
+
+    # then select the latest nosignal data:
+    rec_latest = rec_new if c_nosignal >= 0 else rec_cur
+    rec.no_signal_frames = rec_latest.no_signal_frames
+    rec.no_signal_updated_on = rec_latest.no_signal_updated_on
+
+    # and select the latest qr data:
+    rec_latest = rec_new if c_qr >= 0 else rec_cur
+    rec.qr_records_number = rec_latest.qr_records_number
+    rec.qr_updated_on = rec_latest.qr_updated_on
+
+    return rec
 
 def _merge_recs(ctx: VaContext,
                recs0: List[VaRecord], # old original videos.tsv records
@@ -495,10 +573,12 @@ def _merge_recs(ctx: VaContext,
 
     # (A) when mode is [full] - use recs and override everything in recs_cur
     if ctx.mode == VaMode.FULL:
+        logger.debug("_merge_recs: Full mode, overriding all records")
         return recs_new
 
     # (B) when mode is [force] - merge all records from recs into recs_cur
     if ctx.mode == VaMode.FORCE:
+        logger.debug("_merge_recs: Force mode, merging all new records over existing ones")
         if len(recs_cur) > 0:
             merged_dict = {r.name: r for r in recs_cur}
             merged_dict.update({r.name: r for r in recs_new})
@@ -508,9 +588,28 @@ def _merge_recs(ctx: VaContext,
     # (C) when mode is [rerun-for-na] or [reset-to-na]
     # merge only records from recs where related fields are updated
     # and use timestamps
-
+    #       or
     # (D) when mode is [incremental] - add only new records from recs if timestamp
     # is older than in recs_cur
+    if ctx.mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA, VaMode.INCREMENTAL}:
+        logger.debug(f"_merge_recs: {ctx.mode} mode, merging selectively based on timestamps")
+        if len(recs_cur) > 0:
+            # first build dict of current records
+            merged_dict = {r.name: r for r in recs_cur}
+            # and then compare/merge with new records
+            for rec in recs_new:
+                # existing record, need to merge manually
+                if rec.name in merged_dict:
+                    merged_dict[rec.name] = _merge_rec(
+                        ctx,
+                        merged_dict[rec.name],
+                        rec
+                    )
+                else:
+                    # new record, just add it
+                    merged_dict[rec.name] = rec
+            recs_new = list(merged_dict.values())
+
     return recs_new
 
 
@@ -1147,7 +1246,7 @@ def do_main(
     # sort records by name
     recs.sort(key=lambda r: r.name)
     with lock:
-        recs_cur: List[VaRecord] = _load_tsv(path_tsv)
+        recs_cur: List[VaRecord] = _load_tsv(path_tsv) if os.path.exists(path_tsv) else []
         recs = _merge_recs(ctx, recs0, recs_cur, recs)
         # sort records by name again
         recs.sort(key=lambda r: r.name)
