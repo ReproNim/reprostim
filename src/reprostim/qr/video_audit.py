@@ -46,7 +46,7 @@ logger.debug(f"name={__name__}")
 # Precalculated globals
 
 # User@Host string
-UPDATED_BY = f"{getpass.getuser()}@{socket.gethostname()}"
+# UPDATED_BY = f"{getpass.getuser()}@{socket.gethostname()}"
 
 # Global REPROSTIM-METADATA-JSON regex pattern
 JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
@@ -118,7 +118,7 @@ class VaRecord(BaseModel):
 
     # Duration
     duration: str = "n/a"  # seconds
-    duration_h: str = "n/a"  # human readable, e.g., "01:23:45"
+    duration_h: str = "n/a"  # human-readable, e.g., "01:23:45"
 
     # Analysis info
     no_signal_frames: str = "n/a"  # number of frames with no signal, or %
@@ -128,8 +128,10 @@ class VaRecord(BaseModel):
     file_log_coherent: bool = False  # whether video/audio info matches extracted
 
     # Update info
-    updated_on: str = "n/a"
-    updated_by: str = "n/a"
+    no_signal_updated_on: str = "n/a" # provide separate timestamps for nosignal ext tool
+    qr_updated_on: str = "n/a" # provide separate timestamps for qr ext tool
+    updated_on: str = "n/a" # last updated timestamp for basic internal processing
+    # updated_by: str = "n/a"
 
 
 class VaSource(str, Enum):
@@ -512,10 +514,10 @@ def _merge_recs(ctx: VaContext,
     return recs_new
 
 
-def _set_updated(ctx: VaContext, vr: VaRecord):
+def _set_updated(ctx: VaContext, vr: VaRecord, field: str = "updated_on"):
     ctx.updated_paths.add(vr.path)
-    vr.updated_on = format_tts(time())
-    vr.updated_by = UPDATED_BY
+    setattr(vr, field, format_tts(time()))
+    # vr.updated_by = UPDATED_BY
 
 
 # build dated path for output files with structure base_dir/<YYYY>/<MM>/filename.<ext>
@@ -788,7 +790,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
         if vr.no_signal_frames != "n/a":
             vr.no_signal_frames = "n/a"
             logger.debug(f"Reset no_signal_frames -> {vr.no_signal_frames}")
-            _set_updated(ctx, vr)
+            _set_updated(ctx, vr, field="no_signal_updated_on")
             ctx.c_nosignal += 1
             logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
         return vr
@@ -846,7 +848,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
                 else:
                     vr.no_signal_frames = "0.0"
             logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
-            _set_updated(ctx, vr)
+            _set_updated(ctx, vr, field="no_signal_updated_on")
             ctx.c_nosignal += 1
             logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
         except (json.JSONDecodeError, IOError) as e:
@@ -889,7 +891,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
         if vr.qr_records_number != "n/a":
             vr.qr_records_number = "n/a"
             logger.debug(f"Reset qr_records_number -> {vr.qr_records_number}")
-            _set_updated(ctx, vr)
+            _set_updated(ctx, vr, field="qr_updated_on")
             ctx.c_qr += 1
             logger.debug(f"c_qr -> {ctx.c_qr}")
         return vr
@@ -980,7 +982,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                                 logger.debug(f"qr-parse summary: {record}")
                                 vr.qr_records_number = str(record.get('qr_count', '0'))
                                 logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
-                                _set_updated(ctx, vr)
+                                _set_updated(ctx, vr, field="qr_updated_on")
                                 ctx.c_qr += 1
                                 logger.debug(f"c_qr -> {ctx.c_qr}")
                                 break
