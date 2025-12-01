@@ -1,3 +1,21 @@
+# 0.7.21 (Mon Dec 01 2025)
+
+#### 🐛 Bug Fix
+
+- Concurrency execution support and tunnings in `video-audit` command [#208](https://github.com/ReproNim/reprostim/pull/208) ([@vmdocua](https://github.com/vmdocua))
+- RF: do not ascend in the script(s), do not pass local $REPROSTIM_GIT_HOME path [#205](https://github.com/ReproNim/reprostim/pull/205) ([@yarikoptic](https://github.com/yarikoptic) [@vmdocua](https://github.com/vmdocua))
+
+#### 🏠 Internal
+
+- Install visidata tool into the reprostim container [#207](https://github.com/ReproNim/reprostim/pull/207) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.20 (Fri Nov 07 2025)
 
 #### 🐛 Bug Fix
