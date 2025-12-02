@@ -26,6 +26,23 @@ namespace reprostim {
 		return EX_OK;
 	}
 
+	uint32_t fnv1_32(const std::string& s) {
+		const uint32_t prime = 16777619u;
+		uint32_t hash = 2166136261u; // offset basis
+
+		for (unsigned char c : s) {
+			hash ^= c;
+			hash *= prime;
+		}
+		return hash;
+	}
+
+	std::string toHex8(uint32_t value) {
+		std::ostringstream oss;
+		oss << std::hex << std::setfill('0') << std::setw(8) << value;
+		return oss.str();
+	}
+
 	void signalHandler(int signum) {
 		//_INFO("Signal received: " << signum);
 		if (signum == SIGINT) {
@@ -152,6 +169,13 @@ namespace reprostim {
 
 		if( doc["video_device_path_pattern"] ) {
 			cfg.video_device_path_pattern = getYamlProp<std::string>(doc, "video_device_path_pattern");
+		}
+
+		if( doc["instance_tag"] ) {
+			cfg.instance_tag = getYamlProp<std::string>(doc, "instance_tag");
+			cfg.has_instance_tag = !cfg.instance_tag.empty() && cfg.instance_tag!="auto";
+		} else {
+			cfg.has_instance_tag = false;
 		}
 
 		if( doc["session_logger_enabled"] ) {
@@ -363,6 +387,18 @@ namespace reprostim {
 		// calculated options
 		configHash = getFileChangeHash(opts.configPath);
 
+		// calculate instanceTag
+		if ( cfg.has_instance_tag ) {
+			instanceTag = cfg.instance_tag;
+		} else {
+			// instance tag not specified, calculate it based
+			// on appName, device serial number and home path
+			instanceTag = toHex8(fnv1_32(appName)) + "-" +
+						toHex8(fnv1_32(cfg.has_device_serial_number?cfg.device_serial_number:"auto")) + "-" +
+						toHex8(fnv1_32(std::filesystem::absolute(opts.homePath)));
+		}
+
+
 		// current video signal status
 		vssCur = {};
 
@@ -390,6 +426,8 @@ namespace reprostim {
 		} else {
 			_VERBOSE("Use any first available Magewell USB Capture device");
 		}
+
+		_INFO("    <> Instance tag                ===> " << instanceTag);
 
 		BOOL fInit = MWCaptureInitInstance();
 		if( !fInit )
