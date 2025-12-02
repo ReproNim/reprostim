@@ -556,7 +556,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 	sprintf(
 			ffmpg,
 			"ffmpeg %s %s %s %s %s -framerate %s -video_size %ix%i %s -i %s "
-			"%s %s %s %s %s 2>&1", // > /dev/null &",
+			"%s %s %s %s -metadata comment=%s %s 2>&1", // > /dev/null &",
 			opts.a_fmt.c_str(),
 			opts.a_nchan.c_str(),
 			opts.a_opt.c_str(),
@@ -571,6 +571,7 @@ void VideoCaptureApp::startRecording(int cx, int cy, const std::string& frameRat
 			opts.pix_fmt.c_str(),
 			opts.n_threads.c_str(),
 			opts.a_enc.c_str(),
+			instanceTag.c_str(),
 			outVideoFile.c_str()
 	);
 
