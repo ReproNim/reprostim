@@ -89,18 +89,27 @@ inline std::string buildVideoFile(
 bool killProc(const std::string& procName,
 			  int sig = SIGKILL,
 			  float timeoutSec = 1.5,
-			  bool waitInCycle = true) {
-	std::string pid = exec("pidof " + procName);
+			  bool waitInCycle = true,
+			  const std::string& cmdSubstr = "") {
+	std::string cmd_pidof = cmdSubstr.empty()?"pidof " + procName:"pgrep -f \"^" + procName + ".*" + cmdSubstr +"\"";
+	_VERBOSE("cmd_pidof: " << cmd_pidof);
+	std::string pid = exec(cmd_pidof);
 	_INFO(procName+" pid: " << pid.c_str());
+	int c = 0; // safety counter
 	while ( pid.length() > 0 ) {
 		_INFO("<> PID of " << procName <<"\t===> " << pid.c_str());
 		std::string killCmd = "kill -" + std::to_string(sig) + " " + pid;
 		system(killCmd.c_str());
 		//
 		SLEEP_SEC(timeoutSec); // Allow time for process to stop
-		pid = exec("pidof " + procName);
+		pid = exec(cmd_pidof);
 		if( !waitInCycle )
 			break;
+		c++;
+		if( c > 100 ) {
+			_ERROR("killProc: safety break after 100 cycles to prevent infinite loop");
+			break;
+		}
 	}
 	return pid.length()==0?true:false;
 }
@@ -660,11 +669,11 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 	std::string oldname = buildVideoFile(vpath, start_ts + "--", out_fmt);
 
 	_INFO("stop record says: " << "terminating ffmpeg with SIGINT");
-	if( !killProc("ffmpeg", SIGINT, 5, false) ) {
+	if( !killProc("ffmpeg", SIGINT, 5, false, instanceTag) ) {
 		_INFO("stop record says: " << "terminating ffmpeg with SIGTERM");
-		if( !killProc("ffmpeg", SIGTERM, 1.5, false) ) {
+		if( !killProc("ffmpeg", SIGTERM, 1.5, false, instanceTag) ) {
 			_INFO("stop record says: " << "terminating ffmpeg with SIGKILL");
-			killProc("ffmpeg", SIGKILL, 1.5, true);
+			killProc("ffmpeg", SIGKILL, 1.5, true, instanceTag);
 		}
 	}
 
