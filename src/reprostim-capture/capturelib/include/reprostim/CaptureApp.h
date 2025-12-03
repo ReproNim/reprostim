@@ -62,6 +62,8 @@ namespace reprostim {
 	struct AppConfig {
 		std::string  device_serial_number;
 		bool         has_device_serial_number = false;
+		std::string  instance_tag;
+		bool         has_instance_tag = false;
 		bool         session_logger_enabled = false;
 		LogLevel     session_logger_level = LogLevel::OFF;
 		std::string  session_logger_pattern;
@@ -106,6 +108,7 @@ namespace reprostim {
 
 		// session runtime data
 		std::string               configHash;
+		std::string               instanceTag;
 		std::string               frameRate;
 		std::string               outPath;
 		int                       recording;

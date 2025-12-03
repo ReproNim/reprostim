@@ -16,6 +16,16 @@ device_serial_number: "auto"
 #
 video_device_path_pattern: "/dev/video*"
 
+# Specify magic instance tag id to identify specific capture process
+# instance in the system. It is used to identify and mark command-line
+# of child processes related to current capture session.
+# It should be used when multiple reprostim-videocapture instances
+# are running on the same host machine against different Magewell devices.
+# instance_tag: can be set to "auto" value to generate unique tag
+# based on device_serial_number and config.yaml path hash, otherwise
+# unique string value should be provided explicitly.
+instance_tag: "auto"
+
 # Specify capture session file logger settings
 # it is used to log capture session related information to file
 # located in output directory and named like output file
