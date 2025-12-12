@@ -27,7 +27,7 @@ PSYCHOPY_VENV_BIN=${PSYCHOPY_HOME}/.venv/bin
 
 # Install psychopy_linux_installer from GitHub
 echo "Install psychopy_linux_installer from GitHub..."
-git clone --branch v2.2.4 --depth 1 https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer
+git clone --branch v2.2.5 --depth 1 https://github.com/wieluk/psychopy_linux_installer/ /opt/psychopy-installer
 cd /opt/psychopy-installer
 
 # Install PsychoPy via psychopy_linux_installer
