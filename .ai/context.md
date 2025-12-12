@@ -120,6 +120,15 @@ docs/source/
 - SVG-based ReproFlow diagram
 - Platform-specific notes (Linux, macOS, Windows)
 
+**Documentation Pattern - Diataxis:**
+Documentation follows (or is being refactored to follow) the [Diataxis framework](https://diataxis.fr/), which organizes documentation into four categories:
+- **Tutorials**: Learning-oriented, step-by-step lessons for beginners
+- **How-to Guides**: Task-oriented, goal-focused recipes for specific problems
+- **Reference**: Information-oriented, technical descriptions (API docs, CLI reference)
+- **Explanation**: Understanding-oriented, clarifying discussions about design and context
+
+*Note: Current documentation is in an older style and is being gradually refactored to align with Diataxis principles for improved usability and maintainability.*
+
 #### `containers/` - Container Definitions
 Docker and Singularity container support for deployment.
 
