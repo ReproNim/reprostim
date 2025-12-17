@@ -206,7 +206,7 @@ def init_grid_colors(ref_image_path: str):
     logger.debug(f"ref_image_path={ref_image_path}")
 
     # Load reference image
-    image = cv2.imread(ref_image_path)
+    image = cv2.imread(str(ref_image_path))
 
     # Get the dimensions of the image
     height, width, _ = image.shape
