@@ -613,6 +613,12 @@ def _merge_recs(ctx: VaContext,
     return recs_new
 
 
+def _normalize_path(path: str) -> str:
+    # Note: revise if further normalization for record.path when needed
+    # (e.g., resolve symlinks, case sensitivity, etc)
+    return path
+
+
 def _set_updated(ctx: VaContext, vr: VaRecord, field: str = "updated_on"):
     ctx.updated_paths.add(vr.path)
     setattr(vr, field, format_tts(time()))
@@ -667,7 +673,7 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     try:
         if os.path.exists(path):
             vr.present = True
-            vr.path = path
+            vr.path = _normalize_path(path)
             vr.name = os.path.basename(path)
 
             if ctx.skip_names and vr.name in ctx.skip_names:
@@ -1138,9 +1144,9 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
 
         if os.path.exists(path):
             if os.path.isfile(path):
-                path_files.add(path)
+                path_files.add(_normalize_path(path))
             elif os.path.isdir(path):
-                path_dirs.add(path)
+                path_dirs.add(_normalize_path(path))
         else:
             logger.error(f"Path does not exist: {path}")
 
@@ -1148,16 +1154,25 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
 
     for rec in recs:
         # filter by paths when specified
+        f_match: bool = False
         if has_filter:
             # filter by file path
-            if rec.path not in path_files:
-                logger.debug(f"Skipping ext record by path filter: {rec.path}")
-                continue
+            # logger.debug(f"rec.path : {rec.path}")
+            # logger.debug(f"path_files : {path_files}")
+            if not f_match and rec.path in path_files:
+                logger.debug(f"Matched ext record by PATH filter: {rec.path}")
+                f_match = True
 
             # check path starts with one of dir names
-            if not any(rec.path.startswith(d) for d in path_dirs):
-                logger.debug(f"Skipping ext record by dir filter: {rec.path}")
+            if not f_match and path_dirs and any(rec.path.startswith(d) for d in path_dirs):
+                logger.debug(f"Matched ext record by DIR filter: {rec.path}")
+                f_match = True
+
+            if not f_match:
+                logger.debug(f"Skipping ext record by PATH / DIR filters: {rec.path}")
+                yield rec
                 continue
+
         # process matched ext record
         yield run_ext_all(ctx, rec)
 
