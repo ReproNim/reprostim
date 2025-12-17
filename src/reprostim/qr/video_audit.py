@@ -1118,12 +1118,47 @@ def do_audit(ctx: VaContext, paths_dir_or_file: List[str]) -> Generator[VaRecord
         yield run_ext_all(ctx, rec)
 
 
-def do_ext(ctx: VaContext, recs: List[VaRecord]) -> Generator[VaRecord, None, None]:
+def do_ext(ctx: VaContext, recs: List[VaRecord],
+           paths_dir_or_file: List[str]) -> Generator[VaRecord, None, None]:
     """Generator that runs external tools on existing records
     depending on context and options.
     """
     logger.debug(f"do_ext(...)")
+
+    has_filter = bool(paths_dir_or_file)
+
+    # create separate sets of dirs and files from paths_dir_or_file
+    path_dirs = set()
+    path_files = set()
+    for path in paths_dir_or_file:
+
+        if path == "*":
+            has_filter = False
+            break
+
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                path_files.add(path)
+            elif os.path.isdir(path):
+                path_dirs.add(path)
+        else:
+            logger.error(f"Path does not exist: {path}")
+
+
+
     for rec in recs:
+        # filter by paths when specified
+        if has_filter:
+            # filter by file path
+            if rec.path not in path_files:
+                logger.debug(f"Skipping ext record by path filter: {rec.path}")
+                continue
+
+            # check path starts with one of dir names
+            if not any(rec.path.startswith(d) for d in path_dirs):
+                logger.debug(f"Skipping ext record by dir filter: {rec.path}")
+                continue
+        # process matched ext record
         yield run_ext_all(ctx, rec)
 
 
@@ -1237,7 +1272,7 @@ def do_main(
         recs = list(merged_dict.values())
 
     if mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA}:
-        recs = list(do_ext(ctx, recs))
+        recs = list(do_ext(ctx, recs, paths))
 
     logger.info(f"Audited records count: {len(ctx.updated_paths)}")
     logger.info(f"Saving results to TSV file : {path_tsv}")
