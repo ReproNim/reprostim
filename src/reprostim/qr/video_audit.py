@@ -10,16 +10,16 @@ suitable for quality control, sharing, and further analysis.
 """
 
 import csv
-import fnmatch
 import getpass
 import json
+import fnmatch
 import logging
 import os
 import re
 import socket
 import subprocess
-import tempfile
 import traceback
+import tempfile
 from datetime import datetime
 from enum import Enum
 from time import time
@@ -128,11 +128,9 @@ class VaRecord(BaseModel):
     file_log_coherent: bool = False  # whether video/audio info matches extracted
 
     # Update info
-    no_signal_updated_on: str = (
-        "n/a"  # provide separate timestamps for nosignal ext tool
-    )
-    qr_updated_on: str = "n/a"  # provide separate timestamps for qr ext tool
-    updated_on: str = "n/a"  # last updated timestamp for basic internal processing
+    no_signal_updated_on: str = "n/a" # provide separate timestamps for nosignal ext tool
+    qr_updated_on: str = "n/a" # provide separate timestamps for qr ext tool
+    updated_on: str = "n/a" # last updated timestamp for basic internal processing
     # updated_by: str = "n/a"
 
 
@@ -177,16 +175,10 @@ class VaContext(BaseModel):
     nosignal_log_dir: Optional[str] = "logs/nosignal"
     """Directory to store nosignal logs.
     """
-    nosignal_opts: Optional[List] = [
-        "--number-of-checks",
-        "100",
-        "--truncated",
-        "fixup",
-        "--invalid-timing",
-        "fixup",
-        "--threshold",
-        "1.01",
-    ]
+    nosignal_opts: Optional[List] = ["--number-of-checks", "100",
+                                     "--truncated", "fixup",
+                                     "--invalid-timing", "fixup",
+                                     "--threshold", "1.01",]
     """Additional options to pass to detect-noscreen tool.
     """
     path_mask: Optional[str] = None
@@ -532,47 +524,6 @@ def _match_recs(recs1: List[VaRecord], recs2: List[VaRecord]) -> bool:
     return True
 
 
-def _filter_recs_by_paths(
-    recs: List[VaRecord], paths: List[str], recursive: bool = False
-) -> List[VaRecord]:
-    """Filter records to only those whose path matches the specified CLI paths.
-
-    :param recs: List of VaRecord objects to filter
-    :param paths: List of paths from CLI (files or directories)
-    :param recursive: Whether directory matching should be recursive
-    :return: Filtered list of VaRecord objects
-    """
-    if not paths:
-        return recs  # No filter if no paths specified
-
-    filtered = []
-    for rec in recs:
-        rec_path = rec.path
-        for cli_path in paths:
-            cli_path_abs = os.path.abspath(cli_path)
-            rec_path_abs = os.path.abspath(rec_path)
-
-            if os.path.isfile(cli_path):
-                # Exact file match
-                if rec_path_abs == cli_path_abs:
-                    filtered.append(rec)
-                    break
-            elif os.path.isdir(cli_path):
-                # Directory match
-                if recursive:
-                    # Match if record is anywhere under this directory
-                    if rec_path_abs.startswith(cli_path_abs + os.sep):
-                        filtered.append(rec)
-                        break
-                else:
-                    # Match only direct children
-                    rec_dir = os.path.dirname(rec_path_abs)
-                    if rec_dir == cli_path_abs:
-                        filtered.append(rec)
-                        break
-    return filtered
-
-
 def _merge_rec(ctx: VaContext, rec_cur: VaRecord, rec_new: VaRecord) -> VaRecord:
     """Merge two VaRecord objects based on the context mode.
     Use updated_on, no_signal_updated_on, qr_updated_on timestamps to decide which
@@ -610,13 +561,11 @@ def _merge_rec(ctx: VaContext, rec_cur: VaRecord, rec_new: VaRecord) -> VaRecord
 
     return rec
 
-
-def _merge_recs(
-    ctx: VaContext,
-    recs0: List[VaRecord],  # old original videos.tsv records
-    recs_cur: List[VaRecord],  # current latest transactional videos.tsv records
-    recs_new: List[VaRecord],  # new records to merge based on recs0
-):
+def _merge_recs(ctx: VaContext,
+               recs0: List[VaRecord], # old original videos.tsv records
+               recs_cur: List[VaRecord], # current latest transactional videos.tsv records
+               recs_new: List[VaRecord], # new records to merge based on recs0
+               ):
     # before any merging check if recs0 and recs_cur are the same and skip merge
     if _match_recs(recs0, recs_cur):
         logger.debug("_merge_recs: No changes in recs_cur since load, skipping merge")
@@ -629,9 +578,7 @@ def _merge_recs(
 
     # (B) when mode is [force] - merge all records from recs into recs_cur
     if ctx.mode == VaMode.FORCE:
-        logger.debug(
-            "_merge_recs: Force mode, merging all new records over existing ones"
-        )
+        logger.debug("_merge_recs: Force mode, merging all new records over existing ones")
         if len(recs_cur) > 0:
             merged_dict = {r.name: r for r in recs_cur}
             merged_dict.update({r.name: r for r in recs_new})
@@ -645,9 +592,7 @@ def _merge_recs(
     # (D) when mode is [incremental] - add only new records from recs if timestamp
     # is older than in recs_cur
     if ctx.mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA, VaMode.INCREMENTAL}:
-        logger.debug(
-            f"_merge_recs: {ctx.mode} mode, merging selectively based on timestamps"
-        )
+        logger.debug(f"_merge_recs: {ctx.mode} mode, merging selectively based on timestamps")
         if len(recs_cur) > 0:
             # first build dict of current records
             merged_dict = {r.name: r for r in recs_cur}
@@ -655,7 +600,11 @@ def _merge_recs(
             for rec in recs_new:
                 # existing record, need to merge manually
                 if rec.name in merged_dict:
-                    merged_dict[rec.name] = _merge_rec(ctx, merged_dict[rec.name], rec)
+                    merged_dict[rec.name] = _merge_rec(
+                        ctx,
+                        merged_dict[rec.name],
+                        rec
+                    )
                 else:
                     # new record, just add it
                     merged_dict[rec.name] = rec
@@ -815,7 +764,10 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     yield vr
 
 
-def do_audit_dir(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
+def do_audit_dir(
+    ctx:  VaContext,
+    path: str
+) -> Generator[VaRecord, None, None]:
     """Audit video files in directory with .mkv, .mp4, .avi extensions.
 
     :param ctx: VaContext object with processing context
@@ -859,7 +811,8 @@ def do_audit_dir(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
 
 
 def do_audit_internal(
-    ctx: VaContext, paths_dir_or_file: List[str]
+    ctx: VaContext,
+    paths_dir_or_file: List[str]
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file or all video files in a directory.
 
@@ -873,8 +826,7 @@ def do_audit_internal(
     :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(
-        f"do_audit_internal(paths_dir_or_file={paths_dir_or_file}, "
-        f"recursive={ctx.recursive})"
+        f"do_audit_internal(paths_dir_or_file={paths_dir_or_file}, " f"recursive={ctx.recursive})"
     )
 
     # check source is INTERNAL or ALL
@@ -915,9 +867,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     :return: Updated VaRecord object
     :rtype: VaRecord
     """
-    logger.debug(
-        f"run_ext_nosignal(path={vr.path}, no_signal_frames={vr.no_signal_frames})"
-    )
+    logger.debug(f"run_ext_nosignal(path={vr.path}, no_signal_frames={vr.no_signal_frames})")
 
     # check mode is NOSIGNAL or ALL
     if not ctx.source & {VaSource.NOSIGNAL, VaSource.ALL}:
@@ -981,9 +931,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
                 text=True,
                 check=True,
             )
-            logger.debug(
-                f"detect-noscreen completed with return code {result.returncode}"
-            )
+            logger.debug(f"detect-noscreen completed with return code {result.returncode}")
     except subprocess.CalledProcessError as e:
         logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
         return vr
@@ -1020,9 +968,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
     :rtype: VaRecord
     """
 
-    logger.debug(
-        f"run_ext_qr(path={vr.path}, qr_records_number={vr.qr_records_number})"
-    )
+    logger.debug(f"run_ext_qr(path={vr.path}, qr_records_number={vr.qr_records_number})")
 
     # check mode is QR or ALL
     if not ctx.source & {VaSource.QR, VaSource.ALL}:
@@ -1075,15 +1021,19 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
             # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
             logger.debug(f"ffmpeg_log_path : {ffmpeg_log_path}")
             with open(ffmpeg_log_path, "w", encoding="utf-8") as ffmpeg_log_file:
-                cmd = ["ffmpeg", "-i", vr.path, "-an", "-c", "copy", tmp_video]
+                cmd = [
+                    "ffmpeg",
+                    "-i", vr.path,
+                    "-an",
+                    "-c", "copy",
+                    tmp_video
+                ]
                 logger.debug(f"cmd: {' '.join(cmd)}")
-                result = subprocess.run(
-                    cmd,
-                    stdout=ffmpeg_log_file,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=True,
-                )
+                result = subprocess.run(cmd,
+                               stdout = ffmpeg_log_file,
+                               stderr = subprocess.STDOUT,
+                               text = True,
+                               check = True,)
                 logger.debug(f"ffmpeg completed with return code {result.returncode}")
 
             # execute qr-parse action like below:
@@ -1118,9 +1068,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                         text=True,
                         check=True,
                     )
-                    logger.debug(
-                        f"qr-parse completed with return code {result.returncode}"
-                    )
+                    logger.debug(f"qr-parse completed with return code {result.returncode}")
 
             # now read the output JSON file
             if os.path.exists(jsonl_path):
@@ -1130,10 +1078,8 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                             record = json.loads(line)
                             if record.get("type") == "ParseSummary":
                                 logger.debug(f"qr-parse summary: {record}")
-                                vr.qr_records_number = str(record.get("qr_count", "0"))
-                                logger.debug(
-                                    f"Set qr_records_number -> {vr.qr_records_number}"
-                                )
+                                vr.qr_records_number = str(record.get('qr_count', '0'))
+                                logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
                                 _set_updated(ctx, vr, field="qr_updated_on")
                                 ctx.c_qr += 1
                                 logger.debug(f"c_qr -> {ctx.c_qr}")
@@ -1163,9 +1109,7 @@ def run_ext_all(ctx: VaContext, vr: VaRecord) -> VaRecord:
     return run_ext_qr(ctx, run_ext_nosignal(ctx, vr))
 
 
-def do_audit(
-    ctx: VaContext, paths_dir_or_file: List[str]
-) -> Generator[VaRecord, None, None]:
+def do_audit(ctx: VaContext, paths_dir_or_file: List[str]) -> Generator[VaRecord, None, None]:
     """Generator that audits files and applies all external tools to
     each record if any, depending on context and options.
     """
@@ -1293,19 +1237,7 @@ def do_main(
         recs = list(merged_dict.values())
 
     if mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA}:
-        # Filter records to only those matching CLI paths
-        recs_to_process = _filter_recs_by_paths(recs, paths, recursive)
-        logger.info(
-            f"Filtered records for {mode}: {len(recs_to_process)} of {len(recs)}"
-        )
-
-        # Process filtered records with external tools
-        processed_dict = {r.name: r for r in do_ext(ctx, recs_to_process)}
-
-        # Merge processed records back into full list
-        for i, rec in enumerate(recs):
-            if rec.name in processed_dict:
-                recs[i] = processed_dict[rec.name]
+        recs = list(do_ext(ctx, recs))
 
     logger.info(f"Audited records count: {len(ctx.updated_paths)}")
     logger.info(f"Saving results to TSV file : {path_tsv}")
