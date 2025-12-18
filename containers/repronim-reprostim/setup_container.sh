@@ -45,8 +45,14 @@ else
   "${PSYCHOPY_VENV_BIN}/pip" install "reprostim[all,disp_mon]==${REPROSTIM_VERSION}"
 fi
 
+echo "Install con-duct"
+"${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir con-duct
+
 echo "Install visidata"
 "${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir visidata
+
+echo "Install py-spy"
+"${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir py-spy
 
 # Create symlink to python3 in psychopy venv as default python3
 echo "Creating symlink to python3 in psychopy venv as default python3"
