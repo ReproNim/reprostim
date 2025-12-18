@@ -52,11 +52,6 @@ export REPROSTIM_CONTAINER_RUN_MODE="rsync"
 ./run_reprostim_container.sh --version
 
 cd "${thisdir}"
-echo Test py-spy --version
-export REPROSTIM_CONTAINER_RUN_MODE="py-spy"
-./run_reprostim_container.sh --version
-
-cd "${thisdir}"
 echo Test Python visidata --version
 export REPROSTIM_CONTAINER_RUN_MODE="python"
 ./run_reprostim_container.sh -m visidata --version
