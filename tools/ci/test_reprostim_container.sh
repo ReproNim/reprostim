@@ -53,10 +53,10 @@ export REPROSTIM_CONTAINER_RUN_MODE="rsync"
 
 cd "${thisdir}"
 echo Test con-duct --version
-export REPROSTIM_CONTAINER_RUN_MODE="con-duct"
-./run_reprostim_container.sh --version
+export REPROSTIM_CONTAINER_RUN_MODE="python3"
+./run_reprostim_container.sh -m con-duct --version
 
 cd "${thisdir}"
 echo Test py-spy --version
-export REPROSTIM_CONTAINER_RUN_MODE="py-spy"
-./run_reprostim_container.sh --version
+export REPROSTIM_CONTAINER_RUN_MODE="python3"
+./run_reprostim_container.sh -m py-spy --version
