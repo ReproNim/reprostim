@@ -23,9 +23,9 @@ import tempfile
 from datetime import datetime
 from enum import Enum
 from time import time
-from typing import Dict, Generator, List, Set, Optional
-from filelock import FileLock
+from typing import Dict, Generator, List, Optional, Set
 
+from filelock import FileLock
 from pydantic import BaseModel
 
 from reprostim.qr.qr_parse import (
@@ -77,7 +77,7 @@ class VaMode(str, Enum):
     RERUN_FOR_NA = "rerun-for-na"
     """Process only records with 'n/a' values in existing TSV
     in columns that are usually filled by external tools.
-    Intended for run external slow tools like detect-noscreen 
+    Intended for run external slow tools like detect-noscreen
     or qr-parser."""
     RESET_TO_NA = "reset-to-na"
     """Reset specified columns to 'n/a' in existing TSV.
@@ -140,13 +140,13 @@ class VaSource(str, Enum):
     ALL = "all"
     """Run all available audit sources."""
     INTERNAL = "internal"
-    """Basic and default behaviour to process quickly video files 
+    """Basic and default behaviour to process quickly video files
     using only mediainfo and logs metadata."""
     NOSIGNAL = "nosignal"
     """Process video files to detect no-signal frames. This is slow process and
     can take some time depending on the video length."""
     QR = "qr"
-    """Process video files to extract QR codes metadata. This is very slow 
+    """Process video files to extract QR codes metadata. This is very slow
     process and time is almost the same as video duration at this moment."""
 
 
@@ -160,10 +160,10 @@ class VaContext(BaseModel):
     c_qr: Optional[int] = 0
     """Count of files processed with QR source"""
     log_level: Optional[str] = None
-    """Logging level to be used in external tool, one of DEBUG, 
+    """Logging level to be used in external tool, one of DEBUG,
     INFO, WARNING, ERROR, CRITICAL (default: None)"""
     max_counter: Optional[int] = -1
-    """Max number of records to process or -1 for 
+    """Max number of records to process or -1 for
     unlimited (default: -1)
     """
     mode: Optional[VaMode] = VaMode.INCREMENTAL
@@ -199,7 +199,7 @@ class VaContext(BaseModel):
     skip_names: Optional[set] = None
     """Optional set of file base names to skip (for incremental mode)
     """
-    source: Optional[Set[VaSource]] = { VaSource.INTERNAL }
+    source: Optional[Set[VaSource]] = {VaSource.INTERNAL}
     """One of VaSource values to specify audit source (default: INTERNAL)
     """
     updated_paths: Optional[set] = set()
@@ -490,7 +490,7 @@ def _compare_rec_ts(r1: VaRecord, r2: VaRecord, field: str = "updated_on") -> in
     t2_str = getattr(r2, field)
 
     # quick check for equality to prevent ts parsing
-    if t1_str==t2_str:
+    if t1_str == t2_str:
         return 0
 
     if t1_str == "n/a" and t2_str == "n/a":
@@ -613,6 +613,12 @@ def _merge_recs(ctx: VaContext,
     return recs_new
 
 
+def _normalize_path(path: str) -> str:
+    # Note: revise if further normalization for record.path when needed
+    # (e.g., resolve symlinks, case sensitivity, etc)
+    return path
+
+
 def _set_updated(ctx: VaContext, vr: VaRecord, field: str = "updated_on"):
     ctx.updated_paths.add(vr.path)
     setattr(vr, field, format_tts(time()))
@@ -667,7 +673,7 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     try:
         if os.path.exists(path):
             vr.present = True
-            vr.path = path
+            vr.path = _normalize_path(path)
             vr.name = os.path.basename(path)
 
             if ctx.skip_names and vr.name in ctx.skip_names:
@@ -1010,8 +1016,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
     log_path = _build_dated_path(vr, ctx.qr_log_dir, "qrinfo.log")
     ffmpeg_log_path = _build_dated_path(vr, ctx.qr_log_dir, "ffmpeg.log")
 
-
-    with (tempfile.TemporaryDirectory() as tmpdir):
+    with tempfile.TemporaryDirectory() as tmpdir:
         logger.debug(f"tmpdir : {tmpdir}")
 
         tmp_video: str = os.path.join(tmpdir, base_name)
@@ -1077,7 +1082,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                     with open(jsonl_path, "r", encoding="utf-8") as f:
                         for line in f:
                             record = json.loads(line)
-                            if record.get('type') == 'ParseSummary':
+                            if record.get("type") == "ParseSummary":
                                 logger.debug(f"qr-parse summary: {record}")
                                 vr.qr_records_number = str(record.get('qr_count', '0'))
                                 logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
@@ -1119,12 +1124,56 @@ def do_audit(ctx: VaContext, paths_dir_or_file: List[str]) -> Generator[VaRecord
         yield run_ext_all(ctx, rec)
 
 
-def do_ext(ctx: VaContext, recs: List[VaRecord]) -> Generator[VaRecord, None, None]:
+def do_ext(ctx: VaContext, recs: List[VaRecord],
+           paths_dir_or_file: List[str]) -> Generator[VaRecord, None, None]:
     """Generator that runs external tools on existing records
     depending on context and options.
     """
     logger.debug(f"do_ext(...)")
+
+    has_filter = bool(paths_dir_or_file)
+
+    # create separate sets of dirs and files from paths_dir_or_file
+    path_dirs = set()
+    path_files = set()
+    for path in paths_dir_or_file:
+
+        if path == "*":
+            has_filter = False
+            break
+
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                path_files.add(_normalize_path(path))
+            elif os.path.isdir(path):
+                path_dirs.add(_normalize_path(path))
+        else:
+            logger.error(f"Path does not exist: {path}")
+
+
+
     for rec in recs:
+        # filter by paths when specified
+        f_match: bool = False
+        if has_filter:
+            # filter by file path
+            # logger.debug(f"rec.path : {rec.path}")
+            # logger.debug(f"path_files : {path_files}")
+            if not f_match and rec.path in path_files:
+                logger.debug(f"Matched ext record by PATH filter: {rec.path}")
+                f_match = True
+
+            # check path starts with one of dir names
+            if not f_match and path_dirs and any(rec.path.startswith(d) for d in path_dirs):
+                logger.debug(f"Matched ext record by DIR filter: {rec.path}")
+                f_match = True
+
+            if not f_match:
+                logger.debug(f"Skipping ext record by PATH / DIR filters: {rec.path}")
+                yield rec
+                continue
+
+        # process matched ext record
         yield run_ext_all(ctx, rec)
 
 
@@ -1238,7 +1287,7 @@ def do_main(
         recs = list(merged_dict.values())
 
     if mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA}:
-        recs = list(do_ext(ctx, recs))
+        recs = list(do_ext(ctx, recs, paths))
 
     logger.info(f"Audited records count: {len(ctx.updated_paths)}")
     logger.info(f"Saving results to TSV file : {path_tsv}")
@@ -1246,7 +1295,9 @@ def do_main(
     # sort records by name
     recs.sort(key=lambda r: r.name)
     with lock:
-        recs_cur: List[VaRecord] = _load_tsv(path_tsv) if os.path.exists(path_tsv) else []
+        recs_cur: List[VaRecord] = (
+            _load_tsv(path_tsv) if os.path.exists(path_tsv) else []
+        )
         recs = _merge_recs(ctx, recs0, recs_cur, recs)
         # sort records by name again
         recs.sort(key=lambda r: r.name)
