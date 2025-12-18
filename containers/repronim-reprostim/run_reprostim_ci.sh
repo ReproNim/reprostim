@@ -38,6 +38,7 @@ if [[ " ${REPROSTIM_RUN_RAW_MODES[*]} " == *" $REPROSTIM_CONTAINER_RUN_MODE "* ]
 
     # provide custom python module run command for singularity and docker
     if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "python" ]; then
+        REPROSTIM_CONTAINER_ENTRYPOINT=""
         if [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
             REPROSTIM_CONTAINER_APP=""
         elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
