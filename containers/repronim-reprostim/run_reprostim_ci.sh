@@ -27,7 +27,7 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
 fi
 
 # Calculate entry point and command to run inside container
-REPROSTIM_RUN_RAW_MODES=(reprostim-videocapture psychopy ffmpeg ffprobe v4l2-ctl mediainfo)
+REPROSTIM_RUN_RAW_MODES=(reprostim-videocapture psychopy ffmpeg ffprobe v4l2-ctl mediainfo parallel rsync py-spy con-duct)
 REPROSTIM_CONTAINER_ENTRYPOINT=""
 if [[ " ${REPROSTIM_RUN_RAW_MODES[*]} " == *" $REPROSTIM_CONTAINER_RUN_MODE "* ]]; then
     REPROSTIM_CONTAINER_APP="$REPROSTIM_CONTAINER_RUN_MODE"

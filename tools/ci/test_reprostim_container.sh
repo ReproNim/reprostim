@@ -41,3 +41,22 @@ echo Test mediainfo --version
 export REPROSTIM_CONTAINER_RUN_MODE="mediainfo"
 ./run_reprostim_container.sh --version
 
+cd "${thisdir}"
+echo Test parallel --version
+export REPROSTIM_CONTAINER_RUN_MODE="parallel"
+./run_reprostim_container.sh --version
+
+cd "${thisdir}"
+echo Test rsync --version
+export REPROSTIM_CONTAINER_RUN_MODE="rsync"
+./run_reprostim_container.sh --version
+
+cd "${thisdir}"
+echo Test con-duct --version
+export REPROSTIM_CONTAINER_RUN_MODE="con-duct"
+./run_reprostim_container.sh --version
+
+cd "${thisdir}"
+echo Test py-spy --version
+export REPROSTIM_CONTAINER_RUN_MODE="py-spy"
+./run_reprostim_container.sh --version
