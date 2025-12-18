@@ -57,7 +57,7 @@ export REPROSTIM_CONTAINER_RUN_MODE="python"
 ./run_reprostim_container.sh -m visidata --version
 
 cd "${thisdir}"
-echo Test Pyton py-spy --version
+echo Test Python py-spy --version
 export REPROSTIM_CONTAINER_RUN_MODE="python"
 ./run_reprostim_container.sh -m py-spy --version
 
