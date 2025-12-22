@@ -25,7 +25,7 @@ from enum import Enum
 from time import time
 from typing import Dict, Generator, List, Optional, Set
 
-from filelock import FileLock
+from filelock import FileLock, Timeout
 from pydantic import BaseModel
 
 from reprostim.qr.qr_parse import (
@@ -927,38 +927,50 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     cmd += [vr.path]
     logger.debug(f"cmd: {' '.join(cmd)}")
 
-    # run the command and capture output
-    try:
-        with open(log_path, "w", encoding="utf-8") as log_file:
-            result = subprocess.run(
-                cmd,
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                text=True,
-                check=True,
-            )
-            logger.debug(f"detect-noscreen completed with return code {result.returncode}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
-        return vr
+    # use lock file
+    path_lock: str = f"{vr.path}.nosignal.lock"
+    logger.debug(f"use lock file : {path_lock}")
+    lock = FileLock(path_lock, timeout=5)
 
-    # now read the output JSON file
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                logger.debug(f"detect-noscreen output data: {data}")
-                if "nosignal_rate" in data:
-                    vr.no_signal_frames = f"{float(data['nosignal_rate']) * 100:.1f}"
-                else:
-                    vr.no_signal_frames = "0.0"
-            logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
-            _set_updated(ctx, vr, field="no_signal_updated_on")
-            ctx.c_nosignal += 1
-            logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
-        except (json.JSONDecodeError, IOError) as e:
-            logger.error(f"Failed to read/parse nosignal JSON output: {e}")
+    try:
+        with lock:
+            # run the command and capture output
+            try:
+                with open(log_path, "w", encoding="utf-8") as log_file:
+                    result = subprocess.run(
+                        cmd,
+                        stdout=log_file,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        check=True,
+                    )
+                    logger.debug(f"detect-noscreen completed with return code {result.returncode}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
+                return vr
+
+            # now read the output JSON file
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        logger.debug(f"detect-noscreen output data: {data}")
+                        if "nosignal_rate" in data:
+                            vr.no_signal_frames = f"{float(data['nosignal_rate']) * 100:.1f}"
+                        else:
+                            vr.no_signal_frames = "0.0"
+                    logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
+                    _set_updated(ctx, vr, field="no_signal_updated_on")
+                    ctx.c_nosignal += 1
+                    logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
+                except (json.JSONDecodeError, IOError) as e:
+                    logger.error(f"Failed to read/parse nosignal JSON output: {e}")
+
+    except Timeout as el:
+        logger.error(f"File is already locked by another process ({vr.path}) : {el}")
+
     return vr
+
 
 
 def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
@@ -1016,85 +1028,95 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
     log_path = _build_dated_path(vr, ctx.qr_log_dir, "qrinfo.log")
     ffmpeg_log_path = _build_dated_path(vr, ctx.qr_log_dir, "ffmpeg.log")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        logger.debug(f"tmpdir : {tmpdir}")
+    # use lock file
+    path_lock: str = f"{vr.path}.qr.lock"
+    logger.debug(f"use lock file : {path_lock}")
+    lock = FileLock(path_lock, timeout=5)
 
-        tmp_video: str = os.path.join(tmpdir, base_name)
-        logger.debug(f"tmp_video : {tmp_video}")
+    try:
+        with lock:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                logger.debug(f"tmpdir : {tmpdir}")
 
-        try:
-            # convert to mkv without audio
-            # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
-            logger.debug(f"ffmpeg_log_path : {ffmpeg_log_path}")
-            with open(ffmpeg_log_path, "w", encoding="utf-8") as ffmpeg_log_file:
-                cmd = [
-                    "ffmpeg",
-                    "-i", vr.path,
-                    "-an",
-                    "-c", "copy",
-                    tmp_video
-                ]
-                logger.debug(f"cmd: {' '.join(cmd)}")
-                result = subprocess.run(cmd,
-                               stdout = ffmpeg_log_file,
-                               stderr = subprocess.STDOUT,
-                               text = True,
-                               check = True,)
-                logger.debug(f"ffmpeg completed with return code {result.returncode}")
+                tmp_video: str = os.path.join(tmpdir, base_name)
+                logger.debug(f"tmp_video : {tmp_video}")
 
-            # execute qr-parse action like below:
-            #
-            # reprostim --log-level $LOG_LEVEL
-            #   qr-parse "$tmp_mkv_file"
-            #   >"$OUT_DIR"/"$base_name".qrinfo.jsonl
-            #   2>"$OUT_DIR"/"$base_name".qrinfo.log
-            #
-
-            # prepare command-line to run
-            cmd = ["reprostim"]
-
-            # optionally add log level
-            if ctx.log_level is not None:
-                cmd += ["--log-level", ctx.log_level]
-
-            cmd += ["qr-parse"]
-            cmd += ctx.qr_opts
-            cmd += [tmp_video]
-            logger.debug(f"cmd: {' '.join(cmd)}")
-
-            # run reprostim qr-parse command and capture output
-            logger.debug(f"log_path: {log_path}")
-            logger.debug(f"jsonl_path: {jsonl_path}")
-            with open(log_path, "w", encoding="utf-8") as log_file:
-                with open(jsonl_path, "w", encoding="utf-8") as jsonl_file:
-                    result = subprocess.run(
-                        cmd,
-                        stdout=jsonl_file,
-                        stderr=log_file,
-                        text=True,
-                        check=True,
-                    )
-                    logger.debug(f"qr-parse completed with return code {result.returncode}")
-
-            # now read the output JSON file
-            if os.path.exists(jsonl_path):
                 try:
-                    with open(jsonl_path, "r", encoding="utf-8") as f:
-                        for line in f:
-                            record = json.loads(line)
-                            if record.get("type") == "ParseSummary":
-                                logger.debug(f"qr-parse summary: {record}")
-                                vr.qr_records_number = str(record.get('qr_count', '0'))
-                                logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
-                                _set_updated(ctx, vr, field="qr_updated_on")
-                                ctx.c_qr += 1
-                                logger.debug(f"c_qr -> {ctx.c_qr}")
-                                break
-                except (json.JSONDecodeError, IOError) as e:
-                    logger.error(f"Failed to read/parse qr JSON output: {e}")
+                    # convert to mkv without audio
+                    # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
+                    logger.debug(f"ffmpeg_log_path : {ffmpeg_log_path}")
+                    with open(ffmpeg_log_path, "w", encoding="utf-8") as ffmpeg_log_file:
+                        cmd = [
+                            "ffmpeg",
+                            "-i", vr.path,
+                            "-an",
+                            "-c", "copy",
+                            tmp_video
+                        ]
+                        logger.debug(f"cmd: {' '.join(cmd)}")
+                        result = subprocess.run(cmd,
+                                       stdout = ffmpeg_log_file,
+                                       stderr = subprocess.STDOUT,
+                                       text = True,
+                                       check = True,)
+                        logger.debug(f"ffmpeg completed with return code {result.returncode}")
 
-        except subprocess.CalledProcessError as e:
-            logger.error(f"qr failed: {e} {e.stdout} {e.stderr}")
+                    # execute qr-parse action like below:
+                    #
+                    # reprostim --log-level $LOG_LEVEL
+                    #   qr-parse "$tmp_mkv_file"
+                    #   >"$OUT_DIR"/"$base_name".qrinfo.jsonl
+                    #   2>"$OUT_DIR"/"$base_name".qrinfo.log
+                    #
+
+                    # prepare command-line to run
+                    cmd = ["reprostim"]
+
+                    # optionally add log level
+                    if ctx.log_level is not None:
+                        cmd += ["--log-level", ctx.log_level]
+
+                    cmd += ["qr-parse"]
+                    cmd += ctx.qr_opts
+                    cmd += [tmp_video]
+                    logger.debug(f"cmd: {' '.join(cmd)}")
+
+                    # run reprostim qr-parse command and capture output
+                    logger.debug(f"log_path: {log_path}")
+                    logger.debug(f"jsonl_path: {jsonl_path}")
+                    with open(log_path, "w", encoding="utf-8") as log_file:
+                        with open(jsonl_path, "w", encoding="utf-8") as jsonl_file:
+                            result = subprocess.run(
+                                cmd,
+                                stdout=jsonl_file,
+                                stderr=log_file,
+                                text=True,
+                                check=True,
+                            )
+                            logger.debug(f"qr-parse completed with return code {result.returncode}")
+
+                    # now read the output JSON file
+                    if os.path.exists(jsonl_path):
+                        try:
+                            with open(jsonl_path, "r", encoding="utf-8") as f:
+                                for line in f:
+                                    record = json.loads(line)
+                                    if record.get("type") == "ParseSummary":
+                                        logger.debug(f"qr-parse summary: {record}")
+                                        vr.qr_records_number = str(record.get('qr_count', '0'))
+                                        logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
+                                        _set_updated(ctx, vr, field="qr_updated_on")
+                                        ctx.c_qr += 1
+                                        logger.debug(f"c_qr -> {ctx.c_qr}")
+                                        break
+                        except (json.JSONDecodeError, IOError) as e:
+                            logger.error(f"Failed to read/parse qr JSON output: {e}")
+
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"qr failed: {e} {e.stdout} {e.stderr}")
+
+    except Timeout as el:
+        logger.error(f"File is already locked by another process ({vr.path}) : {el}")
 
     return vr
 
