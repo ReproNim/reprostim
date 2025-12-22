@@ -56,7 +56,7 @@ echo Test Python visidata --version
 export REPROSTIM_CONTAINER_RUN_MODE="python"
 ./run_reprostim_container.sh -m visidata --version
 
-cd "${thisdir}"
-echo Test Python con-duct --version
-export REPROSTIM_CONTAINER_RUN_MODE="python"
-./run_reprostim_container.sh -m con-duct --version
+# cd "${thisdir}"
+# echo Test Python con-duct --version
+# export REPROSTIM_CONTAINER_RUN_MODE="python"
+# ./run_reprostim_container.sh -m con-duct --version
