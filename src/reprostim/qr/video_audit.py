@@ -929,7 +929,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
 
     # use lock file
     path_lock: str = f"{vr.path}.nosignal.lock"
-    logger.debug("use lock file : {path_lock}")
+    logger.debug(f"use lock file : {path_lock}")
     lock = FileLock(path_lock, timeout=5)
 
     try:
