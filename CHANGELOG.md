@@ -1,3 +1,22 @@
+# 0.7.22 (Mon Dec 22 2025)
+
+#### 🐛 Bug Fix
+
+- Protect external jobs with lock file [#213](https://github.com/ReproNim/reprostim/pull/213) ([@vmdocua](https://github.com/vmdocua))
+- Fix rerun-for-na and reset-to-na modes to respect CLI path arguments [#211](https://github.com/ReproNim/reprostim/pull/211) ([@yarikoptic](https://github.com/yarikoptic) [@vmdocua](https://github.com/vmdocua))
+- Capture from multiple Magewell USB devices on the same host [#209](https://github.com/ReproNim/reprostim/pull/209) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🔩 Dependency Updates
+
+- Enhance reprostim container with parallel, con-duct and co [#212](https://github.com/ReproNim/reprostim/pull/212) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 2
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # 0.7.21 (Mon Dec 01 2025)
 
 #### 🐛 Bug Fix
