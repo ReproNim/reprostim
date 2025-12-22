@@ -27,7 +27,7 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
 fi
 
 # Calculate entry point and command to run inside container
-REPROSTIM_RUN_RAW_MODES=(reprostim-videocapture psychopy ffmpeg ffprobe v4l2-ctl mediainfo)
+REPROSTIM_RUN_RAW_MODES=(python reprostim-videocapture psychopy ffmpeg ffprobe v4l2-ctl mediainfo parallel rsync)
 REPROSTIM_CONTAINER_ENTRYPOINT=""
 if [[ " ${REPROSTIM_RUN_RAW_MODES[*]} " == *" $REPROSTIM_CONTAINER_RUN_MODE "* ]]; then
     REPROSTIM_CONTAINER_APP="$REPROSTIM_CONTAINER_RUN_MODE"
@@ -35,6 +35,17 @@ if [[ " ${REPROSTIM_RUN_RAW_MODES[*]} " == *" $REPROSTIM_CONTAINER_RUN_MODE "* ]
     if [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
         REPROSTIM_CONTAINER_ENTRYPOINT="--entrypoint="
     fi
+
+    # provide custom python module run command for singularity and docker
+    if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "python" ]; then
+        REPROSTIM_CONTAINER_ENTRYPOINT=""
+        if [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
+            REPROSTIM_CONTAINER_APP=""
+        elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
+            REPROSTIM_CONTAINER_APP="python3"
+        fi
+    fi
+
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
     REPROSTIM_CONTAINER_APP="-m reprostim"
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
