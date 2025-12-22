@@ -25,7 +25,7 @@ from enum import Enum
 from time import time
 from typing import Dict, Generator, List, Optional, Set
 
-from filelock import FileLock
+from filelock import FileLock, Timeout
 from pydantic import BaseModel
 
 from reprostim.qr.qr_parse import (
@@ -927,38 +927,50 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     cmd += [vr.path]
     logger.debug(f"cmd: {' '.join(cmd)}")
 
-    # run the command and capture output
-    try:
-        with open(log_path, "w", encoding="utf-8") as log_file:
-            result = subprocess.run(
-                cmd,
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                text=True,
-                check=True,
-            )
-            logger.debug(f"detect-noscreen completed with return code {result.returncode}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
-        return vr
+    # use lock file
+    path_lock: str = f"{vr.path}.nosignal.lock"
+    logger.debug("use lock file : {path_lock}")
+    lock = FileLock(path_lock, timeout=5)
 
-    # now read the output JSON file
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                logger.debug(f"detect-noscreen output data: {data}")
-                if "nosignal_rate" in data:
-                    vr.no_signal_frames = f"{float(data['nosignal_rate']) * 100:.1f}"
-                else:
-                    vr.no_signal_frames = "0.0"
-            logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
-            _set_updated(ctx, vr, field="no_signal_updated_on")
-            ctx.c_nosignal += 1
-            logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
-        except (json.JSONDecodeError, IOError) as e:
-            logger.error(f"Failed to read/parse nosignal JSON output: {e}")
+    try:
+        with lock:
+            # run the command and capture output
+            try:
+                with open(log_path, "w", encoding="utf-8") as log_file:
+                    result = subprocess.run(
+                        cmd,
+                        stdout=log_file,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        check=True,
+                    )
+                    logger.debug(f"detect-noscreen completed with return code {result.returncode}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
+                return vr
+
+            # now read the output JSON file
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        logger.debug(f"detect-noscreen output data: {data}")
+                        if "nosignal_rate" in data:
+                            vr.no_signal_frames = f"{float(data['nosignal_rate']) * 100:.1f}"
+                        else:
+                            vr.no_signal_frames = "0.0"
+                    logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
+                    _set_updated(ctx, vr, field="no_signal_updated_on")
+                    ctx.c_nosignal += 1
+                    logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
+                except (json.JSONDecodeError, IOError) as e:
+                    logger.error(f"Failed to read/parse nosignal JSON output: {e}")
+
+    except Timeout as el:
+        logger.error(f"File is already locked by another process ({vr.path}) : {el}")
+
     return vr
+
 
 
 def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
