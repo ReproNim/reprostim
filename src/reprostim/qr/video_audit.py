@@ -1095,6 +1095,10 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                             )
                             logger.debug(f"qr-parse completed with return code {result.returncode}")
 
+                    # set default value first to prevent stale n/a data
+                    vr.qr_records_number = "-1"
+                    _set_updated(ctx, vr, field="qr_updated_on")
+
                     # now read the output JSON file
                     if os.path.exists(jsonl_path):
                         try:
@@ -1111,6 +1115,9 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                                         break
                         except (json.JSONDecodeError, IOError) as e:
                             logger.error(f"Failed to read/parse qr JSON output: {e}")
+                    else:
+                        logger.info(f"No qr-parse output JSON file found: {jsonl_path}")
+
 
                 except subprocess.CalledProcessError as e:
                     logger.error(f"qr failed: {e} {e.stdout} {e.stderr}")
