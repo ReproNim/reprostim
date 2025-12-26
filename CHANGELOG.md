@@ -1,3 +1,15 @@
+# 0.7.23 (Fri Dec 26 2025)
+
+#### 🐛 Bug Fix
+
+- Fix `video-audit` `qr` processing issues [#214](https://github.com/ReproNim/reprostim/pull/214) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.22 (Mon Dec 22 2025)
 
 #### 🐛 Bug Fix
