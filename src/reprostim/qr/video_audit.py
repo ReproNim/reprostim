@@ -1041,6 +1041,10 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                 tmp_video: str = os.path.join(tmpdir, base_name)
                 logger.debug(f"tmp_video : {tmp_video}")
 
+                # set default value first to prevent stale n/a data for ffmpeg
+                vr.qr_records_number = "-2"
+                _set_updated(ctx, vr, field="qr_updated_on")
+
                 try:
                     # convert to mkv without audio
                     # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
@@ -1095,7 +1099,7 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                             )
                             logger.debug(f"qr-parse completed with return code {result.returncode}")
 
-                    # set default value first to prevent stale n/a data
+                    # set default value first to prevent stale n/a data for qr-parse
                     vr.qr_records_number = "-1"
                     _set_updated(ctx, vr, field="qr_updated_on")
 
