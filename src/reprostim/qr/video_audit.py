@@ -1041,6 +1041,10 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                 tmp_video: str = os.path.join(tmpdir, base_name)
                 logger.debug(f"tmp_video : {tmp_video}")
 
+                # set default value first to prevent stale n/a data for ffmpeg
+                vr.qr_records_number = "-2"
+                _set_updated(ctx, vr, field="qr_updated_on")
+
                 try:
                     # convert to mkv without audio
                     # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
@@ -1095,6 +1099,10 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                             )
                             logger.debug(f"qr-parse completed with return code {result.returncode}")
 
+                    # set default value first to prevent stale n/a data for qr-parse
+                    vr.qr_records_number = "-1"
+                    _set_updated(ctx, vr, field="qr_updated_on")
+
                     # now read the output JSON file
                     if os.path.exists(jsonl_path):
                         try:
@@ -1111,6 +1119,9 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                                         break
                         except (json.JSONDecodeError, IOError) as e:
                             logger.error(f"Failed to read/parse qr JSON output: {e}")
+                    else:
+                        logger.info(f"No qr-parse output JSON file found: {jsonl_path}")
+
 
                 except subprocess.CalledProcessError as e:
                     logger.error(f"qr failed: {e} {e.stdout} {e.stderr}")
