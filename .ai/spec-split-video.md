@@ -26,7 +26,7 @@ reprostim split-video --buffer-before 10 --buffer-after 10 --start 2024-02-02T17
 ```
 
 ```shell
-reprostim split-video --buffer-before 5 --buffer-after 5 --start 2025-11-05T14:03:30 --duration P3M  --input temp/Videos/2025/11/2025.11.05-14.03.28.837--2025.11.05-14.13.47.757.mkv --output temp/test_split1.mkv
+reprostim split-video --buffer-before 5 --buffer-after 5 --start 2025-11-05T14:03:30 --duration PT5M07S  --input temp/Videos/2025/11/2025.11.05-14.03.28.837--2025.11.05-14.13.47.757.mkv --output temp/test_split1.mkv
 
 ```
 
