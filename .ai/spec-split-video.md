@@ -21,8 +21,13 @@ Script (ideally in python) should take:
 
 example:
 
+```shell
+reprostim split-video --buffer-before 10 --buffer-after 10 --start 2024-02-02T17:30:00 --duration P3M  --input $VIDEOS/2024.02.02.17.20.38.680_2024.02.02.17.20.44.774.mkv --output $BIDS/sub-01/func/sub-01_task-rest_bold.mkv
 ```
-reprostim-slice --buffer-before 10 --buffer-after 10 --start 2024-02-02T17:30:00 --duration P3M  --input $VIDEOS/2024.02.02.17.20.38.680_2024.02.02.17.20.44.774.mkv --output $BIDS/sub-01/func/sub-01_task-rest_bold.mkv
+
+```shell
+reprostim split-video --buffer-before 5 --buffer-after 5 --start 2025-11-05T14:03:30 --duration P3M  --input temp/Videos/2025/11/2025.11.05-14.03.28.837--2025.11.05-14.13.47.757.mkv --output temp/test_split1.mkv
+
 ```
 
 in case of input filename not satisfying the pattern to have starting time -- error
