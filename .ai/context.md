@@ -38,6 +38,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
   - `cmd_monitor_displays.py` - Monitor display connection status with callbacks
   - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes)
+  - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
@@ -46,6 +47,7 @@ Main Python package with CLI tools and analysis utilities.
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities
   - `video_audit.py` - Comprehensive video analysis with multiple audit sources
+  - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction
@@ -347,6 +349,11 @@ reprostim detect-noscreen video.mkv
 
 # Audit all videos
 reprostim video-audit /path/to/videos
+
+# Split/slice video to specific time range
+reprostim split-video --start 2024-02-02T17:30:00 --duration P3M \
+  --buffer-before 10 --buffer-after 10 \
+  --input video.mkv --output sliced.mkv
 
 # List displays
 reprostim list-displays
