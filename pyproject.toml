@@ -42,6 +42,7 @@ dependencies = [
   "qrcode>=8.0",
   "opencv-python>=4.9.0.80",
   "filelock>=3.16.0",
+  "isodate>=0.7.2",
 ]
 
 [project.optional-dependencies]

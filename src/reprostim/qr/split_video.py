@@ -8,6 +8,14 @@ along with their corresponding log files and QR/audio metadata.
 """
 
 import logging
+import subprocess
+from datetime import datetime, timedelta
+from typing import Optional
+import isodate
+
+from pydantic import BaseModel
+
+from reprostim.qr.video_audit import VaRecord, get_file_video_audit
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -15,6 +23,272 @@ logger = logging.getLogger(__name__)
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
 
+
+class VideoSegment(BaseModel):
+    """Specifies a video segment data."""
+
+    start_ts: Optional[datetime] = None  # Start timestamp
+    end_ts: Optional[datetime] = None  # End timestamp
+    offset_sec: Optional[float] = None  # Offset in seconds within video file
+    offset_frame: Optional[int] = None  # Offset frame number within video file
+    duration_sec: Optional[float] = None  # Duration in seconds
+    frame_count: Optional[int] = None  # Number of frames
+
+
+class SplitData(BaseModel):
+    """Specifies metadata necessary to split single video file."""
+
+    # File info
+    path: str = "n/a"  # Path to the .mkv video file
+    fps: Optional[float] = None  # Frames per second
+    full_seg: Optional[VideoSegment] = None   # specifies entire video segment
+    sel_seg: Optional[VideoSegment] = None    # specifies exact split video selection
+    buf_seg: Optional[VideoSegment] = None    # specifies selection with buffer around
+
+
+class SplitResult(BaseModel):
+    """Specifies result of video split operation."""
+
+    success: bool = False  # Whether split operation was successful
+    input_path: str = "n/a"  # Path to the input .mkv video file
+    output_path: str = "n/a"  # Path to the output .mkv video file
+    buffer_before: Optional[float] = None  # Buffer before in seconds
+    buffer_after: Optional[float] = None  # Buffer after in seconds
+    start_time: Optional[datetime] = None  # Start time of the split segment
+    duration: Optional[float] = None  # Duration of the split segment in seconds
+    end_time: Optional[datetime] = None  # End time of the split segment
+
+
+def _parse_date_time(date_str: str, time_str: str) -> datetime:
+    """Parse date and time strings to datetime object.
+
+    :param date_str: Date string in ISO 8601 format (e.g., '2024-02-02')
+    :type date_str: str
+    :param time_str: Time string in ISO 8601 format (e.g., '17:30:00.321')
+    :type time_str: str
+    :return: Parsed datetime object
+    :rtype: datetime
+    :raises ValueError: If the date or time string is not in valid format
+    """
+    try:
+        dt = datetime.fromisoformat(f"{date_str}T{time_str}")
+        return dt
+    except ValueError as e:
+        logger.error(f"Invalid date/time format: {date_str} {time_str}")
+        raise e
+
+
+def _parse_fps(fps_str: str) -> float:
+    """Parse fps string to float.
+
+    :param fps_str: FPS string
+    :type fps_str: str
+
+    :return: FPS as float
+    :rtype: float
+    :raises ValueError: If the fps string is not in valid format
+    """
+    try:
+        if fps_str=="n/a" or not fps_str:
+            return 0.0
+        return float(fps_str)
+    except ValueError as e:
+        logger.error(f"Invalid fps format: {fps_str}")
+        raise e
+
+
+def _parse_interval_sec(interval_str: str) -> float:
+    """Parse interval string to float seconds.
+
+    :param interval_str: Interval string (either float seconds or ISO 8601 duration)
+    :type interval_str: str
+    :return: Interval in float seconds
+    :rtype: float
+    :raises ValueError: If the interval string is not in valid format
+    """
+    try:
+        if not interval_str or interval_str=="n/a":
+            return 0.0
+        # first try parsing as ISO 8601 duration
+        duration = isodate.parse_duration(interval_str)
+        return duration.total_seconds()
+    except ValueError:
+        try:
+            return float(interval_str)
+        except ValueError:
+            logger.error(f"Invalid interval format: {interval_str}")
+            raise
+
+
+def _parse_ts(time_str: str | None) -> datetime:
+    """Parse ISO 8601 time string to datetime object.
+
+    :param time_str: Time string in ISO 8601 format
+    :type time_str: str
+    :return: Parsed datetime object
+    :rtype: datetime
+    :raises ValueError: If the time string is not in valid format
+    """
+    try:
+        if not time_str:
+            return None
+        dt = datetime.fromisoformat(time_str)
+        return dt
+    except ValueError as e:
+        logger.error(f"Invalid time format: {time_str}")
+        raise e
+
+
+def _calc_split_data(path: str,
+                     sel_start_ts: datetime,
+                     sel_duration_sec: float,
+                     sel_end_ts: datetime,
+                     buf_before_sec: float,
+                     buf_after_sec: float
+                     ) -> SplitData:
+    """Calculate split data for given video file.
+
+    :param path: Path to the .mkv video file
+    :type path: str
+
+    :param sel_start_ts: Selected start timestamp
+    :type sel_start_ts: datetime
+
+    :param sel_duration_sec: Selected duration in seconds
+    :type sel_duration_sec: float
+
+    :param sel_end_ts: Selected end timestamp
+    :type sel_end_ts: datetime
+
+    :param buf_before_sec: Buffer before selection in seconds
+    :type buf_before_sec: float
+
+    :param buf_after_sec: Buffer after selection in seconds
+    :type buf_after_sec: float
+
+    :return: SplitData object with metadata
+    :rtype: SplitData
+    :raises NotImplementedError: Function not yet implemented
+    """
+    logger.debug(f"_calc_split_data: path={path}, " 
+                 f"sel_start_ts={sel_start_ts}, sel_duration_sec={sel_duration_sec}, "
+                 f"sel_end_ts={sel_end_ts}, buf_before_sec={buf_before_sec}, "
+                 f"buf_after_sec={buf_after_sec}"
+                 )
+
+    sd: SplitData = SplitData(path=path)
+
+    # A) Read video file metadata to get full segment info, fps, frame count etc
+    #    as initial implementation use video-audit internal mode
+    #    to extract necessary metadata. Later we can optimize it to avoid redundant reads.
+    #    and reuse videos.tsv data if any for that.
+    vr: VaRecord = get_file_video_audit(path)
+    sd.fps = _parse_fps(vr.video_fps_recorded)
+    sd.full_seg = VideoSegment(
+        start_ts=_parse_date_time(vr.start_date, vr.start_time),
+        end_ts=_parse_date_time(vr.end_date, vr.end_time),
+        offset_sec=0.0,
+        offset_frame=0,
+        duration_sec=_parse_interval_sec(vr.duration),
+    )
+    sd.full_seg.frame_count = int(sd.full_seg.duration_sec * sd.fps)
+
+    # B) Calculate selected segment info
+    sel_duration_sec2: float = sel_duration_sec
+    sel_end_ts2: datetime = sel_end_ts
+    if sel_duration_sec2 is None:
+        sel_duration_sec2 = (sel_end_ts - sel_start_ts).total_seconds()
+    else:
+        sel_end_ts2 = sel_start_ts + timedelta(seconds=sel_duration_sec2)
+
+    sd.sel_seg = VideoSegment(
+        start_ts=sel_start_ts,
+        end_ts=sel_end_ts2,
+        duration_sec=sel_duration_sec2,
+    )
+    sd.sel_seg.frame_count = int(sd.sel_seg.duration_sec * sd.fps)
+    sd.sel_seg.offset_sec = (sd.sel_seg.start_ts - sd.full_seg.start_ts).total_seconds()
+    sd.sel_seg.offset_frame = int(sd.sel_seg.offset_sec * sd.fps)
+
+    # C) Calculate buffered segment info
+    sd.buf_seg = VideoSegment(
+        start_ts=sd.sel_seg.start_ts - timedelta(seconds=buf_before_sec),
+        end_ts=sd.sel_seg.end_ts + timedelta(seconds=buf_after_sec),
+        duration_sec=sd.sel_seg.duration_sec + buf_before_sec + buf_after_sec,
+    )
+    sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
+    sd.buf_seg.offset_sec = (sd.buf_seg.start_ts - sd.full_seg.start_ts).total_seconds()
+    sd.buf_seg.offset_frame = int(sd.buf_seg.offset_sec * sd.fps)
+
+    # D) Validate segments against video boundaries and adjust if necessary
+    if sd.sel_seg.start_ts < sd.full_seg.start_ts:
+        logger.error("Selected start time is before video start.")
+        raise Exception(f"Selected start time is before video start: {sd.sel_seg.start_ts} < {sd.full_seg.start_ts}.")
+
+    if sd.sel_seg.end_ts > sd.full_seg.end_ts:
+        logger.error("Selected end time is after video end.")
+        raise Exception(f"Selected end time is after video end: {sd.sel_seg.end_ts} > {sd.full_seg.end_ts}.")
+
+    if sd.buf_seg.start_ts < sd.full_seg.start_ts:
+        logger.warning("Buffer before extends before video start. Trimming buffer.")
+        sd.buf_seg.start_ts = sd.full_seg.start_ts
+        sd.buf_seg.offset_sec = 0.0
+        sd.buf_seg.offset_frame = 0
+        sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
+        sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
+
+    if sd.buf_seg.end_ts > sd.full_seg.end_ts:
+        logger.warning("Buffer after extends after video end. Trimming buffer.")
+        sd.buf_seg.end_ts = sd.full_seg.end_ts
+        sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
+        sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
+
+    return sd
+
+
+def _split_video(sd: SplitData, out_path: str) -> SplitResult:
+    """Split video file based on calculated SplitData.
+
+    :param sd: SplitData object with metadata
+    :type sd: SplitData
+
+    :return: SplitResult object with result metadata
+    :rtype: SplitResult
+
+    :raises NotImplementedError: Function not yet implemented
+    """
+
+    # create SplitResult for output
+    sr: SplitResult = SplitResult(
+        input_path=sd.path,
+        output_path=out_path,
+        buffer_before=round(sd.sel_seg.start_ts.timestamp() - sd.buf_seg.start_ts.timestamp(), 3),
+        buffer_after=round(sd.buf_seg.end_ts.timestamp() - sd.sel_seg.end_ts.timestamp(), 3),
+        start_time=sd.sel_seg.start_ts,
+        duration=sd.sel_seg.duration_sec,
+        end_time=sd.sel_seg.end_ts,
+    )
+
+    try:
+        cmd = [
+            "ffmpeg",
+            "-y",  # force overwrite
+            "-ss", str(sd.buf_seg.offset_sec),
+            "-i", sd.path,
+            "-t", str(sd.buf_seg.duration_sec),
+            "-c", "copy",
+            out_path,
+        ]
+        logger.debug(f"run: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        logger.debug(f"ffmpeg exit code : {str(result.returncode)}")
+        logger.debug(f"ffmpeg output    : {str(result.stdout)}")
+        logger.debug(f"ffmpeg errors    : {str(result.stderr)}")
+        sr.success = True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
+
+    return sr
 
 def do_main(
         input_path: str,
@@ -82,28 +356,23 @@ def do_main(
     logger.debug(f"Buffer before: {buffer_before}")
     logger.debug(f"Buffer after: {buffer_after}")
 
-    # TODO: Implement the following:
-    # 1. Parse and validate input filename for timestamp pattern
-    # 2. Parse start_time, duration/end_time as ISO 8601 formats
-    # 3. Parse buffer_before and buffer_after (support both float seconds and ISO 8601)
-    # 4. Validate that the requested time range overlaps with the video
-    # 5. Calculate actual slice times including buffers (trim to video boundaries)
-    # 6. Use ffmpeg to extract the video segment
-    # 7. Create sidecar .json file with metadata:
-    #    - onset (time only, no date)
-    #    - duration (seconds.ms)
-    #    - buffer-before (seconds.ms)
-    #    - buffer-after (seconds.ms)
-    #    - reprostim-videocapture metadata from log
-    # 8. Error if video doesn't fully overlap with desired time range
-    # 9. Error if multiple videos needed for time range
-
-    out_func("TODO: Implement split-video functionality.")
-    out_func(f"Would slice video from {input_path}")
+    out_func(f"Slice video from {input_path}")
     out_func(f"  Start: {start_time}, Duration: {duration}, End: {end_time}")
     out_func(f"  Buffers: before={buffer_before}, after={buffer_after}")
     out_func(f"  Output: {output_path}")
-    pass
 
+    sd: SplitData = _calc_split_data(
+        input_path,
+        _parse_ts(start_time),
+        _parse_interval_sec(duration),
+        _parse_ts(end_time),
+        _parse_interval_sec(buffer_before),
+        _parse_interval_sec(buffer_after),
+    )
+    logger.debug(f"Calculated SplitData: {sd.model_dump_json(indent=2)}")
+
+    sr: SplitResult = _split_video(sd, output_path)
+    logger.debug(f"SplitResult: {sr.model_dump_json(indent=2)}")
+    out_func(sr.model_dump_json(indent=2))
 
 

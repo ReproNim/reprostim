@@ -1210,6 +1210,31 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
         yield run_ext_all(ctx, rec)
 
 
+def get_file_video_audit(path: str) -> VaRecord:
+    """Get a single VaRecord by auditing a single video file.
+
+    :param path: Path to the video file
+    :type path: str
+
+    :return: VaRecord object
+    :rtype: VaRecord
+    """
+
+    ctx: VaContext = VaContext(
+        skip_names=None,
+        c_internal=0,
+        c_nosignal=0,
+        c_qr=0,
+        log_level=os.environ["REPROSTIM_LOG_LEVEL"],
+        max_counter=1,
+        mode=VaMode.INCREMENTAL,
+        path_mask=None,
+        recursive=False,
+        source={VaSource.INTERNAL},
+    )
+    return next(do_audit_file(ctx, path), None)
+
+
 def do_main(
     paths: List[str],
     path_tsv: str,
