@@ -46,7 +46,7 @@ class VideoSegment(BaseModel):
 class SplitData(BaseModel):
     """Specifies metadata necessary to split single video file."""
 
-    # File info
+    success: bool = False  # Whether split data calculation was successful
     path: str = "n/a"  # Path to the .mkv video file
     fps: Optional[float] = None  # Frames per second
     resolution: Optional[str] = None  # Video resolution (e.g., '1920x1080')
@@ -213,7 +213,7 @@ def _calc_split_data(path: str,
                  f"buf_after_sec={buf_after_sec}, buffer_policy={buffer_policy.value}"
                  )
 
-    sd: SplitData = SplitData(path=path)
+    sd: SplitData = SplitData(success=False, path=path)
 
     # A) Read video file metadata to get full segment info, fps, frame count etc
     #    as initial implementation use video-audit internal mode
@@ -302,6 +302,7 @@ def _calc_split_data(path: str,
             sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
             sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
 
+    sd.success = True
     return sd
 
 
@@ -381,7 +382,7 @@ def do_main(
         sidecar_json: str | None = None,
         verbose: bool = False,
         out_func=print,
-):
+) -> int:
     """Main entry point for split_video module.
 
     Parameters
@@ -444,10 +445,11 @@ def do_main(
     logger.debug(f"Buffer after: {buffer_after}")
     logger.debug(f"Buffer policy: {buffer_policy}")
 
-    out_func(f"Slice video from {input_path}")
-    out_func(f"  Start: {start_time}, Duration: {duration}, End: {end_time}")
-    out_func(f"  Buffers: before={buffer_before}, after={buffer_after}, policy={buffer_policy}")
-    out_func(f"  Output: {output_path}")
+    if verbose:
+        out_func(f"Slice video from {input_path}")
+        out_func(f"  Start: {start_time}, Duration: {duration}, End: {end_time}")
+        out_func(f"  Buffers: before={buffer_before}, after={buffer_after}, policy={buffer_policy}")
+        out_func(f"  Output: {output_path}")
 
     sd: SplitData = _calc_split_data(
         input_path,
@@ -459,18 +461,36 @@ def do_main(
         BufferPolicy(buffer_policy.lower()),
     )
     logger.debug(f"Calculated SplitData: {sd.model_dump_json(indent=2)}")
+    if not sd.success:
+        logger.error("Video split data calculation failed.")
+        return 1
 
     sr: SplitResult = _split_video(sd, output_path)
     logger.debug(f"SplitResult: {sr.model_dump_json(indent=2)}")
-    out_func(sr.model_dump_json(indent=2))
+
+    if not sr.success:
+        logger.error("Video split failed.")
+        return 2
+
+    if verbose:
+        out_func(f"Input path  :{sr.input_path}")
+        out_func(f"Output path :{sr.output_path}")
+        out_func(f"JSON Result : {sr.model_dump_json(indent=2)}")
+
 
     # Write sidecar JSON file if requested
     if sidecar_json:
-        logger.info(f"Writing sidecar JSON to: {sidecar_json}")
-        with open(sidecar_json, 'w') as f:
-            f.write(sr.model_dump_json(indent=2))
-            f.write('\n')
-        logger.debug(f"Sidecar JSON file written successfully")
-        out_func(f"Sidecar JSON written to: {sidecar_json}")
+        try:
+            logger.info(f"Writing sidecar JSON to: {sidecar_json}")
+            with open(sidecar_json, 'w') as f:
+                f.write(sr.model_dump_json(indent=2))
+                f.write('\n')
+            logger.debug(f"Sidecar JSON file written successfully")
+            if verbose:
+                out_func(f"Sidecar JSON written to: {sidecar_json}")
+        except Exception as e3:
+            logger.error(f"Failed to write sidecar JSON file: {e3}")
+            return 3
 
+    return 0
 

@@ -4,6 +4,7 @@
 
 import logging
 import os
+import time
 
 import click
 
@@ -142,7 +143,10 @@ def split_video(
     elif sidecar_json is None or sidecar_json == "none":
         sidecar_path = None
 
-    do_main(
+    # Record start time
+    start_time_sec = time.time()
+
+    res = do_main(
         input_path=input,
         output_path=output,
         start_time=start,
@@ -155,4 +159,10 @@ def split_video(
         verbose=verbose,
         out_func=click.echo
     )
-    return 0
+
+    # Calculate elapsed time
+    elapsed_sec = round(time.time() - start_time_sec, 1)
+    logger.debug(f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}")
+    if verbose:
+        click.echo(f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}")
+    return res
