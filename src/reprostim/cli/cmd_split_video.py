@@ -78,6 +78,16 @@ logger = logging.getLogger(__name__)
          "with the same basename containing metadata.",
 )
 @click.option(
+    "-j",
+    "--sidecar-json",
+    default=None,
+    required=False,
+    help="Create a sidecar JSON file with split metadata. "
+         "When specified without a path or 'auto', creates '<output>.split-video.jsonl'. "
+         "When specified with a path, uses that path. "
+         "If not specified, or specified as 'none', no sidecar file is created.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -95,6 +105,7 @@ def split_video(
     end: str | None,
     input: str,
     output: str,
+    sidecar_json: str | None,
     verbose: bool
 ):
     """Split recorded video files to a specific time range."""
@@ -118,7 +129,18 @@ def split_video(
     logger.info(f"Buffer before    : {buffer_before}")
     logger.info(f"Buffer after     : {buffer_after}")
     logger.info(f"Buffer policy    : {buffer_policy}")
+    logger.info(f"Sidecar JSON     : {sidecar_json}")
     logger.info(f"Verbose output   : {verbose}")
+
+    # Handle automatic sidecar path generation
+    sidecar_path = None
+    if sidecar_json in { "auto", "" }:
+        sidecar_path = f"{output}.split-video.jsonl"
+        logger.info(f"Auto sidecar path: {sidecar_path}")
+    elif sidecar_json is not None:
+        sidecar_path = sidecar_json
+    elif sidecar_json is None or sidecar_json == "none":
+        sidecar_path = None
 
     do_main(
         input_path=input,
@@ -129,6 +151,7 @@ def split_video(
         buffer_before=buffer_before,
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
+        sidecar_json=sidecar_path,
         verbose=verbose,
         out_func=click.echo
     )

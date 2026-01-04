@@ -8,13 +8,14 @@ along with their corresponding log files and QR/audio metadata.
 """
 
 import logging
+import os
 import subprocess
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 import isodate
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from reprostim.qr.video_audit import VaRecord, get_file_video_audit
 
@@ -48,6 +49,8 @@ class SplitData(BaseModel):
     # File info
     path: str = "n/a"  # Path to the .mkv video file
     fps: Optional[float] = None  # Frames per second
+    resolution: Optional[str] = None  # Video resolution (e.g., '1920x1080')
+    audio_sr: Optional[str] = None  # Audio sample rate (e.g., '48000 Hz')
     full_seg: Optional[VideoSegment] = None   # specifies entire video segment
     sel_seg: Optional[VideoSegment] = None    # specifies exact split video selection
     buf_seg: Optional[VideoSegment] = None    # specifies selection with buffer around
@@ -56,14 +59,37 @@ class SplitData(BaseModel):
 class SplitResult(BaseModel):
     """Specifies result of video split operation."""
 
-    success: bool = False  # Whether split operation was successful
-    input_path: str = "n/a"  # Path to the input .mkv video file
-    output_path: str = "n/a"  # Path to the output .mkv video file
+    success: bool = Field(False, exclude=True)  # Whether split operation was successful
+    input_path: str = Field("n/a", exclude=True)  # Path to the input .mkv video file
+    output_path: str = Field("n/a", exclude=True)  # Path to the output .mkv video file
     buffer_before: Optional[float] = None  # Buffer before in seconds
     buffer_after: Optional[float] = None  # Buffer after in seconds
-    start_time: Optional[datetime] = None  # Start time of the split segment
+    buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
+    buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
+    buffer_duration: Optional[float] = None  # Total buffer duration in seconds
+    buffer_offset: Optional[float] = None  # Buffer start offset in seconds
+    start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
+    start_time: Optional[datetime] = Field(None, exclude=True)  # Start time of the split segment
+    end: str = "n/a" # End time of the split segment only in ISO 8601 format
+    end_time: Optional[datetime] = Field(None, exclude=True)  # End time of the split segment
     duration: Optional[float] = None  # Duration of the split segment in seconds
-    end_time: Optional[datetime] = None  # End time of the split segment
+    offset: Optional[float] = None  # Offset of the split segment in seconds
+    video_resolution: Optional[str] = "n/a"  # Video resolution (e.g., '1920x1080')
+    video_rate_fps: Optional[float] = None  # Video frames per second
+    video_size_mb: Optional[float] = None  # Video file size in megabytes
+    video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
+    audio_sr: Optional[str] = None  # Audio sample rate (e.g., '48000 Hz')
+
+
+def _format_time(dt: datetime) -> str:
+    """Format datetime object to ISO 8601 time string.
+
+    :param dt: Datetime object
+    :type dt: datetime
+    :return: Formatted time string in ISO 8601 format (e.g., '17:30:00.321')
+    :rtype: str
+    """
+    return dt.isoformat(timespec='milliseconds').split('T')[1]
 
 
 def _parse_date_time(date_str: str, time_str: str) -> datetime:
@@ -195,6 +221,8 @@ def _calc_split_data(path: str,
     #    and reuse videos.tsv data if any for that.
     vr: VaRecord = get_file_video_audit(path)
     sd.fps = _parse_fps(vr.video_fps_recorded)
+    sd.resolution = vr.video_res_recorded
+    sd.audio_sr = vr.audio_sr
     sd.full_seg = VideoSegment(
         start_ts=_parse_date_time(vr.start_date, vr.start_time),
         end_ts=_parse_date_time(vr.end_date, vr.end_time),
@@ -295,9 +323,17 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         output_path=out_path,
         buffer_before=round(sd.sel_seg.start_ts.timestamp() - sd.buf_seg.start_ts.timestamp(), 3),
         buffer_after=round(sd.buf_seg.end_ts.timestamp() - sd.sel_seg.end_ts.timestamp(), 3),
+        buffer_start=_format_time(sd.buf_seg.start_ts),
+        buffer_end=_format_time(sd.buf_seg.end_ts),
+        buffer_duration=round(sd.buf_seg.duration_sec, 3),
+        buffer_offset=round(sd.buf_seg.offset_sec, 3),
         start_time=sd.sel_seg.start_ts,
         duration=sd.sel_seg.duration_sec,
+        offset=sd.sel_seg.offset_sec,
         end_time=sd.sel_seg.end_ts,
+        video_resolution=sd.resolution,
+        video_rate_fps=sd.fps,
+        audio_sr=sd.audio_sr,
     )
 
     try:
@@ -315,9 +351,21 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         logger.debug(f"ffmpeg exit code : {str(result.returncode)}")
         logger.debug(f"ffmpeg output    : {str(result.stdout)}")
         logger.debug(f"ffmpeg errors    : {str(result.stderr)}")
+
+        # calculate output video size and rate
+        file_size_bytes = os.path.getsize(out_path)
+        sr.video_size_mb = round(file_size_bytes / (1024 * 1024), 1)
+        if sd.buf_seg.duration_sec > 0:
+            sr.video_rate_mbpm = round((file_size_bytes * 8) / (sd.buf_seg.duration_sec * 1024 * 1024), 1)
         sr.success = True
     except subprocess.CalledProcessError as e:
         logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
+
+    if sr.start_time:
+        sr.start = _format_time(sr.start_time)
+
+    if sr.end_time:
+        sr.end = _format_time(sr.end_time)
 
     return sr
 
@@ -330,6 +378,7 @@ def do_main(
         buffer_before: str | None = None,
         buffer_after: str | None = None,
         buffer_policy: str = "strict",
+        sidecar_json: str | None = None,
         verbose: bool = False,
         out_func=print,
 ):
@@ -361,6 +410,9 @@ def do_main(
     buffer_policy : str
         Policy for handling buffer overflow: 'strict' (error on overflow) or
         'flexible' (trim buffers to fit). Defaults to 'strict'.
+    sidecar_json : str | None
+        Path to write sidecar JSON file with split metadata. If None, no sidecar
+        file is created.
     verbose : bool
         Enable verbose output.
     out_func : callable
@@ -411,5 +463,14 @@ def do_main(
     sr: SplitResult = _split_video(sd, output_path)
     logger.debug(f"SplitResult: {sr.model_dump_json(indent=2)}")
     out_func(sr.model_dump_json(indent=2))
+
+    # Write sidecar JSON file if requested
+    if sidecar_json:
+        logger.info(f"Writing sidecar JSON to: {sidecar_json}")
+        with open(sidecar_json, 'w') as f:
+            f.write(sr.model_dump_json(indent=2))
+            f.write('\n')
+        logger.debug(f"Sidecar JSON file written successfully")
+        out_func(f"Sidecar JSON written to: {sidecar_json}")
 
 
