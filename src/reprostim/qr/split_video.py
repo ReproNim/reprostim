@@ -10,7 +10,7 @@ along with their corresponding log files and QR/audio metadata.
 import logging
 import os
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 from enum import Enum
 from typing import Optional
 import isodate
@@ -78,7 +78,7 @@ class SplitResult(BaseModel):
     video_rate_fps: Optional[float] = None  # Video frames per second
     video_size_mb: Optional[float] = None  # Video file size in megabytes
     video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
-    audio_sr: Optional[str] = None  # Audio sample rate (e.g., '48000 Hz')
+    audio_info: Optional[str] = None  # Audio info sample rate, channels codecs etc (e.g., '48000 Hz')
 
 
 def _format_time(dt: datetime) -> str:
@@ -153,11 +153,15 @@ def _parse_interval_sec(interval_str: str) -> float:
             raise
 
 
-def _parse_ts(time_str: str | None) -> datetime:
+def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
     """Parse ISO 8601 time string to datetime object.
 
     :param time_str: Time string in ISO 8601 format
     :type time_str: str
+
+    :param time_only: If True, parse time only without date (default: False)
+    :type time_only: bool
+
     :return: Parsed datetime object
     :rtype: datetime
     :raises ValueError: If the time string is not in valid format
@@ -165,8 +169,19 @@ def _parse_ts(time_str: str | None) -> datetime:
     try:
         if not time_str:
             return None
-        dt = datetime.fromisoformat(time_str)
-        return dt
+
+        try:
+            dt = datetime.fromisoformat(time_str)
+            if time_only:
+                datetime.combine(date.today(), dt.time())
+            return dt
+        except ValueError as e2:
+            if time_only:
+                t = time.fromisoformat(time_str)
+                return datetime.combine(date.today(), t)
+            else:
+                raise e2
+
     except ValueError as e:
         logger.error(f"Invalid time format: {time_str}")
         raise e
@@ -179,7 +194,8 @@ def _calc_split_data(path: str,
                      buf_before_sec: float,
                      buf_after_sec: float,
                      buffer_policy: BufferPolicy = BufferPolicy.STRICT,
-                     video_audit_file: str | None = None
+                     video_audit_file: str | None = None,
+                     raw_mode: bool = False,
                      ) -> SplitData:
     """Calculate split data for given video file.
 
@@ -224,6 +240,28 @@ def _calc_split_data(path: str,
     #    to extract necessary metadata. Later we can optimize it to avoid redundant reads.
     #    and reuse videos.tsv data if any for that.
     vr: VaRecord = get_file_video_audit(path, video_audit_file)
+    logger.debug(f"Video audit record: {vr.model_dump_json(indent=2)}")
+
+    duration_sec: float = _parse_interval_sec(vr.duration)
+    if duration_sec <= 0:
+        logger.error(f"Video duration is zero or negative: {vr.duration}. Most likely "
+                     f"the video file is corrupted or truncated and need to be fixed first.")
+        if raw_mode:
+            logger.warning("In raw mode, proceeding despite zero/negative duration, it can "
+                           "produce unpredictable secondary errors.")
+        else:
+            raise ValueError(f"Video duration is zero or negative: {duration_sec} seconds.")
+
+    # apply fix for raw mode
+    if raw_mode:
+        # in raw mode, we assume the video starts at time 0
+        start_ts: datetime = datetime.combine(sel_start_ts.date(), time.min)
+        vr.start_date = start_ts.date().isoformat()
+        vr.start_time = start_ts.time().isoformat()
+        end_ts: datetime = start_ts + timedelta(seconds=duration_sec)
+        vr.end_date = end_ts.date().isoformat()
+        vr.end_time = end_ts.time().isoformat()
+
     sd.fps = _parse_fps(vr.video_fps_recorded)
     sd.resolution = vr.video_res_recorded
     sd.audio_sr = vr.audio_sr
@@ -232,7 +270,7 @@ def _calc_split_data(path: str,
         end_ts=_parse_date_time(vr.end_date, vr.end_time),
         offset_sec=0.0,
         offset_frame=0,
-        duration_sec=_parse_interval_sec(vr.duration),
+        duration_sec=duration_sec,
     )
     sd.full_seg.frame_count = int(sd.full_seg.duration_sec * sd.fps)
 
@@ -338,7 +376,7 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         end_time=sd.sel_seg.end_ts,
         video_resolution=sd.resolution,
         video_rate_fps=sd.fps,
-        audio_sr=sd.audio_sr,
+        audio_info=sd.audio_sr,
     )
 
     try:
@@ -385,6 +423,7 @@ def do_main(
         buffer_policy: str = "strict",
         sidecar_json: str | None = None,
         video_audit_file: str | None = None,
+        raw: bool = False,
         verbose: bool = False,
         out_func=print,
 ) -> int:
@@ -423,6 +462,8 @@ def do_main(
         Path to video audit TSV file. If provided, uses this file instead of
         generating video metadata on-the-fly. Passed to get_file_video_audit
         as path_tsv parameter.
+    raw : bool
+        Enable raw mode for video splitting. Defaults to False.
     verbose : bool
         Enable verbose output.
     out_func : callable
@@ -454,6 +495,7 @@ def do_main(
     logger.debug(f"Buffer after: {buffer_after}")
     logger.debug(f"Buffer policy: {buffer_policy}")
     logger.debug(f"Video audit file: {video_audit_file}")
+    logger.debug(f"Raw mode: {raw}")
 
     if verbose:
         out_func(f"Slice video from {input_path}")
@@ -461,16 +503,24 @@ def do_main(
         out_func(f"  Buffers: before={buffer_before}, after={buffer_after}, policy={buffer_policy}")
         out_func(f"  Output: {output_path}")
 
-    sd: SplitData = _calc_split_data(
-        input_path,
-        _parse_ts(start_time),
-        _parse_interval_sec(duration),
-        _parse_ts(end_time),
-        _parse_interval_sec(buffer_before),
-        _parse_interval_sec(buffer_after),
-        BufferPolicy(buffer_policy.lower()),
-        video_audit_file,
-    )
+    sd: SplitData
+
+    try:
+        sd = _calc_split_data(
+            input_path,
+            _parse_ts(start_time, raw),
+            _parse_interval_sec(duration),
+            _parse_ts(end_time, raw),
+            _parse_interval_sec(buffer_before),
+            _parse_interval_sec(buffer_after),
+            BufferPolicy(buffer_policy.lower()),
+            video_audit_file,
+            raw_mode=raw,
+        )
+    except Exception as esd:
+        logger.error(f"Failed to calculate video split data: {esd}")
+        return 4
+
     logger.debug(f"Calculated SplitData: {sd.model_dump_json(indent=2)}")
     if not sd.success:
         logger.error("Video split data calculation failed.")

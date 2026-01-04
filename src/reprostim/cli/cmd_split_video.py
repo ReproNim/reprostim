@@ -45,7 +45,8 @@ logger = logging.getLogger(__name__)
     type=str,
     required=True,
     help="Start time in ISO 8601 format (e.g., '2024-02-02T17:30:00'). "
-         "Must be within the input video's time range.",
+         "Must be within the input video's time range. In raw mode, only time is used "
+         "as offset from the start of the video and not the absolute datetime.",
 )
 @click.option(
     "--duration",
@@ -60,7 +61,8 @@ logger = logging.getLogger(__name__)
     type=str,
     default=None,
     help="End time in ISO 8601 format (e.g., '2024-02-02T17:33:00'). "
-         "Mutually exclusive with --duration.",
+         "Mutually exclusive with --duration. In raw mode, only time is used "
+         "as offset from the start of the video and not the absolute datetime.",
 )
 @click.option(
     "-i",
@@ -97,6 +99,13 @@ logger = logging.getLogger(__name__)
          "generating video metadata on-the-fly.",
 )
 @click.option(
+    "--raw",
+    is_flag=True,
+    default=False,
+    help="Enable raw mode for video splitting. In this mode any video file can be used as is to "
+         "split/crop *.mkv/*.mp4file, utility will work without specific metadata in logs and file name.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -116,6 +125,7 @@ def split_video(
     output: str,
     sidecar_json: str | None,
     video_audit_file: str | None,
+    raw: bool,
     verbose: bool
 ):
     """Split recorded video files to a specific time range."""
@@ -141,6 +151,7 @@ def split_video(
     logger.info(f"Buffer policy    : {buffer_policy}")
     logger.info(f"Sidecar JSON     : {sidecar_json}")
     logger.info(f"Video audit file : {video_audit_file}")
+    logger.info(f"Raw mode         : {raw}")
     logger.info(f"Verbose output   : {verbose}")
 
     # Handle automatic sidecar path generation
@@ -167,6 +178,7 @@ def split_video(
         buffer_policy=buffer_policy,
         sidecar_json=sidecar_path,
         video_audit_file=video_audit_file,
+        raw=raw,
         verbose=verbose,
         out_func=click.echo
     )
