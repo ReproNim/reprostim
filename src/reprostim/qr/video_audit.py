@@ -1210,6 +1210,60 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
         yield run_ext_all(ctx, rec)
 
 
+def get_file_video_audit(path: str, path_tsv: str=None) -> VaRecord:
+    """Get a single VaRecord by auditing a single video file.
+
+    :param path: Path to the video file
+    :type path: str
+
+    :param path_tsv: Optional path to existing TSV file to load existing records
+                     Default: None
+
+    :return: VaRecord object
+    :rtype: VaRecord
+    """
+
+    logger.debug(f"get_file_video_audit(path={path}, path_tsv={path_tsv})")
+
+    # If path_tsv is provided and exists, try to load record from TSV
+    if path_tsv and os.path.exists(path_tsv):
+        logger.debug(f"Loading video audit record from TSV: {path_tsv}")
+        lock = FileLock(f"{path_tsv}.lock", timeout=5)
+        try:
+            records: List[VaRecord] = []
+
+            # only load records to reduce lock time
+            with lock:
+                records = _load_tsv(path_tsv)
+                # Search for matching record by path
+
+            for rec in records:
+                if rec.path == path:
+                    logger.debug(f"Found matching record in TSV for: {path}")
+                    return rec
+            logger.debug(f"No matching record found in TSV for: {path}, falling back to audit")
+        except Timeout:
+            logger.warning(f"Timeout acquiring lock for {path_tsv}, falling back to audit")
+        except Exception as e:
+            logger.warning(f"Error loading TSV file {path_tsv}: {e}, falling back to audit")
+
+    # Fall back to auditing the file directly
+    logger.debug(f"Auditing video file directly: {path}")
+    ctx: VaContext = VaContext(
+        skip_names=None,
+        c_internal=0,
+        c_nosignal=0,
+        c_qr=0,
+        log_level=os.environ["REPROSTIM_LOG_LEVEL"],
+        max_counter=1,
+        mode=VaMode.INCREMENTAL,
+        path_mask=None,
+        recursive=False,
+        source={VaSource.INTERNAL},
+    )
+    return next(do_audit_file(ctx, path), None)
+
+
 def do_main(
     paths: List[str],
     path_tsv: str,
