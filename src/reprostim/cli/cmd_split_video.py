@@ -89,6 +89,14 @@ logger = logging.getLogger(__name__)
          "If not specified, or specified as 'none', no sidecar file is created.",
 )
 @click.option(
+    "-a",
+    "--video-audit-file",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    default=None,
+    help="Path to video audit TSV file. If provided, uses this file instead of "
+         "generating video metadata on-the-fly.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -107,6 +115,7 @@ def split_video(
     input: str,
     output: str,
     sidecar_json: str | None,
+    video_audit_file: str | None,
     verbose: bool
 ):
     """Split recorded video files to a specific time range."""
@@ -131,6 +140,7 @@ def split_video(
     logger.info(f"Buffer after     : {buffer_after}")
     logger.info(f"Buffer policy    : {buffer_policy}")
     logger.info(f"Sidecar JSON     : {sidecar_json}")
+    logger.info(f"Video audit file : {video_audit_file}")
     logger.info(f"Verbose output   : {verbose}")
 
     # Handle automatic sidecar path generation
@@ -156,6 +166,7 @@ def split_video(
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
         sidecar_json=sidecar_path,
+        video_audit_file=video_audit_file,
         verbose=verbose,
         out_func=click.echo
     )

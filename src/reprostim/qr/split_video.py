@@ -178,7 +178,8 @@ def _calc_split_data(path: str,
                      sel_end_ts: datetime,
                      buf_before_sec: float,
                      buf_after_sec: float,
-                     buffer_policy: BufferPolicy = BufferPolicy.STRICT
+                     buffer_policy: BufferPolicy = BufferPolicy.STRICT,
+                     video_audit_file: str | None = None
                      ) -> SplitData:
     """Calculate split data for given video file.
 
@@ -203,6 +204,9 @@ def _calc_split_data(path: str,
     :param buffer_policy: Policy for handling buffer overflow (strict or flexible)
     :type buffer_policy: BufferPolicy
 
+    :param video_audit_file: Path to video audit TSV file (optional)
+    :type video_audit_file: str | None
+
     :return: SplitData object with metadata
     :rtype: SplitData
     :raises ValueError: If buffer cannot be fulfilled in strict mode
@@ -219,7 +223,7 @@ def _calc_split_data(path: str,
     #    as initial implementation use video-audit internal mode
     #    to extract necessary metadata. Later we can optimize it to avoid redundant reads.
     #    and reuse videos.tsv data if any for that.
-    vr: VaRecord = get_file_video_audit(path)
+    vr: VaRecord = get_file_video_audit(path, video_audit_file)
     sd.fps = _parse_fps(vr.video_fps_recorded)
     sd.resolution = vr.video_res_recorded
     sd.audio_sr = vr.audio_sr
@@ -380,6 +384,7 @@ def do_main(
         buffer_after: str | None = None,
         buffer_policy: str = "strict",
         sidecar_json: str | None = None,
+        video_audit_file: str | None = None,
         verbose: bool = False,
         out_func=print,
 ) -> int:
@@ -414,6 +419,10 @@ def do_main(
     sidecar_json : str | None
         Path to write sidecar JSON file with split metadata. If None, no sidecar
         file is created.
+    video_audit_file : str | None
+        Path to video audit TSV file. If provided, uses this file instead of
+        generating video metadata on-the-fly. Passed to get_file_video_audit
+        as path_tsv parameter.
     verbose : bool
         Enable verbose output.
     out_func : callable
@@ -444,6 +453,7 @@ def do_main(
     logger.debug(f"Buffer before: {buffer_before}")
     logger.debug(f"Buffer after: {buffer_after}")
     logger.debug(f"Buffer policy: {buffer_policy}")
+    logger.debug(f"Video audit file: {video_audit_file}")
 
     if verbose:
         out_func(f"Slice video from {input_path}")
@@ -459,6 +469,7 @@ def do_main(
         _parse_interval_sec(buffer_before),
         _parse_interval_sec(buffer_after),
         BufferPolicy(buffer_policy.lower()),
+        video_audit_file,
     )
     logger.debug(f"Calculated SplitData: {sd.model_dump_json(indent=2)}")
     if not sd.success:
