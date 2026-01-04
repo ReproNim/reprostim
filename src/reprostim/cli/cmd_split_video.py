@@ -32,6 +32,14 @@ logger = logging.getLogger(__name__)
          "If the buffer extends beyond the video end, it will be trimmed to video length.",
 )
 @click.option(
+    "--buffer-policy",
+    type=click.Choice(["strict", "flexible"], case_sensitive=False),
+    default="strict",
+    help="Policy for handling buffer overflow. "
+         "'strict' (default): error if buffers extend beyond video boundaries. "
+         "'flexible': trim buffers to fit within video boundaries.",
+)
+@click.option(
     "--start",
     type=str,
     required=True,
@@ -81,6 +89,7 @@ def split_video(
     ctx,
     buffer_before: str | None,
     buffer_after: str | None,
+    buffer_policy: str,
     start: str,
     duration: str | None,
     end: str | None,
@@ -108,6 +117,7 @@ def split_video(
     logger.info(f"End time         : {end}")
     logger.info(f"Buffer before    : {buffer_before}")
     logger.info(f"Buffer after     : {buffer_after}")
+    logger.info(f"Buffer policy    : {buffer_policy}")
     logger.info(f"Verbose output   : {verbose}")
 
     do_main(
@@ -118,6 +128,7 @@ def split_video(
         end_time=end,
         buffer_before=buffer_before,
         buffer_after=buffer_after,
+        buffer_policy=buffer_policy,
         verbose=verbose,
         out_func=click.echo
     )

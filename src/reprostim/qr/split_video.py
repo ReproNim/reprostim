@@ -10,6 +10,7 @@ along with their corresponding log files and QR/audio metadata.
 import logging
 import subprocess
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Optional
 import isodate
 
@@ -22,6 +23,12 @@ from reprostim.qr.video_audit import VaRecord, get_file_video_audit
 logger = logging.getLogger(__name__)
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
+
+
+class BufferPolicy(str, Enum):
+    """Policy for handling buffer overflow beyond video boundaries."""
+    STRICT = "strict"
+    FLEXIBLE = "flexible"
 
 
 class VideoSegment(BaseModel):
@@ -144,7 +151,8 @@ def _calc_split_data(path: str,
                      sel_duration_sec: float,
                      sel_end_ts: datetime,
                      buf_before_sec: float,
-                     buf_after_sec: float
+                     buf_after_sec: float,
+                     buffer_policy: BufferPolicy = BufferPolicy.STRICT
                      ) -> SplitData:
     """Calculate split data for given video file.
 
@@ -166,14 +174,17 @@ def _calc_split_data(path: str,
     :param buf_after_sec: Buffer after selection in seconds
     :type buf_after_sec: float
 
+    :param buffer_policy: Policy for handling buffer overflow (strict or flexible)
+    :type buffer_policy: BufferPolicy
+
     :return: SplitData object with metadata
     :rtype: SplitData
-    :raises NotImplementedError: Function not yet implemented
+    :raises ValueError: If buffer cannot be fulfilled in strict mode
     """
-    logger.debug(f"_calc_split_data: path={path}, " 
+    logger.debug(f"_calc_split_data: path={path}, "
                  f"sel_start_ts={sel_start_ts}, sel_duration_sec={sel_duration_sec}, "
                  f"sel_end_ts={sel_end_ts}, buf_before_sec={buf_before_sec}, "
-                 f"buf_after_sec={buf_after_sec}"
+                 f"buf_after_sec={buf_after_sec}, buffer_policy={buffer_policy.value}"
                  )
 
     sd: SplitData = SplitData(path=path)
@@ -223,25 +234,45 @@ def _calc_split_data(path: str,
     # D) Validate segments against video boundaries and adjust if necessary
     if sd.sel_seg.start_ts < sd.full_seg.start_ts:
         logger.error("Selected start time is before video start.")
-        raise Exception(f"Selected start time is before video start: {sd.sel_seg.start_ts} < {sd.full_seg.start_ts}.")
+        raise ValueError(f"Selected start time is before video start: {sd.sel_seg.start_ts} < {sd.full_seg.start_ts}.")
 
     if sd.sel_seg.end_ts > sd.full_seg.end_ts:
         logger.error("Selected end time is after video end.")
-        raise Exception(f"Selected end time is after video end: {sd.sel_seg.end_ts} > {sd.full_seg.end_ts}.")
+        raise ValueError(f"Selected end time is after video end: {sd.sel_seg.end_ts} > {sd.full_seg.end_ts}.")
 
-    if sd.buf_seg.start_ts < sd.full_seg.start_ts:
-        logger.warning("Buffer before extends before video start. Trimming buffer.")
-        sd.buf_seg.start_ts = sd.full_seg.start_ts
-        sd.buf_seg.offset_sec = 0.0
-        sd.buf_seg.offset_frame = 0
-        sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
-        sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
+    # Handle buffer overflow based on policy
+    buffer_overflow_before = sd.buf_seg.start_ts < sd.full_seg.start_ts
+    buffer_overflow_after = sd.buf_seg.end_ts > sd.full_seg.end_ts
 
-    if sd.buf_seg.end_ts > sd.full_seg.end_ts:
-        logger.warning("Buffer after extends after video end. Trimming buffer.")
-        sd.buf_seg.end_ts = sd.full_seg.end_ts
-        sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
-        sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
+    if buffer_policy == BufferPolicy.STRICT:
+        if buffer_overflow_before:
+            logger.error("Buffer before extends before video start (strict mode).")
+            raise ValueError(
+                f"Buffer before extends before video start: "
+                f"buffer_start={sd.buf_seg.start_ts}, video_start={sd.full_seg.start_ts}. "
+                f"Use --buffer-policy=flexible to trim buffers automatically."
+            )
+        if buffer_overflow_after:
+            logger.error("Buffer after extends after video end (strict mode).")
+            raise ValueError(
+                f"Buffer after extends after video end: "
+                f"buffer_end={sd.buf_seg.end_ts}, video_end={sd.full_seg.end_ts}. "
+                f"Use --buffer-policy=flexible to trim buffers automatically."
+            )
+    else:  # BufferPolicy.FLEXIBLE
+        if buffer_overflow_before:
+            logger.warning("Buffer before extends before video start. Trimming buffer.")
+            sd.buf_seg.start_ts = sd.full_seg.start_ts
+            sd.buf_seg.offset_sec = 0.0
+            sd.buf_seg.offset_frame = 0
+            sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
+            sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
+
+        if buffer_overflow_after:
+            logger.warning("Buffer after extends after video end. Trimming buffer.")
+            sd.buf_seg.end_ts = sd.full_seg.end_ts
+            sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
+            sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
 
     return sd
 
@@ -298,6 +329,7 @@ def do_main(
         end_time: str | None = None,
         buffer_before: str | None = None,
         buffer_after: str | None = None,
+        buffer_policy: str = "strict",
         verbose: bool = False,
         out_func=print,
 ):
@@ -326,6 +358,9 @@ def do_main(
     buffer_after : str | None
         Duration buffer to include after the end time.
         Accepts seconds (e.g., '10') or ISO 8601 duration (e.g., 'P10S').
+    buffer_policy : str
+        Policy for handling buffer overflow: 'strict' (error on overflow) or
+        'flexible' (trim buffers to fit). Defaults to 'strict'.
     verbose : bool
         Enable verbose output.
     out_func : callable
@@ -355,10 +390,11 @@ def do_main(
     logger.debug(f"End time: {end_time}")
     logger.debug(f"Buffer before: {buffer_before}")
     logger.debug(f"Buffer after: {buffer_after}")
+    logger.debug(f"Buffer policy: {buffer_policy}")
 
     out_func(f"Slice video from {input_path}")
     out_func(f"  Start: {start_time}, Duration: {duration}, End: {end_time}")
-    out_func(f"  Buffers: before={buffer_before}, after={buffer_after}")
+    out_func(f"  Buffers: before={buffer_before}, after={buffer_after}, policy={buffer_policy}")
     out_func(f"  Output: {output_path}")
 
     sd: SplitData = _calc_split_data(
@@ -368,6 +404,7 @@ def do_main(
         _parse_ts(end_time),
         _parse_interval_sec(buffer_before),
         _parse_interval_sec(buffer_after),
+        BufferPolicy(buffer_policy.lower()),
     )
     logger.debug(f"Calculated SplitData: {sd.model_dump_json(indent=2)}")
 

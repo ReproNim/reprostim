@@ -33,7 +33,11 @@ reprostim split-video --buffer-before 5 --buffer-after 5 --start 2025-11-05T14:0
 in case of input filename not satisfying the pattern to have starting time -- error
 
 
-`split-video` which could be used independently of the overall setup with videos.tsv etc. Should take specification for splitting, template for output filename(s), and overloads on command line (like buffer durations). It should have option to produce .json file with result records depicting exact buffers etc durations (e.g. if we specified buffer of 10 sec, but start from 2nd second, we could have only 2 seconds buffer in the beginning). May be add an option `--buffers=flexible,strict` so if strict, would error out if buffer cannot be fulfilled
+`split-video` which could be used independently of the overall setup with videos.tsv etc. Should take specification 
+for splitting, template for output filename(s), and overloads on command line (like buffer durations). It should have 
+option to produce .json file with result records depicting exact buffers etc durations (e.g. if we specified buffer 
+of 10 sec, but start from 2nd second, we could have only 2 seconds buffer in the beginning). Maybe add an 
+option `--buffer-policy=strict|flexible` so if strict, would error out if buffer cannot be fulfilled:
    - likely might be just a wrapper around `ffmpeg` invocation
    - input specification should have set of records with starttime, endtime, filename template which could potentially embed all those + extra metadata field in the record like `title`  or some other.
    - think about it to be used to produce files for a BIDS dataset (next command), so filename pattern would be to be placed into a BIDS dataset, see https://github.com/bids-standard/bids-specification/pull/2022
