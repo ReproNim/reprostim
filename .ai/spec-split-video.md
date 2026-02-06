@@ -88,3 +88,137 @@ reprostim split-video -j --start 2024-02-02T17:30:00 --duration P3M -i input.mkv
 # Explicit sidecar path
 reprostim split-video --sidecar-json=/path/to/metadata.json --start 2024-02-02T17:30:00 --duration P3M -i input.mkv -o output.mkv
 ```
+
+### Inline Spec Format (`--spec`)
+
+Add a `--spec` option for compact inline segment specification. The separator token distinguishes
+between duration and end-time variants:
+
+- **`START/DURATION`** — single `/` means the right-hand part is a **duration**
+- **`START//END`** — double `//` means the right-hand part is an **end time**
+
+The option is repeatable, allowing multiple segments to be extracted in a single invocation.
+
+**Start part** (left of `/` or `//`) accepts:
+- Full ISO 8601 datetime: `2024-02-02T17:30:00`
+- Time-only (with or without `T` prefix): `17:30:00`, `T17:30:00`, `17:30:00.500`
+- Numeric seconds offset from video start: `300`, `300.5`
+
+**Duration part** (right of single `/`) accepts:
+- ISO 8601 duration: `PT3M`, `PT5M07S`, `P2M1S`
+- Numeric seconds: `180`, `300.5`
+
+**End part** (right of `//`) accepts:
+- Full ISO 8601 datetime: `2024-02-02T17:33:00`
+- Time-only: `17:33:00`, `T17:33:00`
+- Numeric seconds offset from video start: `480`, `480.5`
+
+**Parsing logic:**
+1. Check if spec string contains `//` → split on first `//`, right part is end time
+2. Otherwise split on first `/` → right part is duration
+3. Parse left part (start) and right part (duration or end) using existing `_parse_ts` and
+   `_parse_interval_sec` helpers
+
+**Interaction with existing options:**
+- `--spec` is mutually exclusive with `--start`, `--duration`, `--end`. If both are provided,
+  error out.
+- `--buffer-before`, `--buffer-after`, `--buffer-policy` apply globally to all specs
+- `--input` is still required
+- `--raw` mode applies to all specs (time-only and numeric seconds work naturally in raw mode)
+
+#### Output naming
+
+`--output` serves as a **template** when multiple `--spec` args are provided.
+
+**Template tokens** (replaced in the output path):
+
+| Token        | Description                                    | Example value  |
+|--------------|------------------------------------------------|----------------|
+| `{n}`        | 1-based zero-padded index (width 3)            | `001`, `002`   |
+| `{start}`    | Formatted start time (dots instead of colons)  | `17.30.00.000` |
+| `{end}`      | Formatted end time (dots instead of colons)    | `17.33.00.000` |
+| `{duration}` | Duration in seconds                            | `180.0`        |
+
+**Rules:**
+- **Single `--spec`**: `--output` is used as-is, no template expansion needed
+  (but tokens are still expanded if present).
+- **Multiple `--spec`**: `--output` **must** contain at least `{n}` or another token that
+  guarantees uniqueness. If no token is found, error with a descriptive message suggesting
+  to add `{n}` to the output path.
+
+#### Sidecar JSON with multiple specs
+
+Each output file gets its **own sidecar** JSON file. The sidecar path is derived from the
+resolved output path following existing rules:
+- `-j` / `--sidecar-json` (flag): `<resolved_output>.split-video.json`
+- `--sidecar-json=PATH`: the PATH is also treated as a template with the same tokens
+  (`{n}`, `{start}`, etc.) so each spec gets a unique sidecar file.
+
+#### Usage examples
+
+```shell
+# Single spec with duration — equivalent to --start 2024-02-02T17:30:00 --duration PT3M
+reprostim split-video --spec 2024-02-02T17:30:00/PT3M \
+  --buffer-before 10 --buffer-after 10 \
+  -i input.mkv -o output.mkv
+
+# Single spec with duration in seconds
+reprostim split-video --spec 2024-02-02T17:30:00/180 \
+  -i input.mkv -o output.mkv
+
+# Single spec with end time (double slash)
+reprostim split-video --spec 2024-02-02T17:30:00//2024-02-02T17:33:00 \
+  -i input.mkv -o output.mkv
+
+# Raw mode with time-only and duration
+reprostim split-video --raw --spec 00:05:30/PT3M \
+  -i any_video.mp4 -o output.mkv
+
+# Raw mode with seconds offset and duration
+reprostim split-video --raw --spec 330/180 \
+  -i any_video.mp4 -o output.mkv
+
+# Raw mode with time-only end time (double slash)
+reprostim split-video --raw --spec 00:05:30//00:08:30 \
+  -i any_video.mp4 -o output.mkv
+
+# Multiple specs — extract 3 conference talks with index-based names
+reprostim split-video \
+  --spec 2024-02-02T09:00:00/PT25M \
+  --spec 2024-02-02T09:30:00/PT20M \
+  --spec 2024-02-02T10:00:00/PT30M \
+  --buffer-before 5 --buffer-after 5 \
+  -i conference_recording.mkv \
+  -o talks/talk_{n}.mkv
+# produces: talks/talk_001.mkv, talks/talk_002.mkv, talks/talk_003.mkv
+#           talks/talk_001.mkv.split-video.json, etc. (when -j is used)
+
+# Multiple specs with time-based output names
+reprostim split-video \
+  --spec 14:00:00/PT5M \
+  --spec 14:10:00//14:15:00 \
+  -j -i input.mkv \
+  -o segments/seg_{n}_{start}.mkv
+# produces: segments/seg_001_14.00.00.000.mkv, segments/seg_002_14.10.00.000.mkv
+#           segments/seg_001_14.00.00.000.mkv.split-video.json, etc.
+
+# Multiple specs — error case (no uniqueness token)
+reprostim split-video \
+  --spec 14:00:00/PT5M \
+  --spec 14:10:00/PT3M \
+  -i input.mkv -o output.mkv
+# ERROR: multiple --spec provided but --output contains no template token.
+#        Add {n} to output path, e.g.: -o output_{n}.mkv
+```
+
+#### Error handling
+
+- If `--spec` format is invalid (missing `/`, unparseable parts), error with descriptive message
+- If `--spec` and `--start`/`--duration`/`--end` are both provided, error immediately
+- If multiple `--spec` and `--output` has no template token, error with suggestion
+- Each spec is validated independently against video boundaries (same rules as current behavior)
+- If any spec fails in a multi-spec run, report the error but continue processing remaining specs
+  (exit code reflects the number of failures, or a non-zero code if any failed)
+
+?? **Open question**: on failure in multi-spec mode, should it stop at first error or continue
+processing remaining specs? "Continue and report" seems more useful for batch workflows.
