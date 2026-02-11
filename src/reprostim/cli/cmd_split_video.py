@@ -41,9 +41,19 @@ logger = logging.getLogger(__name__)
          "'flexible': trim buffers to fit within video boundaries.",
 )
 @click.option(
+    "--spec",
+    type=str,
+    multiple=True,
+    default=(),
+    help="Compact segment specification. Format: START/DURATION or START//END. "
+         "Repeatable for multiple segments. "
+         "Mutually exclusive with --start, --duration, --end. "
+         "Examples: '2024-02-02T17:30:00/PT3M', '17:30:00//17:33:00', '300/180'",
+)
+@click.option(
     "--start",
     type=str,
-    required=True,
+    default=None,
     help="Start time in ISO 8601 format (e.g., '2024-02-02T17:30:00'). "
          "Must be within the input video's time range. In raw mode, only time is used "
          "as offset from the start of the video and not the absolute datetime.",
@@ -118,7 +128,8 @@ def split_video(
     buffer_before: str | None,
     buffer_after: str | None,
     buffer_policy: str,
-    start: str,
+    spec: tuple,
+    start: str | None,
     duration: str | None,
     end: str | None,
     input: str,
@@ -132,17 +143,33 @@ def split_video(
 
     from ..qr.split_video import do_main
 
-    # Validate mutually exclusive options
-    if duration is not None and end is not None:
-        raise click.UsageError("--duration and --end are mutually exclusive. Please specify only one.")
+    # Validate --spec vs --start/--duration/--end mutual exclusion
+    has_spec = len(spec) > 0
+    has_legacy = start is not None or duration is not None or end is not None
 
-    if duration is None and end is None:
-        raise click.UsageError("Either --duration or --end must be specified.")
+    if has_spec and has_legacy:
+        raise click.UsageError(
+            "--spec is mutually exclusive with --start, --duration, and --end. "
+            "Use either --spec or --start/--duration/--end, not both."
+        )
+
+    if not has_spec and start is None:
+        raise click.UsageError(
+            "Either --spec or --start must be provided."
+        )
+
+    # Legacy mode validation
+    if not has_spec:
+        if duration is not None and end is not None:
+            raise click.UsageError("--duration and --end are mutually exclusive. Please specify only one.")
+        if duration is None and end is None:
+            raise click.UsageError("Either --duration or --end must be specified.")
 
     logger.debug("split_video(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Input video      : {input}")
     logger.info(f"Output file      : {output}")
+    logger.info(f"Spec             : {spec}")
     logger.info(f"Start time       : {start}")
     logger.info(f"Duration         : {duration}")
     logger.info(f"End time         : {end}")
@@ -154,15 +181,21 @@ def split_video(
     logger.info(f"Raw mode         : {raw}")
     logger.info(f"Verbose output   : {verbose}")
 
-    # Handle automatic sidecar path generation
+    # Handle sidecar path generation
     sidecar_path = None
-    if sidecar_json in { "auto", "" }:
-        sidecar_path = f"{output}.split-video.jsonl"
-        logger.info(f"Auto sidecar path: {sidecar_path}")
-    elif sidecar_json is not None:
-        sidecar_path = sidecar_json
-    elif sidecar_json is None or sidecar_json == "none":
-        sidecar_path = None
+    if has_spec:
+        # Spec mode: defer per-spec resolution to do_main
+        if sidecar_json in {"auto", ""}:
+            sidecar_path = "auto"
+        elif sidecar_json is not None and sidecar_json != "none":
+            sidecar_path = sidecar_json
+    else:
+        # Legacy mode: resolve immediately
+        if sidecar_json in {"auto", ""}:
+            sidecar_path = f"{output}.split-video.jsonl"
+            logger.info(f"Auto sidecar path: {sidecar_path}")
+        elif sidecar_json is not None and sidecar_json != "none":
+            sidecar_path = sidecar_json
 
     # Record start time
     start_time_sec = time.time()
@@ -180,6 +213,7 @@ def split_video(
         video_audit_file=video_audit_file,
         raw=raw,
         verbose=verbose,
+        specs=spec,
         out_func=click.echo
     )
 

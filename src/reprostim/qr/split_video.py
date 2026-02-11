@@ -154,9 +154,14 @@ def _parse_interval_sec(interval_str: str) -> float:
 
 
 def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
-    """Parse ISO 8601 time string to datetime object.
+    """Parse time string to datetime object.
 
-    :param time_str: Time string in ISO 8601 format
+    Accepts:
+    - Full ISO 8601 datetime: '2024-02-02T17:30:00'
+    - Time-only (with or without T prefix): '17:30:00', 'T17:30:00'
+    - Numeric seconds offset from midnight: '300', '300.5'
+
+    :param time_str: Time string in ISO 8601 format, or numeric seconds
     :type time_str: str
 
     :param time_only: If True, parse time only without date (default: False)
@@ -170,14 +175,26 @@ def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
         if not time_str:
             return None
 
+        # Try numeric seconds first (e.g., '300', '300.5')
         try:
-            dt = datetime.fromisoformat(time_str)
+            sec = float(time_str)
+            return datetime.combine(date.today(), time.min) + timedelta(seconds=sec)
+        except ValueError:
+            pass
+
+        # Strip leading 'T' for time-only strings like 'T17:30:00'
+        ts = time_str
+        if time_str.startswith('T') and len(time_str) > 1:
+            ts = time_str[1:]
+
+        try:
+            dt = datetime.fromisoformat(ts)
             if time_only:
-                datetime.combine(date.today(), dt.time())
+               dt = datetime.combine(date.today(), dt.time())
             return dt
         except ValueError as e2:
             if time_only:
-                t = time.fromisoformat(time_str)
+                t = time.fromisoformat(ts)
                 return datetime.combine(date.today(), t)
             else:
                 raise e2
@@ -185,6 +202,102 @@ def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
     except ValueError as e:
         logger.error(f"Invalid time format: {time_str}")
         raise e
+
+
+class SpecEntry(BaseModel):
+    """Parsed representation of a single --spec argument."""
+    start_str: str
+    duration_str: Optional[str] = None
+    end_str: Optional[str] = None
+
+
+# Template tokens supported in --output and --sidecar-json paths
+_TEMPLATE_TOKENS = ["{n}", "{start}", "{end}", "{duration}"]
+
+
+def _parse_spec(spec_str: str) -> SpecEntry:
+    """Parse a --spec argument string into a SpecEntry.
+
+    Format:
+    - START/DURATION  (single slash = duration)
+    - START//END      (double slash = end time)
+
+    :param spec_str: Spec string to parse
+    :type spec_str: str
+    :return: Parsed SpecEntry
+    :rtype: SpecEntry
+    :raises ValueError: If the spec string format is invalid
+    """
+    if '//' in spec_str:
+        parts = spec_str.split('//', 1)
+        if not parts[0].strip() or not parts[1].strip():
+            raise ValueError(
+                f"Invalid --spec format: '{spec_str}'. "
+                f"Expected START//END (e.g., '17:30:00//17:33:00')")
+        return SpecEntry(start_str=parts[0].strip(), end_str=parts[1].strip())
+    elif '/' in spec_str:
+        parts = spec_str.split('/', 1)
+        if not parts[0].strip() or not parts[1].strip():
+            raise ValueError(
+                f"Invalid --spec format: '{spec_str}'. "
+                f"Expected START/DURATION (e.g., '17:30:00/PT3M')")
+        return SpecEntry(start_str=parts[0].strip(), duration_str=parts[1].strip())
+    else:
+        raise ValueError(
+            f"Invalid --spec format: '{spec_str}'. "
+            f"Must contain '/' for duration or '//' for end time. "
+            f"Examples: '17:30:00/PT3M' or '17:30:00//17:33:00'")
+
+
+def _format_time_dots(dt: datetime) -> str:
+    """Format datetime to dot-separated time string: HH.MM.SS.mmm
+
+    :param dt: Datetime object
+    :type dt: datetime
+    :return: Formatted time string (e.g., '17.30.00.000')
+    :rtype: str
+    """
+    return dt.strftime("%H.%M.%S.") + f"{dt.microsecond // 1000:03d}"
+
+
+def _expand_output_template(
+    template: str, index: int,
+    start_dt: datetime, end_dt: datetime,
+    duration_sec: float
+) -> str:
+    """Expand template tokens in output path.
+
+    Tokens:
+    - {n}        : 1-based zero-padded index (width 3)
+    - {start}    : Formatted start time with dots (e.g., '17.30.00.000')
+    - {end}      : Formatted end time with dots
+    - {duration} : Duration in seconds (e.g., '180.0')
+
+    :param template: Output path template
+    :param index: 1-based segment index
+    :param start_dt: Start datetime
+    :param end_dt: End datetime
+    :param duration_sec: Duration in seconds
+    :return: Expanded output path
+    """
+    return template.replace(
+        "{n}", f"{index:03d}"
+    ).replace(
+        "{start}", _format_time_dots(start_dt)
+    ).replace(
+        "{end}", _format_time_dots(end_dt)
+    ).replace(
+        "{duration}", f"{duration_sec:.1f}"
+    )
+
+
+def _has_template_tokens(template: str) -> bool:
+    """Check whether a string contains any output template tokens.
+
+    :param template: String to check
+    :return: True if any template token is found
+    """
+    return any(tok in template for tok in _TEMPLATE_TOKENS)
 
 
 def _calc_split_data(path: str,
@@ -412,10 +525,168 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
 
     return sr
 
+def _write_sidecar(sidecar_path: str, sr: SplitResult,
+                   verbose: bool = False, out_func=print) -> None:
+    """Write sidecar JSON file with split result metadata.
+
+    :param sidecar_path: Path to write sidecar JSON file
+    :param sr: SplitResult to serialize
+    :param verbose: Enable verbose output
+    :param out_func: Output function for printing messages
+    :raises IOError: If the file cannot be written
+    """
+    logger.info(f"Writing sidecar JSON to: {sidecar_path}")
+    with open(sidecar_path, 'w') as f:
+        f.write(sr.model_dump_json(indent=2))
+        f.write('\n')
+    logger.debug("Sidecar JSON file written successfully")
+    if verbose:
+        out_func(f"Sidecar JSON written to: {sidecar_path}")
+
+
+def _resolve_sidecar_path(
+    sidecar_json: str, resolved_output: str,
+    index: int, start_dt: datetime, end_dt: datetime,
+    duration_sec: float
+) -> str:
+    """Resolve sidecar path for a spec entry.
+
+    :param sidecar_json: Sidecar option value ('auto' or explicit template path)
+    :param resolved_output: Resolved output path for the current spec
+    :param index: 1-based segment index
+    :param start_dt: Start datetime
+    :param end_dt: End datetime
+    :param duration_sec: Duration in seconds
+    :return: Resolved sidecar file path
+    """
+    if sidecar_json == "auto":
+        return f"{resolved_output}.split-video.json"
+    else:
+        return _expand_output_template(
+            sidecar_json, index, start_dt, end_dt, duration_sec
+        )
+
+
+def _do_main_specs(
+    specs: tuple,
+    input_path: str,
+    output_template: str,
+    buffer_before: str | None,
+    buffer_after: str | None,
+    buffer_policy: str,
+    sidecar_json: str | None,
+    video_audit_file: str | None,
+    raw: bool,
+    verbose: bool,
+    out_func=print,
+) -> int:
+    """Process multiple --spec arguments.
+
+    :param specs: Tuple of spec strings
+    :param input_path: Path to the input video file
+    :param output_template: Output path template (may contain tokens)
+    :param buffer_before: Buffer before duration string
+    :param buffer_after: Buffer after duration string
+    :param buffer_policy: Buffer overflow policy
+    :param sidecar_json: Sidecar JSON option ('auto', path template, or None)
+    :param video_audit_file: Path to video audit TSV file
+    :param raw: Enable raw mode
+    :param verbose: Enable verbose output
+    :param out_func: Output function
+    :return: Number of failures (0 = all succeeded)
+    """
+    # Validate output template for multiple specs
+    if len(specs) > 1 and not _has_template_tokens(output_template):
+        raise ValueError(
+            "Multiple --spec provided but --output contains no template token. "
+            "Add {n} to output path, e.g.: -o output_{n}.mkv"
+        )
+
+    if (sidecar_json is not None and sidecar_json != "auto"
+            and len(specs) > 1 and not _has_template_tokens(sidecar_json)):
+        raise ValueError(
+            "Multiple --spec provided but --sidecar-json path contains no template token. "
+            "Add {n} to sidecar path, e.g.: --sidecar-json=meta_{n}.json"
+        )
+
+    failures = 0
+    buf_before_sec = _parse_interval_sec(buffer_before)
+    buf_after_sec = _parse_interval_sec(buffer_after)
+    bp = BufferPolicy(buffer_policy.lower())
+
+    for idx, spec_str in enumerate(specs, start=1):
+        try:
+            # A) Parse the spec
+            entry = _parse_spec(spec_str)
+
+            # B) Parse start/duration/end
+            is_time_only = raw
+            sel_start = _parse_ts(entry.start_str, is_time_only)
+            sel_duration = (
+                _parse_interval_sec(entry.duration_str)
+                if entry.duration_str else None
+            )
+            sel_end = (
+                _parse_ts(entry.end_str, is_time_only)
+                if entry.end_str else None
+            )
+
+            # C) Calculate split data
+            sd = _calc_split_data(
+                input_path, sel_start, sel_duration, sel_end,
+                buf_before_sec, buf_after_sec, bp,
+                video_audit_file, raw_mode=raw,
+            )
+
+            if not sd.success:
+                logger.error(f"Spec [{idx}] '{spec_str}': split data calculation failed.")
+                failures += 1
+                continue
+
+            # D) Expand output template
+            out_path = _expand_output_template(
+                output_template, idx,
+                sd.sel_seg.start_ts, sd.sel_seg.end_ts,
+                sd.sel_seg.duration_sec,
+            )
+
+            if verbose:
+                out_func(f"Spec [{idx}] '{spec_str}' -> {out_path}")
+
+            # E) Run the split
+            sr = _split_video(sd, out_path)
+
+            if not sr.success:
+                logger.error(f"Spec [{idx}] '{spec_str}': video split failed.")
+                failures += 1
+                continue
+
+            if verbose:
+                out_func(f"  Input path  : {sr.input_path}")
+                out_func(f"  Output path : {sr.output_path}")
+                out_func(f"  JSON Result : {sr.model_dump_json(indent=2)}")
+
+            # F) Write sidecar JSON
+            if sidecar_json is not None:
+                sidecar_path = _resolve_sidecar_path(
+                    sidecar_json, out_path, idx,
+                    sd.sel_seg.start_ts, sd.sel_seg.end_ts,
+                    sd.sel_seg.duration_sec,
+                )
+                _write_sidecar(sidecar_path, sr, verbose, out_func)
+
+        except Exception as e:
+            logger.error(f"Spec [{idx}] '{spec_str}': {e}")
+            failures += 1
+            continue
+
+    return failures
+
+
 def do_main(
         input_path: str,
         output_path: str,
-        start_time: str,
+        start_time: str | None = None,
         duration: str | None = None,
         end_time: str | None = None,
         buffer_before: str | None = None,
@@ -425,6 +696,7 @@ def do_main(
         video_audit_file: str | None = None,
         raw: bool = False,
         verbose: bool = False,
+        specs: tuple = (),
         out_func=print,
 ) -> int:
     """Main entry point for split_video module.
@@ -466,6 +738,9 @@ def do_main(
         Enable raw mode for video splitting. Defaults to False.
     verbose : bool
         Enable verbose output.
+    specs : tuple
+        Tuple of --spec argument strings. If non-empty, uses spec mode
+        instead of legacy start_time/duration/end_time.
     out_func : callable
         Output function for printing messages.
 
@@ -488,6 +763,7 @@ def do_main(
     logger.debug("split-video command")
     logger.debug(f"Input path: {input_path}")
     logger.debug(f"Output path: {output_path}")
+    logger.debug(f"Specs: {specs}")
     logger.debug(f"Start time: {start_time}")
     logger.debug(f"Duration: {duration}")
     logger.debug(f"End time: {end_time}")
@@ -497,6 +773,28 @@ def do_main(
     logger.debug(f"Video audit file: {video_audit_file}")
     logger.debug(f"Raw mode: {raw}")
 
+    # Spec mode: delegate to _do_main_specs
+    if specs:
+        try:
+            return _do_main_specs(
+                specs=specs,
+                input_path=input_path,
+                output_template=output_path,
+                buffer_before=buffer_before,
+                buffer_after=buffer_after,
+                buffer_policy=buffer_policy,
+                sidecar_json=sidecar_json,
+                video_audit_file=video_audit_file,
+                raw=raw,
+                verbose=verbose,
+                out_func=out_func,
+            )
+        except ValueError as e:
+            logger.error(f"Spec validation error: {e}")
+            out_func(f"ERROR: {e}")
+            return 5
+
+    # Legacy mode: single start/duration/end
     if verbose:
         out_func(f"Slice video from {input_path}")
         out_func(f"  Start: {start_time}, Duration: {duration}, End: {end_time}")
@@ -509,7 +807,7 @@ def do_main(
         sd = _calc_split_data(
             input_path,
             _parse_ts(start_time, raw),
-            _parse_interval_sec(duration),
+            _parse_interval_sec(duration) if duration else None,
             _parse_ts(end_time, raw),
             _parse_interval_sec(buffer_before),
             _parse_interval_sec(buffer_after),
@@ -538,17 +836,10 @@ def do_main(
         out_func(f"Output path :{sr.output_path}")
         out_func(f"JSON Result : {sr.model_dump_json(indent=2)}")
 
-
     # Write sidecar JSON file if requested
     if sidecar_json:
         try:
-            logger.info(f"Writing sidecar JSON to: {sidecar_json}")
-            with open(sidecar_json, 'w') as f:
-                f.write(sr.model_dump_json(indent=2))
-                f.write('\n')
-            logger.debug(f"Sidecar JSON file written successfully")
-            if verbose:
-                out_func(f"Sidecar JSON written to: {sidecar_json}")
+            _write_sidecar(sidecar_json, sr, verbose, out_func)
         except Exception as e3:
             logger.error(f"Failed to write sidecar JSON file: {e3}")
             return 3
