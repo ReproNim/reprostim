@@ -183,19 +183,10 @@ def split_video(
 
     # Handle sidecar path generation
     sidecar_path = None
-    if has_spec:
-        # Spec mode: defer per-spec resolution to do_main
-        if sidecar_json in {"auto", ""}:
-            sidecar_path = "auto"
-        elif sidecar_json is not None and sidecar_json != "none":
-            sidecar_path = sidecar_json
-    else:
-        # Legacy mode: resolve immediately
-        if sidecar_json in {"auto", ""}:
-            sidecar_path = f"{output}.split-video.jsonl"
-            logger.info(f"Auto sidecar path: {sidecar_path}")
-        elif sidecar_json is not None and sidecar_json != "none":
-            sidecar_path = sidecar_json
+    if sidecar_json in {"auto", ""}:
+        sidecar_path = "auto"
+    elif sidecar_json is not None and sidecar_json != "none":
+        sidecar_path = sidecar_json
 
     # Record start time
     start_time_sec = time.time()

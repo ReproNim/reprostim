@@ -773,76 +773,32 @@ def do_main(
     logger.debug(f"Video audit file: {video_audit_file}")
     logger.debug(f"Raw mode: {raw}")
 
-    # Spec mode: delegate to _do_main_specs
-    if specs:
-        try:
-            return _do_main_specs(
-                specs=specs,
-                input_path=input_path,
-                output_template=output_path,
-                buffer_before=buffer_before,
-                buffer_after=buffer_after,
-                buffer_policy=buffer_policy,
-                sidecar_json=sidecar_json,
-                video_audit_file=video_audit_file,
-                raw=raw,
-                verbose=verbose,
-                out_func=out_func,
-            )
-        except ValueError as e:
-            logger.error(f"Spec validation error: {e}")
-            out_func(f"ERROR: {e}")
-            return 5
-
-    # Legacy mode: single start/duration/end
-    if verbose:
-        out_func(f"Slice video from {input_path}")
-        out_func(f"  Start: {start_time}, Duration: {duration}, End: {end_time}")
-        out_func(f"  Buffers: before={buffer_before}, after={buffer_after}, policy={buffer_policy}")
-        out_func(f"  Output: {output_path}")
-
-    sd: SplitData
+    # If no specs provided, build a synthetic spec from start/duration/end
+    if not specs:
+        if start_time and duration:
+            specs = (f"{start_time}/{duration}",)
+        elif start_time and end_time:
+            specs = (f"{start_time}//{end_time}",)
+        else:
+            logger.error("Either --spec or --start with --duration/--end must be provided.")
+            return 1
 
     try:
-        sd = _calc_split_data(
-            input_path,
-            _parse_ts(start_time, raw),
-            _parse_interval_sec(duration) if duration else None,
-            _parse_ts(end_time, raw),
-            _parse_interval_sec(buffer_before),
-            _parse_interval_sec(buffer_after),
-            BufferPolicy(buffer_policy.lower()),
-            video_audit_file,
-            raw_mode=raw,
+        return _do_main_specs(
+            specs=specs,
+            input_path=input_path,
+            output_template=output_path,
+            buffer_before=buffer_before,
+            buffer_after=buffer_after,
+            buffer_policy=buffer_policy,
+            sidecar_json=sidecar_json,
+            video_audit_file=video_audit_file,
+            raw=raw,
+            verbose=verbose,
+            out_func=out_func,
         )
-    except Exception as esd:
-        logger.error(f"Failed to calculate video split data: {esd}")
-        return 4
-
-    logger.debug(f"Calculated SplitData: {sd.model_dump_json(indent=2)}")
-    if not sd.success:
-        logger.error("Video split data calculation failed.")
-        return 1
-
-    sr: SplitResult = _split_video(sd, output_path)
-    logger.debug(f"SplitResult: {sr.model_dump_json(indent=2)}")
-
-    if not sr.success:
-        logger.error("Video split failed.")
-        return 2
-
-    if verbose:
-        out_func(f"Input path  :{sr.input_path}")
-        out_func(f"Output path :{sr.output_path}")
-        out_func(f"JSON Result : {sr.model_dump_json(indent=2)}")
-
-    # Write sidecar JSON file if requested
-    if sidecar_json:
-        try:
-            _write_sidecar(sidecar_json, sr, verbose, out_func)
-        except Exception as e3:
-            logger.error(f"Failed to write sidecar JSON file: {e3}")
-            return 3
-
-    return 0
+    except ValueError as e:
+        logger.error(f"Spec validation error: {e}")
+        out_func(f"ERROR: {e}")
+        return 5
 
