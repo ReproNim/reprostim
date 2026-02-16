@@ -67,15 +67,68 @@ Added `-j / --sidecar-json` option to control sidecar metadata file generation:
 - File is overwritten if it exists
 
 **Sidecar Content:**
-The sidecar JSON file contains the `SplitResult` metadata including:
+The sidecar JSON file contains the `SplitResult` metadata. Fields marked `exclude=True`
+in the model are not serialized to the sidecar file.
+
+**BIDS-compliant field naming:** To avoid conflicts with BIDS reserved field names
+(see [BIDS PR #2022](https://github.com/bids-standard/bids-specification/pull/2022)),
+the following `SplitResult` model fields are renamed with an `orig_` prefix to indicate
+they describe the **original video** timing context rather than the BIDS dataset timing:
+
+| Old field name   | New field name       |
+|------------------|----------------------|
+| `buffer_start`   | `orig_buffer_start`  |
+| `buffer_end`     | `orig_buffer_end`    |
+| `buffer_offset`  | `orig_buffer_offset` |
+| `start`          | `orig_start`         |
+| `end`            | `orig_end`           |
+| `offset`         | `orig_offset`        |
+
+**All sidecar fields:**
+
+| Field                | Type    | Description                                                         |
+|----------------------|---------|---------------------------------------------------------------------|
+| `buffer_before`      | float   | Actual buffer before in seconds (may differ from requested if trimmed) |
+| `buffer_after`       | float   | Actual buffer after in seconds (may differ from requested if trimmed)  |
+| `orig_buffer_start`  | string  | Start time of the buffer segment (ISO 8601 time, no date)          |
+| `orig_buffer_end`    | string  | End time of the buffer segment (ISO 8601 time, no date)            |
+| `buffer_duration`    | float   | Total buffer duration in seconds                                    |
+| `orig_buffer_offset` | float   | Buffer start offset in seconds from original video start            |
+| `orig_start`         | string  | Start time of the split segment (ISO 8601 time, no date)           |
+| `orig_end`           | string  | End time of the split segment (ISO 8601 time, no date)             |
+| `duration`           | float   | Duration of the split segment in seconds                            |
+| `orig_offset`        | float   | Split segment offset in seconds from original video start           |
+| `video_resolution`   | string  | Video resolution (e.g., `1920x1080`)                                |
+| `video_rate_fps`     | float   | Video frames per second                                             |
+| `video_size_mb`      | float   | Video file size in megabytes                                        |
+| `video_rate_mbpm`    | float   | Video bitrate in megabytes per minute                               |
+| `audio_info`         | string  | Audio info: sample rate, channels, codec (e.g., `48000Hz 2ch aac`) |
+
+**Example sidecar JSON:**
+```json
+{
+  "buffer_before": 1.0,
+  "buffer_after": 3.0,
+  "orig_buffer_start": "00:00:00.000",
+  "orig_buffer_end": "00:00:07.000",
+  "buffer_duration": 7.0,
+  "orig_buffer_offset": 0.0,
+  "orig_start": "00:00:01.000",
+  "orig_end": "00:00:04.000",
+  "duration": 3.0,
+  "orig_offset": 1.0,
+  "video_resolution": "1920x1080",
+  "video_rate_fps": 60.0,
+  "video_size_mb": 8.9,
+  "video_rate_mbpm": 10.2,
+  "audio_info": "48000Hz 2ch aac"
+}
+```
+
+**Excluded fields** (internal only, not written to sidecar):
 - `success`: Whether the split operation succeeded
 - `input_path`: Path to input video file
 - `output_path`: Path to output video file
-- `buffer_before`: Actual buffer before in seconds (may differ from requested if trimmed)
-- `buffer_after`: Actual buffer after in seconds (may differ from requested if trimmed)
-- `start_time`: ISO 8601 start timestamp
-- `duration`: Duration in seconds
-- `end_time`: ISO 8601 end timestamp
 
 **Usage examples:**
 ```shell
