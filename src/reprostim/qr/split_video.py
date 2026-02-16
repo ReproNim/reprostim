@@ -64,21 +64,22 @@ class SplitResult(BaseModel):
     output_path: str = Field("n/a", exclude=True)  # Path to the output .mkv video file
     buffer_before: Optional[float] = None  # Buffer before in seconds
     buffer_after: Optional[float] = None  # Buffer after in seconds
-    buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
-    buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
     buffer_duration: Optional[float] = None  # Total buffer duration in seconds
-    buffer_offset: Optional[float] = None  # Buffer start offset in seconds
-    start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
     start_time: Optional[datetime] = Field(None, exclude=True)  # Start time of the split segment
-    end: str = "n/a" # End time of the split segment only in ISO 8601 format
     end_time: Optional[datetime] = Field(None, exclude=True)  # End time of the split segment
     duration: Optional[float] = None  # Duration of the split segment in seconds
-    offset: Optional[float] = None  # Offset of the split segment in seconds
     video_resolution: Optional[str] = "n/a"  # Video resolution (e.g., '1920x1080')
     video_rate_fps: Optional[float] = None  # Video frames per second
     video_size_mb: Optional[float] = None  # Video file size in megabytes
     video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
     audio_info: Optional[str] = None  # Audio info sample rate, channels codecs etc (e.g., '48000 Hz')
+    # orig_ prefixed fields at the end - describe original video timing context (BIDS compliance)
+    orig_buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
+    orig_buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
+    orig_buffer_offset: Optional[float] = None  # Buffer start offset in seconds
+    orig_start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
+    orig_end: str = "n/a" # End time of the split segment only in ISO 8601 format
+    orig_offset: Optional[float] = None  # Offset of the split segment in seconds
 
 
 def _format_time(dt: datetime) -> str:
@@ -479,13 +480,13 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         output_path=out_path,
         buffer_before=round(sd.sel_seg.start_ts.timestamp() - sd.buf_seg.start_ts.timestamp(), 3),
         buffer_after=round(sd.buf_seg.end_ts.timestamp() - sd.sel_seg.end_ts.timestamp(), 3),
-        buffer_start=_format_time(sd.buf_seg.start_ts),
-        buffer_end=_format_time(sd.buf_seg.end_ts),
+        orig_buffer_start=_format_time(sd.buf_seg.start_ts),
+        orig_buffer_end=_format_time(sd.buf_seg.end_ts),
         buffer_duration=round(sd.buf_seg.duration_sec, 3),
-        buffer_offset=round(sd.buf_seg.offset_sec, 3),
+        orig_buffer_offset=round(sd.buf_seg.offset_sec, 3),
         start_time=sd.sel_seg.start_ts,
         duration=sd.sel_seg.duration_sec,
-        offset=sd.sel_seg.offset_sec,
+        orig_offset=sd.sel_seg.offset_sec,
         end_time=sd.sel_seg.end_ts,
         video_resolution=sd.resolution,
         video_rate_fps=sd.fps,
@@ -518,10 +519,10 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
 
     if sr.start_time:
-        sr.start = _format_time(sr.start_time)
+        sr.orig_start = _format_time(sr.start_time)
 
     if sr.end_time:
-        sr.end = _format_time(sr.end_time)
+        sr.orig_end = _format_time(sr.end_time)
 
     return sr
 
