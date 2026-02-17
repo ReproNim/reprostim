@@ -17,7 +17,7 @@ import isodate
 
 from pydantic import BaseModel, Field
 
-from reprostim.qr.video_audit import VaRecord, get_file_video_audit
+from reprostim.qr.video_audit import VaRecord, get_file_video_audit, find_metadata_json
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -51,6 +51,8 @@ class SplitData(BaseModel):
     fps: Optional[float] = None  # Frames per second
     resolution: Optional[str] = None  # Video resolution (e.g., '1920x1080')
     audio_sr: Optional[str] = None  # Audio sample rate (e.g., '48000 Hz')
+    device: str = "n/a"  # Video-audio capture device name
+    device_serial_number: str = "n/a"  # Video-audio capture device serial number
     full_seg: Optional[VideoSegment] = None   # specifies entire video segment
     sel_seg: Optional[VideoSegment] = None    # specifies exact split video selection
     buf_seg: Optional[VideoSegment] = None    # specifies selection with buffer around
@@ -80,6 +82,8 @@ class SplitResult(BaseModel):
     orig_start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
     orig_end: str = "n/a" # End time of the split segment only in ISO 8601 format
     orig_offset: Optional[float] = None  # Offset of the split segment in seconds
+    orig_device: str = "n/a"  # Video-audio capture device name
+    orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
 
 
 def _format_time(dt: datetime) -> str:
@@ -356,6 +360,14 @@ def _calc_split_data(path: str,
     vr: VaRecord = get_file_video_audit(path, video_audit_file)
     logger.debug(f"Video audit record: {vr.model_dump_json(indent=2)}")
 
+    # Extract device info from log file session_begin metadata
+    # NOTE: in future we may include these columns in videos.tsv audit file
+    #       and in this case it can be used directly from VaRecord.
+    sb = find_metadata_json(path + ".log", "type", "session_begin")
+    if sb is not None:
+        sd.device = sb.get("vDev", "n/a") or "n/a"
+        sd.device_serial_number = sb.get("serial", "n/a") or "n/a"
+
     duration_sec: float = _parse_interval_sec(vr.duration)
     if duration_sec <= 0:
         logger.error(f"Video duration is zero or negative: {vr.duration}. Most likely "
@@ -491,6 +503,8 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         video_resolution=sd.resolution,
         video_rate_fps=sd.fps,
         audio_info=sd.audio_sr,
+        orig_device=sd.device,
+        orig_device_serial_number=sd.device_serial_number,
     )
 
     try:
