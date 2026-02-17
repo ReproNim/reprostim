@@ -70,8 +70,9 @@ class SplitResult(BaseModel):
     start_time: Optional[datetime] = Field(None, exclude=True)  # Start time of the split segment
     end_time: Optional[datetime] = Field(None, exclude=True)  # End time of the split segment
     duration: Optional[float] = None  # Duration of the split segment in seconds
-    video_resolution: Optional[str] = "n/a"  # Video resolution (e.g., '1920x1080')
-    video_rate_fps: Optional[float] = None  # Video frames per second
+    video_width: str = "n/a"  # Video width in pixels (e.g., '1920')
+    video_height: str = "n/a"  # Video height in pixels (e.g., '1080')
+    video_frame_rate: Optional[float] = None  # Video frames per second
     video_size_mb: Optional[float] = None  # Video file size in megabytes
     video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
     audio_info: Optional[str] = None  # Audio info sample rate, channels codecs etc (e.g., '48000 Hz')
@@ -500,8 +501,9 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         duration=sd.sel_seg.duration_sec,
         orig_offset=sd.sel_seg.offset_sec,
         end_time=sd.sel_seg.end_ts,
-        video_resolution=sd.resolution,
-        video_rate_fps=sd.fps,
+        video_width=sd.resolution.split("x")[0] if sd.resolution and sd.resolution != "n/a" else "n/a",
+        video_height=sd.resolution.split("x")[1] if sd.resolution and sd.resolution != "n/a" else "n/a",
+        video_frame_rate=sd.fps,
         audio_info=sd.audio_sr,
         orig_device=sd.device,
         orig_device_serial_number=sd.device_serial_number,

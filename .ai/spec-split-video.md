@@ -98,8 +98,9 @@ they describe the **original video** timing context rather than the BIDS dataset
 | `orig_end`           | string  | End time of the split segment (ISO 8601 time, no date)             |
 | `duration`           | float   | Duration of the split segment in seconds                            |
 | `orig_offset`        | float   | Split segment offset in seconds from original video start           |
-| `video_resolution`   | string  | Video resolution (e.g., `1920x1080`)                                |
-| `video_rate_fps`     | float   | Video frames per second                                             |
+| `video_width`        | string  | Video width in pixels (e.g., `1920`), or `n/a` if unavailable      |
+| `video_height`       | string  | Video height in pixels (e.g., `1080`), or `n/a` if unavailable     |
+| `video_frame_rate`   | float   | Video frames per second                                             |
 | `video_size_mb`      | float   | Video file size in megabytes                                        |
 | `video_rate_mbpm`    | float   | Video bitrate in megabytes per minute                               |
 | `audio_info`         | string  | Audio info: sample rate, channels, codec (e.g., `48000Hz 2ch aac`) |
@@ -119,8 +120,9 @@ they describe the **original video** timing context rather than the BIDS dataset
   "orig_end": "00:00:04.000",
   "duration": 3.0,
   "orig_offset": 1.0,
-  "video_resolution": "1920x1080",
-  "video_rate_fps": 60.0,
+  "video_width": "1920",
+  "video_height": "1080",
+  "video_frame_rate": 60.0,
   "video_size_mb": 8.9,
   "video_rate_mbpm": 10.2,
   "audio_info": "48000Hz 2ch aac",
