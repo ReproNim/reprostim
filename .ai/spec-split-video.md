@@ -103,6 +103,8 @@ they describe the **original video** timing context rather than the BIDS dataset
 | `video_size_mb`      | float   | Video file size in megabytes                                        |
 | `video_rate_mbpm`    | float   | Video bitrate in megabytes per minute                               |
 | `audio_info`         | string  | Audio info: sample rate, channels, codec (e.g., `48000Hz 2ch aac`) |
+| `orig_device`        | string? | Video-audio capture device name (optional)                          |
+| `orig_device_serial_number` | string? | Video-audio capture device serial number (optional)          |
 
 **Example sidecar JSON:**
 ```json
@@ -121,7 +123,9 @@ they describe the **original video** timing context rather than the BIDS dataset
   "video_rate_fps": 60.0,
   "video_size_mb": 8.9,
   "video_rate_mbpm": 10.2,
-  "audio_info": "48000Hz 2ch aac"
+  "audio_info": "48000Hz 2ch aac",
+  "orig_device": "Magewell USB Capture HDMI 4K Plus",
+  "orig_device_serial_number": "D321220101234"
 }
 ```
 
