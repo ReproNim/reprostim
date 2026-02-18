@@ -103,7 +103,10 @@ they describe the **original video** timing context rather than the BIDS dataset
 | `video_frame_rate`   | float   | Video frames per second                                             |
 | `video_size_mb`      | float   | Video file size in megabytes                                        |
 | `video_rate_mbpm`    | float   | Video bitrate in megabytes per minute                               |
-| `audio_info`         | string  | Audio info: sample rate, channels, codec (e.g., `48000Hz 2ch aac`) |
+| `audio_sample_rate`  | int     | Audio sample rate in Hz (e.g., `48000`)                             |
+| `audio_bit_depth`    | int     | Audio bit depth, hardcoded to `16`                                  |
+| `audio_channel_count`| int     | Number of audio channels (e.g., `2`)                                |
+| `audio_codec`        | string  | Audio codec name (e.g., `aac`)                                      |
 | `orig_device`        | string? | Video-audio capture device name (optional)                          |
 | `orig_device_serial_number` | string? | Video-audio capture device serial number (optional)          |
 
@@ -125,7 +128,10 @@ they describe the **original video** timing context rather than the BIDS dataset
   "video_frame_rate": 60.0,
   "video_size_mb": 8.9,
   "video_rate_mbpm": 10.2,
-  "audio_info": "48000Hz 2ch aac",
+  "audio_sample_rate": 48000,
+  "audio_bit_depth": 16,
+  "audio_channel_count": 2,
+  "audio_codec": "aac",
   "orig_device": "Magewell USB Capture HDMI 4K Plus",
   "orig_device_serial_number": "D321220101234"
 }
