@@ -75,7 +75,10 @@ class SplitResult(BaseModel):
     video_frame_rate: Optional[float] = None  # Video frames per second
     video_size_mb: Optional[float] = None  # Video file size in megabytes
     video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
-    audio_info: Optional[str] = None  # Audio info sample rate, channels codecs etc (e.g., '48000 Hz')
+    audio_sample_rate: str = "n/a"  # Audio sample rate in Hz (e.g., '48000')
+    audio_bit_depth: str = "n/a"  # Audio bit depth (hardcoded to '16')
+    audio_channel_count: str = "n/a"  # Number of audio channels (e.g., '2')
+    audio_codec: str = "n/a"  # Audio codec name (e.g., 'aac')
     # orig_ prefixed fields at the end - describe original video timing context (BIDS compliance)
     orig_buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
     orig_buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
@@ -85,6 +88,46 @@ class SplitResult(BaseModel):
     orig_offset: Optional[float] = None  # Offset of the split segment in seconds
     orig_device: str = "n/a"  # Video-audio capture device name
     orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
+
+
+def _parse_audio_info(audio_info: Optional[str]) -> dict:
+    """Parse audio_info string into separate BIDS-style fields.
+
+    Parses format like '48000Hz 16b 2ch aac' into individual fields.
+    Returns n/a for all fields if parsing fails.
+
+    :param audio_info: Audio info string (e.g., '48000Hz 2ch aac')
+    :type audio_info: Optional[str]
+    :return: Dict with audio_sample_rate, audio_bit_depth,
+             audio_channel_count, audio_codec
+    :rtype: dict
+    """
+    na = {
+        "audio_sample_rate": "n/a",
+        "audio_bit_depth": "n/a",
+        "audio_channel_count": "n/a",
+        "audio_codec": "n/a",
+    }
+    if not audio_info or audio_info == "n/a":
+        return na
+
+    try:
+        result = dict(na)
+        for part in audio_info.split():
+            if part.endswith("Hz"):
+                result["audio_sample_rate"] = part[:-2]
+            elif part.endswith("b") and part[:-1].isdigit():
+                result["audio_bit_depth"] = part[:-1]
+            elif part.endswith("ch") and part[:-2].isdigit():
+                result["audio_channel_count"] = part[:-2]
+            else:
+                result["audio_codec"] = part
+        # hardcode bit depth to 16 if not parsed
+        if result["audio_bit_depth"] == "n/a":
+            result["audio_bit_depth"] = "16"
+        return result
+    except Exception:
+        return na
 
 
 def _format_time(dt: datetime) -> str:
@@ -504,7 +547,7 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         video_width=sd.resolution.split("x")[0] if sd.resolution and sd.resolution != "n/a" else "n/a",
         video_height=sd.resolution.split("x")[1] if sd.resolution and sd.resolution != "n/a" else "n/a",
         video_frame_rate=sd.fps,
-        audio_info=sd.audio_sr,
+        **_parse_audio_info(sd.audio_sr),
         orig_device=sd.device,
         orig_device_serial_number=sd.device_serial_number,
     )
