@@ -17,7 +17,7 @@ import isodate
 
 from pydantic import BaseModel, Field
 
-from reprostim.qr.video_audit import VaRecord, get_file_video_audit
+from reprostim.qr.video_audit import VaRecord, get_file_video_audit, find_metadata_json
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -51,6 +51,8 @@ class SplitData(BaseModel):
     fps: Optional[float] = None  # Frames per second
     resolution: Optional[str] = None  # Video resolution (e.g., '1920x1080')
     audio_sr: Optional[str] = None  # Audio sample rate (e.g., '48000 Hz')
+    device: str = "n/a"  # Video-audio capture device name
+    device_serial_number: str = "n/a"  # Video-audio capture device serial number
     full_seg: Optional[VideoSegment] = None   # specifies entire video segment
     sel_seg: Optional[VideoSegment] = None    # specifies exact split video selection
     buf_seg: Optional[VideoSegment] = None    # specifies selection with buffer around
@@ -64,21 +66,68 @@ class SplitResult(BaseModel):
     output_path: str = Field("n/a", exclude=True)  # Path to the output .mkv video file
     buffer_before: Optional[float] = None  # Buffer before in seconds
     buffer_after: Optional[float] = None  # Buffer after in seconds
-    buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
-    buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
     buffer_duration: Optional[float] = None  # Total buffer duration in seconds
-    buffer_offset: Optional[float] = None  # Buffer start offset in seconds
-    start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
     start_time: Optional[datetime] = Field(None, exclude=True)  # Start time of the split segment
-    end: str = "n/a" # End time of the split segment only in ISO 8601 format
     end_time: Optional[datetime] = Field(None, exclude=True)  # End time of the split segment
     duration: Optional[float] = None  # Duration of the split segment in seconds
-    offset: Optional[float] = None  # Offset of the split segment in seconds
-    video_resolution: Optional[str] = "n/a"  # Video resolution (e.g., '1920x1080')
-    video_rate_fps: Optional[float] = None  # Video frames per second
+    video_width: str = "n/a"  # Video width in pixels (e.g., '1920')
+    video_height: str = "n/a"  # Video height in pixels (e.g., '1080')
+    video_frame_rate: Optional[float] = None  # Video frames per second
     video_size_mb: Optional[float] = None  # Video file size in megabytes
     video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
-    audio_info: Optional[str] = None  # Audio info sample rate, channels codecs etc (e.g., '48000 Hz')
+    audio_sample_rate: str = "n/a"  # Audio sample rate in Hz (e.g., '48000')
+    audio_bit_depth: str = "n/a"  # Audio bit depth (hardcoded to '16')
+    audio_channel_count: str = "n/a"  # Number of audio channels (e.g., '2')
+    audio_codec: str = "n/a"  # Audio codec name (e.g., 'aac')
+    # orig_ prefixed fields at the end - describe original video timing context (BIDS compliance)
+    orig_buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
+    orig_buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
+    orig_buffer_offset: Optional[float] = None  # Buffer start offset in seconds
+    orig_start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
+    orig_end: str = "n/a" # End time of the split segment only in ISO 8601 format
+    orig_offset: Optional[float] = None  # Offset of the split segment in seconds
+    orig_device: str = "n/a"  # Video-audio capture device name
+    orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
+
+
+def _parse_audio_info(audio_info: Optional[str]) -> dict:
+    """Parse audio_info string into separate BIDS-style fields.
+
+    Parses format like '48000Hz 16b 2ch aac' into individual fields.
+    Returns n/a for all fields if parsing fails.
+
+    :param audio_info: Audio info string (e.g., '48000Hz 2ch aac')
+    :type audio_info: Optional[str]
+    :return: Dict with audio_sample_rate, audio_bit_depth,
+             audio_channel_count, audio_codec
+    :rtype: dict
+    """
+    na = {
+        "audio_sample_rate": "n/a",
+        "audio_bit_depth": "n/a",
+        "audio_channel_count": "n/a",
+        "audio_codec": "n/a",
+    }
+    if not audio_info or audio_info == "n/a":
+        return na
+
+    try:
+        result = dict(na)
+        for part in audio_info.split():
+            if part.endswith("Hz"):
+                result["audio_sample_rate"] = part[:-2]
+            elif part.endswith("b") and part[:-1].isdigit():
+                result["audio_bit_depth"] = part[:-1]
+            elif part.endswith("ch") and part[:-2].isdigit():
+                result["audio_channel_count"] = part[:-2]
+            else:
+                result["audio_codec"] = part
+        # hardcode bit depth to 16 if not parsed
+        if result["audio_bit_depth"] == "n/a":
+            result["audio_bit_depth"] = "16"
+        return result
+    except Exception:
+        return na
 
 
 def _format_time(dt: datetime) -> str:
@@ -355,6 +404,14 @@ def _calc_split_data(path: str,
     vr: VaRecord = get_file_video_audit(path, video_audit_file)
     logger.debug(f"Video audit record: {vr.model_dump_json(indent=2)}")
 
+    # Extract device info from log file session_begin metadata
+    # NOTE: in future we may include these columns in videos.tsv audit file
+    #       and in this case it can be used directly from VaRecord.
+    sb = find_metadata_json(path + ".log", "type", "session_begin")
+    if sb is not None:
+        sd.device = sb.get("vDev", "n/a") or "n/a"
+        sd.device_serial_number = sb.get("serial", "n/a") or "n/a"
+
     duration_sec: float = _parse_interval_sec(vr.duration)
     if duration_sec <= 0:
         logger.error(f"Video duration is zero or negative: {vr.duration}. Most likely "
@@ -479,17 +536,20 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         output_path=out_path,
         buffer_before=round(sd.sel_seg.start_ts.timestamp() - sd.buf_seg.start_ts.timestamp(), 3),
         buffer_after=round(sd.buf_seg.end_ts.timestamp() - sd.sel_seg.end_ts.timestamp(), 3),
-        buffer_start=_format_time(sd.buf_seg.start_ts),
-        buffer_end=_format_time(sd.buf_seg.end_ts),
+        orig_buffer_start=_format_time(sd.buf_seg.start_ts),
+        orig_buffer_end=_format_time(sd.buf_seg.end_ts),
         buffer_duration=round(sd.buf_seg.duration_sec, 3),
-        buffer_offset=round(sd.buf_seg.offset_sec, 3),
+        orig_buffer_offset=round(sd.buf_seg.offset_sec, 3),
         start_time=sd.sel_seg.start_ts,
         duration=sd.sel_seg.duration_sec,
-        offset=sd.sel_seg.offset_sec,
+        orig_offset=sd.sel_seg.offset_sec,
         end_time=sd.sel_seg.end_ts,
-        video_resolution=sd.resolution,
-        video_rate_fps=sd.fps,
-        audio_info=sd.audio_sr,
+        video_width=sd.resolution.split("x")[0] if sd.resolution and sd.resolution != "n/a" else "n/a",
+        video_height=sd.resolution.split("x")[1] if sd.resolution and sd.resolution != "n/a" else "n/a",
+        video_frame_rate=sd.fps,
+        **_parse_audio_info(sd.audio_sr),
+        orig_device=sd.device,
+        orig_device_serial_number=sd.device_serial_number,
     )
 
     try:
@@ -518,10 +578,10 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
 
     if sr.start_time:
-        sr.start = _format_time(sr.start_time)
+        sr.orig_start = _format_time(sr.start_time)
 
     if sr.end_time:
-        sr.end = _format_time(sr.end_time)
+        sr.orig_end = _format_time(sr.end_time)
 
     return sr
 

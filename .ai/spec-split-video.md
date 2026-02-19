@@ -67,15 +67,80 @@ Added `-j / --sidecar-json` option to control sidecar metadata file generation:
 - File is overwritten if it exists
 
 **Sidecar Content:**
-The sidecar JSON file contains the `SplitResult` metadata including:
+The sidecar JSON file contains the `SplitResult` metadata. Fields marked `exclude=True`
+in the model are not serialized to the sidecar file.
+
+**BIDS-compliant field naming:** To avoid conflicts with BIDS reserved field names
+(see [BIDS PR #2022](https://github.com/bids-standard/bids-specification/pull/2022)),
+the following `SplitResult` model fields are renamed with an `orig_` prefix to indicate
+they describe the **original video** timing context rather than the BIDS dataset timing:
+
+| Old field name   | New field name       |
+|------------------|----------------------|
+| `buffer_start`   | `orig_buffer_start`  |
+| `buffer_end`     | `orig_buffer_end`    |
+| `buffer_offset`  | `orig_buffer_offset` |
+| `start`          | `orig_start`         |
+| `end`            | `orig_end`           |
+| `offset`         | `orig_offset`        |
+
+**All sidecar fields:**
+
+| Field                | Type    | Description                                                         |
+|----------------------|---------|---------------------------------------------------------------------|
+| `buffer_before`      | float   | Actual buffer before in seconds (may differ from requested if trimmed) |
+| `buffer_after`       | float   | Actual buffer after in seconds (may differ from requested if trimmed)  |
+| `orig_buffer_start`  | string  | Start time of the buffer segment (ISO 8601 time, no date)          |
+| `orig_buffer_end`    | string  | End time of the buffer segment (ISO 8601 time, no date)            |
+| `buffer_duration`    | float   | Total buffer duration in seconds                                    |
+| `orig_buffer_offset` | float   | Buffer start offset in seconds from original video start            |
+| `orig_start`         | string  | Start time of the split segment (ISO 8601 time, no date)           |
+| `orig_end`           | string  | End time of the split segment (ISO 8601 time, no date)             |
+| `duration`           | float   | Duration of the split segment in seconds                            |
+| `orig_offset`        | float   | Split segment offset in seconds from original video start           |
+| `video_width`        | string  | Video width in pixels (e.g., `1920`), or `n/a` if unavailable      |
+| `video_height`       | string  | Video height in pixels (e.g., `1080`), or `n/a` if unavailable     |
+| `video_frame_rate`   | float   | Video frames per second                                             |
+| `video_size_mb`      | float   | Video file size in megabytes                                        |
+| `video_rate_mbpm`    | float   | Video bitrate in megabytes per minute                               |
+| `audio_sample_rate`  | string  | Audio sample rate in Hz (e.g., `"48000"`), or `"n/a"` if unavailable |
+| `audio_bit_depth`    | string  | Audio bit depth, hardcoded to `"16"`, or `"n/a"` if unavailable      |
+| `audio_channel_count`| string  | Number of audio channels (e.g., `"2"`), or `"n/a"` if unavailable    |
+| `audio_codec`        | string  | Audio codec name (e.g., `"aac"`), or `"n/a"` if unavailable          |
+| `orig_device`        | string? | Video-audio capture device name (optional)                          |
+| `orig_device_serial_number` | string? | Video-audio capture device serial number (optional)          |
+
+**Example sidecar JSON:**
+```json
+{
+  "buffer_before": 1.0,
+  "buffer_after": 3.0,
+  "orig_buffer_start": "00:00:00.000",
+  "orig_buffer_end": "00:00:07.000",
+  "buffer_duration": 7.0,
+  "orig_buffer_offset": 0.0,
+  "orig_start": "00:00:01.000",
+  "orig_end": "00:00:04.000",
+  "duration": 3.0,
+  "orig_offset": 1.0,
+  "video_width": "1920",
+  "video_height": "1080",
+  "video_frame_rate": 60.0,
+  "video_size_mb": 8.9,
+  "video_rate_mbpm": 10.2,
+  "audio_sample_rate": "48000",
+  "audio_bit_depth": "16",
+  "audio_channel_count": "2",
+  "audio_codec": "aac",
+  "orig_device": "Magewell USB Capture HDMI 4K Plus",
+  "orig_device_serial_number": "D321220101234"
+}
+```
+
+**Excluded fields** (internal only, not written to sidecar):
 - `success`: Whether the split operation succeeded
 - `input_path`: Path to input video file
 - `output_path`: Path to output video file
-- `buffer_before`: Actual buffer before in seconds (may differ from requested if trimmed)
-- `buffer_after`: Actual buffer after in seconds (may differ from requested if trimmed)
-- `start_time`: ISO 8601 start timestamp
-- `duration`: Duration in seconds
-- `end_time`: ISO 8601 end timestamp
 
 **Usage examples:**
 ```shell
