@@ -20,7 +20,7 @@ specified via `--display` option in `timesync-stimuli` reprostim command).
 
 The script plays video using PsychoPy visual API. After some research it
 looks like internally can be used different backends like [pyglet](http://www.pyglet.org),
-[pygame](http://www.pygame.org) or [glfw](https://www.glfw.org). Default is
+[pygame](https://www.pygame.org/docs/) or [glfw](https://www.glfw.org). Default is
 `pyglet` one. `pygame` probably doesn't support multiple `screen`s.
 `screen` is some kind of logical/abstract thing which is tied to backend like `pyglet` or `glfw`.
 
