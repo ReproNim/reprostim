@@ -1,3 +1,15 @@
+# 0.7.25 (Thu Feb 19 2026)
+
+#### 🐛 Bug Fix
+
+- Fix broken docs pygame link [#224](https://github.com/ReproNim/reprostim/pull/224) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.24 (Thu Feb 19 2026)
 
 #### 🐛 Bug Fix
