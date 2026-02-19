@@ -1,3 +1,17 @@
+# 0.7.24 (Thu Feb 19 2026)
+
+#### 🐛 Bug Fix
+
+- Make split-video sidecar JSON to be BIDS compliant [#223](https://github.com/ReproNim/reprostim/pull/223) ([@vmdocua](https://github.com/vmdocua))
+- Extend `split-video` with functionality to produce multiple video files [#222](https://github.com/ReproNim/reprostim/pull/222) ([@vmdocua](https://github.com/vmdocua))
+- Implement `split-video` command [#215](https://github.com/ReproNim/reprostim/pull/215) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.23 (Fri Dec 26 2025)
 
 #### 🐛 Bug Fix
