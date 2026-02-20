@@ -105,37 +105,63 @@ sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_event
 ## CLI Interface
 
 ```
-reprostim bids-inject [OPTIONS] PATH
+reprostim bids-inject [OPTIONS] PATHS...
 ```
 
 ### Arguments
 
-| Argument | Description                                    |
-|----------|------------------------------------------------|
-| `PATH`   | Path to the target _scans.tsv in BIDS dataset. |
+| Argument  | Description                                                                                                                                                                                                                                                             |
+|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PATHS`   | One or more paths to process. Each path can be: a `_scans.tsv` file (processed directly); a session directory (searched for `*_scans.tsv` files); or a dataset/subject root directory (searched recursively when `--recursive` is set). At least one path is required.  |
+
+### Path resolution rules
+
+- **`*_scans.tsv` file** — processed directly.
+- **Directory** — searched for `*_scans.tsv` files in its immediate children (non-recursive by
+  default). With `--recursive`, all `*_scans.tsv` files found anywhere under the directory are
+  collected and processed.
+- Multiple paths of any mix of the above are accepted in a single invocation.
 
 ### Options
 
-| Option                                     | Type            | Default    | Description                                                                                                                  |
-|--------------------------------------------|-----------------|------------|------------------------------------------------------------------------------------------------------------------------------|
-| `--videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location.   |
-| `--buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                               |
-| `--buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                  |
-| `--buffer-policy [strict\|flexible]`       | Choice          | `flexible` | Error or trim when buffers exceed video boundaries.                                                                          |
-| `--time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                    |
-| `--qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                   |
-| `--layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                               |
-| `-v / --verbose`                           | Flag            | False      | Increase verbosity.                                                                                                          |
+| Option                                     | Type            | Default    | Description                                                                                                                 |
+|--------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `--videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location. |
+| `--recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                            |
+| `--buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                              |
+| `--buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                 |
+| `--buffer-policy [strict\|flexible]`       | Choice          | `flexible` | Error or trim when buffers exceed video boundaries.                                                                         |
+| `--time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                   |
+| `--qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                  |
+| `--layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                              |
+| `-v / --verbose`                           | Flag            | False      | Increase verbosity.                                                                                                         |
 
 ### Example invocations
 
 ```shell
-# Inject all scans for all subjects/sessions (NTP-based timing only)
+# Single _scans.tsv file
 reprostim bids-inject \
   --videos sourcedata/reprostim-reproiner/videos.tsv \
   --buffer-before 10 --buffer-after 10 \
   --buffer-policy flexible \
-   sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv
+  sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv
+
+# Multiple _scans.tsv files in one run
+reprostim bids-inject \
+  --videos sourcedata/reprostim-reproiner/videos.tsv \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv \
+  sourcedata/dbic-QA/sub-qa/ses-20250901/sub-qa_ses-20250901_scans.tsv
+
+# Session directory (finds all *_scans.tsv in that directory, non-recursive)
+reprostim bids-inject \
+  --videos sourcedata/reprostim-reproiner/videos.tsv \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Entire dataset root, recursive (finds all *_scans.tsv anywhere below)
+reprostim bids-inject \
+  --videos sourcedata/reprostim-reproiner/videos.tsv \
+  --recursive \
+  sourcedata/dbic-QA/
 
 # With clock offset correction
 reprostim bids-inject \
