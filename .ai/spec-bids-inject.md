@@ -32,7 +32,7 @@ precisely match each DICOM series so that:
 | `videos.tsv`        | ReproStim video inventory (produced by `video-audit`). Contains per-file paths, start/end timestamps, duration, completeness flags. Video file paths are resolved relative to `videos.tsv` location. |
 | BIDS `_scans.tsv`   | Per-subject/session scan manifest. Contains `filename` (relative BIDS path) and `acq_time` (ISO 8601 datetime of scan start).                                                                        |
 | DICOM JSON sidecars | `*_bold.json` / `*_T1w.json` etc. Contain `AcquisitionTime` array and/or `FrameAcquisitionDuration` for computing scan duration.                                                                     |
-| CLI options         | Buffer sizes, buffer policy, time-offset, QR mode, output BIDS root.                                                                                                                                 |
+| CLI options         | Buffer sizes, buffer policy, time-offset, QR mode, _scan.tsv path.                                                                                                                                   |
 
 ---
 
@@ -345,12 +345,12 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 
 ## Open Questions / TODOs
 
-1. **Multi-video case**: If a scan spans two capture files, currently errors. Future: join/concat.
+1. **Multi-video case**: If a scan spans two capture files, currently errors. Future: join/concat, think about data loss/integrity.
 2. **`bids-qr-sync` integration**: Future tool to refine timing via QR codes; `--qr` modes lay the groundwork.
 3. **Anonymized datasets**: `--time-offset` addresses shifted DICOM times but calibration is manual.
 4. **BIDS column naming**: Confirm sidecar buffer field names against BEP044/BEP047.
 5. **DataLad integration**: Consider auto-adding output `.mkv` files to BIDS DataLad dataset.
 6. **Testing**: Need test datasets with known video-scan alignments to validate functionality.
-7. **Strict Timing Mode**: In future integrate existing time sync calibration data and `tmaps` to better handle timing.
+7. **Strict Timing Mode**: In future integrate existing time sync calibration data and `tmaps` to better handle timing ( as future development and grows of [reproflow-data-sync prototype](https://github.com/ReproNim/reproflow-data-sync)).
 8. **_events.tsv** metadata like `sub-qa_ses-20250814_acq-faX77_recording-reprostim_events.tsv` with all the qr codes we parse in BIDS compliant form.
 9. **filter** option: if to process .tsv files, should get a regex to select only some files (e.g. only func/) and default to all
