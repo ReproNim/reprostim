@@ -354,3 +354,4 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 7. **Strict Timing Mode**: In future integrate existing time sync calibration data and `tmaps` to better handle timing ( as future development and grows of [reproflow-data-sync prototype](https://github.com/ReproNim/reproflow-data-sync)).
 8. **_events.tsv** metadata like `sub-qa_ses-20250814_acq-faX77_recording-reprostim_events.tsv` with all the qr codes we parse in BIDS compliant form.
 9. **filter** option: if to process .tsv files, should get a regex to select only some files (e.g. only func/) and default to all
+10. **Timezone handling**: ReproStim based timestamps are always in local time (TZ-neutral but implicitly in timezone of research center); BIDS `acq_time` is often in UTC. Need to ensure consistent timezone handling when matching.
