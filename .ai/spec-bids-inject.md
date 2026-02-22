@@ -124,17 +124,17 @@ reprostim bids-inject [OPTIONS] PATHS...
 
 ### Options
 
-| Option                                     | Type            | Default    | Description                                                                                                                 |
-|--------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------|
-| `--videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location. |
-| `--recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                            |
-| `--buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                              |
-| `--buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                 |
-| `--buffer-policy [strict\|flexible]`       | Choice          | `flexible` | Error or trim when buffers exceed video boundaries.                                                                         |
-| `--time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                   |
-| `--qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                  |
-| `--layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                              |
-| `-v / --verbose`                           | Flag            | False      | Increase verbosity.                                                                                                         |
+| Option                                          | Type            | Default    | Description                                                                                                                 |
+|-------------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `-f / --videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location. |
+| `-r / --recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                            |
+| `-b / --buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                              |
+| `-a / --buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                 |
+| `-p / --buffer-policy [strict\|flexible]`       | Choice          | `flexible` | Error or trim when buffers exceed video boundaries.                                                                         |
+| `-t / --time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                   |
+| `-q / --qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                  |
+| `-l / --layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                              |
+| `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                         |
 
 ### Example invocations
 
@@ -238,7 +238,7 @@ relative to the BIDS dataset:
               top-stimuli:  <bids_root>/stimuli/<sub>[/<ses>]/<datatype>/<bids_basename>.mkv
       vi.  Call split-video:
               TODO: use -spec and templated output path if any for batch processing
-                    also use direct invocation of split-video API instead of CLI for 
+                    also use direct invocation of split-video API instead of CLI for
                     better error handling
               split-video \
                 --start <acq_time+offset> --duration <scan_duration> \
@@ -257,8 +257,8 @@ relative to the BIDS dataset:
 Priority order for determining scan duration from BIDS JSON sidecars:
 
 1. ??? TODO: Check `FrameAcquisitionDuration` (ms → seconds) — *most reliable*
-2. `AcquisitionTime` array → `last_time - first_time + TR`.  The acq_duration of video is 
-pretty much from that AcquisitionTime array ([-1] - [0]) + ([1] - [0]) 
+2. `AcquisitionTime` array → `last_time - first_time + TR`.  The acq_duration of video is
+pretty much from that AcquisitionTime array ([-1] - [0]) + ([1] - [0])
 3. `RepetitionTime` (s) × `NumberOfVolumes`
 4. ?? TODO: think about manual override via future `--duration` option
 
