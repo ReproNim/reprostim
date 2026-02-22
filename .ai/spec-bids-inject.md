@@ -134,6 +134,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-t / --time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                   |
 | `-q / --qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                  |
 | `-l / --layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                              |
+| `-z / --timezone TIMEZONE`                      | String          | `local`    | Timezone assumed for ReproStim naive timestamps (see Timezone Handling below).                                              |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                         |
 
 ### Example invocations
@@ -174,6 +175,18 @@ reprostim bids-inject \
   --videos /data/reprostim/videos.tsv \
   --qr embed-existing \
   sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv
+
+# Force ReproStim timestamps to a specific IANA timezone (e.g. scanner at Dartmouth = US Eastern)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --timezone America/New_York \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv
+
+# BIDS dataset uses UTC-aware acq_time; ReproStim captured in UTC (e.g. server clock set to UTC)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --timezone UTC \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv
 ```
 
 ---
@@ -208,17 +221,95 @@ relative to the BIDS dataset:
 
 ---
 
+## Timezone Handling
+
+### Background
+
+ReproStim records all timestamps (in `videos.tsv` columns `start_date`/`start_time`,
+`end_date`/`end_time`) as **naive datetimes** — ISO 8601 strings with no UTC offset or
+timezone designator. These timestamps reflect the wall-clock time of the capture machine and
+implicitly represent the local timezone of the research site (e.g. US Eastern for Dartmouth).
+
+BIDS `_scans.tsv` `acq_time` values may be:
+
+- **Naive** (most common): no offset, implicitly local site time, e.g. `2025-08-14T15:06:09.742500`
+- **UTC-aware**: explicit `+00:00` offset, e.g. `2025-08-14T20:06:09.742500+00:00`
+
+Without consistent timezone treatment, naive ReproStim timestamps and UTC-aware BIDS timestamps
+will be misaligned by the UTC offset of the site (e.g. 4–5 hours for US Eastern), causing all
+video-to-scan matching to fail silently or produce wrong clips.
+
+### The `--timezone` Option
+
+`--timezone TIMEZONE` declares the timezone that should be assumed for **ReproStim's naive
+timestamps**. Accepted values:
+
+| Value                        | Meaning                                                                            |
+|------------------------------|------------------------------------------------------------------------------------|
+| `local` *(default)*          | Use the OS system timezone of the machine running `bids-inject`. Equivalent to `dateutil.tz.tzlocal()`. Appropriate when ReproStim and `bids-inject` run at the same site. |
+| IANA timezone name           | Any name from the IANA tz database, e.g. `America/New_York`, `America/Chicago`, `UTC`, `Europe/London`. Use when running `bids-inject` on a machine in a different timezone than where the data was captured, or to be explicit and reproducible. |
+
+> **Recommendation**: prefer an explicit IANA name (e.g. `America/New_York`) in scripts and
+> workflows for reproducibility, even when `local` would give the same result. `local` is
+> appropriate for interactive use at the capture site.
+
+### Naive BIDS `acq_time` Handling
+
+When a BIDS `acq_time` value carries no UTC offset, `bids-inject` assumes it is in the **same
+timezone as `--timezone`**. This reflects the common case where both the DICOM exporter and
+the ReproStim capture machine are on the same site clock.
+
+If a BIDS `acq_time` already carries an explicit UTC offset (e.g. `+00:00`), it is used
+as-is and converted to UTC for comparison; `--timezone` does not affect it.
+
+### Normalization Algorithm
+
+```
+For each ReproStim timestamp t_rs (naive from videos.tsv):
+    t_rs_aware = attach(t_rs, tz=resolve(--timezone))
+    t_rs_utc   = t_rs_aware.astimezone(UTC)
+
+For each BIDS acq_time t_bids:
+    if t_bids has explicit UTC offset:
+        t_bids_utc = t_bids.astimezone(UTC)
+    else:  # naive — assume same site timezone
+        t_bids_aware = attach(t_bids, tz=resolve(--timezone))
+        t_bids_utc   = t_bids_aware.astimezone(UTC)
+
+Match: find video where t_rs_utc(start) ≤ t_bids_utc < t_rs_utc(end)
+```
+
+All internal comparisons are performed in UTC. The `--time-offset` correction is applied
+**after** timezone normalization, directly to `t_bids_utc`.
+
+### Common Scenarios
+
+| Scenario                                                           | Recommended invocation                        |
+|--------------------------------------------------------------------|-----------------------------------------------|
+| ReproStim + BIDS on same site, both naive (typical)                | *(omit `--timezone`, default `local` applies)* |
+| Explicit reproducible script for US Eastern site                   | `--timezone America/New_York`                 |
+| ReproStim machine clock set to UTC, BIDS naive timestamps in UTC   | `--timezone UTC`                              |
+| Processing data from another site (different TZ than local machine)| `--timezone America/Chicago` (or site TZ)    |
+| BIDS `acq_time` is UTC-aware (`+00:00`), ReproStim is US Eastern   | `--timezone America/New_York`                 |
+
+---
+
 ## Algorithm / Data Flow
 
 ```
 1. Load videos.tsv (from --videos)
    └─ Build index: (date, time_range) → video file path
       (paths resolved relative to videos.tsv location)
+      Resolve --timezone → tz object (tzlocal() for "local", or IANA lookup)
+      Attach tz to all naive start/end timestamps; convert to UTC
 
 2. For each subject/session in BIDS_ROOT:
    a. Load <sub>/<ses>/*_scans.tsv
    b. For each scan row:
-      i.  Parse acq_time (+ time-offset) → absolute start datetime
+      i.  Parse acq_time → normalize to UTC (see Timezone Handling):
+            - naive: attach --timezone, convert to UTC
+            - aware: convert to UTC directly
+          Apply --time-offset (seconds) to UTC-normalized acq_time
       ii. Determine scan duration:
             - From *_bold.json → FrameAcquisitionDuration (preferred)
             - OR compute from AcquisitionTime array length × TR
