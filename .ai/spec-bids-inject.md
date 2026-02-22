@@ -472,3 +472,4 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 8. **_events.tsv** metadata like `sub-qa_ses-20250814_acq-faX77_recording-reprostim_events.tsv` with all the qr codes we parse in BIDS compliant form.
 9. **filter** option: if to process .tsv files, should get a regex to select only some files (e.g. only func/) and default to all
 10. **Timezone handling**: ReproStim based timestamps are always in local time (TZ-neutral but implicitly in timezone of research center); BIDS `acq_time` is often in UTC. Need to ensure consistent timezone handling when matching.
+11. **Parallel processing**: The natural parallelism granularity is one `_scans.tsv` per worker (scans within a session stay sequential). When multiple sessions run concurrently, shared output data (summary counters, QR JSONL cache, any merged report files) will need lock protection. To be designed when a `--jobs` option is introduced.
