@@ -138,30 +138,6 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.   |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                         |
 
-### Dry-Run Mode
-
-When `--dry-run` is set, `bids-inject` performs all analysis steps — loading `videos.tsv`,
-discovering `*_scans.tsv` files, resolving scan durations, matching videos, determining output
-paths and media suffixes — but **skips the actual `split-video` call and writes no files**.
-
-For each scan that would be processed, a summary line is printed to stdout instead, e.g.:
-
-```
-[DRY-RUN] sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz
-          video  : /data/reprostim/2025.08.14.15.10.00.000_....mkv
-          output : sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv
-          onset  : 2025-08-14T19:19:53.397500+00:00  duration: 6.0 s
-          buffers: before=10 s  after=10 s  policy=flexible
-[DRY-RUN] SKIP   sub-qa/ses-20250814/func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz — no matching video
-```
-
-The final summary line (`N injected, M skipped, K errors`) is printed as normal but prefixed
-with `[DRY-RUN]`. Exit code behaviour is the same as a live run: 0 if no errors were
-encountered during analysis, non-zero otherwise.
-
-`--dry-run` is compatible with all other options, including `--qr` modes (QR data is read and
-parsed as normal; only the write step is suppressed).
-
 ### Example invocations
 
 ```shell
@@ -220,6 +196,32 @@ reprostim bids-inject \
   --dry-run \
   sourcedata/dbic-QA/sub-qa/ses-20250814/
 ```
+
+---
+
+## Dry-Run Mode
+
+When `--dry-run` is set, `bids-inject` performs all analysis steps — loading `videos.tsv`,
+discovering `*_scans.tsv` files, resolving scan durations, matching videos, determining output
+paths and media suffixes — but **skips the actual `split-video` call and writes no files**.
+
+For each scan that would be processed, a summary line is printed to stdout instead, e.g.:
+
+```
+[DRY-RUN] sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz
+          video  : /data/reprostim/2025.08.14.15.10.00.000_....mkv
+          output : sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv
+          onset  : 2025-08-14T19:19:53.397500+00:00  duration: 6.0 s
+          buffers: before=10 s  after=10 s  policy=flexible
+[DRY-RUN] SKIP   sub-qa/ses-20250814/func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz — no matching video
+```
+
+The final summary line (`N injected, M skipped, K errors`) is printed as normal but prefixed
+with `[DRY-RUN]`. Exit code behaviour is the same as a live run: 0 if no errors were
+encountered during analysis, non-zero otherwise.
+
+`--dry-run` is compatible with all other options, including `--qr` modes (QR data is read and
+parsed as normal; only the write step is suppressed).
 
 ---
 
