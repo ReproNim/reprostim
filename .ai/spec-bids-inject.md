@@ -135,7 +135,32 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-q / --qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                  |
 | `-l / --layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                              |
 | `-z / --timezone TIMEZONE`                      | String          | `local`    | Timezone assumed for ReproStim naive timestamps (see Timezone Handling below).                                              |
+| `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.   |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                         |
+
+### Dry-Run Mode
+
+When `--dry-run` is set, `bids-inject` performs all analysis steps — loading `videos.tsv`,
+discovering `*_scans.tsv` files, resolving scan durations, matching videos, determining output
+paths and media suffixes — but **skips the actual `split-video` call and writes no files**.
+
+For each scan that would be processed, a summary line is printed to stdout instead, e.g.:
+
+```
+[DRY-RUN] sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz
+          video  : /data/reprostim/2025.08.14.15.10.00.000_....mkv
+          output : sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv
+          onset  : 2025-08-14T19:19:53.397500+00:00  duration: 6.0 s
+          buffers: before=10 s  after=10 s  policy=flexible
+[DRY-RUN] SKIP   sub-qa/ses-20250814/func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz — no matching video
+```
+
+The final summary line (`N injected, M skipped, K errors`) is printed as normal but prefixed
+with `[DRY-RUN]`. Exit code behaviour is the same as a live run: 0 if no errors were
+encountered during analysis, non-zero otherwise.
+
+`--dry-run` is compatible with all other options, including `--qr` modes (QR data is read and
+parsed as normal; only the write step is suppressed).
 
 ### Example invocations
 
@@ -187,6 +212,13 @@ reprostim bids-inject \
   --videos /data/reprostim/videos.tsv \
   --timezone UTC \
   sourcedata/dbic-QA/sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv
+
+# Dry-run: analyse an entire session without writing any files
+reprostim bids-inject \
+  --videos sourcedata/reprostim-reproiner/videos.tsv \
+  --buffer-before 10 --buffer-after 10 \
+  --dry-run \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
 ```
 
 ---
@@ -327,7 +359,7 @@ All internal comparisons are performed in UTC. The `--time-offset` correction is
       v.   Determine output path (per --layout):
               nearby:       <bids_root>/<sub>[/<ses>]/<datatype>/<bids_basename>.mkv
               top-stimuli:  <bids_root>/stimuli/<sub>[/<ses>]/<datatype>/<bids_basename>.mkv
-      vi.  Call split-video:
+      vi.  Call split-video (skipped when --dry-run; print planned action instead):
               TODO: use -spec and templated output path if any for batch processing
                     also use direct invocation of split-video API instead of CLI for
                     better error handling
