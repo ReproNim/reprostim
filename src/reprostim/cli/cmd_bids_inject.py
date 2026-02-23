@@ -107,6 +107,14 @@ logger = logging.getLogger(__name__)
          "(e.g. 'America/New_York', 'UTC') for explicit, reproducible results.",
 )
 @click.option(
+    "-d",
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Analyse BIDS data and resolve matches but do not call split-video or "
+         "write any output files. Prints what would be done to stdout.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -126,6 +134,7 @@ def bids_inject(
     qr: str,
     layout: str,
     timezone: str,
+    dry_run: bool,
     verbose: bool,
 ):
     """Inject ReproStim video recordings into a BIDS dataset.
@@ -150,6 +159,7 @@ def bids_inject(
     logger.info(f"QR mode        : {qr}")
     logger.info(f"Layout         : {layout}")
     logger.info(f"Timezone       : {timezone}")
+    logger.info(f"Dry-run        : {dry_run}")
     logger.info(f"Verbose        : {verbose}")
 
     start_time_sec = time.time()
@@ -165,6 +175,7 @@ def bids_inject(
         qr=qr,
         layout=layout,
         timezone=timezone,
+        dry_run=dry_run,
         verbose=verbose,
         out_func=click.echo,
     )

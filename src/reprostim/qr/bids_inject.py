@@ -83,6 +83,7 @@ def do_main(
     qr: str,
     layout: str,
     timezone: str,
+    dry_run: bool,
     verbose: bool,
     out_func: Callable,
 ) -> int:
@@ -102,6 +103,8 @@ def do_main(
         qr: QR mode string ('none', 'auto', 'embed-existing', 'parse').
         layout: Layout mode string ('nearby', 'top-stimuli').
         timezone: Timezone string ('local' or IANA name).
+        dry_run: If True, analyse and resolve matches but skip split-video
+                 and all file writes; print planned actions instead.
         verbose: Whether to emit verbose output.
         out_func: Output function for user-facing messages (e.g. click.echo).
 
