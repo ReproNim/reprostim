@@ -228,27 +228,46 @@ def do_main(
 ) -> int:
     """Main entry point for the bids-inject command.
 
-    Orchestrates loading of videos.tsv, discovery of *_scans.tsv files,
+    Orchestrates loading of videos.tsv, discovery of ``*_scans.tsv`` files,
     per-scan matching, slicing, and injection.
 
-    Args:
-        paths: Tuple of paths from the CLI PATHS argument.
-        videos_tsv: Path to videos.tsv produced by video-audit.
-        recursive: Whether to recurse into subdirectories for *_scans.tsv discovery.
-        buffer_before: Buffer before scan onset (seconds or ISO 8601).
-        buffer_after: Buffer after scan end (seconds or ISO 8601).
-        buffer_policy: 'strict' or 'flexible'.
-        time_offset: Clock offset in seconds added to acq_time values.
-        qr: QR mode string ('none', 'auto', 'embed-existing', 'parse').
-        layout: Layout mode string ('nearby', 'top-stimuli').
-        timezone: Timezone string ('local' or IANA name).
-        dry_run: If True, analyse and resolve matches but skip split-video
-                 and all file writes; print planned actions instead.
-        verbose: Whether to emit verbose output.
-        out_func: Output function for user-facing messages (e.g. click.echo).
-
-    Returns:
-        Exit code: 0 on success, non-zero on error.
+    :param paths: Tuple of file or directory paths from the CLI ``PATHS`` argument.
+    :type paths: tuple
+    :param videos_tsv: Path to ``videos.tsv`` produced by ``video-audit``.
+        Video file paths inside the TSV are resolved relative to this file's location.
+    :type videos_tsv: str
+    :param recursive: When ``True``, recurse into subdirectories when searching
+        for ``*_scans.tsv`` files.
+    :type recursive: bool
+    :param buffer_before: Extra video to include before scan onset.
+        Accepts seconds (e.g. ``'10'``) or ISO 8601 duration (e.g. ``'PT10S'``).
+    :type buffer_before: str
+    :param buffer_after: Extra video to include after scan end.
+        Accepts seconds (e.g. ``'10'``) or ISO 8601 duration (e.g. ``'PT10S'``).
+    :type buffer_after: str
+    :param buffer_policy: ``'strict'`` to error when buffers exceed video
+        boundaries; ``'flexible'`` to trim them instead.
+    :type buffer_policy: str
+    :param time_offset: Clock offset in seconds added to ``acq_time`` values
+        after timezone normalisation.
+    :type time_offset: float
+    :param qr: QR timing refinement mode: ``'none'``, ``'auto'``,
+        ``'embed-existing'``, or ``'parse'``.
+    :type qr: str
+    :param layout: Output placement layout: ``'nearby'`` or ``'top-stimuli'``.
+    :type layout: str
+    :param timezone: Timezone for ReproStim timestamps. Use ``'local'`` for
+        the OS timezone or an IANA name (e.g. ``'America/New_York'``).
+    :type timezone: str
+    :param dry_run: When ``True``, resolve matches and print planned actions
+        but skip ``split-video`` and all file writes.
+    :type dry_run: bool
+    :param verbose: When ``True``, emit verbose progress output.
+    :type verbose: bool
+    :param out_func: Callable used for user-facing output (e.g. ``click.echo``).
+    :type out_func: Callable
+    :returns: Exit code — ``0`` on success, non-zero on error.
+    :rtype: int
     """
     ctx: BiContext = BiContext(dry_run=dry_run, recursive=recursive)
 
