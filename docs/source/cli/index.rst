@@ -8,6 +8,7 @@ Command-Line Interface
     :glob:
 
     reprostim
+    bids-inject
     detect-noscreen
     list-displays
     monitor-displays
