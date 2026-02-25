@@ -124,19 +124,20 @@ reprostim bids-inject [OPTIONS] PATHS...
 
 ### Options
 
-| Option                                          | Type            | Default    | Description                                                                                                                 |
-|-------------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------|
-| `-f / --videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location. |
-| `-r / --recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                            |
-| `-b / --buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                              |
-| `-a / --buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                 |
-| `-p / --buffer-policy [strict\|flexible]`       | Choice          | `flexible` | Error or trim when buffers exceed video boundaries.                                                                         |
-| `-t / --time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                   |
-| `-q / --qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                  |
-| `-l / --layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                              |
-| `-z / --timezone TIMEZONE`                      | String          | `local`    | Timezone assumed for ReproStim naive timestamps (see Timezone Handling below).                                              |
-| `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.   |
-| `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                         |
+| Option                                          | Type            | Default    | Description                                                                                                                                                                                                                                         |
+|-------------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-f / --videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location.                                                                                                                          |
+| `-r / --recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                                                                                                                                                    |
+| `-b / --buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                                                                                                                                                      |
+| `-a / --buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                                                                                                                                         |
+| `-p / --buffer-policy [strict\|flexible]`       | Choice          | `flexible` | Error or trim when buffers exceed video boundaries.                                                                                                                                                                                                 |
+| `-t / --time-offset FLOAT`                      | seconds         | `0.0`      | Clock offset to add to `acq_time` values.                                                                                                                                                                                                           |
+| `-q / --qr [none\|auto\|embed-existing\|parse]` | Choice          | `none`     | QR code-based timing refinement mode (see QR Modes below).                                                                                                                                                                                          |
+| `-l / --layout [nearby\|top-stimuli]`           | Choice          | `nearby`   | Output file placement layout within the BIDS dataset (see Layout Modes below).                                                                                                                                                                      |
+| `-z / --timezone TIMEZONE`                      | String          | `local`    | Timezone assumed for ReproStim naive timestamps (see Timezone Handling below).                                                                                                                                                                      |
+| `-m / --match REGEX`                            | String          | `.*`       | Regular expression matched against the `filename` field of each scan record. Only records whose `filename` matches are processed; all others are skipped. Default `.*` matches every record. Example: `func/` to restrict to functional scans only. |
+| `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
+| `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                                                                                                                                                 |
 
 ### Example invocations
 
@@ -195,6 +196,19 @@ reprostim bids-inject \
   --buffer-before 10 --buffer-after 10 \
   --dry-run \
   sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Process only functional scans (filename starts with func/)
+reprostim bids-inject \
+  --videos sourcedata/reprostim-reproiner/videos.tsv \
+  --match 'func/.*' \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Process only a specific task across a whole dataset (recursive)
+reprostim bids-inject \
+  --videos sourcedata/reprostim-reproiner/videos.tsv \
+  --recursive \
+  --match '.*task-rest.*' \
+  sourcedata/dbic-QA/
 ```
 
 ---
@@ -504,6 +518,6 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 6. **Testing**: Need test datasets with known video-scan alignments to validate functionality.
 7. **Strict Timing Mode**: In future integrate existing time sync calibration data and `tmaps` to better handle timing ( as future development and grows of [reproflow-data-sync prototype](https://github.com/ReproNim/reproflow-data-sync)).
 8. **_events.tsv** metadata like `sub-qa_ses-20250814_acq-faX77_recording-reprostim_events.tsv` with all the qr codes we parse in BIDS compliant form.
-9. **filter** option: if to process .tsv files, should get a regex to select only some files (e.g. only func/) and default to all
+9. ~~**filter** option: if to process .tsv files, should get a regex to select only some files (e.g. only func/) and default to all~~ → resolved as `-m / --match REGEX` (default `.*`, matches all records).
 10. **Timezone handling**: ReproStim based timestamps are always in local time (TZ-neutral but implicitly in timezone of research center); BIDS `acq_time` is often in UTC. Need to ensure consistent timezone handling when matching.
 11. **Parallel processing**: The natural parallelism granularity is one `_scans.tsv` per worker (scans within a session stay sequential). When multiple sessions run concurrently, shared output data (summary counters, QR JSONL cache, any merged report files) will need lock protection. To be designed when a `--jobs` option is introduced.
