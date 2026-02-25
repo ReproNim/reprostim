@@ -14,7 +14,7 @@ import csv
 import logging
 import os
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Callable, List
 
 from pydantic import BaseModel, Field
 
@@ -82,8 +82,22 @@ class ScanRecord(BaseModel):
         ..., description="Relative path to NIfTI within subject/session dir"
     )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
-    operator: Optional[str] = Field(None, description="Operator name or 'n/a'")
-    randstr: Optional[str] = Field(None, description="Random string identifier")
+    extra: dict = Field(
+        default_factory=dict,
+        description="All remaining columns from the TSV row as key/value pairs",
+    )
+
+
+class ScansData(BaseModel):
+    """Parsed representation of a single BIDS ``*_scans.tsv`` file."""
+
+    path: str = Field(
+        ..., description="Absolute or relative path to the ``*_scans.tsv`` file"
+    )
+    records: List[ScanRecord] = Field(
+        default_factory=list,
+        description="Ordered list of scan records parsed from the file",
+    )
 
 
 ####################################################################
@@ -106,8 +120,8 @@ def _is_scans_file(path: str) -> bool:
     return os.path.isfile(path) and path.endswith("_scans.tsv")
 
 
-def _parse_scans(path: str) -> List[ScanRecord]:
-    """Parse a *_scans.tsv file and return a list of ScanRecord instances.
+def _parse_scans(path: str) -> ScansData:
+    """Parse a ``*_scans.tsv`` file and return a :class:`ScansData` instance.
 
     Reads a tab-separated BIDS scans file. The columns ``filename`` and
     ``acq_time`` are required; ``operator`` and ``randstr`` are read when
@@ -115,8 +129,9 @@ def _parse_scans(path: str) -> List[ScanRecord]:
 
     :param path: Absolute or relative path to a ``*_scans.tsv`` file.
     :type path: str
-    :returns: List of scan records parsed from the file, one per data row.
-    :rtype: List[ScanRecord]
+    :returns: Parsed scans data containing the file path and one
+        :class:`ScanRecord` per data row.
+    :rtype: ScansData
     :raises FileNotFoundError: If *path* does not exist.
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
@@ -129,12 +144,15 @@ def _parse_scans(path: str) -> List[ScanRecord]:
                 ScanRecord(
                     filename=row["filename"],
                     acq_time=row["acq_time"],
-                    operator=row.get("operator"),
-                    randstr=row.get("randstr"),
+                    extra={
+                        k: v
+                        for k, v in row.items()
+                        if k not in ("filename", "acq_time")
+                    },
                 )
             )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
-    return records
+    return ScansData(path=path, records=records)
 
 
 def _do_inject_scans(ctx: BiContext, path: str):
@@ -149,10 +167,10 @@ def _do_inject_scans(ctx: BiContext, path: str):
     :type path: str
     """
     if _is_scans_file(path):
-        logger.info(f"Processing scans file: {path}")
-        scans = _parse_scans(path)
-        for scan in scans:
-            logger.info(f"Processing scan record: {scan}")
+        logger.info(f"Processing scans file  : {path}")
+        scans: ScansData = _parse_scans(path)
+        for sr in scans.records:
+            logger.info(f"Processing scan record : {sr}")
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 
@@ -171,7 +189,7 @@ def _do_inject_dir(ctx: BiContext, path: str):
     :type path: str
     """
 
-    logger.info(f"Processing scans dir : {path}")
+    logger.info(f"Processing scans dir   : {path}")
 
     for entry in os.scandir(path):
         if entry.is_file():
