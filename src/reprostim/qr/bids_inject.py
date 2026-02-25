@@ -10,10 +10,11 @@ dataset.
 See .ai/spec-bids-inject.md for the full specification.
 """
 
+import csv
 import logging
 import os
 from enum import Enum
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -81,6 +82,8 @@ class ScanRecord(BaseModel):
         ..., description="Relative path to NIfTI within subject/session dir"
     )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
+    operator: Optional[str] = Field(None, description="Operator name or 'n/a'")
+    randstr: Optional[str] = Field(None, description="Random string identifier")
 
 
 ####################################################################
@@ -89,21 +92,84 @@ class ScanRecord(BaseModel):
 
 
 def _is_scans_file(path: str) -> bool:
-    """Check if the given path is a *_scans.tsv file."""
+    """Check if the given path points to a BIDS ``*_scans.tsv`` file.
+
+    Returns ``True`` only when *path* refers to an existing regular file
+    whose name ends with ``_scans.tsv``.
+
+    :param path: Path to test.
+    :type path: str
+    :returns: ``True`` if *path* is an existing ``*_scans.tsv`` file,
+        ``False`` otherwise.
+    :rtype: bool
+    """
     return os.path.isfile(path) and path.endswith("_scans.tsv")
 
 
+def _parse_scans(path: str) -> List[ScanRecord]:
+    """Parse a *_scans.tsv file and return a list of ScanRecord instances.
+
+    Reads a tab-separated BIDS scans file. The columns ``filename`` and
+    ``acq_time`` are required; ``operator`` and ``randstr`` are read when
+    present and left as ``None`` otherwise.
+
+    :param path: Absolute or relative path to a ``*_scans.tsv`` file.
+    :type path: str
+    :returns: List of scan records parsed from the file, one per data row.
+    :rtype: List[ScanRecord]
+    :raises FileNotFoundError: If *path* does not exist.
+    :raises KeyError: If a required column (``filename`` or ``acq_time``) is
+        missing from the TSV header.
+    """
+    records: List[ScanRecord] = []
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            records.append(
+                ScanRecord(
+                    filename=row["filename"],
+                    acq_time=row["acq_time"],
+                    operator=row.get("operator"),
+                    randstr=row.get("randstr"),
+                )
+            )
+    logger.debug(f"Parsed {len(records)} scan records from: {path}")
+    return records
+
+
 def _do_inject_scans(ctx: BiContext, path: str):
-    """Process all records in single *_scans.tsv file."""
+    """Process all scan records from a single ``*_scans.tsv`` file.
+
+    Verifies that *path* is a valid BIDS scans file and delegates per-record
+    injection logic.  Non-matching paths are logged as warnings and skipped.
+
+    :param ctx: Processing context carrying flags such as ``dry_run``.
+    :type ctx: BiContext
+    :param path: Path to the ``*_scans.tsv`` file to process.
+    :type path: str
+    """
     if _is_scans_file(path):
         logger.info(f"Processing scans file: {path}")
+        scans = _parse_scans(path)
+        for scan in scans:
+            logger.info(f"Processing scan record: {scan}")
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 
 
 def _do_inject_dir(ctx: BiContext, path: str):
-    """Process all records in *_scans.tsv files under specified
-    directory (optionally recursive)."""
+    """Process all ``*_scans.tsv`` files found directly inside a directory.
+
+    Iterates over the immediate entries of *path*.  Regular files are passed
+    to :func:`_do_inject_scans` (which filters for ``*_scans.tsv`` names).
+    Subdirectories are recursed into only when ``ctx.recursive`` is ``True``.
+
+    :param ctx: Processing context; ``ctx.recursive`` controls whether
+        subdirectories are visited.
+    :type ctx: BiContext
+    :param path: Path to the directory to scan.
+    :type path: str
+    """
 
     logger.info(f"Processing scans dir : {path}")
 
@@ -116,7 +182,18 @@ def _do_inject_dir(ctx: BiContext, path: str):
 
 
 def _do_inject_all(ctx: BiContext, paths: List[str]):
-    """Process all scan records across all discovered *_scans.tsv files."""
+    """Dispatch injection across a mixed list of file and directory paths.
+
+    For each entry in *paths*: regular files are forwarded to
+    :func:`_do_inject_scans`; directories are forwarded to
+    :func:`_do_inject_dir` (which honours ``ctx.recursive``); anything else
+    is logged as a warning and skipped.
+
+    :param ctx: Processing context propagated to all subordinate calls.
+    :type ctx: BiContext
+    :param paths: Sequence of file or directory paths supplied by the caller.
+    :type paths: List[str]
+    """
 
     # iterate over paths and depending on whether it's a file or directory,
     # process accordingly
