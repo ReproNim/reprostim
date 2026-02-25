@@ -13,6 +13,7 @@ See .ai/spec-bids-inject.md for the full specification.
 import csv
 import logging
 import os
+import re
 from enum import Enum
 from typing import Callable, List
 
@@ -72,6 +73,11 @@ class BiContext(BaseModel):
     )
     recursive: bool = Field(
         ..., description="Whether to search for _scans.tsv files recursively"
+    )
+    match: str = Field(
+        default=".*",
+        description="Regex pattern matched against ScanRecord.filename, "
+        "only matching records are processed",
     )
 
 
@@ -170,7 +176,10 @@ def _do_inject_scans(ctx: BiContext, path: str):
         logger.info(f"Processing scans file  : {path}")
         scans: ScansData = _parse_scans(path)
         for sr in scans.records:
-            logger.info(f"Processing scan record : {sr}")
+            if re.search(ctx.match, sr.filename):
+                logger.info(f"Processing scan record : {sr}")
+            else:
+                logger.debug(f"Skipping scan record (no match): {sr.filename}")
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 
@@ -233,6 +242,7 @@ def do_main(
     paths: tuple,
     videos_tsv: str,
     recursive: bool,
+    match: str,
     buffer_before: str,
     buffer_after: str,
     buffer_policy: str,
@@ -257,6 +267,10 @@ def do_main(
     :param recursive: When ``True``, recurse into subdirectories when searching
         for ``*_scans.tsv`` files.
     :type recursive: bool
+    :param match: Regular expression matched against the ``filename`` field of
+        each :class:`ScanRecord`. Only matching records are processed; others
+        are skipped. Default ``'.*'`` matches every record.
+    :type match: str
     :param buffer_before: Extra video to include before scan onset.
         Accepts seconds (e.g. ``'10'``) or ISO 8601 duration (e.g. ``'PT10S'``).
     :type buffer_before: str
@@ -287,7 +301,7 @@ def do_main(
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
-    ctx: BiContext = BiContext(dry_run=dry_run, recursive=recursive)
+    ctx: BiContext = BiContext(dry_run=dry_run, recursive=recursive, match=match)
 
     _do_inject_all(ctx, paths)
 

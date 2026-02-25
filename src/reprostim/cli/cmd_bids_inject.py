@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 @click.command(
-    help="Inject ReproStim audio/video recordings into a BIDS dataset aligned to scan timing."
+    help="Inject ReproStim audio/video recordings into a BIDS "
+    "dataset aligned to scan timing."
 )
 @click.argument(
     "paths",
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=True,
     help="Path to videos.tsv produced by video-audit. Video file paths in the TSV "
-         "are resolved relative to this file's location.",
+    "are resolved relative to this file's location.",
 )
 @click.option(
     "-r",
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
     is_flag=True,
     default=False,
     help="When a directory is given in PATHS, recurse into subdirectories to find "
-         "all *_scans.tsv files.",
+    "all *_scans.tsv files.",
 )
 @click.option(
     "-b",
@@ -44,7 +45,7 @@ logger = logging.getLogger(__name__)
     default="0",
     show_default=True,
     help="Extra video to include before scan onset. "
-         "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'PT10S').",
+    "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'PT10S').",
 )
 @click.option(
     "-a",
@@ -53,7 +54,7 @@ logger = logging.getLogger(__name__)
     default="0",
     show_default=True,
     help="Extra video to include after scan end. "
-         "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'PT10S').",
+    "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'PT10S').",
 )
 @click.option(
     "-p",
@@ -62,8 +63,8 @@ logger = logging.getLogger(__name__)
     default="flexible",
     show_default=True,
     help="Policy for handling buffer overflow beyond video boundaries. "
-         "'strict': error if buffers extend beyond video boundaries. "
-         "'flexible': trim buffers to fit within video boundaries.",
+    "'strict': error if buffers extend beyond video boundaries. "
+    "'flexible': trim buffers to fit within video boundaries.",
 )
 @click.option(
     "-t",
@@ -72,19 +73,21 @@ logger = logging.getLogger(__name__)
     default=0.0,
     show_default=True,
     help="Clock offset in seconds to add to BIDS scans for security reasons. "
-         "Applied after timezone normalization.",
+    "Applied after timezone normalization.",
 )
 @click.option(
     "-q",
     "--qr",
-    type=click.Choice(["none", "auto", "embed-existing", "parse"], case_sensitive=False),
+    type=click.Choice(
+        ["none", "auto", "embed-existing", "parse"], case_sensitive=False
+    ),
     default="none",
     show_default=True,
     help="QR code-based timing refinement mode. "
-         "'none': timing based solely on acq_time and --time-offset. "
-         "'auto': use QR data if available, fall back to NTP timing. "
-         "'embed-existing': use pre-existing parsed QR JSONL files; error if missing. "
-         "'parse': run qr-parse on-the-fly on the source video.",
+    "'none': timing based solely on acq_time and --time-offset. "
+    "'auto': use QR data if available, fall back to NTP timing. "
+    "'embed-existing': use pre-existing parsed QR JSONL files; error if missing. "
+    "'parse': run qr-parse on-the-fly on the source video.",
 )
 @click.option(
     "-l",
@@ -93,8 +96,9 @@ logger = logging.getLogger(__name__)
     default="nearby",
     show_default=True,
     help="Output file placement layout within the BIDS dataset. "
-         "'nearby': place output next to the corresponding NIfTI in the same datatype folder. "
-         "'top-stimuli': place output under a top-level stimuli/ directory mirroring the hierarchy.",
+    "'nearby': place output next to the corresponding NIfTI in "
+    "the same datatype folder. 'top-stimuli': place output under "
+    "a top-level stimuli/ directory mirroring the hierarchy.",
 )
 @click.option(
     "-z",
@@ -103,8 +107,19 @@ logger = logging.getLogger(__name__)
     default="local",
     show_default=True,
     help="Timezone assumed for ReproStim no-timezone timestamps in videos.tsv. "
-         "Use 'local' for the OS system timezone, or an IANA timezone name "
-         "(e.g. 'America/New_York', 'UTC') for explicit, reproducible results.",
+    "Use 'local' for the OS system timezone, or an IANA timezone name "
+    "(e.g. 'America/New_York', 'UTC') for explicit, reproducible results.",
+)
+@click.option(
+    "-m",
+    "--match",
+    type=str,
+    default=".*",
+    show_default=True,
+    help="Regular expression matched against the filename field of each scan record. "
+    "Only matching records are processed; all others are skipped. "
+    "Default '.*' matches every record. Example: 'func/' to process "
+    "functional scans only.",
 )
 @click.option(
     "-d",
@@ -112,7 +127,7 @@ logger = logging.getLogger(__name__)
     is_flag=True,
     default=False,
     help="Analyse BIDS data and resolve matches but do not call split-video or "
-         "write any output files. Prints what would be done to stdout.",
+    "write any output files. Prints what would be done to stdout.",
 )
 @click.option(
     "-v",
@@ -134,6 +149,7 @@ def bids_inject(
     qr: str,
     layout: str,
     timezone: str,
+    match: str,
     dry_run: bool,
     verbose: bool,
 ):
@@ -159,6 +175,7 @@ def bids_inject(
     logger.info(f"QR mode        : {qr}")
     logger.info(f"Layout         : {layout}")
     logger.info(f"Timezone       : {timezone}")
+    logger.info(f"Match          : {match}")
     logger.info(f"Dry-run        : {dry_run}")
     logger.info(f"Verbose        : {verbose}")
 
@@ -168,6 +185,7 @@ def bids_inject(
         paths=paths,
         videos_tsv=videos,
         recursive=recursive,
+        match=match,
         buffer_before=buffer_before,
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
@@ -181,7 +199,11 @@ def bids_inject(
     )
 
     elapsed_sec = round(time.time() - start_time_sec, 1)
-    logger.debug(f"Command 'bids-inject' completed in {elapsed_sec} sec, exit code {res}")
+    logger.debug(
+        f"Command 'bids-inject' completed in {elapsed_sec} sec, exit code {res}"
+    )
     if verbose:
-        click.echo(f"Command 'bids-inject' completed in {elapsed_sec} sec, exit code {res}")
+        click.echo(
+            f"Command 'bids-inject' completed in {elapsed_sec} sec, exit code {res}"
+        )
     return res
