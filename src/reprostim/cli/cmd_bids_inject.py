@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
     is_flag=True,
     default=False,
     help="When a directory is given in PATHS, recurse into subdirectories to find "
-    "all *_scans.tsv files.",
+    "all ``*_scans.tsv`` files.",
 )
 @click.option(
     "-b",
@@ -157,7 +157,7 @@ def bids_inject(
 
     PATHS can be one or more of:
     - a _scans.tsv file (processed directly)
-    - a session directory (searched for *_scans.tsv files)
+    - a session directory (searched for ``*_scans.tsv`` files)
     - a dataset/subject root directory (searched recursively with --recursive)
     """
 
