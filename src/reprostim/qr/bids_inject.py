@@ -11,8 +11,9 @@ See .ai/spec-bids-inject.md for the full specification.
 """
 
 import logging
+import os
 from enum import Enum
-from typing import Callable, Optional
+from typing import Callable, List
 
 from pydantic import BaseModel, Field
 
@@ -28,12 +29,14 @@ logger.debug(f"name={__name__}")
 
 class BufferPolicy(str, Enum):
     """Policy for handling buffer overflow beyond video boundaries."""
+
     STRICT = "strict"
     FLEXIBLE = "flexible"
 
 
 class QrMode(str, Enum):
     """QR code-based timing refinement mode."""
+
     NONE = "none"
     AUTO = "auto"
     EMBED_EXISTING = "embed-existing"
@@ -42,12 +45,14 @@ class QrMode(str, Enum):
 
 class LayoutMode(str, Enum):
     """Output file placement layout within the BIDS dataset."""
+
     NEARBY = "nearby"
     TOP_STIMULI = "top-stimuli"
 
 
 class MediaSuffix(str, Enum):
     """Recording-type suffix per BEP044:Stimuli."""
+
     VIDEO = "_video"
     AUDIO = "_audio"
     AUDIOVIDEO = "_audiovideo"
@@ -58,18 +63,75 @@ class MediaSuffix(str, Enum):
 ####################################################################
 
 
+class BiContext(BaseModel):
+    """Context for bids-inject processing of scan records."""
+
+    dry_run: bool = Field(
+        ..., description="Whether to skip actual file writes and print planned actions"
+    )
+    recursive: bool = Field(
+        ..., description="Whether to search for _scans.tsv files recursively"
+    )
+
+
 class ScanRecord(BaseModel):
     """A single row from a BIDS _scans.tsv file."""
 
-    filename: str = Field(..., description="Relative path to NIfTI within subject/session dir")
+    filename: str = Field(
+        ..., description="Relative path to NIfTI within subject/session dir"
+    )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
 
+
+####################################################################
+# Internal API
+####################################################################
+
+
+def _is_scans_file(path: str) -> bool:
+    """Check if the given path is a *_scans.tsv file."""
+    return os.path.isfile(path) and path.endswith("_scans.tsv")
+
+
+def _do_inject_scans(ctx: BiContext, path: str):
+    """Process all records in single *_scans.tsv file."""
+    if _is_scans_file(path):
+        logger.info(f"Processing scans file: {path}")
+    else:
+        logger.warning(f"Skipping non-_scans.tsv file: {path}")
+
+
+def _do_inject_dir(ctx: BiContext, path: str):
+    """Process all records in *_scans.tsv files under specified
+    directory (optionally recursive)."""
+
+    logger.info(f"Processing scans dir : {path}")
+
+    for entry in os.scandir(path):
+        if entry.is_file():
+            if _is_scans_file(entry.path):
+                _do_inject_scans(ctx, entry.path)
+        elif entry.is_dir() and ctx.recursive:
+            _do_inject_dir(ctx, entry.path)
+
+
+def _do_inject_all(ctx: BiContext, paths: List[str]):
+    """Process all scan records across all discovered *_scans.tsv files."""
+
+    # iterate over paths and depending on whether it's a file or directory,
+    # process accordingly
+    for path in paths:
+        if os.path.isfile(path):
+            _do_inject_scans(ctx, path)
+        elif os.path.isdir(path):
+            _do_inject_dir(ctx, path)
+        else:
+            logger.warning(f"Skipping invalid path: {path}")
 
 
 ####################################################################
 # Public API
 ####################################################################
-
 
 
 def do_main(
@@ -111,4 +173,8 @@ def do_main(
     Returns:
         Exit code: 0 on success, non-zero on error.
     """
-    raise NotImplementedError("do_main is not yet implemented")
+    ctx: BiContext = BiContext(dry_run=dry_run, recursive=recursive)
+
+    _do_inject_all(ctx, paths)
+
+    return 0
