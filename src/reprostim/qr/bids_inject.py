@@ -15,9 +15,9 @@ import json
 import logging
 import os
 import re
-from datetime import time
+from datetime import datetime, time, timedelta
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -122,7 +122,7 @@ class ScanMetadata(BaseModel):
 
 
 class ScanRecord(BaseModel):
-    """A single row from a BIDS _scans.tsv file."""
+    """A single row from a BIDS _scans.tsv file with optionally expanded metadata."""
 
     filename: str = Field(
         ..., description="Relative path to NIfTI within subject/session dir"
@@ -370,6 +370,42 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
     return None
 
 
+def _calc_scan_start_end_ts(
+    record: ScanRecord,
+) -> Optional[Tuple[datetime, datetime]]:
+    """Calculate scan start and end timestamps from a :class:`ScanRecord`.
+
+    Parses :attr:`ScanRecord.acq_time` as the scan start datetime and adds
+    :attr:`ScanRecord.duration_sec` to derive the end datetime.  Both values
+    are returned as **timezone-neutral** (naive) :class:`datetime.datetime`
+    objects — any UTC offset present in ``acq_time`` is stripped before
+    returning, matching the ReproStim convention of naive local-time datetimes.
+
+    Returns ``None`` when :attr:`ScanRecord.duration_sec` is ``None``
+    (i.e. duration could not be determined).
+
+    :param record: Scan record with ``acq_time`` and ``duration_sec`` populated.
+    :type record: ScanRecord
+    :returns: ``(start_ts, end_ts)`` as naive :class:`datetime.datetime` objects,
+        or ``None`` if the duration is unavailable.
+    :rtype: Optional[Tuple[datetime, datetime]]
+    """
+    if record.duration_sec is None:
+        logger.warning(
+            f"Cannot compute scan timestamps: duration_sec is None"
+            f" ({record.filename})"
+        )
+        return None
+
+    start_dt = datetime.fromisoformat(record.acq_time).replace(tzinfo=None)
+    end_dt = start_dt + timedelta(seconds=record.duration_sec)
+
+    # Note: in future convert time from BIDS data set to reprostim time zone
+    # (e.g. local) before returning, to match the ReproStim convention of
+    # naive local-time datetimes
+    return start_dt, end_dt
+
+
 def _do_inject_scans(ctx: BiContext, path: str):
     """Process all scan records from a single ``*_scans.tsv`` file.
 
@@ -391,6 +427,15 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 logger.debug(f"Scan metadata          : {sr.metadata}")
                 sr.duration_sec = _calc_scan_duration_sec(sr)
                 logger.info(f"Scan duration          : {sr.duration_sec} s")
+
+                start_ts, end_ts = _calc_scan_start_end_ts(sr)
+                logger.info(
+                    f"Scan start_ts          : "
+                    f"{start_ts.isoformat() if start_ts else None}"
+                )
+                logger.info(
+                    f"Scan end_ts            : {end_ts.isoformat() if end_ts else None}"
+                )
             else:
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
     else:
