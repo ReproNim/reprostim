@@ -39,6 +39,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_monitor_displays.py` - Monitor display connection status with callbacks
   - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes)
   - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
+  - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
@@ -48,6 +49,7 @@ Main Python package with CLI tools and analysis utilities.
   - `psychopy.py` - PsychoPy framework integration utilities
   - `video_audit.py` - Comprehensive video analysis with multiple audit sources
   - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
+  - `bids_inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction

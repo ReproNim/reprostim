@@ -10,14 +10,14 @@ along with their corresponding log files and QR/audio metadata.
 import logging
 import os
 import subprocess
-from datetime import datetime, timedelta, date, time
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import Optional
-import isodate
 
+import isodate
 from pydantic import BaseModel, Field
 
-from reprostim.qr.video_audit import VaRecord, get_file_video_audit, find_metadata_json
+from reprostim.qr.video_audit import VaRecord, find_metadata_json, get_file_video_audit
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -28,6 +28,7 @@ logger.debug(f"name={__name__}")
 
 class BufferPolicy(str, Enum):
     """Policy for handling buffer overflow beyond video boundaries."""
+
     STRICT = "strict"
     FLEXIBLE = "flexible"
 
@@ -53,9 +54,9 @@ class SplitData(BaseModel):
     audio_sr: Optional[str] = None  # Audio sample rate (e.g., '48000 Hz')
     device: str = "n/a"  # Video-audio capture device name
     device_serial_number: str = "n/a"  # Video-audio capture device serial number
-    full_seg: Optional[VideoSegment] = None   # specifies entire video segment
-    sel_seg: Optional[VideoSegment] = None    # specifies exact split video selection
-    buf_seg: Optional[VideoSegment] = None    # specifies selection with buffer around
+    full_seg: Optional[VideoSegment] = None  # specifies entire video segment
+    sel_seg: Optional[VideoSegment] = None  # specifies exact split video selection
+    buf_seg: Optional[VideoSegment] = None  # specifies selection with buffer around
 
 
 class SplitResult(BaseModel):
@@ -67,24 +68,29 @@ class SplitResult(BaseModel):
     buffer_before: Optional[float] = None  # Buffer before in seconds
     buffer_after: Optional[float] = None  # Buffer after in seconds
     buffer_duration: Optional[float] = None  # Total buffer duration in seconds
-    start_time: Optional[datetime] = Field(None, exclude=True)  # Start time of the split segment
-    end_time: Optional[datetime] = Field(None, exclude=True)  # End time of the split segment
+    start_time: Optional[datetime] = Field(
+        None, exclude=True
+    )  # Start time of the split segment
+    end_time: Optional[datetime] = Field(
+        None, exclude=True
+    )  # End time of the split segment
     duration: Optional[float] = None  # Duration of the split segment in seconds
     video_width: str = "n/a"  # Video width in pixels (e.g., '1920')
     video_height: str = "n/a"  # Video height in pixels (e.g., '1080')
     video_frame_rate: Optional[float] = None  # Video frames per second
     video_size_mb: Optional[float] = None  # Video file size in megabytes
-    video_rate_mbpm: Optional[float] = None # Video bitrate in megabits per second
+    video_rate_mbpm: Optional[float] = None  # Video bitrate in megabits per second
     audio_sample_rate: str = "n/a"  # Audio sample rate in Hz (e.g., '48000')
     audio_bit_depth: str = "n/a"  # Audio bit depth (hardcoded to '16')
     audio_channel_count: str = "n/a"  # Number of audio channels (e.g., '2')
     audio_codec: str = "n/a"  # Audio codec name (e.g., 'aac')
-    # orig_ prefixed fields at the end - describe original video timing context (BIDS compliance)
+    # orig_ prefixed fields at the end - describe original video timing
+    #  context (BIDS compliance)
     orig_buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
-    orig_buffer_end: str = "n/a" # End time of the buffer in ISO 8601 format
+    orig_buffer_end: str = "n/a"  # End time of the buffer in ISO 8601 format
     orig_buffer_offset: Optional[float] = None  # Buffer start offset in seconds
     orig_start: str = "n/a"  # Start time of the split segment only in ISO 8601 format
-    orig_end: str = "n/a" # End time of the split segment only in ISO 8601 format
+    orig_end: str = "n/a"  # End time of the split segment only in ISO 8601 format
     orig_offset: Optional[float] = None  # Offset of the split segment in seconds
     orig_device: str = "n/a"  # Video-audio capture device name
     orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
@@ -138,7 +144,7 @@ def _format_time(dt: datetime) -> str:
     :return: Formatted time string in ISO 8601 format (e.g., '17:30:00.321')
     :rtype: str
     """
-    return dt.isoformat(timespec='milliseconds').split('T')[1]
+    return dt.isoformat(timespec="milliseconds").split("T")[1]
 
 
 def _parse_date_time(date_str: str, time_str: str) -> datetime:
@@ -171,7 +177,7 @@ def _parse_fps(fps_str: str) -> float:
     :raises ValueError: If the fps string is not in valid format
     """
     try:
-        if fps_str=="n/a" or not fps_str:
+        if fps_str == "n/a" or not fps_str:
             return 0.0
         return float(fps_str)
     except ValueError as e:
@@ -189,7 +195,7 @@ def _parse_interval_sec(interval_str: str) -> float:
     :raises ValueError: If the interval string is not in valid format
     """
     try:
-        if not interval_str or interval_str=="n/a":
+        if not interval_str or interval_str == "n/a":
             return 0.0
         # first try parsing as ISO 8601 duration
         duration = isodate.parse_duration(interval_str)
@@ -202,7 +208,7 @@ def _parse_interval_sec(interval_str: str) -> float:
             raise
 
 
-def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
+def _parse_ts(time_str: str | None, time_only: bool = False) -> datetime:
     """Parse time string to datetime object.
 
     Accepts:
@@ -233,13 +239,13 @@ def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
 
         # Strip leading 'T' for time-only strings like 'T17:30:00'
         ts = time_str
-        if time_str.startswith('T') and len(time_str) > 1:
+        if time_str.startswith("T") and len(time_str) > 1:
             ts = time_str[1:]
 
         try:
             dt = datetime.fromisoformat(ts)
             if time_only:
-               dt = datetime.combine(date.today(), dt.time())
+                dt = datetime.combine(date.today(), dt.time())
             return dt
         except ValueError as e2:
             if time_only:
@@ -255,6 +261,7 @@ def _parse_ts(time_str: str | None, time_only:bool = False) -> datetime:
 
 class SpecEntry(BaseModel):
     """Parsed representation of a single --spec argument."""
+
     start_str: str
     duration_str: Optional[str] = None
     end_str: Optional[str] = None
@@ -277,25 +284,28 @@ def _parse_spec(spec_str: str) -> SpecEntry:
     :rtype: SpecEntry
     :raises ValueError: If the spec string format is invalid
     """
-    if '//' in spec_str:
-        parts = spec_str.split('//', 1)
+    if "//" in spec_str:
+        parts = spec_str.split("//", 1)
         if not parts[0].strip() or not parts[1].strip():
             raise ValueError(
                 f"Invalid --spec format: '{spec_str}'. "
-                f"Expected START//END (e.g., '17:30:00//17:33:00')")
+                f"Expected START//END (e.g., '17:30:00//17:33:00')"
+            )
         return SpecEntry(start_str=parts[0].strip(), end_str=parts[1].strip())
-    elif '/' in spec_str:
-        parts = spec_str.split('/', 1)
+    elif "/" in spec_str:
+        parts = spec_str.split("/", 1)
         if not parts[0].strip() or not parts[1].strip():
             raise ValueError(
                 f"Invalid --spec format: '{spec_str}'. "
-                f"Expected START/DURATION (e.g., '17:30:00/PT3M')")
+                f"Expected START/DURATION (e.g., '17:30:00/PT3M')"
+            )
         return SpecEntry(start_str=parts[0].strip(), duration_str=parts[1].strip())
     else:
         raise ValueError(
             f"Invalid --spec format: '{spec_str}'. "
             f"Must contain '/' for duration or '//' for end time. "
-            f"Examples: '17:30:00/PT3M' or '17:30:00//17:33:00'")
+            f"Examples: '17:30:00/PT3M' or '17:30:00//17:33:00'"
+        )
 
 
 def _format_time_dots(dt: datetime) -> str:
@@ -310,9 +320,7 @@ def _format_time_dots(dt: datetime) -> str:
 
 
 def _expand_output_template(
-    template: str, index: int,
-    start_dt: datetime, end_dt: datetime,
-    duration_sec: float
+    template: str, index: int, start_dt: datetime, end_dt: datetime, duration_sec: float
 ) -> str:
     """Expand template tokens in output path.
 
@@ -329,14 +337,11 @@ def _expand_output_template(
     :param duration_sec: Duration in seconds
     :return: Expanded output path
     """
-    return template.replace(
-        "{n}", f"{index:03d}"
-    ).replace(
-        "{start}", _format_time_dots(start_dt)
-    ).replace(
-        "{end}", _format_time_dots(end_dt)
-    ).replace(
-        "{duration}", f"{duration_sec:.1f}"
+    return (
+        template.replace("{n}", f"{index:03d}")
+        .replace("{start}", _format_time_dots(start_dt))
+        .replace("{end}", _format_time_dots(end_dt))
+        .replace("{duration}", f"{duration_sec:.1f}")
     )
 
 
@@ -349,16 +354,17 @@ def _has_template_tokens(template: str) -> bool:
     return any(tok in template for tok in _TEMPLATE_TOKENS)
 
 
-def _calc_split_data(path: str,
-                     sel_start_ts: datetime,
-                     sel_duration_sec: float,
-                     sel_end_ts: datetime,
-                     buf_before_sec: float,
-                     buf_after_sec: float,
-                     buffer_policy: BufferPolicy = BufferPolicy.STRICT,
-                     video_audit_file: str | None = None,
-                     raw_mode: bool = False,
-                     ) -> SplitData:
+def _calc_split_data(
+    path: str,
+    sel_start_ts: datetime,
+    sel_duration_sec: float,
+    sel_end_ts: datetime,
+    buf_before_sec: float,
+    buf_after_sec: float,
+    buffer_policy: BufferPolicy = BufferPolicy.STRICT,
+    video_audit_file: str | None = None,
+    raw_mode: bool = False,
+) -> SplitData:
     """Calculate split data for given video file.
 
     :param path: Path to the .mkv video file
@@ -389,19 +395,19 @@ def _calc_split_data(path: str,
     :rtype: SplitData
     :raises ValueError: If buffer cannot be fulfilled in strict mode
     """
-    logger.debug(f"_calc_split_data: path={path}, "
-                 f"sel_start_ts={sel_start_ts}, sel_duration_sec={sel_duration_sec}, "
-                 f"sel_end_ts={sel_end_ts}, buf_before_sec={buf_before_sec}, "
-                 f"buf_after_sec={buf_after_sec}, buffer_policy={buffer_policy.value}"
-                 )
+    logger.debug(
+        f"_calc_split_data: path={path}, "
+        f"sel_start_ts={sel_start_ts}, sel_duration_sec={sel_duration_sec}, "
+        f"sel_end_ts={sel_end_ts}, buf_before_sec={buf_before_sec}, "
+        f"buf_after_sec={buf_after_sec}, buffer_policy={buffer_policy.value}"
+    )
 
     sd: SplitData = SplitData(success=False, path=path)
 
     # A) Read video file metadata to get full segment info, fps, frame count etc
     #    as initial implementation use video-audit internal mode
-    #    to extract necessary metadata. Later we can optimize it to avoid redundant reads.
-    #    and reuse videos.tsv data if any for that.
-    vr: VaRecord = get_file_video_audit(path, video_audit_file)
+    #    to extract necessary metadata.
+    vr: VaRecord = get_file_video_audit(path, video_audit_file, True)
     logger.debug(f"Video audit record: {vr.model_dump_json(indent=2)}")
 
     # Extract device info from log file session_begin metadata
@@ -414,13 +420,19 @@ def _calc_split_data(path: str,
 
     duration_sec: float = _parse_interval_sec(vr.duration)
     if duration_sec <= 0:
-        logger.error(f"Video duration is zero or negative: {vr.duration}. Most likely "
-                     f"the video file is corrupted or truncated and need to be fixed first.")
+        logger.error(
+            f"Video duration is zero or negative: {vr.duration}. Most likely "
+            f"the video file is corrupted or truncated and need to be fixed first."
+        )
         if raw_mode:
-            logger.warning("In raw mode, proceeding despite zero/negative duration, it can "
-                           "produce unpredictable secondary errors.")
+            logger.warning(
+                "In raw mode, proceeding despite zero/negative duration, it can "
+                "produce unpredictable secondary errors."
+            )
         else:
-            raise ValueError(f"Video duration is zero or negative: {duration_sec} seconds.")
+            raise ValueError(
+                f"Video duration is zero or negative: {duration_sec} seconds."
+            )
 
     # apply fix for raw mode
     if raw_mode:
@@ -474,11 +486,17 @@ def _calc_split_data(path: str,
     # D) Validate segments against video boundaries and adjust if necessary
     if sd.sel_seg.start_ts < sd.full_seg.start_ts:
         logger.error("Selected start time is before video start.")
-        raise ValueError(f"Selected start time is before video start: {sd.sel_seg.start_ts} < {sd.full_seg.start_ts}.")
+        raise ValueError(
+            f"Selected start time is before video start: "
+            f"{sd.sel_seg.start_ts} < {sd.full_seg.start_ts}."
+        )
 
     if sd.sel_seg.end_ts > sd.full_seg.end_ts:
         logger.error("Selected end time is after video end.")
-        raise ValueError(f"Selected end time is after video end: {sd.sel_seg.end_ts} > {sd.full_seg.end_ts}.")
+        raise ValueError(
+            f"Selected end time is after video end: "
+            f"{sd.sel_seg.end_ts} > {sd.full_seg.end_ts}."
+        )
 
     # Handle buffer overflow based on policy
     buffer_overflow_before = sd.buf_seg.start_ts < sd.full_seg.start_ts
@@ -489,7 +507,8 @@ def _calc_split_data(path: str,
             logger.error("Buffer before extends before video start (strict mode).")
             raise ValueError(
                 f"Buffer before extends before video start: "
-                f"buffer_start={sd.buf_seg.start_ts}, video_start={sd.full_seg.start_ts}. "
+                f"buffer_start={sd.buf_seg.start_ts}, "
+                f"video_start={sd.full_seg.start_ts}. "
                 f"Use --buffer-policy=flexible to trim buffers automatically."
             )
         if buffer_overflow_after:
@@ -505,13 +524,17 @@ def _calc_split_data(path: str,
             sd.buf_seg.start_ts = sd.full_seg.start_ts
             sd.buf_seg.offset_sec = 0.0
             sd.buf_seg.offset_frame = 0
-            sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
+            sd.buf_seg.duration_sec = (
+                sd.buf_seg.end_ts - sd.buf_seg.start_ts
+            ).total_seconds()
             sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
 
         if buffer_overflow_after:
             logger.warning("Buffer after extends after video end. Trimming buffer.")
             sd.buf_seg.end_ts = sd.full_seg.end_ts
-            sd.buf_seg.duration_sec = (sd.buf_seg.end_ts - sd.buf_seg.start_ts).total_seconds()
+            sd.buf_seg.duration_sec = (
+                sd.buf_seg.end_ts - sd.buf_seg.start_ts
+            ).total_seconds()
             sd.buf_seg.frame_count = int(sd.buf_seg.duration_sec * sd.fps)
 
     sd.success = True
@@ -534,8 +557,12 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
     sr: SplitResult = SplitResult(
         input_path=sd.path,
         output_path=out_path,
-        buffer_before=round(sd.sel_seg.start_ts.timestamp() - sd.buf_seg.start_ts.timestamp(), 3),
-        buffer_after=round(sd.buf_seg.end_ts.timestamp() - sd.sel_seg.end_ts.timestamp(), 3),
+        buffer_before=round(
+            sd.sel_seg.start_ts.timestamp() - sd.buf_seg.start_ts.timestamp(), 3
+        ),
+        buffer_after=round(
+            sd.buf_seg.end_ts.timestamp() - sd.sel_seg.end_ts.timestamp(), 3
+        ),
         orig_buffer_start=_format_time(sd.buf_seg.start_ts),
         orig_buffer_end=_format_time(sd.buf_seg.end_ts),
         buffer_duration=round(sd.buf_seg.duration_sec, 3),
@@ -544,8 +571,16 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         duration=sd.sel_seg.duration_sec,
         orig_offset=sd.sel_seg.offset_sec,
         end_time=sd.sel_seg.end_ts,
-        video_width=sd.resolution.split("x")[0] if sd.resolution and sd.resolution != "n/a" else "n/a",
-        video_height=sd.resolution.split("x")[1] if sd.resolution and sd.resolution != "n/a" else "n/a",
+        video_width=(
+            sd.resolution.split("x")[0]
+            if sd.resolution and sd.resolution != "n/a"
+            else "n/a"
+        ),
+        video_height=(
+            sd.resolution.split("x")[1]
+            if sd.resolution and sd.resolution != "n/a"
+            else "n/a"
+        ),
         video_frame_rate=sd.fps,
         **_parse_audio_info(sd.audio_sr),
         orig_device=sd.device,
@@ -556,10 +591,14 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         cmd = [
             "ffmpeg",
             "-y",  # force overwrite
-            "-ss", str(sd.buf_seg.offset_sec),
-            "-i", sd.path,
-            "-t", str(sd.buf_seg.duration_sec),
-            "-c", "copy",
+            "-ss",
+            str(sd.buf_seg.offset_sec),
+            "-i",
+            sd.path,
+            "-t",
+            str(sd.buf_seg.duration_sec),
+            "-c",
+            "copy",
             out_path,
         ]
         logger.debug(f"run: {' '.join(cmd)}")
@@ -572,7 +611,9 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         file_size_bytes = os.path.getsize(out_path)
         sr.video_size_mb = round(file_size_bytes / (1024 * 1024), 1)
         if sd.buf_seg.duration_sec > 0:
-            sr.video_rate_mbpm = round((file_size_bytes * 8) / (sd.buf_seg.duration_sec * 1024 * 1024), 1)
+            sr.video_rate_mbpm = round(
+                (file_size_bytes * 8) / (sd.buf_seg.duration_sec * 1024 * 1024), 1
+            )
         sr.success = True
     except subprocess.CalledProcessError as e:
         logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
@@ -585,8 +626,10 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
 
     return sr
 
-def _write_sidecar(sidecar_path: str, sr: SplitResult,
-                   verbose: bool = False, out_func=print) -> None:
+
+def _write_sidecar(
+    sidecar_path: str, sr: SplitResult, verbose: bool = False, out_func=print
+) -> None:
     """Write sidecar JSON file with split result metadata.
 
     :param sidecar_path: Path to write sidecar JSON file
@@ -596,18 +639,21 @@ def _write_sidecar(sidecar_path: str, sr: SplitResult,
     :raises IOError: If the file cannot be written
     """
     logger.info(f"Writing sidecar JSON to: {sidecar_path}")
-    with open(sidecar_path, 'w') as f:
+    with open(sidecar_path, "w") as f:
         f.write(sr.model_dump_json(indent=2))
-        f.write('\n')
+        f.write("\n")
     logger.debug("Sidecar JSON file written successfully")
     if verbose:
         out_func(f"Sidecar JSON written to: {sidecar_path}")
 
 
 def _resolve_sidecar_path(
-    sidecar_json: str, resolved_output: str,
-    index: int, start_dt: datetime, end_dt: datetime,
-    duration_sec: float
+    sidecar_json: str,
+    resolved_output: str,
+    index: int,
+    start_dt: datetime,
+    end_dt: datetime,
+    duration_sec: float,
 ) -> str:
     """Resolve sidecar path for a spec entry.
 
@@ -662,10 +708,15 @@ def _do_main_specs(
             "Add {n} to output path, e.g.: -o output_{n}.mkv"
         )
 
-    if (sidecar_json is not None and sidecar_json != "auto"
-            and len(specs) > 1 and not _has_template_tokens(sidecar_json)):
+    if (
+        sidecar_json is not None
+        and sidecar_json != "auto"
+        and len(specs) > 1
+        and not _has_template_tokens(sidecar_json)
+    ):
         raise ValueError(
-            "Multiple --spec provided but --sidecar-json path contains no template token. "
+            "Multiple --spec provided but --sidecar-json path "
+            "contains no template token. "
             "Add {n} to sidecar path, e.g.: --sidecar-json=meta_{n}.json"
         )
 
@@ -683,30 +734,36 @@ def _do_main_specs(
             is_time_only = raw
             sel_start = _parse_ts(entry.start_str, is_time_only)
             sel_duration = (
-                _parse_interval_sec(entry.duration_str)
-                if entry.duration_str else None
+                _parse_interval_sec(entry.duration_str) if entry.duration_str else None
             )
-            sel_end = (
-                _parse_ts(entry.end_str, is_time_only)
-                if entry.end_str else None
-            )
+            sel_end = _parse_ts(entry.end_str, is_time_only) if entry.end_str else None
 
             # C) Calculate split data
             sd = _calc_split_data(
-                input_path, sel_start, sel_duration, sel_end,
-                buf_before_sec, buf_after_sec, bp,
-                video_audit_file, raw_mode=raw,
+                input_path,
+                sel_start,
+                sel_duration,
+                sel_end,
+                buf_before_sec,
+                buf_after_sec,
+                bp,
+                video_audit_file,
+                raw_mode=raw,
             )
 
             if not sd.success:
-                logger.error(f"Spec [{idx}] '{spec_str}': split data calculation failed.")
+                logger.error(
+                    f"Spec [{idx}] '{spec_str}': split data calculation failed."
+                )
                 failures += 1
                 continue
 
             # D) Expand output template
             out_path = _expand_output_template(
-                output_template, idx,
-                sd.sel_seg.start_ts, sd.sel_seg.end_ts,
+                output_template,
+                idx,
+                sd.sel_seg.start_ts,
+                sd.sel_seg.end_ts,
                 sd.sel_seg.duration_sec,
             )
 
@@ -729,8 +786,11 @@ def _do_main_specs(
             # F) Write sidecar JSON
             if sidecar_json is not None:
                 sidecar_path = _resolve_sidecar_path(
-                    sidecar_json, out_path, idx,
-                    sd.sel_seg.start_ts, sd.sel_seg.end_ts,
+                    sidecar_json,
+                    out_path,
+                    idx,
+                    sd.sel_seg.start_ts,
+                    sd.sel_seg.end_ts,
                     sd.sel_seg.duration_sec,
                 )
                 _write_sidecar(sidecar_path, sr, verbose, out_func)
@@ -744,20 +804,20 @@ def _do_main_specs(
 
 
 def do_main(
-        input_path: str,
-        output_path: str,
-        start_time: str | None = None,
-        duration: str | None = None,
-        end_time: str | None = None,
-        buffer_before: str | None = None,
-        buffer_after: str | None = None,
-        buffer_policy: str = "strict",
-        sidecar_json: str | None = None,
-        video_audit_file: str | None = None,
-        raw: bool = False,
-        verbose: bool = False,
-        specs: tuple = (),
-        out_func=print,
+    input_path: str,
+    output_path: str,
+    start_time: str | None = None,
+    duration: str | None = None,
+    end_time: str | None = None,
+    buffer_before: str | None = None,
+    buffer_after: str | None = None,
+    buffer_policy: str = "strict",
+    sidecar_json: str | None = None,
+    video_audit_file: str | None = None,
+    raw: bool = False,
+    verbose: bool = False,
+    specs: tuple = (),
+    out_func=print,
 ) -> int:
     """Main entry point for split_video module.
 
@@ -840,7 +900,9 @@ def do_main(
         elif start_time and end_time:
             specs = (f"{start_time}//{end_time}",)
         else:
-            logger.error("Either --spec or --start with --duration/--end must be provided.")
+            logger.error(
+                "Either --spec or --start with --duration/--end must be provided."
+            )
             return 1
 
     try:
@@ -861,4 +923,3 @@ def do_main(
         logger.error(f"Spec validation error: {e}")
         out_func(f"ERROR: {e}")
         return 5
-
