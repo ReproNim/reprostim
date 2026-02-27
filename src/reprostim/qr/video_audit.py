@@ -10,16 +10,14 @@ suitable for quality control, sharing, and further analysis.
 """
 
 import csv
-import getpass
-import json
 import fnmatch
+import json
 import logging
 import os
 import re
-import socket
 import subprocess
-import traceback
 import tempfile
+import traceback
 from datetime import datetime
 from enum import Enum
 from time import time
@@ -128,9 +126,11 @@ class VaRecord(BaseModel):
     file_log_coherent: bool = False  # whether video/audio info matches extracted
 
     # Update info
-    no_signal_updated_on: str = "n/a" # provide separate timestamps for nosignal ext tool
-    qr_updated_on: str = "n/a" # provide separate timestamps for qr ext tool
-    updated_on: str = "n/a" # last updated timestamp for basic internal processing
+    no_signal_updated_on: str = (
+        "n/a"  # provide separate timestamps for nosignal ext tool
+    )
+    qr_updated_on: str = "n/a"  # provide separate timestamps for qr ext tool
+    updated_on: str = "n/a"  # last updated timestamp for basic internal processing
     # updated_by: str = "n/a"
 
 
@@ -175,10 +175,16 @@ class VaContext(BaseModel):
     nosignal_log_dir: Optional[str] = "logs/nosignal"
     """Directory to store nosignal logs.
     """
-    nosignal_opts: Optional[List] = ["--number-of-checks", "100",
-                                     "--truncated", "fixup",
-                                     "--invalid-timing", "fixup",
-                                     "--threshold", "1.01",]
+    nosignal_opts: Optional[List] = [
+        "--number-of-checks",
+        "100",
+        "--truncated",
+        "fixup",
+        "--invalid-timing",
+        "fixup",
+        "--threshold",
+        "1.01",
+    ]
     """Additional options to pass to detect-noscreen tool.
     """
     path_mask: Optional[str] = None
@@ -471,6 +477,39 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
     return records
 
 
+_tsv_cache: Dict[str, List[VaRecord]] = {}
+
+
+def _get_tsv_records(path_in: str, cached: bool = False) -> List[VaRecord]:
+    """Load TSV records from a file, optionally using a module-level cache.
+
+    When ``cached=True`` and the file has already been loaded, returns the
+    cached list immediately without acquiring the file lock. If the cache is
+    cold, falls back to loading under a file lock and populates the cache.
+
+    When ``cached=False`` (default), always reloads from disk under a file
+    lock and refreshes the cache entry for ``path_in``.
+
+    :param path_in: Path to the TSV file to load.
+    :type path_in: str
+
+    :param cached: If ``True``, return cached data when available; if
+                   ``False``, always reload from disk and refresh the cache.
+                   Default: ``False``.
+    :type cached: bool
+
+    :return: List of VaRecord objects loaded from the TSV file.
+    :rtype: List[VaRecord]
+    """
+    if cached and path_in in _tsv_cache:
+        return _tsv_cache[path_in]
+    lock = FileLock(f"{path_in}.lock", timeout=5)
+    with lock:
+        records = _load_tsv(path_in)
+        _tsv_cache[path_in] = records
+    return records
+
+
 def _compare_rec_ts(r1: VaRecord, r2: VaRecord, field: str = "updated_on") -> int:
     """Compare two VaRecord objects based on their timestamp field.
 
@@ -561,11 +600,13 @@ def _merge_rec(ctx: VaContext, rec_cur: VaRecord, rec_new: VaRecord) -> VaRecord
 
     return rec
 
-def _merge_recs(ctx: VaContext,
-               recs0: List[VaRecord], # old original videos.tsv records
-               recs_cur: List[VaRecord], # current latest transactional videos.tsv records
-               recs_new: List[VaRecord], # new records to merge based on recs0
-               ):
+
+def _merge_recs(
+    ctx: VaContext,
+    recs0: List[VaRecord],  # old original videos.tsv records
+    recs_cur: List[VaRecord],  # current latest transactional videos.tsv records
+    recs_new: List[VaRecord],  # new records to merge based on recs0
+):
     # before any merging check if recs0 and recs_cur are the same and skip merge
     if _match_recs(recs0, recs_cur):
         logger.debug("_merge_recs: No changes in recs_cur since load, skipping merge")
@@ -578,7 +619,9 @@ def _merge_recs(ctx: VaContext,
 
     # (B) when mode is [force] - merge all records from recs into recs_cur
     if ctx.mode == VaMode.FORCE:
-        logger.debug("_merge_recs: Force mode, merging all new records over existing ones")
+        logger.debug(
+            "_merge_recs: Force mode, merging all new records over existing ones"
+        )
         if len(recs_cur) > 0:
             merged_dict = {r.name: r for r in recs_cur}
             merged_dict.update({r.name: r for r in recs_new})
@@ -592,7 +635,9 @@ def _merge_recs(ctx: VaContext,
     # (D) when mode is [incremental] - add only new records from recs if timestamp
     # is older than in recs_cur
     if ctx.mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA, VaMode.INCREMENTAL}:
-        logger.debug(f"_merge_recs: {ctx.mode} mode, merging selectively based on timestamps")
+        logger.debug(
+            f"_merge_recs: {ctx.mode} mode, merging selectively based on timestamps"
+        )
         if len(recs_cur) > 0:
             # first build dict of current records
             merged_dict = {r.name: r for r in recs_cur}
@@ -600,11 +645,7 @@ def _merge_recs(ctx: VaContext,
             for rec in recs_new:
                 # existing record, need to merge manually
                 if rec.name in merged_dict:
-                    merged_dict[rec.name] = _merge_rec(
-                        ctx,
-                        merged_dict[rec.name],
-                        rec
-                    )
+                    merged_dict[rec.name] = _merge_rec(ctx, merged_dict[rec.name], rec)
                 else:
                     # new record, just add it
                     merged_dict[rec.name] = rec
@@ -770,10 +811,7 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     yield vr
 
 
-def do_audit_dir(
-    ctx:  VaContext,
-    path: str
-) -> Generator[VaRecord, None, None]:
+def do_audit_dir(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
     """Audit video files in directory with .mkv, .mp4, .avi extensions.
 
     :param ctx: VaContext object with processing context
@@ -817,8 +855,7 @@ def do_audit_dir(
 
 
 def do_audit_internal(
-    ctx: VaContext,
-    paths_dir_or_file: List[str]
+    ctx: VaContext, paths_dir_or_file: List[str]
 ) -> Generator[VaRecord, None, None]:
     """Audit a single video file or all video files in a directory.
 
@@ -832,7 +869,8 @@ def do_audit_internal(
     :rtype: Generator[VaRecord, None, None]
     """
     logger.debug(
-        f"do_audit_internal(paths_dir_or_file={paths_dir_or_file}, " f"recursive={ctx.recursive})"
+        f"do_audit_internal(paths_dir_or_file={paths_dir_or_file}, "
+        f"recursive={ctx.recursive})"
     )
 
     # check source is INTERNAL or ALL
@@ -873,7 +911,9 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     :return: Updated VaRecord object
     :rtype: VaRecord
     """
-    logger.debug(f"run_ext_nosignal(path={vr.path}, no_signal_frames={vr.no_signal_frames})")
+    logger.debug(
+        f"run_ext_nosignal(path={vr.path}, no_signal_frames={vr.no_signal_frames})"
+    )
 
     # check mode is NOSIGNAL or ALL
     if not ctx.source & {VaSource.NOSIGNAL, VaSource.ALL}:
@@ -910,7 +950,7 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     os.makedirs(ctx.nosignal_log_dir, exist_ok=True)
 
     # build paths
-    base_name = os.path.basename(vr.path)
+    # base_name = os.path.basename(vr.path)
     json_path = _build_dated_path(vr, ctx.nosignal_data_dir, "nosignal.json")
     log_path = _build_dated_path(vr, ctx.nosignal_log_dir, "nosignal.log")
 
@@ -944,7 +984,9 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
                         text=True,
                         check=True,
                     )
-                    logger.debug(f"detect-noscreen completed with return code {result.returncode}")
+                    logger.debug(
+                        f"detect-noscreen completed with return code {result.returncode}"
+                    )
             except subprocess.CalledProcessError as e:
                 logger.error(f"detect-noscreen failed: {e} {e.stdout} {e.stderr}")
                 return vr
@@ -956,7 +998,9 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
                         data = json.load(f)
                         logger.debug(f"detect-noscreen output data: {data}")
                         if "nosignal_rate" in data:
-                            vr.no_signal_frames = f"{float(data['nosignal_rate']) * 100:.1f}"
+                            vr.no_signal_frames = (
+                                f"{float(data['nosignal_rate']) * 100:.1f}"
+                            )
                         else:
                             vr.no_signal_frames = "0.0"
                     logger.debug(f"Set no_signal_frames -> {vr.no_signal_frames}")
@@ -972,7 +1016,6 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
     return vr
 
 
-
 def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
     """Run qr-parse external tool on the specified VaRecord.
 
@@ -986,7 +1029,9 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
     :rtype: VaRecord
     """
 
-    logger.debug(f"run_ext_qr(path={vr.path}, qr_records_number={vr.qr_records_number})")
+    logger.debug(
+        f"run_ext_qr(path={vr.path}, qr_records_number={vr.qr_records_number})"
+    )
 
     # check mode is QR or ALL
     if not ctx.source & {VaSource.QR, VaSource.ALL}:
@@ -1049,21 +1094,21 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                     # convert to mkv without audio
                     # like: ffmpeg -i "$file" -an -c copy "$tmp_mkv_file"
                     logger.debug(f"ffmpeg_log_path : {ffmpeg_log_path}")
-                    with open(ffmpeg_log_path, "w", encoding="utf-8") as ffmpeg_log_file:
-                        cmd = [
-                            "ffmpeg",
-                            "-i", vr.path,
-                            "-an",
-                            "-c", "copy",
-                            tmp_video
-                        ]
+                    with open(
+                        ffmpeg_log_path, "w", encoding="utf-8"
+                    ) as ffmpeg_log_file:
+                        cmd = ["ffmpeg", "-i", vr.path, "-an", "-c", "copy", tmp_video]
                         logger.debug(f"cmd: {' '.join(cmd)}")
-                        result = subprocess.run(cmd,
-                                       stdout = ffmpeg_log_file,
-                                       stderr = subprocess.STDOUT,
-                                       text = True,
-                                       check = True,)
-                        logger.debug(f"ffmpeg completed with return code {result.returncode}")
+                        result = subprocess.run(
+                            cmd,
+                            stdout=ffmpeg_log_file,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            check=True,
+                        )
+                        logger.debug(
+                            f"ffmpeg completed with return code {result.returncode}"
+                        )
 
                     # execute qr-parse action like below:
                     #
@@ -1097,7 +1142,10 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                                 text=True,
                                 check=True,
                             )
-                            logger.debug(f"qr-parse completed with return code {result.returncode}")
+                            logger.debug(
+                                f"qr-parse completed with return code "
+                                f"{result.returncode}"
+                            )
 
                     # set default value first to prevent stale n/a data for qr-parse
                     vr.qr_records_number = "-1"
@@ -1111,8 +1159,13 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                                     record = json.loads(line)
                                     if record.get("type") == "ParseSummary":
                                         logger.debug(f"qr-parse summary: {record}")
-                                        vr.qr_records_number = str(record.get('qr_count', '0'))
-                                        logger.debug(f"Set qr_records_number -> {vr.qr_records_number}")
+                                        vr.qr_records_number = str(
+                                            record.get("qr_count", "0")
+                                        )
+                                        logger.debug(
+                                            f"Set qr_records_number -> "
+                                            f"{vr.qr_records_number}"
+                                        )
                                         _set_updated(ctx, vr, field="qr_updated_on")
                                         ctx.c_qr += 1
                                         logger.debug(f"c_qr -> {ctx.c_qr}")
@@ -1121,7 +1174,6 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
                             logger.error(f"Failed to read/parse qr JSON output: {e}")
                     else:
                         logger.info(f"No qr-parse output JSON file found: {jsonl_path}")
-
 
                 except subprocess.CalledProcessError as e:
                     logger.error(f"qr failed: {e} {e.stdout} {e.stderr}")
@@ -1148,7 +1200,9 @@ def run_ext_all(ctx: VaContext, vr: VaRecord) -> VaRecord:
     return run_ext_qr(ctx, run_ext_nosignal(ctx, vr))
 
 
-def do_audit(ctx: VaContext, paths_dir_or_file: List[str]) -> Generator[VaRecord, None, None]:
+def do_audit(
+    ctx: VaContext, paths_dir_or_file: List[str]
+) -> Generator[VaRecord, None, None]:
     """Generator that audits files and applies all external tools to
     each record if any, depending on context and options.
     """
@@ -1157,12 +1211,13 @@ def do_audit(ctx: VaContext, paths_dir_or_file: List[str]) -> Generator[VaRecord
         yield run_ext_all(ctx, rec)
 
 
-def do_ext(ctx: VaContext, recs: List[VaRecord],
-           paths_dir_or_file: List[str]) -> Generator[VaRecord, None, None]:
+def do_ext(
+    ctx: VaContext, recs: List[VaRecord], paths_dir_or_file: List[str]
+) -> Generator[VaRecord, None, None]:
     """Generator that runs external tools on existing records
     depending on context and options.
     """
-    logger.debug(f"do_ext(...)")
+    logger.debug("do_ext(...)")
 
     has_filter = bool(paths_dir_or_file)
 
@@ -1183,8 +1238,6 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
         else:
             logger.error(f"Path does not exist: {path}")
 
-
-
     for rec in recs:
         # filter by paths when specified
         f_match: bool = False
@@ -1197,7 +1250,11 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
                 f_match = True
 
             # check path starts with one of dir names
-            if not f_match and path_dirs and any(rec.path.startswith(d) for d in path_dirs):
+            if (
+                not f_match
+                and path_dirs
+                and any(rec.path.startswith(d) for d in path_dirs)
+            ):
                 logger.debug(f"Matched ext record by DIR filter: {rec.path}")
                 f_match = True
 
@@ -1210,42 +1267,52 @@ def do_ext(ctx: VaContext, recs: List[VaRecord],
         yield run_ext_all(ctx, rec)
 
 
-def get_file_video_audit(path: str, path_tsv: str=None) -> VaRecord:
+def get_file_video_audit(
+    path: str, path_tsv: str = None, cached: bool = False
+) -> VaRecord:
     """Get a single VaRecord by auditing a single video file.
 
-    :param path: Path to the video file
+    :param path: Path to the video file.
     :type path: str
 
-    :param path_tsv: Optional path to existing TSV file to load existing records
-                     Default: None
+    :param path_tsv: Optional path to existing TSV file to load existing
+                     records from. Default: None.
+    :type path_tsv: str
 
-    :return: VaRecord object
+    :param cached: If ``True``, return cached TSV data when available instead
+                   of reloading from disk. Passed through to
+                   :func:`_get_tsv_records`. Default: ``False``.
+    :type cached: bool
+
+    :return: VaRecord object.
     :rtype: VaRecord
     """
 
-    logger.debug(f"get_file_video_audit(path={path}, path_tsv={path_tsv})")
+    logger.debug(
+        f"get_file_video_audit(path={path}, path_tsv={path_tsv}, cached={cached})"
+    )
 
     # If path_tsv is provided and exists, try to load record from TSV
     if path_tsv and os.path.exists(path_tsv):
         logger.debug(f"Loading video audit record from TSV: {path_tsv}")
-        lock = FileLock(f"{path_tsv}.lock", timeout=5)
         try:
-            records: List[VaRecord] = []
-
-            # only load records to reduce lock time
-            with lock:
-                records = _load_tsv(path_tsv)
-                # Search for matching record by path
+            records: List[VaRecord] = _get_tsv_records(path_tsv, cached=cached)
 
             for rec in records:
                 if rec.path == path:
                     logger.debug(f"Found matching record in TSV for: {path}")
                     return rec
-            logger.debug(f"No matching record found in TSV for: {path}, falling back to audit")
+            logger.debug(
+                f"No matching record found in TSV for: {path}, falling back to audit"
+            )
         except Timeout:
-            logger.warning(f"Timeout acquiring lock for {path_tsv}, falling back to audit")
+            logger.warning(
+                f"Timeout acquiring lock for {path_tsv}, falling back to audit"
+            )
         except Exception as e:
-            logger.warning(f"Error loading TSV file {path_tsv}: {e}, falling back to audit")
+            logger.warning(
+                f"Error loading TSV file {path_tsv}: {e}, falling back to audit"
+            )
 
     # Fall back to auditing the file directly
     logger.debug(f"Auditing video file directly: {path}")
@@ -1269,7 +1336,7 @@ def do_main(
     path_tsv: str,
     recursive: bool = False,
     mode: VaMode = VaMode.INCREMENTAL,
-    va_src: Set[VaSource] = {VaSource.INTERNAL},
+    va_src: Set[VaSource] = None,
     max_files: int = -1,
     path_mask: str = None,
     verbose: bool = False,
@@ -1290,7 +1357,8 @@ def do_main(
     :param mode: Operation mode, one of VaMode values (default: INCREMENTAL)
     :type mode: VaMode
 
-    :param va_src: Set of VaSource values to specify audit sources
+    :param va_src: Set of VaSource values to specify audit sources.
+                   Default: ``{VaSource.INTERNAL}``.
     :type va_src: Set[VaSource]
 
     :param max_files: Maximum number of video files/records to process.
@@ -1310,6 +1378,9 @@ def do_main(
     :return: 0 on success, 1 on failure
     :rtype: int
     """
+
+    if va_src is None:
+        va_src = {VaSource.INTERNAL}
 
     logger.debug("video-audit command")
     logger.debug(f"paths     : {paths}")
