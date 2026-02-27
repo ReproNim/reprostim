@@ -88,6 +88,11 @@ class BiContext(BaseModel):
         description="Optional path to videos.tsv audit file used to look up "
         "matching video records by time range",
     )
+    time_offset: float = Field(
+        default=0.0,
+        description="Clock offset in seconds added to acq_time values after "
+        "timezone normalisation to handle security functionality if any.",
+    )
 
 
 class ScanMetadata(BaseModel):
@@ -379,6 +384,7 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
 
 def _calc_scan_start_end_ts(
     record: ScanRecord,
+    time_offset: float = 0.0,
 ) -> Optional[Tuple[datetime, datetime]]:
     """Calculate scan start and end timestamps from a :class:`ScanRecord`.
 
@@ -388,11 +394,18 @@ def _calc_scan_start_end_ts(
     objects — any UTC offset present in ``acq_time`` is stripped before
     returning, matching the ReproStim convention of naive local-time datetimes.
 
+    An optional *time_offset* (in seconds) is applied to  timestamps
+    to compensate security clock shift.
+
     Returns ``None`` when :attr:`ScanRecord.duration_sec` is ``None``
     (i.e. duration could not be determined).
 
     :param record: Scan record with ``acq_time`` and ``duration_sec`` populated.
     :type record: ScanRecord
+    :param time_offset: Clock offset in seconds added to the start timestamp
+        for security reasons. Positive values shift timestamps forward.
+        Defaults to ``0.0`` (no adjustment).
+    :type time_offset: float
     :returns: ``(start_ts, end_ts)`` as naive :class:`datetime.datetime` objects,
         or ``None`` if the duration is unavailable.
     :rtype: Optional[Tuple[datetime, datetime]]
@@ -405,11 +418,15 @@ def _calc_scan_start_end_ts(
         return None
 
     start_dt = datetime.fromisoformat(record.acq_time).replace(tzinfo=None)
-    end_dt = start_dt + timedelta(seconds=record.duration_sec)
 
     # Note: in future convert time from BIDS data set to reprostim time zone
     # (e.g. local) before returning, to match the ReproStim convention of
     # naive local-time datetimes
+
+    if time_offset:
+        start_dt += timedelta(seconds=time_offset)
+
+    end_dt = start_dt + timedelta(seconds=record.duration_sec)
     return start_dt, end_dt
 
 
@@ -435,7 +452,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 sr.duration_sec = _calc_scan_duration_sec(sr)
                 logger.info(f"Scan duration          : {sr.duration_sec} s")
 
-                start_ts, end_ts = _calc_scan_start_end_ts(sr)
+                start_ts, end_ts = _calc_scan_start_end_ts(sr, ctx.time_offset)
                 logger.info(
                     f"Scan start_ts          : "
                     f"{start_ts.isoformat() if start_ts else None}"
@@ -451,7 +468,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                     )
                     logger.info(f"Matching video records : {len(va_records)}")
                     for va in va_records:
-                        logger.debug(f"  video record         : {va.name}")
+                        logger.info(f"                       : {va.name}")
                         logger.debug(f"                       : {va.model_dump()}")
 
             else:
@@ -578,7 +595,11 @@ def do_main(
     :rtype: int
     """
     ctx: BiContext = BiContext(
-        dry_run=dry_run, recursive=recursive, match=match, videos_tsv=videos_tsv
+        dry_run=dry_run,
+        recursive=recursive,
+        match=match,
+        videos_tsv=videos_tsv,
+        time_offset=time_offset,
     )
 
     _do_inject_all(ctx, paths)
