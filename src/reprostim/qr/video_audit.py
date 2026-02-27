@@ -1331,6 +1331,81 @@ def get_file_video_audit(
     return next(do_audit_file(ctx, path), None)
 
 
+def _parse_rec_datetime(date_str: str, time_str: str) -> Optional[datetime]:
+    """Parse a VaRecord date/time string pair into a datetime object.
+
+    :param date_str: Date string in ``'YYYY-MM-DD'`` format, or ``'n/a'``.
+    :type date_str: str
+
+    :param time_str: Time string in ``'HH:MM:SS.mmm'`` format, or ``'n/a'``.
+    :type time_str: str
+
+    :return: Parsed datetime object, or ``None`` if either value is ``'n/a'``
+             or parsing fails.
+    :rtype: Optional[datetime]
+    """
+    if date_str == "n/a" or time_str == "n/a":
+        return None
+    try:
+        return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S.%f")
+    except ValueError:
+        return None
+
+
+def find_video_audit_by_timerange(
+    path_tsv: str,
+    start: datetime,
+    end: datetime,
+    cached: bool = False,
+) -> List[VaRecord]:
+    """Find all VaRecords whose recording interval intersects the given
+    time range, sorted by record start time ascending.
+
+    A record intersects ``[start, end]`` when its start is before ``end``
+    and its end is after ``start``. Records with no valid end timestamp
+    (incomplete recordings) are included when their start is before ``end``.
+
+    :param path_tsv: Path to the TSV file to search.
+    :type path_tsv: str
+
+    :param start: Start of the query time range (inclusive).
+    :type start: datetime
+
+    :param end: End of the query time range (inclusive).
+    :type end: datetime
+
+    :param cached: If ``True``, return cached TSV data when available instead
+                   of reloading from disk. Default: ``False``.
+    :type cached: bool
+
+    :return: List of matching VaRecord objects sorted by start time ascending.
+    :rtype: List[VaRecord]
+    """
+    logger.debug(
+        f"find_video_audit_by_timerange(path_tsv={path_tsv},"
+        f" start={start}, end={end}, cached={cached})"
+    )
+
+    records = _get_tsv_records(path_tsv, cached=cached)
+
+    # Note: in the future, consider optimizing this by caching parsed start/end_ts
+    # in VaRecord and/or using a more efficient data structure for lookups
+    result: List[VaRecord] = []
+    for rec in records:
+        rec_start = _parse_rec_datetime(rec.start_date, rec.start_time)
+        if rec_start is None:
+            continue
+        if rec_start >= end:
+            continue
+        rec_end = _parse_rec_datetime(rec.end_date, rec.end_time)
+        if rec_end is not None and rec_end <= start:
+            continue
+        result.append(rec)
+
+    result.sort(key=lambda r: _parse_rec_datetime(r.start_date, r.start_time))
+    return result
+
+
 def do_main(
     paths: List[str],
     path_tsv: str,
