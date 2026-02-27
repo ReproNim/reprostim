@@ -93,6 +93,30 @@ class BiContext(BaseModel):
         description="Clock offset in seconds added to acq_time values after "
         "timezone normalisation to handle security functionality if any.",
     )
+    buffer_before: str = Field(
+        default="0",
+        description="Extra video to include before scan onset. "
+        "Accepts seconds (e.g. '10') or ISO 8601 duration (e.g. 'PT10S').",
+    )
+    buffer_after: str = Field(
+        default="0",
+        description="Extra video to include after scan end. "
+        "Accepts seconds (e.g. '10') or ISO 8601 duration (e.g. 'PT10S').",
+    )
+    buffer_policy: str = Field(
+        default="flexible",
+        description="Policy for handling buffer overflow beyond video boundaries: "
+        "'strict' to error, 'flexible' to trim.",
+    )
+    verbose: bool = Field(
+        default=False,
+        description="When True, emit verbose progress output.",
+    )
+    out_func: Optional[Callable] = Field(
+        default=None,
+        description="Callable used for user-facing output (e.g. click.echo). "
+        "When None, output is suppressed.",
+    )
 
 
 class ScanMetadata(BaseModel):
@@ -430,6 +454,150 @@ def _calc_scan_start_end_ts(
     return start_dt, end_dt
 
 
+def _calc_media_suffix(va) -> Optional[MediaSuffix]:
+    """Determine the BEP044 recording-type suffix from a video-audit record.
+
+    Inspects ``video_res_detected`` and ``audio_sr`` fields of *va* per the
+    decision table in the spec:
+
+    +----------------------+----------------+---------------+
+    | ``video_res_detected``| ``audio_sr``  | Suffix        |
+    +======================+================+===============+
+    | present              | present        | ``_audiovideo``|
+    +----------------------+----------------+---------------+
+    | present              | absent / ``n/a``| ``_video``   |
+    +----------------------+----------------+---------------+
+    | absent / ``n/a``     | present        | ``_audio``    |
+    +----------------------+----------------+---------------+
+    | absent / ``n/a``     | absent / ``n/a``| ``None``     |
+    +----------------------+----------------+---------------+
+
+    Returns ``None`` when neither stream is detected; the caller should skip
+    the injection and log a warning.
+
+    :param va: Video-audit record from ``videos.tsv``.
+    :returns: Appropriate :class:`MediaSuffix`, or ``None`` to skip.
+    :rtype: Optional[MediaSuffix]
+    """
+    has_video = bool(va.video_res_detected and va.video_res_detected != "n/a")
+    has_audio = bool(va.audio_sr and va.audio_sr != "n/a")
+
+    if has_video and has_audio:
+        return MediaSuffix.AUDIOVIDEO
+    elif has_video:
+        return MediaSuffix.VIDEO
+    elif has_audio:
+        return MediaSuffix.AUDIO
+
+    logger.warning(
+        f"Cannot determine media suffix: no video or audio stream detected "
+        f"in {va.name!r}"
+    )
+    return None
+
+
+def _calc_bids_output_stem(filename: str) -> str:
+    """Derive the output filename stem by stripping the BIDS datatype suffix.
+
+    Removes the ``.nii`` / ``.nii.gz`` extension and then strips the last
+    BIDS suffix token (e.g. ``_bold``, ``_T1w``) — the trailing
+    ``_[A-Za-z][A-Za-z0-9]*`` segment — so the caller can append a
+    recording-type suffix such as ``_recording-reprostim_audiovideo``.
+
+    :param filename: Relative NIfTI path from the scan record, e.g.
+        ``func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz``.
+    :type filename: str
+    :returns: Stem without BIDS suffix, e.g.
+        ``func/sub-qa_ses-20250814_acq-faX77``.
+    :rtype: str
+    """
+    stem = re.sub(r"\.nii(\.gz)?$", "", filename)
+    return re.sub(r"_[A-Za-z][A-Za-z0-9]*$", "", stem)
+
+
+def _call_split_video(
+    ctx: BiContext,
+    scans_path: str,
+    record: ScanRecord,
+    va,
+    start_ts: datetime,
+    end_ts: datetime,
+) -> None:
+    """Invoke split-video for a single matched video record.
+
+    Resolves the input video path from the ``videos.tsv`` directory and
+    derives the output path from the ``*_scans.tsv`` location and scan
+    filename stem.  Respects ``ctx.dry_run`` — when set, logs the planned
+    action without executing the split.
+
+    :param ctx: Processing context with buffer, policy, and dry-run settings.
+    :type ctx: BiContext
+    :param scans_path: Absolute path to the ``*_scans.tsv`` file being processed.
+    :type scans_path: str
+    :param record: Scan record being injected.
+    :type record: ScanRecord
+    :param va: Matched video-audit record from ``videos.tsv``.
+    :param start_ts: Scan start timestamp (after time-offset applied).
+    :type start_ts: datetime
+    :param end_ts: Scan end timestamp.
+    :type end_ts: datetime
+    """
+    media_suffix = _calc_media_suffix(va)
+    if media_suffix is None:
+        logger.warning(
+            f"Skipping injection: cannot determine media suffix ({record.filename})"
+        )
+        return
+
+    videos_dir = os.path.dirname(os.path.abspath(ctx.videos_tsv))
+    input_path = os.path.join(videos_dir, va.path)
+    scans_dir = os.path.dirname(os.path.abspath(scans_path))
+    stem = _calc_bids_output_stem(record.filename)
+    output_path = os.path.join(
+        scans_dir, stem + f"_recording-reprostim{media_suffix.value}.mkv"
+    )
+    sidecar_path = output_path[: -len(".mkv")] + ".json"
+
+    logger.info(f"Input video path       : {input_path}")
+    logger.info(f"Output video path      : {output_path}")
+    logger.info(f"Sidecar JSON path      : {sidecar_path}")
+
+    if ctx.dry_run:
+        logger.info(
+            f"Dry-run                : split-video"
+            f" --video-audit-file {ctx.videos_tsv}"
+            f" --buffer-before {ctx.buffer_before}"
+            f" --buffer-after {ctx.buffer_after}"
+            f" --buffer-policy {ctx.buffer_policy}"
+            f" --sidecar-json {sidecar_path}"
+            f" --start {start_ts.isoformat()}"
+            f" --end {end_ts.isoformat()}"
+            f" --input {input_path}"
+            f" --output {output_path}"
+        )
+        return
+
+    from reprostim.qr.split_video import do_main as split_video_main
+
+    ret = split_video_main(
+        input_path=input_path,
+        output_path=output_path,
+        start_time=start_ts.isoformat(),
+        end_time=end_ts.isoformat(),
+        buffer_before=ctx.buffer_before,
+        buffer_after=ctx.buffer_after,
+        buffer_policy=ctx.buffer_policy,
+        sidecar_json=sidecar_path,
+        video_audit_file=ctx.videos_tsv,
+        verbose=ctx.verbose,
+        out_func=ctx.out_func or print,
+    )
+    if ret != 0:
+        logger.error(f"split-video failed with exit code {ret} ({record.filename})")
+    else:
+        logger.info(f"split-video completed successfully ({record.filename})")
+
+
 def _do_inject_scans(ctx: BiContext, path: str):
     """Process all scan records from a single ``*_scans.tsv`` file.
 
@@ -470,6 +638,22 @@ def _do_inject_scans(ctx: BiContext, path: str):
                     for va in va_records:
                         logger.info(f"                       : {va.name}")
                         logger.debug(f"                       : {va.model_dump()}")
+                    # Note: only process when 1 record provided, when 0 skip and
+                    # in case more than 1 records, log an error that multiple videos
+                    # are not supported yet  and skip as well (ambiguous match)
+                    n_va = len(va_records)
+                    if n_va == 0:
+                        logger.info("No matching video records found, skipping.")
+                    elif n_va > 1:
+                        logger.error(
+                            f"Ambiguous match: {n_va} video records overlap "
+                            f"the scan window. Multiple videos per scan are "
+                            f"not yet supported; skipping."
+                        )
+                    else:
+                        _call_split_video(
+                            ctx, path, sr, va_records[0], start_ts, end_ts
+                        )
 
             else:
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
@@ -600,6 +784,11 @@ def do_main(
         match=match,
         videos_tsv=videos_tsv,
         time_offset=time_offset,
+        buffer_before=buffer_before,
+        buffer_after=buffer_after,
+        buffer_policy=buffer_policy,
+        verbose=verbose,
+        out_func=out_func,
     )
 
     _do_inject_all(ctx, paths)
