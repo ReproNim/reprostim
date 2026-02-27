@@ -21,6 +21,8 @@ from typing import Callable, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
+from reprostim.qr.video_audit import find_video_audit_by_timerange
+
 # initialize the logger
 logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
@@ -80,6 +82,11 @@ class BiContext(BaseModel):
         default=".*",
         description="Regex pattern matched against ScanRecord.filename, "
         "only matching records are processed",
+    )
+    videos_tsv: Optional[str] = Field(
+        default=None,
+        description="Optional path to videos.tsv audit file used to look up "
+        "matching video records by time range",
     )
 
 
@@ -436,6 +443,17 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 logger.info(
                     f"Scan end_ts            : {end_ts.isoformat() if end_ts else None}"
                 )
+
+                # find matching video records in videos.tsv if any
+                if ctx.videos_tsv and start_ts and end_ts:
+                    va_records = find_video_audit_by_timerange(
+                        ctx.videos_tsv, start_ts, end_ts, cached=True
+                    )
+                    logger.info(f"Matching video records : {len(va_records)}")
+                    for va in va_records:
+                        logger.debug(f"  video record         : {va.name}")
+                        logger.debug(f"                       : {va.model_dump()}")
+
             else:
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
     else:
@@ -559,7 +577,9 @@ def do_main(
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
-    ctx: BiContext = BiContext(dry_run=dry_run, recursive=recursive, match=match)
+    ctx: BiContext = BiContext(
+        dry_run=dry_run, recursive=recursive, match=match, videos_tsv=videos_tsv
+    )
 
     _do_inject_all(ctx, paths)
 

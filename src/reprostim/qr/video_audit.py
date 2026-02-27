@@ -1361,9 +1361,9 @@ def find_video_audit_by_timerange(
     """Find all VaRecords whose recording interval intersects the given
     time range, sorted by record start time ascending.
 
-    A record intersects ``[start, end]`` when its start is before ``end``
-    and its end is after ``start``. Records with no valid end timestamp
-    (incomplete recordings) are included when their start is before ``end``.
+    Only records with both ``present`` and ``complete`` flags set to ``True``
+    are considered. A record intersects ``[start, end]`` when its start is
+    before ``end`` and its end is after ``start``.
 
     :param path_tsv: Path to the TSV file to search.
     :type path_tsv: str
@@ -1392,6 +1392,12 @@ def find_video_audit_by_timerange(
     # in VaRecord and/or using a more efficient data structure for lookups
     result: List[VaRecord] = []
     for rec in records:
+        if not rec.present or not rec.complete:
+            continue
+        if rec.start_date == "n/a" or rec.start_time == "n/a":
+            continue
+        if rec.end_date == "n/a" or rec.end_time == "n/a":
+            continue
         rec_start = _parse_rec_datetime(rec.start_date, rec.start_time)
         if rec_start is None:
             continue
