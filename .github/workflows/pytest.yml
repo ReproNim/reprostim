@@ -42,7 +42,7 @@ jobs:
         pwd
         ls -l
         echo "- STEP 1"
-        pip install --user "hatch==1.14.1" "click<8.3"
+        pip install --user "hatch==1.14.1" "click<8.3" "virtualenv<21"
         echo "- STEP 2"
         hatch env create
         echo "- STEP 3"
