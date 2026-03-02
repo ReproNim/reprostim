@@ -15,9 +15,11 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone, tzinfo
 from enum import Enum
+from functools import lru_cache
 from typing import Callable, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
@@ -115,6 +117,29 @@ class BiContext(BaseModel):
         "'top-stimuli': place output under stimuli/ at the BIDS root, "
         "mirroring the subject/session/datatype hierarchy.",
     )
+    reprostim_timezone: str = Field(
+        default="local",
+        description="Timezone name for naive ReproStim timestamps in videos.tsv. "
+        "Use 'local' for the OS timezone or an IANA name (e.g. 'America/New_York'). "
+        "Resolved to a tzinfo via reprostim_tz property (cached).",
+    )
+    bids_timezone: str = Field(
+        default="local",
+        description="Timezone name for naive BIDS acq_time values in _scans.tsv. "
+        "Use 'local' for the OS timezone or an IANA name (e.g. 'America/New_York'). "
+        "Resolved to a tzinfo via bids_tz property (cached).",
+    )
+
+    @property
+    def reprostim_tz(self) -> tzinfo:
+        """Resolved :class:`tzinfo` for :attr:`reprostim_timezone` (cached)."""
+        return dt_resolve_tz(self.reprostim_timezone)
+
+    @property
+    def bids_tz(self) -> tzinfo:
+        """Resolved :class:`tzinfo` for :attr:`bids_timezone` (cached)."""
+        return dt_resolve_tz(self.bids_timezone)
+
     lock: bool = Field(
         default=True,
         description="When True (default), acquire the advisory file lock before "
@@ -422,27 +447,33 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
 def _calc_scan_start_end_ts(
     record: ScanRecord,
     time_offset: float = 0.0,
+    reprostim_tz: Optional[tzinfo] = None,
+    bids_tz: Optional[tzinfo] = None,
 ) -> Optional[Tuple[datetime, datetime]]:
     """Calculate scan start and end timestamps from a :class:`ScanRecord`.
 
-    Parses :attr:`ScanRecord.acq_time` as the scan start datetime and adds
-    :attr:`ScanRecord.duration_sec` to derive the end datetime.  Both values
-    are returned as **timezone-neutral** (naive) :class:`datetime.datetime`
-    objects — any UTC offset present in ``acq_time`` is stripped before
-    returning, matching the ReproStim convention of naive local-time datetimes.
+    Parses :attr:`ScanRecord.acq_time` as the scan start datetime, applies
+    timezone conversion from BIDS domain to ReproStim domain (when
+    *reprostim_tz* and *bids_tz* are provided), optionally applies
+    *time_offset*, then derives the end timestamp from
+    :attr:`ScanRecord.duration_sec`.
 
-    An optional *time_offset* (in seconds) is applied to  timestamps
-    to compensate security clock shift.
+    Both timestamps are returned as naive :class:`datetime.datetime` objects
+    in the ReproStim timezone, matching the convention used in ``videos.tsv``.
 
-    Returns ``None`` when :attr:`ScanRecord.duration_sec` is ``None``
-    (i.e. duration could not be determined).
+    Returns ``None`` when :attr:`ScanRecord.duration_sec` is ``None``.
 
     :param record: Scan record with ``acq_time`` and ``duration_sec`` populated.
     :type record: ScanRecord
-    :param time_offset: Clock offset in seconds added to the start timestamp
-        for security reasons. Positive values shift timestamps forward.
-        Defaults to ``0.0`` (no adjustment).
+    :param time_offset: Clock offset in seconds added to the start timestamp.
+        Defaults to ``0.0``.
     :type time_offset: float
+    :param reprostim_tz: ReproStim capture machine timezone
+        (from ``--reprostim-timezone``). When ``None``, no conversion is done.
+    :type reprostim_tz: Optional[datetime.tzinfo]
+    :param bids_tz: BIDS dataset timezone (from ``--bids-timezone``).
+        When ``None``, no conversion is done.
+    :type bids_tz: Optional[datetime.tzinfo]
     :returns: ``(start_ts, end_ts)`` as naive :class:`datetime.datetime` objects,
         or ``None`` if the duration is unavailable.
     :rtype: Optional[Tuple[datetime, datetime]]
@@ -454,11 +485,10 @@ def _calc_scan_start_end_ts(
         )
         return None
 
-    start_dt = datetime.fromisoformat(record.acq_time).replace(tzinfo=None)
+    start_dt = dt_parse_bids(record.acq_time)
 
-    # Note: in future convert time from BIDS data set to reprostim time zone
-    # (e.g. local) before returning, to match the ReproStim convention of
-    # naive local-time datetimes
+    if reprostim_tz is not None and bids_tz is not None:
+        start_dt = dt_bids_to_reprostim(start_dt, bids_tz, reprostim_tz)
 
     if time_offset:
         start_dt += timedelta(seconds=time_offset)
@@ -716,7 +746,9 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 sr.duration_sec = _calc_scan_duration_sec(sr)
                 logger.info(f"Scan duration          : {sr.duration_sec} s")
 
-                start_ts, end_ts = _calc_scan_start_end_ts(sr, ctx.time_offset)
+                start_ts, end_ts = _calc_scan_start_end_ts(
+                    sr, ctx.time_offset, ctx.reprostim_tz, ctx.bids_tz
+                )
                 logger.info(
                     f"Scan start_ts          : "
                     f"{start_ts.isoformat() if start_ts else None}"
@@ -811,6 +843,176 @@ def _do_inject_all(ctx: BiContext, paths: List[str]):
 
 
 ####################################################################
+# Datetime / Timezone Public API
+####################################################################
+
+
+@lru_cache(maxsize=32)
+def dt_resolve_tz(name: str) -> tzinfo:
+    """Resolve a timezone name string to a :class:`datetime.tzinfo` object.
+
+    Results are cached via :func:`functools.lru_cache`, so repeated calls
+    with the same *name* are free after the first resolution.
+
+    :param name: ``'local'`` to use the OS system timezone, or any IANA
+        timezone name (e.g. ``'America/New_York'``, ``'UTC'``).
+    :type name: str
+    :returns: Corresponding :class:`tzinfo` instance.
+    :rtype: datetime.tzinfo
+    :raises ZoneInfoNotFoundError: If *name* is not a recognised IANA timezone.
+    """
+    if name.lower() == "local":
+        return datetime.now().astimezone().tzinfo
+    return ZoneInfo(name)
+
+
+def dt_tz_label(name: str) -> str:
+    """Return the current UTC offset for a timezone name, e.g. ``UTC-05:00``.
+
+    Resolves the timezone name via :func:`dt_resolve_tz` and formats the
+    UTC offset as ``"UTC±HH:MM"``, e.g. ``"UTC-05:00"`` or ``"UTC+00:00"``.
+
+    :param name: Timezone name accepted by :func:`dt_resolve_tz`.
+    :type name: str
+    :returns: UTC offset string.
+    :rtype: str
+    """
+    tz = dt_resolve_tz(name)
+    offset = datetime.now(tz).utcoffset()
+    total_sec = int(offset.total_seconds())
+    sign = "+" if total_sec >= 0 else "-"
+    h, m = divmod(abs(total_sec), 3600)
+    return f"UTC{sign}{h:02d}:{m // 60:02d}"
+
+
+def dt_parse_bids(s: str) -> datetime:
+    """Parse a BIDS ``acq_time`` ISO 8601 string to a naive :class:`datetime`.
+
+    Any UTC offset present in *s* is stripped so the returned object has no
+    ``tzinfo`` attached, matching the naive-datetime convention used throughout
+    this module.
+
+    :param s: ISO 8601 datetime string, e.g. ``'2025-08-14T15:06:09.742500'``.
+    :type s: str
+    :returns: Naive :class:`datetime` (no ``tzinfo``).
+    :rtype: datetime.datetime
+    :raises ValueError: If *s* cannot be parsed as an ISO 8601 datetime.
+    """
+    return datetime.fromisoformat(s).replace(tzinfo=None)
+
+
+def dt_convert(dt: datetime, tz_from: tzinfo, tz_to: tzinfo) -> datetime:
+    """Convert a naive datetime from one timezone context to another.
+
+    Attaches *tz_from* to *dt*, converts to *tz_to*, then strips ``tzinfo``
+    to return a naive datetime.  This is the primitive that all higher-level
+    helpers delegate to.
+
+    :param dt: Naive source datetime (no ``tzinfo``).
+    :type dt: datetime.datetime
+    :param tz_from: Timezone the naive *dt* implicitly represents.
+    :type tz_from: datetime.tzinfo
+    :param tz_to: Target timezone to convert into.
+    :type tz_to: datetime.tzinfo
+    :returns: Naive datetime in *tz_to*.
+    :rtype: datetime.datetime
+    """
+    return dt.replace(tzinfo=tz_from).astimezone(tz_to).replace(tzinfo=None)
+
+
+def dt_reprostim_to_utc(dt: datetime, tz: tzinfo) -> datetime:
+    """Convert a naive ReproStim datetime to a naive UTC datetime.
+
+    :param dt: Naive ReproStim datetime from ``videos.tsv``.
+    :type dt: datetime.datetime
+    :param tz: Timezone the ReproStim capture machine was using.
+    :type tz: datetime.tzinfo
+    :returns: Naive UTC datetime.
+    :rtype: datetime.datetime
+    """
+    return dt_convert(dt, tz, timezone.utc)
+
+
+def dt_bids_to_utc(dt: datetime, tz: tzinfo) -> datetime:
+    """Convert a naive BIDS datetime to a naive UTC datetime.
+
+    :param dt: Naive BIDS ``acq_time`` datetime.
+    :type dt: datetime.datetime
+    :param tz: Timezone assumed for the BIDS timestamps.
+    :type tz: datetime.tzinfo
+    :returns: Naive UTC datetime.
+    :rtype: datetime.datetime
+    """
+    return dt_convert(dt, tz, timezone.utc)
+
+
+def dt_utc_to_reprostim(dt: datetime, tz: tzinfo) -> datetime:
+    """Convert a naive UTC datetime to a naive ReproStim-domain datetime.
+
+    :param dt: Naive UTC datetime.
+    :type dt: datetime.datetime
+    :param tz: Target timezone (ReproStim capture machine timezone).
+    :type tz: datetime.tzinfo
+    :returns: Naive datetime in *tz*.
+    :rtype: datetime.datetime
+    """
+    return dt_convert(dt, timezone.utc, tz)
+
+
+def dt_utc_to_bids(dt: datetime, tz: tzinfo) -> datetime:
+    """Convert a naive UTC datetime to a naive BIDS-domain datetime.
+
+    :param dt: Naive UTC datetime.
+    :type dt: datetime.datetime
+    :param tz: Target timezone (BIDS dataset timezone).
+    :type tz: datetime.tzinfo
+    :returns: Naive datetime in *tz*.
+    :rtype: datetime.datetime
+    """
+    return dt_convert(dt, timezone.utc, tz)
+
+
+def dt_reprostim_to_bids(
+    dt: datetime, reprostim_tz: tzinfo, bids_tz: tzinfo
+) -> datetime:
+    """Convert a naive ReproStim datetime directly to a naive BIDS datetime.
+
+    Routes through UTC internally:
+    ``dt_utc_to_bids(dt_reprostim_to_utc(dt, reprostim_tz), bids_tz)``.
+
+    :param dt: Naive ReproStim datetime.
+    :type dt: datetime.datetime
+    :param reprostim_tz: ReproStim capture machine timezone.
+    :type reprostim_tz: datetime.tzinfo
+    :param bids_tz: BIDS dataset timezone.
+    :type bids_tz: datetime.tzinfo
+    :returns: Naive datetime in the BIDS timezone.
+    :rtype: datetime.datetime
+    """
+    return dt_utc_to_bids(dt_reprostim_to_utc(dt, reprostim_tz), bids_tz)
+
+
+def dt_bids_to_reprostim(
+    dt: datetime, bids_tz: tzinfo, reprostim_tz: tzinfo
+) -> datetime:
+    """Convert a naive BIDS datetime directly to a naive ReproStim datetime.
+
+    Routes through UTC internally:
+    ``dt_utc_to_reprostim(dt_bids_to_utc(dt, bids_tz), reprostim_tz)``.
+
+    :param dt: Naive BIDS ``acq_time`` datetime.
+    :type dt: datetime.datetime
+    :param bids_tz: BIDS dataset timezone.
+    :type bids_tz: datetime.tzinfo
+    :param reprostim_tz: ReproStim capture machine timezone.
+    :type reprostim_tz: datetime.tzinfo
+    :returns: Naive datetime in the ReproStim timezone.
+    :rtype: datetime.datetime
+    """
+    return dt_utc_to_reprostim(dt_bids_to_utc(dt, bids_tz), reprostim_tz)
+
+
+####################################################################
 # Public API
 ####################################################################
 
@@ -826,7 +1028,8 @@ def do_main(
     time_offset: float,
     qr: str,
     layout: str,
-    timezone: str,
+    reprostim_timezone: str,
+    bids_timezone: str,
     dry_run: bool,
     lock: bool,
     verbose: bool,
@@ -866,9 +1069,13 @@ def do_main(
     :type qr: str
     :param layout: Output placement layout: ``'nearby'`` or ``'top-stimuli'``.
     :type layout: str
-    :param timezone: Timezone for ReproStim timestamps. Use ``'local'`` for
-        the OS timezone or an IANA name (e.g. ``'America/New_York'``).
-    :type timezone: str
+    :param reprostim_timezone: Timezone for naive ReproStim timestamps in
+        ``videos.tsv``. Use ``'local'`` for the OS timezone or an IANA name
+        (e.g. ``'America/New_York'``).
+    :type reprostim_timezone: str
+    :param bids_timezone: Timezone for naive BIDS ``acq_time`` values.
+        Use ``'local'`` or an IANA name.
+    :type bids_timezone: str
     :param dry_run: When ``True``, resolve matches and print planned actions
         but skip ``split-video`` and all file writes.
     :type dry_run: bool
@@ -899,6 +1106,8 @@ def do_main(
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
         layout=LayoutMode(layout),
+        reprostim_timezone=reprostim_timezone,
+        bids_timezone=bids_timezone,
         lock=lock,
         verbose=verbose,
         out_func=out_func,

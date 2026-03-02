@@ -102,13 +102,24 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "-z",
-    "--timezone",
+    "--reprostim-timezone",
     type=str,
     default="local",
     show_default=True,
-    help="Timezone assumed for ReproStim no-timezone timestamps in videos.tsv. "
-    "Use 'local' for the OS system timezone, or an IANA timezone name "
+    help="Timezone for naive ReproStim timestamps in videos.tsv. "
+    "Use 'local' for the OS system timezone, or an IANA name "
     "(e.g. 'America/New_York', 'UTC') for explicit, reproducible results.",
+)
+@click.option(
+    "-Z",
+    "--bids-timezone",
+    type=str,
+    default="local",
+    show_default=True,
+    help="Timezone for naive BIDS acq_time values in _scans.tsv. "
+    "Use 'local' or an IANA name (e.g. 'UTC'). "
+    "Defaults to 'local'; set explicitly when the DICOM exporter "
+    "uses a different clock than the ReproStim capture machine.",
 )
 @click.option(
     "-m",
@@ -158,7 +169,8 @@ def bids_inject(
     time_offset: float,
     qr: str,
     layout: str,
-    timezone: str,
+    reprostim_timezone: str,
+    bids_timezone: str,
     match: str,
     dry_run: bool,
     lock: str,
@@ -172,7 +184,7 @@ def bids_inject(
     - a dataset/subject root directory (searched recursively with --recursive)
     """
 
-    from ..qr.bids_inject import do_main
+    from ..qr.bids_inject import do_main, dt_tz_label
 
     logger.debug("bids_inject(...)")
     logger.debug(f"Working dir    : {os.getcwd()}")
@@ -185,7 +197,10 @@ def bids_inject(
     logger.info(f"Time offset    : {time_offset}")
     logger.info(f"QR mode        : {qr}")
     logger.info(f"Layout         : {layout}")
-    logger.info(f"Timezone       : {timezone}")
+    logger.info(
+        f"ReproStim TZ   : {reprostim_timezone} ({dt_tz_label(reprostim_timezone)})"
+    )
+    logger.info(f"BIDS TZ        : {bids_timezone} ({dt_tz_label(bids_timezone)})")
     logger.info(f"Match          : {match}")
     logger.info(f"Dry-run        : {dry_run}")
     logger.info(f"Lock           : {lock}")
@@ -204,7 +219,8 @@ def bids_inject(
         time_offset=time_offset,
         qr=qr,
         layout=layout,
-        timezone=timezone,
+        reprostim_timezone=reprostim_timezone,
+        bids_timezone=bids_timezone,
         dry_run=dry_run,
         lock=lock.lower() != "no",
         verbose=verbose,
