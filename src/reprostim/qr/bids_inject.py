@@ -108,6 +108,13 @@ class BiContext(BaseModel):
         description="Policy for handling buffer overflow beyond video boundaries: "
         "'strict' to error, 'flexible' to trim.",
     )
+    layout: LayoutMode = Field(
+        default=LayoutMode.NEARBY,
+        description="Output file placement layout within the BIDS dataset. "
+        "'nearby': place output next to the NIfTI in the same datatype folder. "
+        "'top-stimuli': place output under stimuli/ at the BIDS root, "
+        "mirroring the subject/session/datatype hierarchy.",
+    )
     lock: bool = Field(
         default=True,
         description="When True (default), acquire the advisory file lock before "
@@ -502,6 +509,45 @@ def _calc_media_suffix(va) -> Optional[MediaSuffix]:
     return None
 
 
+def _find_bids_root(scans_path: str) -> str:
+    """Find the BIDS dataset root directory from a ``*_scans.tsv`` path.
+
+    Walks upward from the directory containing *scans_path*, looking for a
+    ``dataset_description.json`` file, which is required at the BIDS root.
+
+    Falls back to the parent of the first ``sub-`` path component when the
+    dataset description file is not found.
+
+    :param scans_path: Absolute or relative path to a ``*_scans.tsv`` file.
+    :type scans_path: str
+    :returns: Absolute path to the BIDS dataset root.
+    :rtype: str
+    """
+    scans_dir = os.path.dirname(os.path.abspath(scans_path))
+
+    # Primary: walk upward looking for dataset_description.json
+    current = scans_dir
+    while True:
+        if os.path.isfile(os.path.join(current, "dataset_description.json")):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+
+    # Fallback: parent of the first sub-XX component in the absolute path
+    parts = os.path.abspath(scans_dir).split(os.sep)
+    for i, part in enumerate(parts):
+        if re.match(r"^sub-", part):
+            return os.sep.join(parts[:i]) or os.sep
+
+    logger.warning(
+        f"Cannot determine BIDS root for {scans_path}; "
+        f"using scans file parent directory as fallback."
+    )
+    return os.path.dirname(scans_dir)
+
+
 def _calc_bids_output_stem(filename: str) -> Tuple[str, str]:
     """Derive the output filename stem by stripping the BIDS datatype suffix.
 
@@ -591,10 +637,17 @@ def _call_split_video(
     input_path = os.path.join(videos_dir, va.path)
     scans_dir = os.path.dirname(os.path.abspath(scans_path))
     base_stem, reproin_suffix = _calc_bids_output_stem(record.filename)
-    output_path = os.path.join(
-        scans_dir,
-        base_stem + f"_recording-reprostim{media_suffix.value}{reproin_suffix}.mkv",
+    output_name = (
+        base_stem + f"_recording-reprostim{media_suffix.value}{reproin_suffix}.mkv"
     )
+
+    if ctx.layout == LayoutMode.TOP_STIMULI:
+        bids_root = _find_bids_root(scans_path)
+        rel_session = os.path.relpath(scans_dir, bids_root)
+        output_path = os.path.join(bids_root, "stimuli", rel_session, output_name)
+    else:  # LayoutMode.NEARBY (default)
+        output_path = os.path.join(scans_dir, output_name)
+
     sidecar_path = output_path[: -len(".mkv")] + ".json"
 
     logger.info(f"Input video path       : {input_path}")
@@ -616,6 +669,8 @@ def _call_split_video(
             f" --output {output_path}"
         )
         return
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     from reprostim.qr.split_video import do_main as split_video_main
 
@@ -822,6 +877,11 @@ def do_main(
         (dirty-read mode) — useful when the lock file is owned by a
         different OS user.
     :type lock: bool
+    :param layout: Output file placement layout: ``'nearby'`` places the output
+        next to the NIfTI in the same BIDS datatype folder; ``'top-stimuli'``
+        places it under a ``stimuli/`` directory at the BIDS root, mirroring
+        the subject/session/datatype hierarchy.
+    :type layout: str
     :param verbose: When ``True``, emit verbose progress output.
     :type verbose: bool
     :param out_func: Callable used for user-facing output (e.g. ``click.echo``).
@@ -838,6 +898,7 @@ def do_main(
         buffer_before=buffer_before,
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
+        layout=LayoutMode(layout),
         lock=lock,
         verbose=verbose,
         out_func=out_func,
