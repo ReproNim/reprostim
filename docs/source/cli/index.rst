@@ -13,6 +13,7 @@ Command-Line Interface
     list-displays
     monitor-displays
     qr-parse
+    split-video
     timesync-stimuli
     video-audit
     reprostim-screencapture

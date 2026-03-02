@@ -15,5 +15,6 @@ API Reference
    qr.disp_mon
    qr.psychopy
    qr.qr_parse
+   qr.split_video
    qr.timesync_stimuli
    qr.video_audit
