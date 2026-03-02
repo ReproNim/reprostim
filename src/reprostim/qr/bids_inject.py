@@ -233,36 +233,6 @@ class ScansModel(BaseModel):
 ####################################################################
 
 
-def parse_dicom_time(value: str) -> time:
-    """Parse a DICOM TM (Time) string into a :class:`datetime.time` object.
-
-    Accepts the DICOM TM format ``HHMMSS.FFFFFF`` where:
-
-    - ``HH`` — hours, 00–23
-    - ``MM`` — minutes, 00–59
-    - ``SS`` — seconds, 00–60 (60 permitted for leap seconds; clamped to 59
-      for :class:`datetime.time` compatibility)
-    - ``.FFFFFF`` — optional fractional seconds (1–6 digits, right-padded
-      with zeros to form microseconds)
-
-    :param value: DICOM TM string, e.g. ``'151953.397500'`` or ``'151953'``.
-    :type value: str
-    :returns: Corresponding :class:`datetime.time` instance.
-    :rtype: datetime.time
-    :raises ValueError: If *value* does not match the expected DICOM TM format.
-    """
-    m = re.fullmatch(r"(\d{2})(\d{2})(\d{2})(?:\.(\d{1,6}))?", value.strip())
-    if not m:
-        raise ValueError(f"Invalid DICOM TM value: {value!r}")
-    hh, mm, ss = int(m.group(1)), int(m.group(2)), int(m.group(3))
-    frac = m.group(4)
-    microsecond = int(frac.ljust(6, "0")) if frac else 0
-    # datetime.time does not support leap second 60; clamp to 59
-    if ss == 60:
-        ss = 59
-    return time(hh, mm, ss, microsecond)
-
-
 def _is_scans_file(path: str) -> bool:
     """Check if the given path points to a BIDS ``*_scans.tsv`` file.
 
@@ -375,18 +345,6 @@ def _parse_scans_model(path: str) -> ScansModel:
     return ScansModel(path=path, records=records)
 
 
-def time_to_sec(t: time) -> float:
-    """Convert a :class:`datetime.time` to total seconds since midnight.
-
-    :param t: Time value to convert.
-    :type t: datetime.time
-    :returns: Total seconds since midnight, including microseconds as a
-        fractional part.
-    :rtype: float
-    """
-    return t.hour * 3600 + t.minute * 60 + t.second + t.microsecond / 1_000_000
-
-
 def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
     """Calculate scan duration in seconds from a :class:`ScanRecord`'s metadata.
 
@@ -422,7 +380,7 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
 
     # Priority 2: AcquisitionTime array — (t_last - t_first) + TR
     if md.AcquisitionTime is not None and len(md.AcquisitionTime) >= 2:
-        times = [time_to_sec(parse_dicom_time(s)) for s in md.AcquisitionTime]
+        times = [dt_time_to_sec(dt_parse_dicom_time(s)) for s in md.AcquisitionTime]
         tr = times[1] - times[0]
         duration = times[-1] - times[0] + tr
         logger.debug(
@@ -883,6 +841,48 @@ def dt_tz_label(name: str) -> str:
     sign = "+" if total_sec >= 0 else "-"
     h, m = divmod(abs(total_sec), 3600)
     return f"UTC{sign}{h:02d}:{m // 60:02d}"
+
+
+def dt_parse_dicom_time(value: str) -> time:
+    """Parse a DICOM TM (Time) string into a :class:`datetime.time` object.
+
+    Accepts the DICOM TM format ``HHMMSS.FFFFFF`` where:
+
+    - ``HH`` — hours, 00–23
+    - ``MM`` — minutes, 00–59
+    - ``SS`` — seconds, 00–60 (60 permitted for leap seconds; clamped to 59
+      for :class:`datetime.time` compatibility)
+    - ``.FFFFFF`` — optional fractional seconds (1–6 digits, right-padded
+      with zeros to form microseconds)
+
+    :param value: DICOM TM string, e.g. ``'151953.397500'`` or ``'151953'``.
+    :type value: str
+    :returns: Corresponding :class:`datetime.time` instance.
+    :rtype: datetime.time
+    :raises ValueError: If *value* does not match the expected DICOM TM format.
+    """
+    m = re.fullmatch(r"(\d{2})(\d{2})(\d{2})(?:\.(\d{1,6}))?", value.strip())
+    if not m:
+        raise ValueError(f"Invalid DICOM TM value: {value!r}")
+    hh, mm, ss = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    frac = m.group(4)
+    microsecond = int(frac.ljust(6, "0")) if frac else 0
+    # datetime.time does not support leap second 60; clamp to 59
+    if ss == 60:
+        ss = 59
+    return time(hh, mm, ss, microsecond)
+
+
+def dt_time_to_sec(t: time) -> float:
+    """Convert a :class:`datetime.time` to total seconds since midnight.
+
+    :param t: Time value to convert.
+    :type t: datetime.time
+    :returns: Total seconds since midnight, including microseconds as a
+        fractional part.
+    :rtype: float
+    """
+    return t.hour * 3600 + t.minute * 60 + t.second + t.microsecond / 1_000_000
 
 
 def dt_parse_bids(s: str) -> datetime:
