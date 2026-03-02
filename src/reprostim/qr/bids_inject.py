@@ -108,6 +108,12 @@ class BiContext(BaseModel):
         description="Policy for handling buffer overflow beyond video boundaries: "
         "'strict' to error, 'flexible' to trim.",
     )
+    lock: bool = Field(
+        default=True,
+        description="When True (default), acquire the advisory file lock before "
+        "reading videos.tsv. When False, skip the lock (dirty-read mode) — "
+        "useful when the lock is owned by a different OS user.",
+    )
     verbose: bool = Field(
         default=False,
         description="When True, emit verbose progress output.",
@@ -605,6 +611,7 @@ def _call_split_video(
             f" --sidecar-json {sidecar_path}"
             f" --start {start_ts.isoformat()}"
             f" --end {end_ts.isoformat()}"
+            f" --lock {'yes' if ctx.lock else 'no'}"
             f" --input {input_path}"
             f" --output {output_path}"
         )
@@ -622,6 +629,7 @@ def _call_split_video(
         buffer_policy=ctx.buffer_policy,
         sidecar_json=sidecar_path,
         video_audit_file=ctx.videos_tsv,
+        lock=ctx.lock,
         verbose=ctx.verbose,
         out_func=ctx.out_func or print,
     )
@@ -665,7 +673,11 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 # find matching video records in videos.tsv if any
                 if ctx.videos_tsv and start_ts and end_ts:
                     va_records = find_video_audit_by_timerange(
-                        ctx.videos_tsv, start_ts, end_ts, cached=True
+                        ctx.videos_tsv,
+                        start_ts,
+                        end_ts,
+                        cached=True,
+                        use_lock=ctx.lock,
                     )
                     logger.info(f"Matching video records : {len(va_records)}")
                     for va in va_records:
@@ -749,7 +761,7 @@ def _do_inject_all(ctx: BiContext, paths: List[str]):
 
 
 def do_main(
-    paths: tuple,
+    paths: List[str],
     videos_tsv: str,
     recursive: bool,
     match: str,
@@ -761,6 +773,7 @@ def do_main(
     layout: str,
     timezone: str,
     dry_run: bool,
+    lock: bool,
     verbose: bool,
     out_func: Callable,
 ) -> int:
@@ -769,8 +782,8 @@ def do_main(
     Orchestrates loading of videos.tsv, discovery of ``*_scans.tsv`` files,
     per-scan matching, slicing, and injection.
 
-    :param paths: Tuple of file or directory paths from the CLI ``PATHS`` argument.
-    :type paths: tuple
+    :param paths: List of file or directory paths from the CLI ``PATHS`` argument.
+    :type paths: List[str]
     :param videos_tsv: Path to ``videos.tsv`` produced by ``video-audit``.
         Video file paths inside the TSV are resolved relative to this file's location.
     :type videos_tsv: str
@@ -804,6 +817,11 @@ def do_main(
     :param dry_run: When ``True``, resolve matches and print planned actions
         but skip ``split-video`` and all file writes.
     :type dry_run: bool
+    :param lock: When ``True`` (default), acquire the advisory file lock
+        before reading ``videos.tsv``. When ``False``, skip the lock
+        (dirty-read mode) — useful when the lock file is owned by a
+        different OS user.
+    :type lock: bool
     :param verbose: When ``True``, emit verbose progress output.
     :type verbose: bool
     :param out_func: Callable used for user-facing output (e.g. ``click.echo``).
@@ -820,6 +838,7 @@ def do_main(
         buffer_before=buffer_before,
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
+        lock=lock,
         verbose=verbose,
         out_func=out_func,
     )

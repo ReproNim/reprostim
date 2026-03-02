@@ -130,6 +130,16 @@ logger = logging.getLogger(__name__)
     "write any output files. Prints what would be done to stdout.",
 )
 @click.option(
+    "-k",
+    "--lock",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    default="yes",
+    show_default=True,
+    help="Whether to acquire the advisory file lock (videos.tsv.lock) before "
+    "reading videos.tsv. Use 'no' for dirty-read mode when the lock is held "
+    "by a different OS user.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -151,6 +161,7 @@ def bids_inject(
     timezone: str,
     match: str,
     dry_run: bool,
+    lock: str,
     verbose: bool,
 ):
     """Inject ReproStim video recordings into a BIDS dataset.
@@ -177,12 +188,13 @@ def bids_inject(
     logger.info(f"Timezone       : {timezone}")
     logger.info(f"Match          : {match}")
     logger.info(f"Dry-run        : {dry_run}")
+    logger.info(f"Lock           : {lock}")
     logger.info(f"Verbose        : {verbose}")
 
     start_time_sec = time.time()
 
     res = do_main(
-        paths=paths,
+        paths=list(paths),
         videos_tsv=videos,
         recursive=recursive,
         match=match,
@@ -194,6 +206,7 @@ def bids_inject(
         layout=layout,
         timezone=timezone,
         dry_run=dry_run,
+        lock=lock.lower() != "no",
         verbose=verbose,
         out_func=click.echo,
     )

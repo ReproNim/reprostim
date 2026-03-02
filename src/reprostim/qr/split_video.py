@@ -364,6 +364,7 @@ def _calc_split_data(
     buffer_policy: BufferPolicy = BufferPolicy.STRICT,
     video_audit_file: str | None = None,
     raw_mode: bool = False,
+    lock: bool = True,
 ) -> SplitData:
     """Calculate split data for given video file.
 
@@ -407,7 +408,7 @@ def _calc_split_data(
     # A) Read video file metadata to get full segment info, fps, frame count etc
     #    as initial implementation use video-audit internal mode
     #    to extract necessary metadata.
-    vr: VaRecord = get_file_video_audit(path, video_audit_file, True)
+    vr: VaRecord = get_file_video_audit(path, video_audit_file, True, use_lock=lock)
     logger.debug(f"Video audit record: {vr.model_dump_json(indent=2)}")
 
     # Extract device info from log file session_begin metadata
@@ -684,6 +685,7 @@ def _do_main_specs(
     video_audit_file: str | None,
     raw: bool,
     verbose: bool,
+    lock: bool = True,
     out_func=print,
 ) -> int:
     """Process multiple --spec arguments.
@@ -749,6 +751,7 @@ def _do_main_specs(
                 bp,
                 video_audit_file,
                 raw_mode=raw,
+                lock=lock,
             )
 
             if not sd.success:
@@ -817,6 +820,7 @@ def do_main(
     raw: bool = False,
     verbose: bool = False,
     specs: tuple = (),
+    lock: bool = True,
     out_func=print,
 ) -> int:
     """Main entry point for split_video module.
@@ -861,6 +865,10 @@ def do_main(
     specs : tuple
         Tuple of --spec argument strings. If non-empty, uses spec mode
         instead of legacy start_time/duration/end_time.
+    lock : bool
+        When True (default), acquire the advisory file lock before reading
+        the video audit TSV file. When False, skip the lock (dirty-read
+        mode) — useful when the lock file is owned by a different OS user.
     out_func : callable
         Output function for printing messages.
 
@@ -892,6 +900,7 @@ def do_main(
     logger.debug(f"Buffer policy: {buffer_policy}")
     logger.debug(f"Video audit file: {video_audit_file}")
     logger.debug(f"Raw mode: {raw}")
+    logger.debug(f"Lock: {lock}")
 
     # If no specs provided, build a synthetic spec from start/duration/end
     if not specs:
@@ -917,6 +926,7 @@ def do_main(
             video_audit_file=video_audit_file,
             raw=raw,
             verbose=verbose,
+            lock=lock,
             out_func=out_func,
         )
     except ValueError as e:

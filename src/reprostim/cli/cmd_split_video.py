@@ -14,31 +14,31 @@ logger = logging.getLogger(__name__)
 
 @click.command(
     help="Utility to to split recorded video files manually or "
-         "based on embedded QR codes."
+    "based on embedded QR codes."
 )
 @click.option(
     "--buffer-before",
     type=str,
     default=None,
     help="Duration buffer to include before the start time. "
-         "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'P10S'). "
-         "If the buffer extends before the video start, it will be trimmed to 0.",
+    "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'P10S'). "
+    "If the buffer extends before the video start, it will be trimmed to 0.",
 )
 @click.option(
     "--buffer-after",
     type=str,
     default=None,
     help="Duration buffer to include after the end time. "
-         "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'P10S'). "
-         "If the buffer extends beyond the video end, it will be trimmed to video length.",
+    "Accepts seconds (e.g., '10' or '10.5') or ISO 8601 duration (e.g., 'P10S'). "
+    "If the buffer extends beyond the video end, it will be trimmed to video length.",
 )
 @click.option(
     "--buffer-policy",
     type=click.Choice(["strict", "flexible"], case_sensitive=False),
     default="strict",
     help="Policy for handling buffer overflow. "
-         "'strict' (default): error if buffers extend beyond video boundaries. "
-         "'flexible': trim buffers to fit within video boundaries.",
+    "'strict' (default): error if buffers extend beyond video boundaries. "
+    "'flexible': trim buffers to fit within video boundaries.",
 )
 @click.option(
     "--spec",
@@ -46,41 +46,43 @@ logger = logging.getLogger(__name__)
     multiple=True,
     default=(),
     help="Compact segment specification. Format: START/DURATION or START//END. "
-         "Repeatable for multiple segments. "
-         "Mutually exclusive with --start, --duration, --end. "
-         "Examples: '2024-02-02T17:30:00/PT3M', '17:30:00//17:33:00', '300/180'",
+    "Repeatable for multiple segments. "
+    "Mutually exclusive with --start, --duration, --end. "
+    "Examples: '2024-02-02T17:30:00/PT3M', '17:30:00//17:33:00', '300/180'",
 )
 @click.option(
     "--start",
     type=str,
     default=None,
     help="Start time in ISO 8601 format (e.g., '2024-02-02T17:30:00'). "
-         "Must be within the input video's time range. In raw mode, only time is used "
-         "as offset from the start of the video and not the absolute datetime.",
+    "Must be within the input video's time range. In raw mode, only time is used "
+    "as offset from the start of the video and not the absolute datetime.",
 )
 @click.option(
     "--duration",
     type=str,
     default=None,
     help="Duration of the output video. "
-         "Accepts seconds (e.g., '180' or '180.5') or ISO 8601 duration (e.g., 'P3M' for 3 minutes). "
-         "Mutually exclusive with --end.",
+    "Accepts seconds (e.g., '180' or '180.5') or ISO 8601 "
+    "duration (e.g., 'P3M' for 3 minutes). "
+    "Mutually exclusive with --end.",
 )
 @click.option(
     "--end",
     type=str,
     default=None,
     help="End time in ISO 8601 format (e.g., '2024-02-02T17:33:00'). "
-         "Mutually exclusive with --duration. In raw mode, only time is used "
-         "as offset from the start of the video and not the absolute datetime.",
+    "Mutually exclusive with --duration. In raw mode, only time is used "
+    "as offset from the start of the video and not the absolute datetime.",
 )
 @click.option(
     "-i",
     "--input",
+    "input_path",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=True,
     help="Input video file path. Filename must include timestamp in format: "
-         "YYYY.MM.DD.HH.MM.SS.mmm_YYYY.MM.DD.HH.MM.SS.mmm.mkv",
+    "YYYY.MM.DD.HH.MM.SS.mmm_YYYY.MM.DD.HH.MM.SS.mmm.mkv",
 )
 @click.option(
     "-o",
@@ -88,7 +90,7 @@ logger = logging.getLogger(__name__)
     type=click.Path(file_okay=True, dir_okay=False),
     required=True,
     help="Output .mkv file path. A sidecar .json file will be created "
-         "with the same basename containing metadata.",
+    "with the same basename containing metadata.",
 )
 @click.option(
     "-j",
@@ -96,9 +98,9 @@ logger = logging.getLogger(__name__)
     default=None,
     required=False,
     help="Create a sidecar JSON file with split metadata. "
-         "When specified without a path or 'auto', creates '<output>.split-video.jsonl'. "
-         "When specified with a path, uses that path. "
-         "If not specified, or specified as 'none', no sidecar file is created.",
+    "When specified without a path or 'auto', creates '<output>.split-video.jsonl'. "
+    "When specified with a path, uses that path. "
+    "If not specified, or specified as 'none', no sidecar file is created.",
 )
 @click.option(
     "-a",
@@ -106,14 +108,25 @@ logger = logging.getLogger(__name__)
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     default=None,
     help="Path to video audit TSV file. If provided, uses this file instead of "
-         "generating video metadata on-the-fly.",
+    "generating video metadata on-the-fly.",
 )
 @click.option(
     "--raw",
     is_flag=True,
     default=False,
-    help="Enable raw mode for video splitting. In this mode any video file can be used as is to "
-         "split/crop *.mkv/*.mp4file, utility will work without specific metadata in logs and file name.",
+    help="Enable raw mode for video splitting. In this mode any video "
+    "file can be used as is to split/crop *.mkv/*.mp4file, utility will "
+    "work without specific metadata in logs and file name.",
+)
+@click.option(
+    "-k",
+    "--lock",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    default="yes",
+    show_default=True,
+    help="Whether to acquire the advisory file lock (videos.tsv.lock) before "
+    "reading the video audit TSV file. Use 'no' for dirty-read mode when "
+    "the lock is held by a different OS user.",
 )
 @click.option(
     "-v",
@@ -132,12 +145,13 @@ def split_video(
     start: str | None,
     duration: str | None,
     end: str | None,
-    input: str,
+    input_path: str,
     output: str,
     sidecar_json: str | None,
     video_audit_file: str | None,
     raw: bool,
-    verbose: bool
+    lock: str,
+    verbose: bool,
 ):
     """Split recorded video files to a specific time range."""
 
@@ -154,20 +168,20 @@ def split_video(
         )
 
     if not has_spec and start is None:
-        raise click.UsageError(
-            "Either --spec or --start must be provided."
-        )
+        raise click.UsageError("Either --spec or --start must be provided.")
 
     # Legacy mode validation
     if not has_spec:
         if duration is not None and end is not None:
-            raise click.UsageError("--duration and --end are mutually exclusive. Please specify only one.")
+            raise click.UsageError(
+                "--duration and --end are mutually exclusive. Please specify only one."
+            )
         if duration is None and end is None:
             raise click.UsageError("Either --duration or --end must be specified.")
 
     logger.debug("split_video(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
-    logger.info(f"Input video      : {input}")
+    logger.info(f"Input video      : {input_path}")
     logger.info(f"Output file      : {output}")
     logger.info(f"Spec             : {spec}")
     logger.info(f"Start time       : {start}")
@@ -179,6 +193,7 @@ def split_video(
     logger.info(f"Sidecar JSON     : {sidecar_json}")
     logger.info(f"Video audit file : {video_audit_file}")
     logger.info(f"Raw mode         : {raw}")
+    logger.info(f"Lock             : {lock}")
     logger.info(f"Verbose output   : {verbose}")
 
     # Handle sidecar path generation
@@ -192,7 +207,7 @@ def split_video(
     start_time_sec = time.time()
 
     res = do_main(
-        input_path=input,
+        input_path=input_path,
         output_path=output,
         start_time=start,
         duration=duration,
@@ -205,12 +220,17 @@ def split_video(
         raw=raw,
         verbose=verbose,
         specs=spec,
-        out_func=click.echo
+        lock=lock.lower() != "no",
+        out_func=click.echo,
     )
 
     # Calculate elapsed time
     elapsed_sec = round(time.time() - start_time_sec, 1)
-    logger.debug(f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}")
+    logger.debug(
+        f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}"
+    )
     if verbose:
-        click.echo(f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}")
+        click.echo(
+            f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}"
+        )
     return res

@@ -480,7 +480,9 @@ def _load_tsv(path_in: str) -> List[VaRecord]:
 _tsv_cache: Dict[str, List[VaRecord]] = {}
 
 
-def _get_tsv_records(path_in: str, cached: bool = False) -> List[VaRecord]:
+def _get_tsv_records(
+    path_in: str, cached: bool = False, use_lock: bool = True
+) -> List[VaRecord]:
     """Load TSV records from a file, optionally using a module-level cache.
 
     When ``cached=True`` and the file has already been loaded, returns the
@@ -490,6 +492,10 @@ def _get_tsv_records(path_in: str, cached: bool = False) -> List[VaRecord]:
     When ``cached=False`` (default), always reloads from disk under a file
     lock and refreshes the cache entry for ``path_in``.
 
+    When ``use_lock=False``, the file is read directly without acquiring the
+    advisory lock (dirty-read mode). This is safe for read-only access when
+    the lock file is owned by a different OS user.
+
     :param path_in: Path to the TSV file to load.
     :type path_in: str
 
@@ -498,15 +504,22 @@ def _get_tsv_records(path_in: str, cached: bool = False) -> List[VaRecord]:
                    Default: ``False``.
     :type cached: bool
 
+    :param use_lock: If ``True`` (default), acquire ``path_in.lock`` before
+                     reading. If ``False``, skip the lock (dirty-read mode).
+    :type use_lock: bool
+
     :return: List of VaRecord objects loaded from the TSV file.
     :rtype: List[VaRecord]
     """
     if cached and path_in in _tsv_cache:
         return _tsv_cache[path_in]
-    lock = FileLock(f"{path_in}.lock", timeout=5)
-    with lock:
+    if use_lock:
+        lock = FileLock(f"{path_in}.lock", timeout=5)
+        with lock:
+            records = _load_tsv(path_in)
+    else:
         records = _load_tsv(path_in)
-        _tsv_cache[path_in] = records
+    _tsv_cache[path_in] = records
     return records
 
 
@@ -1268,7 +1281,10 @@ def do_ext(
 
 
 def get_file_video_audit(
-    path: str, path_tsv: str = None, cached: bool = False
+    path: str,
+    path_tsv: str = None,
+    cached: bool = False,
+    use_lock: bool = True,
 ) -> VaRecord:
     """Get a single VaRecord by auditing a single video file.
 
@@ -1284,19 +1300,27 @@ def get_file_video_audit(
                    :func:`_get_tsv_records`. Default: ``False``.
     :type cached: bool
 
+    :param use_lock: If ``True`` (default), acquire the advisory file lock
+                     before reading ``path_tsv``. If ``False``, skip the lock
+                     (dirty-read mode).
+    :type use_lock: bool
+
     :return: VaRecord object.
     :rtype: VaRecord
     """
 
     logger.debug(
-        f"get_file_video_audit(path={path}, path_tsv={path_tsv}, cached={cached})"
+        f"get_file_video_audit(path={path}, path_tsv={path_tsv},"
+        f" cached={cached}, use_lock={use_lock})"
     )
 
     # If path_tsv is provided and exists, try to load record from TSV
     if path_tsv and os.path.exists(path_tsv):
         logger.debug(f"Loading video audit record from TSV: {path_tsv}")
         try:
-            records: List[VaRecord] = _get_tsv_records(path_tsv, cached=cached)
+            records: List[VaRecord] = _get_tsv_records(
+                path_tsv, cached=cached, use_lock=use_lock
+            )
 
             for rec in records:
                 if rec.path == path:
@@ -1357,6 +1381,7 @@ def find_video_audit_by_timerange(
     start: datetime,
     end: datetime,
     cached: bool = False,
+    use_lock: bool = True,
 ) -> List[VaRecord]:
     """Find all VaRecords whose recording interval intersects the given
     time range, sorted by record start time ascending.
@@ -1378,15 +1403,20 @@ def find_video_audit_by_timerange(
                    of reloading from disk. Default: ``False``.
     :type cached: bool
 
+    :param use_lock: If ``True`` (default), acquire the advisory lock before
+                     loading from disk. If ``False``, skip the lock
+                     (dirty-read mode). Default: ``True``.
+    :type use_lock: bool
+
     :return: List of matching VaRecord objects sorted by start time ascending.
     :rtype: List[VaRecord]
     """
     logger.debug(
         f"find_video_audit_by_timerange(path_tsv={path_tsv},"
-        f" start={start}, end={end}, cached={cached})"
+        f" start={start}, end={end}, cached={cached}, use_lock={use_lock})"
     )
 
-    records = _get_tsv_records(path_tsv, cached=cached)
+    records = _get_tsv_records(path_tsv, cached=cached, use_lock=use_lock)
 
     # Note: in the future, consider optimizing this by caching parsed start/end_ts
     # in VaRecord and/or using a more efficient data structure for lookups
