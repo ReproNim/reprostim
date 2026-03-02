@@ -496,23 +496,55 @@ def _calc_media_suffix(va) -> Optional[MediaSuffix]:
     return None
 
 
-def _calc_bids_output_stem(filename: str) -> str:
+def _calc_bids_output_stem(filename: str) -> Tuple[str, str]:
     """Derive the output filename stem by stripping the BIDS datatype suffix.
 
-    Removes the ``.nii`` / ``.nii.gz`` extension and then strips the last
-    BIDS suffix token (e.g. ``_bold``, ``_T1w``) — the trailing
-    ``_[A-Za-z][A-Za-z0-9]*`` segment — so the caller can append a
-    recording-type suffix such as ``_recording-reprostim_audiovideo``.
+    Removes the ``.nii`` / ``.nii.gz`` extension, extracts any trailing
+    ReproIn-style suffix (double-underscore convention, e.g. ``__dup-01``),
+    and then strips the last BIDS suffix token (e.g. ``_bold``, ``_T1w``) —
+    the trailing ``_[A-Za-z][A-Za-z0-9]*`` segment — so the caller can
+    insert a recording-type suffix such as ``_recording-reprostim_audiovideo``
+    before the reproin suffix.
+
+    Examples::
+
+        # Standard BIDS name — no reproin suffix
+        _calc_bids_output_stem("func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz")
+        # → ("func/sub-qa_ses-20250814_acq-faX77", "")
+
+        # ReproIn name with __dup-01 suffix
+        _calc_bids_output_stem(
+            "func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz"
+        )
+        # → ("func/sub-qa_ses-20250814_task-rest_acq-p2", "__dup-01")
+
+    The caller assembles the final output path as::
+
+        base_stem + "_recording-reprostim" + media_suffix + reproin_suffix + ".mkv"
 
     :param filename: Relative NIfTI path from the scan record, e.g.
         ``func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz``.
     :type filename: str
-    :returns: Stem without BIDS suffix, e.g.
-        ``func/sub-qa_ses-20250814_acq-faX77``.
-    :rtype: str
+    :returns: ``(base_stem, reproin_suffix)`` where *base_stem* is the path
+        without the NIfTI extension, BIDS suffix, or reproin suffix, and
+        *reproin_suffix* is the extracted double-underscore token (e.g.
+        ``"__dup-01"``) or an empty string when none is present.
+    :rtype: Tuple[str, str]
     """
     stem = re.sub(r"\.nii(\.gz)?$", "", filename)
-    return re.sub(r"_[A-Za-z][A-Za-z0-9]*$", "", stem)
+
+    # Extract ReproIn-style suffix: double-underscore followed by non-whitespace
+    # characters at the end of the stem (e.g. "__dup-01").
+    reproin_suffix = ""
+    m = re.search(r"(__\S+)$", stem)
+    if m:
+        reproin_suffix = m.group(1)
+        stem = stem[: m.start()]
+
+    # Strip the BIDS suffix token (e.g. _bold, _T1w).
+    stem = re.sub(r"_[A-Za-z][A-Za-z0-9]*$", "", stem)
+
+    return stem, reproin_suffix
 
 
 def _call_split_video(
@@ -552,9 +584,10 @@ def _call_split_video(
     videos_dir = os.path.dirname(os.path.abspath(ctx.videos_tsv))
     input_path = os.path.join(videos_dir, va.path)
     scans_dir = os.path.dirname(os.path.abspath(scans_path))
-    stem = _calc_bids_output_stem(record.filename)
+    base_stem, reproin_suffix = _calc_bids_output_stem(record.filename)
     output_path = os.path.join(
-        scans_dir, stem + f"_recording-reprostim{media_suffix.value}.mkv"
+        scans_dir,
+        base_stem + f"_recording-reprostim{media_suffix.value}{reproin_suffix}.mkv",
     )
     sidecar_path = output_path[: -len(".mkv")] + ".json"
 
