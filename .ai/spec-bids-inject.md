@@ -137,6 +137,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-z / --timezone TIMEZONE`                      | String          | `local`    | Timezone assumed for ReproStim naive timestamps (see Timezone Handling below).                                                                                                                                                                      |
 | `-m / --match REGEX`                            | String          | `.*`       | Regular expression matched against the `filename` field of each scan record. Only records whose `filename` matches are processed; all others are skipped. Default `.*` matches every record. Example: `func/` to restrict to functional scans only. |
 | `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
+| `-k / --lock [yes\|no]`                         | Choice          | `yes`      | Whether to acquire a file lock (`videos.tsv.lock`) before reading `videos.tsv`. Use `no` for dirty-read mode when the lock is held by another user (see Lock / Dirty-read Mode below).                                                              |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                                                                                                                                                 |
 
 ### Example invocations
@@ -209,6 +210,12 @@ reprostim bids-inject \
   --recursive \
   --match '.*task-rest.*' \
   sourcedata/dbic-QA/
+
+# Dirty-read mode: videos.tsv is locked by another user (e.g. video-audit running as a different user)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --lock no \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
 ```
 
 ---
@@ -236,6 +243,56 @@ encountered during analysis, non-zero otherwise.
 
 `--dry-run` is compatible with all other options, including `--qr` modes (QR data is read and
 parsed as normal; only the write step is suppressed).
+
+---
+
+## Lock / Dirty-read Mode
+
+### Background
+
+`videos.tsv` is a shared file that may be written by a concurrently-running `video-audit`
+process (potentially as a different OS user). `video-audit` protects writes with a
+`filelock`-based advisory lock stored in `videos.tsv.lock`.  By default `bids-inject`
+also acquires this same lock before reading `videos.tsv`, ensuring it sees a consistent
+snapshot.
+
+However, when the lock file is **owned by a different OS user**, the lock acquisition
+attempt will fail after its timeout and `bids-inject` will abort with an error — even
+though a plain read of the file would succeed.  The `--lock no` flag addresses this by
+skipping lock acquisition entirely (dirty-read mode).
+
+### Behaviour
+
+| `--lock` | Lock acquired? | Behaviour                                                                                                           |
+|----------|----------------|---------------------------------------------------------------------------------------------------------------------|
+| `yes`    | yes (default)  | Acquires `videos.tsv.lock` before each cold load of `videos.tsv`. Errors out on `Timeout` (lock held > 5 s).       |
+| `no`     | no             | Reads `videos.tsv` directly without touching the lock file. Safe for read-only use when the lock is foreign-owned. |
+
+### When to use `--lock no`
+
+- The `video-audit` process is running as a different Unix user and holds `videos.tsv.lock`.
+- You want a best-effort / "good enough" snapshot of `videos.tsv` and can tolerate a slightly
+  stale or partially-written view (dirty read).
+- The dataset is read-only to you and you have no ability to clear a stale lock file.
+
+### Caveats
+
+- A dirty read may observe a partially-written `videos.tsv` if `video-audit` is mid-write.
+  In practice this risks a truncated last row or a transiently inconsistent record; subsequent
+  `bids-inject` runs will see the final consistent state.
+- `--lock no` does **not** disable the in-process cache (`cached=True`); within a single
+  `bids-inject` invocation the TSV is still loaded only once per unique path.
+- Combine with `--dry-run` for a fully non-destructive inspection that neither locks nor
+  writes anything.
+
+### Implementation notes
+
+- `BiContext` gains a `lock: bool = True` field.
+- `find_video_audit_by_timerange` and `_get_tsv_records` gain a `use_lock: bool = True`
+  parameter; when `False`, `_get_tsv_records` calls `_load_tsv` directly, bypassing the
+  `FileLock` context manager.
+- The call chain: `do_main` → `BiContext.lock` → `_do_inject_scans` →
+  `find_video_audit_by_timerange(use_lock=ctx.lock)` → `_get_tsv_records(use_lock=use_lock)`.
 
 ---
 
