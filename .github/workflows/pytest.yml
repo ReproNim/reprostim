@@ -37,6 +37,11 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
 
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libzbar0
+
     - name: Install hatch and virtual environment
       run: |
         pwd
