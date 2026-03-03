@@ -127,33 +127,33 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 
 ## Tests and Code Coverage
 
-Test file location: `tests/qr/test_bids_inject.py` (to be created; mirrors `tests/audio/test_audiocodes.py` pattern).
+Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_audiocodes.py` pattern).
 
 ### Datetime / Timezone API (`dt_` functions)
 
-- [ ] `dt_resolve_tz("local")` → returns a valid `tzinfo`
-- [ ] `dt_resolve_tz("UTC")` → `ZoneInfo("UTC")`
-- [ ] `dt_resolve_tz("America/New_York")` → correct IANA zone
-- [ ] `dt_resolve_tz("invalid/Zone")` → raises `ZoneInfoNotFoundError`
-- [ ] `dt_resolve_tz` caching — same object returned on repeated calls with same name
-- [ ] `dt_parse_bids` — naive ISO string → naive `datetime`
-- [ ] `dt_parse_bids` — ISO string with UTC offset → strip `tzinfo`, return naive
-- [ ] `dt_parse_bids` — invalid string → raises `ValueError`
-- [ ] `dt_tz_label` — format is `UTC±HH:MM`
-- [ ] `dt_tz_label("UTC")` → `UTC+00:00`
-- [ ] `dt_convert` — round-trip: `convert(dt, tz_a, tz_b)` then back equals original
-- [ ] `dt_reprostim_to_utc` — US Eastern naive → UTC naive (known offset)
-- [ ] `dt_bids_to_utc` — same as above (independent function)
-- [ ] `dt_utc_to_reprostim` — inverse of `dt_reprostim_to_utc`
-- [ ] `dt_utc_to_bids` — inverse of `dt_bids_to_utc`
-- [ ] `dt_reprostim_to_bids` — same TZ: identity; different TZ: correct shift
-- [ ] `dt_bids_to_reprostim` — inverse of `dt_reprostim_to_bids`
-- [ ] `dt_parse_dicom_time` — full format `HHMMSS.FFFFFF`
-- [ ] `dt_parse_dicom_time` — short format `HHMMSS` (no fractional seconds)
-- [ ] `dt_parse_dicom_time` — leap second `SS=60` clamped to `59`
-- [ ] `dt_parse_dicom_time` — invalid format → raises `ValueError`
-- [ ] `dt_time_to_sec` — midnight → `0.0`
-- [ ] `dt_time_to_sec` — known time → correct total seconds incl. microseconds
+- [x] `dt_resolve_tz("local")` → returns a valid `tzinfo`
+- [x] `dt_resolve_tz("UTC")` → `ZoneInfo("UTC")`
+- [x] `dt_resolve_tz("America/New_York")` → correct IANA zone
+- [x] `dt_resolve_tz("invalid/Zone")` → raises `ZoneInfoNotFoundError`
+- [x] `dt_resolve_tz` caching — same object returned on repeated calls with same name
+- [x] `dt_parse_bids` — naive ISO string → naive `datetime`
+- [x] `dt_parse_bids` — ISO string with UTC offset → strip `tzinfo`, return naive
+- [x] `dt_parse_bids` — invalid string → raises `ValueError`
+- [x] `dt_tz_label` — format is `UTC±HH:MM`
+- [x] `dt_tz_label("UTC")` → `UTC+00:00`
+- [x] `dt_convert` — round-trip: `convert(dt, tz_a, tz_b)` then back equals original
+- [x] `dt_reprostim_to_utc` — US Eastern naive → UTC naive (known offset)
+- [x] `dt_bids_to_utc` — same as above (independent function)
+- [x] `dt_utc_to_reprostim` — inverse of `dt_reprostim_to_utc`
+- [x] `dt_utc_to_bids` — inverse of `dt_bids_to_utc`
+- [x] `dt_reprostim_to_bids` — same TZ: identity; different TZ: correct shift
+- [x] `dt_bids_to_reprostim` — inverse of `dt_reprostim_to_bids`
+- [x] `dt_parse_dicom_time` — full format `HHMMSS.FFFFFF`
+- [x] `dt_parse_dicom_time` — short format `HHMMSS` (no fractional seconds)
+- [x] `dt_parse_dicom_time` — leap second `SS=60` clamped to `59`
+- [x] `dt_parse_dicom_time` — invalid format → raises `ValueError`
+- [x] `dt_time_to_sec` — midnight → `0.0`
+- [x] `dt_time_to_sec` — known time → correct total seconds incl. microseconds
 
 ### Internal helpers
 
@@ -208,17 +208,17 @@ Test file location: `tests/qr/test_bids_inject.py` (to be created; mirrors `test
 
 ### Coverage targets
 
-| Module | Target |
-|---|---|
-| `qr/bids_inject.py` — `dt_` API functions | 100% |
-| `qr/bids_inject.py` — internal helpers | ≥ 90% |
-| `qr/bids_inject.py` — overall | ≥ 80% |
-| `cli/cmd_bids_inject.py` | ≥ 80% |
+| Module | Target | Current |
+|---|---|---|
+| `qr/bids_inject.py` — `dt_` API functions | 100% | **100%** ✓ |
+| `qr/bids_inject.py` — internal helpers | ≥ 90% | 0% (pending) |
+| `qr/bids_inject.py` — overall | ≥ 80% | 34% (pending) |
+| `cli/cmd_bids_inject.py` | ≥ 80% | 0% (pending) |
 
 ### Test infrastructure
 
-- [ ] Create `tests/qr/` package (`__init__.py`)
-- [ ] Create `tests/qr/test_bids_inject.py`
+- [x] Create `tests/qr/` package (`__init__.py`)
+- [x] Create `tests/qr/test_bids_inject.py`
 - [ ] Create synthetic BIDS fixture under `tests/data/bids_inject/`
   - [ ] `dataset_description.json`
   - [ ] `sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv` (2–3 rows)
