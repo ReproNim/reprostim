@@ -13,7 +13,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] `-a / --buffer-after` — extra video after scan end
 - [x] `-p / --buffer-policy [strict|flexible]`
 - [x] `-t / --time-offset` — clock offset in seconds
-- [ ] `-q / --qr [none|auto|embed-existing|parse]` — option defined; logic not yet implemented
+- [x] `-q / --qr [none|auto|embed-existing|parse]` — option defined; logic not yet implemented
 - [x] `-l / --layout [nearby|top-stimuli]`
 - [x] `-z / --reprostim-timezone` — timezone for `videos.tsv` timestamps
 - [x] `-Z / --bids-timezone` — timezone for BIDS `acq_time` values
@@ -106,7 +106,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 
 ## QR Modes
 
-- [ ] `none` — default, already working (no-op)
+- [x] `none` — default, already working (no-op)
 - [ ] `auto` — use JSONL if present alongside video, else skip refinement
 - [ ] `embed-existing` — load pre-parsed QR JSONL; error if missing
 - [ ] `parse` — invoke `qr-parse` on-the-fly on source video, then load results

@@ -95,6 +95,12 @@ class BiContext(BaseModel):
         description="Clock offset in seconds added to acq_time values after "
         "timezone normalisation to handle security functionality if any.",
     )
+    qr: QrMode = Field(
+        default=QrMode.NONE,
+        description="QR code-based timing refinement mode. "
+        "Only 'none' is currently implemented; all other modes raise "
+        "NotImplementedError.",
+    )
     buffer_before: str = Field(
         default="0",
         description="Extra video to include before scan onset. "
@@ -695,6 +701,11 @@ def _do_inject_scans(ctx: BiContext, path: str):
     """
     if _is_scans_file(path):
         logger.info(f"Processing scans file  : {path}")
+        if ctx.qr != QrMode.NONE:
+            raise NotImplementedError(
+                f"QR mode '{ctx.qr.value}' is not implemented yet. "
+                f"Only '{QrMode.NONE.value}' is currently supported."
+            )
         scans: ScansModel = _parse_scans_model(path)
         for sr in scans.records:
             if re.search(ctx.match, sr.filename):
@@ -1102,6 +1113,7 @@ def do_main(
         match=match,
         videos_tsv=videos_tsv,
         time_offset=time_offset,
+        qr=QrMode(qr),
         buffer_before=buffer_before,
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
