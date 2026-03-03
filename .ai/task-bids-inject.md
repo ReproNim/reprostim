@@ -13,7 +13,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] `-a / --buffer-after` — extra video after scan end
 - [x] `-p / --buffer-policy [strict|flexible]`
 - [x] `-t / --time-offset` — clock offset in seconds
-- [x] `-q / --qr [none|auto|embed-existing|parse]` — option defined; logic not yet implemented
+- [ ] `-q / --qr [none|auto|embed-existing|parse]` — option defined; logic not yet implemented
 - [x] `-l / --layout [nearby|top-stimuli]`
 - [x] `-z / --reprostim-timezone` — timezone for `videos.tsv` timestamps
 - [x] `-Z / --bids-timezone` — timezone for BIDS `acq_time` values
@@ -93,8 +93,8 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Output directory created if missing
 
 ### B) Sidecar JSON — BEP047:Behavior
-- [ ] Write `_recording-reprostim_<suffix>.json` alongside the `.mkv`
-- [ ] Include onset, duration, actual buffer values, source video path
+- [x] Write `_recording-reprostim_<suffix>.json` alongside the `.mkv`
+- [x] Include onset, duration, actual buffer values, etc
 - [ ] Confirm field names against BEP044/BEP047 schema
 
 ### C) QR codes file — BIDS events-like `.tsv`
