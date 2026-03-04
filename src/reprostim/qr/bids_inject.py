@@ -71,6 +71,24 @@ class MediaSuffix(str, Enum):
 ####################################################################
 
 
+class BiSummary(BaseModel):
+    """Mutable counters accumulating per-run injection statistics."""
+
+    n_injected: int = Field(
+        default=0,
+        description="Scan records successfully injected (or planned in dry-run).",
+    )
+    n_skipped: int = Field(
+        default=0,
+        description="Scan records skipped (no video match, no media stream, etc.).",
+    )
+    n_errors: int = Field(
+        default=0,
+        description="Scan records that encountered errors (ambiguous match, "
+        "split-video failure, etc.).",
+    )
+
+
 class BiContext(BaseModel):
     """Context for bids-inject processing of scan records."""
 
@@ -160,6 +178,10 @@ class BiContext(BaseModel):
         default=None,
         description="Callable used for user-facing output (e.g. click.echo). "
         "When None, output is suppressed.",
+    )
+    summary: BiSummary = Field(
+        default_factory=BiSummary,
+        description="Mutable run statistics accumulating injected/skipped/error counts.",
     )
 
 
@@ -625,6 +647,7 @@ def _call_split_video(
         logger.warning(
             f"Skipping injection: cannot determine media suffix ({record.filename})"
         )
+        ctx.summary.n_skipped += 1
         return
 
     videos_dir = os.path.dirname(os.path.abspath(ctx.videos_tsv))
@@ -649,6 +672,16 @@ def _call_split_video(
     logger.info(f"Sidecar JSON path      : {sidecar_path}")
 
     if ctx.dry_run:
+        duration_sec = (end_ts - start_ts).total_seconds()
+        if ctx.out_func:
+            ctx.out_func(f"[DRY-RUN] scan    : {record.filename}")
+            ctx.out_func(f"  onset     : {start_ts.isoformat()}")
+            ctx.out_func(f"  duration  : {duration_sec:.3f} s")
+            ctx.out_func(f"  buf_before: {ctx.buffer_before}")
+            ctx.out_func(f"  buf_after : {ctx.buffer_after}")
+            ctx.out_func(f"  input     : {input_path}")
+            ctx.out_func(f"  output    : {output_path}")
+            ctx.out_func(f"  sidecar   : {sidecar_path}")
         logger.info(
             f"Dry-run                : split-video"
             f" --video-audit-file {ctx.videos_tsv}"
@@ -662,6 +695,7 @@ def _call_split_video(
             f" --input {input_path}"
             f" --output {output_path}"
         )
+        ctx.summary.n_injected += 1
         return
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -684,8 +718,10 @@ def _call_split_video(
     )
     if ret != 0:
         logger.error(f"split-video failed with exit code {ret} ({record.filename})")
+        ctx.summary.n_errors += 1
     else:
         logger.info(f"split-video completed successfully ({record.filename})")
+        ctx.summary.n_injected += 1
 
 
 def _do_inject_scans(ctx: BiContext, path: str):
@@ -715,9 +751,10 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 sr.duration_sec = _calc_scan_duration_sec(sr)
                 logger.info(f"Scan duration          : {sr.duration_sec} s")
 
-                start_ts, end_ts = _calc_scan_start_end_ts(
+                ts_pair = _calc_scan_start_end_ts(
                     sr, ctx.time_offset, ctx.reprostim_tz, ctx.bids_tz
                 )
+                start_ts, end_ts = ts_pair if ts_pair else (None, None)
                 logger.info(
                     f"Scan start_ts          : "
                     f"{start_ts.isoformat() if start_ts else None}"
@@ -745,19 +782,29 @@ def _do_inject_scans(ctx: BiContext, path: str):
                     n_va = len(va_records)
                     if n_va == 0:
                         logger.info("No matching video records found, skipping.")
+                        ctx.summary.n_skipped += 1
                     elif n_va > 1:
                         logger.error(
                             f"Ambiguous match: {n_va} video records overlap "
                             f"the scan window. Multiple videos per scan are "
                             f"not yet supported; skipping."
                         )
+                        ctx.summary.n_errors += 1
                     else:
                         _call_split_video(
                             ctx, path, sr, va_records[0], start_ts, end_ts
                         )
+                else:
+                    if not (start_ts and end_ts):
+                        logger.warning(
+                            f"Skipping scan record: cannot compute timestamps"
+                            f" ({sr.filename})"
+                        )
+                        ctx.summary.n_skipped += 1
 
             else:
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
+                ctx.summary.n_skipped += 1
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 
@@ -1127,4 +1174,15 @@ def do_main(
 
     _do_inject_all(ctx, paths)
 
-    return 0
+    s = ctx.summary
+    prefix = "[DRY-RUN] " if dry_run else ""
+    summary_line = (
+        f"{prefix}{s.n_injected} injected, "
+        f"{s.n_skipped} skipped, "
+        f"{s.n_errors} errors"
+    )
+    logger.debug(summary_line)
+    if out_func:
+        out_func(summary_line)
+
+    return 1 if s.n_errors > 0 else 0

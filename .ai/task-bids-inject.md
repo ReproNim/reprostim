@@ -76,13 +76,13 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 
 ### Dry-run mode
 - [x] Skip `split-video` call and file writes when `--dry-run`
-- [ ] Structured per-scan summary printed to stdout (onset, duration, buffers, paths)
-- [ ] Final `[DRY-RUN] N injected, M skipped, K errors` summary line
+- [x] Structured per-scan summary printed to stdout (onset, duration, buffers, paths)
+- [x] Final `[DRY-RUN] N injected, M skipped, K errors` summary line
 
 ### Summary / reporting
-- [ ] Count injected / skipped / error records per run
-- [ ] Print final `N injected, M skipped, K errors` summary line
-- [ ] Non-zero exit code on errors
+- [x] Count injected / skipped / error records per run
+- [x] Print final `N injected, M skipped, K errors` summary line
+- [x] Non-zero exit code on errors
 
 ---
 
