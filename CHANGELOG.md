@@ -1,3 +1,15 @@
+# 0.7.26 (Wed Mar 04 2026)
+
+#### 🐛 Bug Fix
+
+- Design and implement basic `bids-inject` command [#225](https://github.com/ReproNim/reprostim/pull/225) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.25 (Thu Feb 19 2026)
 
 #### 🐛 Bug Fix
