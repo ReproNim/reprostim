@@ -6,6 +6,7 @@
 
 import re
 from datetime import datetime, time, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -21,6 +22,7 @@ from reprostim.qr.bids_inject import (
     _calc_scan_start_end_ts,
     _find_bids_root,
     _is_scans_file,
+    do_main,
     dt_bids_to_reprostim,
     dt_bids_to_utc,
     dt_convert,
@@ -550,3 +552,166 @@ def test_find_bids_root_fallback_sub_component(tmp_path):
     scans_file = session_dir / "sub-qa_ses-20250814_scans.tsv"
     scans_file.write_text("filename\tacq_time\n")
     assert _find_bids_root(str(scans_file)) == str(tmp_path)
+
+
+# ===========================================================================
+# Integration tests (synthetic BIDS fixture)
+# ===========================================================================
+
+# Path to the static BIDS fixture committed under tests/data/bids_inject/
+_BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+_SCANS_TSV = str(
+    _BIDS_FIXTURE / "sub-qa" / "ses-20250814" / "sub-qa_ses-20250814_scans.tsv"
+)
+
+# Columns required by VaRecord / _load_tsv
+_VA_HEADER = (
+    "path\tpresent\tcomplete\tname\tstart_date\tstart_time\tend_date\tend_time\t"
+    "video_res_detected\tvideo_fps_detected\tvideo_dur_detected\t"
+    "video_res_recorded\tvideo_fps_recorded\tvideo_dur_recorded\t"
+    "video_size_mb\tvideo_rate_mbpm\taudio_sr\taudio_dur\tduration\tduration_h\t"
+    "no_signal_frames\tqr_records_number\tfile_log_coherent\t"
+    "no_signal_updated_on\tqr_updated_on\tupdated_on"
+)
+
+# Pre-built video row strings.
+# V1 covers scan 1 window [15:06:09, 15:06:29] on 2025-08-14.
+_VA_V1 = (
+    "video1.mkv\tTrue\tTrue\tvideo1.mkv\t2025-08-14\t15:05:00.000\t"
+    "2025-08-14\t15:10:00.000\t"
+    "1920x1080\t60\t300.0\t1920x1080\t60.0\tn/a\t100.0\t20.0\t"
+    "48000Hz 2ch aac\tn/a\t300.0\t00:05:00.000\tn/a\tn/a\tTrue\tn/a\tn/a\t"
+    "2025-08-14 15:05:00"
+)
+# V2 covers scan 2 window [15:13:03, 15:13:23] on 2025-08-14.
+_VA_V2 = (
+    "video2.mkv\tTrue\tTrue\tvideo2.mkv\t2025-08-14\t15:12:00.000\t"
+    "2025-08-14\t15:17:00.000\t"
+    "1920x1080\t60\t300.0\t1920x1080\t60.0\tn/a\t100.0\t20.0\t"
+    "48000Hz 2ch aac\tn/a\t300.0\t00:05:00.000\tn/a\tn/a\tTrue\tn/a\tn/a\t"
+    "2025-08-14 15:12:00"
+)
+# V3 also overlaps scan 1 window — used for the ambiguous-match test.
+_VA_V3 = (
+    "video3.mkv\tTrue\tTrue\tvideo3.mkv\t2025-08-14\t15:05:30.000\t"
+    "2025-08-14\t15:08:00.000\t"
+    "1920x1080\t60\t150.0\t1920x1080\t60.0\tn/a\t50.0\t10.0\t"
+    "48000Hz 2ch aac\tn/a\t150.0\t00:02:30.000\tn/a\tn/a\tTrue\tn/a\tn/a\t"
+    "2025-08-14 15:05:30"
+)
+
+
+def _write_videos_tsv(tmp_path: Path, *rows: str) -> str:
+    """Write a videos.tsv with the given row strings and return its path."""
+    content = "\n".join([_VA_HEADER] + list(rows)) + "\n"
+    p = tmp_path / "videos.tsv"
+    p.write_text(content)
+    return str(p)
+
+
+def _run(
+    paths,
+    videos_tsv,
+    *,
+    match=".*",
+    dry_run=True,
+    layout="nearby",
+    reprostim_timezone="UTC",
+    bids_timezone="UTC",
+):
+    """Call do_main with sensible test defaults; return (exit_code, output_lines)."""
+    output = []
+    ret = do_main(
+        paths=paths,
+        videos_tsv=videos_tsv,
+        recursive=False,
+        match=match,
+        buffer_before="0",
+        buffer_after="0",
+        buffer_policy="flexible",
+        time_offset=0.0,
+        qr="none",
+        layout=layout,
+        reprostim_timezone=reprostim_timezone,
+        bids_timezone=bids_timezone,
+        dry_run=dry_run,
+        lock=False,
+        verbose=False,
+        out_func=output.append,
+    )
+    return ret, output
+
+
+def test_integration_dry_run_two_matching_videos(tmp_path):
+    """Two functional scans each matched by a distinct video → 2 injected,
+    1 skipped (anat)."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1, _VA_V2)
+    ret, output = _run([_SCANS_TSV], videos_tsv)
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "2 injected" in summary
+    assert "1 skipped" in summary
+    assert "0 errors" in summary
+
+
+def test_integration_dry_run_no_matching_video(tmp_path):
+    """No videos in TSV → all scans skipped, no errors."""
+    videos_tsv = _write_videos_tsv(tmp_path)  # empty
+    ret, output = _run([_SCANS_TSV], videos_tsv)
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "0 injected" in summary
+    assert "0 errors" in summary
+
+
+def test_integration_dry_run_ambiguous_match(tmp_path):
+    """Two videos both overlap scan 1 → ambiguous match counted as error."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1, _VA_V3)
+    # Match only scan 1 (not the __dup-01 variant or anat)
+    ret, output = _run(
+        [_SCANS_TSV],
+        videos_tsv,
+        match=r"task-rest_acq-p2_bold\.nii\.gz$",
+    )
+    assert ret == 1  # non-zero because of error
+    summary = next(line for line in output if "injected" in line)
+    assert "0 injected" in summary
+    assert "1 errors" in summary
+
+
+def test_integration_dry_run_reproin_dup_suffix(tmp_path):
+    """Scan with __dup-01 → output path preserves the suffix."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V2)
+    # Match only the __dup-01 scan
+    ret, output = _run([_SCANS_TSV], videos_tsv, match=r"__dup-01")
+    assert ret == 0
+    scan_lines = [line for line in output if "[DRY-RUN] scan" in line]
+    assert len(scan_lines) == 1
+    output_line = next(
+        line for line in output if "output" in line and "__dup-01" in line
+    )
+    assert "__dup-01" in output_line
+
+
+def test_integration_dry_run_top_stimuli_layout(tmp_path):
+    """top-stimuli layout → output path contains a stimuli/ component."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    ret, output = _run(
+        [_SCANS_TSV],
+        videos_tsv,
+        match=r"task-rest_acq-p2_bold\.nii\.gz$",
+        layout="top-stimuli",
+    )
+    assert ret == 0
+    output_line = next(line for line in output if "output" in line)
+    assert "stimuli" in output_line
+
+
+def test_integration_dry_run_match_func_only(tmp_path):
+    """match=func/ → anat scan counted as skipped by filter, func scans injected."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1, _VA_V2)
+    ret, output = _run([_SCANS_TSV], videos_tsv, match=r"^func/")
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "2 injected" in summary
+    assert "1 skipped" in summary  # anat filtered by --match

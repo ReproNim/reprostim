@@ -184,14 +184,14 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 > sidecars, and a stub `videos.tsv`) committed under `tests/data/bids_inject/`.
 
 - [ ] Single `_scans.tsv` + matching video → `split-video` called with correct args (mocked)
-- [ ] Dry-run: `split-video` not called; planned actions logged
-- [ ] No matching video → scan skipped; no error raised
-- [ ] Ambiguous match (2 videos overlap) → error logged, scan skipped
-- [ ] `--match 'func/.*'` → only functional scans processed
+- [x] Dry-run: `split-video` not called; planned actions logged
+- [x] No matching video → scan skipped; no error raised
+- [x] Ambiguous match (2 videos overlap) → error logged, scan skipped
+- [x] `--match 'func/.*'` → only functional scans processed
 - [ ] `--recursive` → all `_scans.tsv` files under directory tree processed
 - [ ] `nearby` layout → output path is beside NIfTI
-- [ ] `top-stimuli` layout → output path is under `stimuli/`
-- [ ] ReproIn `__dup-01` filename → suffix preserved in output `.mkv` name
+- [x] `top-stimuli` layout → output path is under `stimuli/`
+- [x] ReproIn `__dup-01` filename → suffix preserved in output `.mkv` name
 - [ ] `--lock no` → `FileLock` not acquired (mock / spy on `_get_tsv_records`)
 - [ ] `--reprostim-timezone` / `--bids-timezone` → passed into `BiContext` correctly
 - [ ] Mixed timezone scenario: Eastern ReproStim + UTC BIDS → times align after conversion
@@ -219,11 +219,11 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 
 - [x] Create `tests/qr/` package (`__init__.py`)
 - [x] Create `tests/qr/test_bids_inject.py`
-- [ ] Create synthetic BIDS fixture under `tests/data/bids_inject/`
-  - [ ] `dataset_description.json`
-  - [ ] `sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv` (2–3 rows)
-  - [ ] Stub JSON sidecars for each scan row
-  - [ ] Stub `videos.tsv` with matching time ranges
+- [x] Create synthetic BIDS fixture under `tests/data/bids_inject/`
+  - [x] `dataset_description.json`
+  - [x] `sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv` (2–3 rows)
+  - [x] Stub JSON sidecars for each scan row
+  - [ ] Stub `videos.tsv` with matching time ranges (generated per-test in `tmp_path`)
 - [ ] Configure `pytest-cov` in `pyproject.toml` (or `setup.cfg`) with coverage report
 - [ ] Add coverage badge / report to CI if not already present
 
