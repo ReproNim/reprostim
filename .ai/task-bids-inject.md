@@ -157,26 +157,26 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 
 ### Internal helpers
 
-- [ ] `_calc_bids_output_stem` — standard BIDS name (e.g. `_bold.nii.gz`) → correct stem, empty reproin suffix
-- [ ] `_calc_bids_output_stem` — ReproIn `__dup-01` suffix → extracted correctly
-- [ ] `_calc_bids_output_stem` — `.nii` (non-gzipped) → correct stem
-- [ ] `_calc_media_suffix` — video only → `_video`
-- [ ] `_calc_media_suffix` — audio only → `_audio`
-- [ ] `_calc_media_suffix` — both → `_audiovideo`
-- [ ] `_calc_media_suffix` — neither → `None`
-- [ ] `_calc_scan_duration_sec` — Priority 1: `FrameAcquisitionDuration` (ms → sec)
-- [ ] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` array (2+ elements)
-- [ ] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` with single element → falls through
-- [ ] `_calc_scan_duration_sec` — Priority 3: `RepetitionTime × NumberOfVolumes`
-- [ ] `_calc_scan_duration_sec` — no metadata → `None`
-- [ ] `_calc_scan_start_end_ts` — basic: `acq_time` + `duration_sec` → correct `(start, end)`
-- [ ] `_calc_scan_start_end_ts` — `time_offset` applied correctly
-- [ ] `_calc_scan_start_end_ts` — timezone conversion: BIDS UTC → ReproStim Eastern shifts time
-- [ ] `_calc_scan_start_end_ts` — `duration_sec = None` → returns `None`
-- [ ] `_find_bids_root` — `dataset_description.json` found by walking up
-- [ ] `_find_bids_root` — fallback: parent of first `sub-` path component
-- [ ] `_is_scans_file` — `*_scans.tsv` existing file → `True`
-- [ ] `_is_scans_file` — directory or non-matching name → `False`
+- [x] `_calc_bids_output_stem` — standard BIDS name (e.g. `_bold.nii.gz`) → correct stem, empty reproin suffix
+- [x] `_calc_bids_output_stem` — ReproIn `__dup-01` suffix → extracted correctly
+- [x] `_calc_bids_output_stem` — `.nii` (non-gzipped) → correct stem
+- [x] `_calc_media_suffix` — video only → `_video`
+- [x] `_calc_media_suffix` — audio only → `_audio`
+- [x] `_calc_media_suffix` — both → `_audiovideo`
+- [x] `_calc_media_suffix` — neither → `None`
+- [x] `_calc_scan_duration_sec` — Priority 1: `FrameAcquisitionDuration` (ms → sec)
+- [x] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` array (2+ elements)
+- [x] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` with single element → falls through
+- [x] `_calc_scan_duration_sec` — Priority 3: `RepetitionTime × NumberOfVolumes`
+- [x] `_calc_scan_duration_sec` — no metadata → `None`
+- [x] `_calc_scan_start_end_ts` — basic: `acq_time` + `duration_sec` → correct `(start, end)`
+- [x] `_calc_scan_start_end_ts` — `time_offset` applied correctly
+- [x] `_calc_scan_start_end_ts` — timezone conversion: BIDS UTC → ReproStim Eastern shifts time
+- [x] `_calc_scan_start_end_ts` — `duration_sec = None` → returns `None`
+- [x] `_find_bids_root` — `dataset_description.json` found by walking up
+- [x] `_find_bids_root` — fallback: parent of first `sub-` path component
+- [x] `_is_scans_file` — `*_scans.tsv` existing file → `True`
+- [x] `_is_scans_file` — directory or non-matching name → `False`
 
 ### Integration tests (with synthetic BIDS fixture)
 
