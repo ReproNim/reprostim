@@ -65,6 +65,7 @@ from .cmd_qr_parse import qr_parse  # noqa: E402
 from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
 from .cmd_video_audit import video_audit  # noqa: E402
 from .cmd_split_video import split_video  # noqa: E402
+from .cmd_bids_inject import bids_inject  # noqa: E402
 
 # List all CLI commands to be included in the main group
 __all_commands__ = (
@@ -76,6 +77,7 @@ __all_commands__ = (
     timesync_stimuli,
     video_audit,
     split_video,
+    bids_inject,
 )
 
 # Register all CLI commands

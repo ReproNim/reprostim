@@ -8,10 +8,12 @@ Command-Line Interface
     :glob:
 
     reprostim
+    bids-inject
     detect-noscreen
     list-displays
     monitor-displays
     qr-parse
+    split-video
     timesync-stimuli
     video-audit
     reprostim-screencapture

@@ -1,0 +1,4 @@
+filename	acq_time	operator	randstr
+func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz	2025-08-14T15:06:09.742500	n/a	abc123
+func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz	2025-08-14T15:13:03.985000	n/a	def456
+anat/sub-qa_ses-20250814_T1w.nii.gz	2025-08-14T14:00:00.000000	n/a	ghi789
