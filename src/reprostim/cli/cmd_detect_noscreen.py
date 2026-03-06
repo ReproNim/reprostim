@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+# SPDX-FileCopyrightText: 2020-2026 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
 
@@ -33,11 +33,12 @@ def _main_exit(code: int) -> int:
 )
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
-    "-o", "--output",
+    "-o",
+    "--output",
     default=None,
     type=str,
     help="Specify output file to save results in JSON format. If not set, "
-         "results are printed to standard output. Default is None.",
+    "results are printed to standard output. Default is None.",
 )
 @click.option(
     "--step",
@@ -100,7 +101,7 @@ def _main_exit(code: int) -> int:
 def detect_noscreen(
     ctx,
     path: str,
-    output:  str,
+    output: str,
     step: int,
     number_of_checks: int,
     show_progress: float,
@@ -110,8 +111,9 @@ def detect_noscreen(
 ):
     """Detect no screen/no signal frames in captured videos."""
 
-    from ..capture.nosignal import auto_fix_video, find_no_signal, init_grid_colors
     import json
+
+    from ..capture.nosignal import auto_fix_video, find_no_signal, init_grid_colors
 
     logger.debug("detect_noscreen(...)")
     logger.debug(f"path={path}")

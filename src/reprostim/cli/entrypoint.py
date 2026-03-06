@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+# SPDX-FileCopyrightText: 2020-2026 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
 
@@ -56,16 +56,17 @@ def main(ctx, log_level: str, log_format):
     logger.debug(f"main(...), command={ctx.invoked_subcommand}")
 
 
+from .cmd_bids_inject import bids_inject  # noqa: E402
+
 # Import all CLI commands
 from .cmd_detect_noscreen import detect_noscreen  # noqa: E402
 from .cmd_echo import echo  # noqa: E402
 from .cmd_list_displays import list_displays  # noqa: E402
 from .cmd_monitor_displays import monitor_displays  # noqa: E402
 from .cmd_qr_parse import qr_parse  # noqa: E402
+from .cmd_split_video import split_video  # noqa: E402
 from .cmd_timesync_stimuli import timesync_stimuli  # noqa: E402
 from .cmd_video_audit import video_audit  # noqa: E402
-from .cmd_split_video import split_video  # noqa: E402
-from .cmd_bids_inject import bids_inject  # noqa: E402
 
 # List all CLI commands to be included in the main group
 __all_commands__ = (

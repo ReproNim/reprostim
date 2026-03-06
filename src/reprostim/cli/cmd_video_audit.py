@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+# SPDX-FileCopyrightText: 2020-2026 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
 
@@ -21,15 +21,16 @@ logger = logging.getLogger(__name__)
 )
 @click.argument(
     "paths",
-    nargs=-1,              # accept 1 or more arguments
+    nargs=-1,  # accept 1 or more arguments
     type=click.Path(exists=True, dir_okay=True, file_okay=True),
 )
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["full", "incremental", "force",
-                       "rerun-for-na", "reset-to-na"],
-                      case_sensitive=True),
+    type=click.Choice(
+        ["full", "incremental", "force", "rerun-for-na", "reset-to-na"],
+        case_sensitive=True,
+    ),
     default="incremental",
     show_default=True,
     help=(
@@ -74,9 +75,9 @@ logger = logging.getLogger(__name__)
     show_default=True,
     type=click.Choice(["internal", "qr", "nosignal", "all"], case_sensitive=False),
     help=(
-        """Specify audit sources: 'internal' for internal checks, 
-        tool names (e.g., 'qr'), or 'all' to run all: 
-        
+        """Specify audit sources: 'internal' for internal checks,
+        tool names (e.g., 'qr'), or 'all' to run all:
+
 - [internal] : for internal basic and fast checks,
 
 - [qr] : for QR code based analysis and generating qrinfo files, very slow.
@@ -95,7 +96,7 @@ logger = logging.getLogger(__name__)
     type=int,
     default=-1,
     show_default=True,
-    help='Maximum number of video files/records to process. Use -1 for unlimited.'
+    help="Maximum number of video files/records to process. Use -1 for unlimited.",
 )
 @click.option(
     "-p",
@@ -103,7 +104,7 @@ logger = logging.getLogger(__name__)
     type=str,
     default=None,
     help="Optional path mask to filter video files based on their paths. Syntax is "
-         "the same as used in Python's fnmatch module."
+    "the same as used in Python's fnmatch module.",
 )
 @click.option(
     "-v",
@@ -114,11 +115,15 @@ logger = logging.getLogger(__name__)
 )
 @click.pass_context
 def video_audit(
-    ctx, paths: tuple[str, ...],
-    mode: str, output: str,
-    recursive: bool, audit_src,
-    max_files: int, path_mask: str,
-    verbose: bool
+    ctx,
+    paths: tuple[str, ...],
+    mode: str,
+    output: str,
+    recursive: bool,
+    audit_src,
+    max_files: int,
+    path_mask: str,
+    verbose: bool,
 ):
     """Analyze recorded video files."""
 
@@ -141,7 +146,15 @@ def video_audit(
             logger.error(f"Path does not exist: {path}")
             return 1
 
-    do_main(list(paths), output, recursive, VaMode(mode),
-            {VaSource(s) for s in audit_src},
-            max_files, path_mask, verbose, click.echo)
+    do_main(
+        list(paths),
+        output,
+        recursive,
+        VaMode(mode),
+        {VaSource(s) for s in audit_src},
+        max_files,
+        path_mask,
+        verbose,
+        click.echo,
+    )
     return 0
