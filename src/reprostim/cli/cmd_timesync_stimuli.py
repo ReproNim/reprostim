@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+# SPDX-FileCopyrightText: 2020-2026 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
 
@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
     default="1",
     type=str,
     help="Specify display number as an integer or as X11 format like "
-         ":display_num (default: 1).",
+    ":display_num (default: 1).",
 )
 @click.option(
     "-s",
@@ -178,7 +178,7 @@ def timesync_stimuli(
     logger.debug(f"    qr async   : {qr_async}")
     logger.debug(f"    interval   : {interval}")
 
-    display_num: int = int(display.lstrip(':'))
+    display_num: int = int(display.lstrip(":"))
 
     output: str = get_output_file_name(output_prefix, start_ts)
     logger.debug(f"    output     : {output}")

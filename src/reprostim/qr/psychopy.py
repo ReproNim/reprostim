@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020-2025 ReproNim Team <info@repronim.org>
+# SPDX-FileCopyrightText: 2020-2026 ReproNim Team <info@repronim.org>
 #
 # SPDX-License-Identifier: MIT
 
@@ -6,8 +6,8 @@
 API to generate visual QR-codes and audio codes
 and embed them into PsychoPy scripts for fMRI experiments
 """
-import os
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -283,15 +283,18 @@ class QrStim(visual.ImageStim):
             # Lazy import - only load heavy audio processing when needed
             from reprostim.audio.audiocodes import AudioCodec, save_audiocode
 
-            ac: AudioCodec = self.qr_config.audio_codec \
-                if self.qr_config.audio_codec is not None else AudioCodec.FSK
+            ac: AudioCodec = (
+                self.qr_config.audio_codec
+                if self.qr_config.audio_codec is not None
+                else AudioCodec.FSK
+            )
 
             self.audio_data = int(self.qr_code.get(self.qr_config.audio_data_field, 0))
             # logging.debug(f"audio_data: {self.audio_data}")
             self.audio_file, self.audio_info = save_audiocode(
                 code_uint16=self.audio_data,
                 codec=ac,
-                code_duration=self.qr_config.duration
+                code_duration=self.qr_config.duration,
             )
             audio_time, audio_time_str = get_times()
             # NOTE: for better accuracy, consider to specify time
@@ -346,7 +349,7 @@ class QrStim(visual.ImageStim):
         if self.qr_config.audio_enabled and self.audio_file:
             try:
                 os.remove(self.audio_file)
-            except Exception as e:
+            except Exception:
                 pass
 
     # override draw to play audio if enabled
@@ -378,10 +381,12 @@ class QrStim(visual.ImageStim):
             # Lazy import - only load heavy audio playback when needed
             from reprostim.audio.audiocodes import play_audio
 
-            play_audio(self.audio_file,
-                       sample_rate=self.qr_config.audio_sample_rate,
-                       volume=self.qr_config.audio_volume,
-                       async_=True)
+            play_audio(
+                self.audio_file,
+                sample_rate=self.qr_config.audio_sample_rate,
+                volume=self.qr_config.audio_volume,
+                async_=True,
+            )
 
     def wait(self):
         """Wait for the duration specified in the QR code configuration."""
