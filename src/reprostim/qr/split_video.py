@@ -649,23 +649,25 @@ def _write_sidecar(
 
 
 def _resolve_sidecar_path(
-    sidecar_json: str,
+    sidecar_json: str | None,
     resolved_output: str,
     index: int,
     start_dt: datetime,
     end_dt: datetime,
     duration_sec: float,
-) -> str:
+) -> str | None:
     """Resolve sidecar path for a spec entry.
 
-    :param sidecar_json: Sidecar option value ('auto' or explicit template path)
+    :param sidecar_json: Sidecar option value ('auto', explicit template path, or None)
     :param resolved_output: Resolved output path for the current spec
     :param index: 1-based segment index
     :param start_dt: Start datetime
     :param end_dt: End datetime
     :param duration_sec: Duration in seconds
-    :return: Resolved sidecar file path
+    :return: Resolved sidecar file path, or None if sidecar_json is None
     """
+    if sidecar_json is None:
+        return None
     if sidecar_json == "auto":
         return f"{resolved_output}.split-video.json"
     else:
