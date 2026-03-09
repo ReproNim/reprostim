@@ -4,17 +4,26 @@
 
 """Tests for timestamp/interval parsing and spec parsing in reprostim.qr.split_video."""
 
+import json
+import os
+import tempfile
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 
 from reprostim.qr.split_video import (
+    BufferPolicy,
     SpecEntry,
+    SplitResult,
+    _calc_split_data,
     _expand_output_template,
     _has_template_tokens,
     _parse_interval_sec,
     _parse_spec,
     _parse_ts,
+    _resolve_sidecar_path,
+    _write_sidecar,
 )
 
 # ===========================================================================
@@ -289,3 +298,275 @@ def test_expand_output_template_no_tokens():
     """Template without tokens is returned unchanged."""
     result = _expand_output_template("output.mkv", 1, _START_DT, _END_DT, _DURATION)
     assert result == "output.mkv"
+
+
+# ===========================================================================
+# Helpers for _calc_split_data tests
+# ===========================================================================
+
+# Video covers 2024-02-02 17:00:00 – 18:00:00 (3600 s, 30 fps, 1920x1080)
+_VIDEO_START = datetime(2024, 2, 2, 17, 0, 0)
+_VIDEO_END = datetime(2024, 2, 2, 18, 0, 0)
+
+
+def _make_va_record():
+    """Return a minimal VaRecord for a 1-hour test video."""
+    from reprostim.qr.video_audit import VaRecord
+
+    return VaRecord(
+        path="/fake/video.mkv",
+        present=True,
+        start_date="2024-02-02",
+        start_time="17:00:00",
+        end_date="2024-02-02",
+        end_time="18:00:00",
+        duration="3600.0",
+        video_fps_recorded="30",
+        video_res_recorded="1920x1080",
+        audio_sr="48000Hz 16b 2ch aac",
+    )
+
+
+# ===========================================================================
+# _calc_split_data
+# ===========================================================================
+
+
+@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
+@patch("reprostim.qr.split_video.get_file_video_audit")
+def test_calc_split_data_basic(mock_gfva, _mock_fmj):
+    """Basic: start + duration within video → correct SplitData."""
+    mock_gfva.return_value = _make_va_record()
+
+    sd = _calc_split_data(
+        path="/fake/video.mkv",
+        sel_start_ts=datetime(2024, 2, 2, 17, 30, 0),
+        sel_duration_sec=180.0,
+        sel_end_ts=None,
+        buf_before_sec=0.0,
+        buf_after_sec=0.0,
+        buffer_policy=BufferPolicy.STRICT,
+    )
+
+    assert sd.success is True
+    assert sd.sel_seg.start_ts == datetime(2024, 2, 2, 17, 30, 0)
+    assert sd.sel_seg.end_ts == datetime(2024, 2, 2, 17, 33, 0)
+    assert sd.sel_seg.duration_sec == pytest.approx(180.0)
+    assert sd.sel_seg.offset_sec == pytest.approx(1800.0)
+    assert sd.full_seg.start_ts == _VIDEO_START
+    assert sd.full_seg.end_ts == _VIDEO_END
+
+
+@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
+@patch("reprostim.qr.split_video.get_file_video_audit")
+def test_calc_split_data_buffer_trim_at_start_flexible(mock_gfva, _mock_fmj):
+    """Flexible policy: buffer before trimmed when it extends before video start."""
+    mock_gfva.return_value = _make_va_record()
+
+    # Select starts 60 s into video; buffer before = 120 s (overflows by 60 s)
+    sd = _calc_split_data(
+        path="/fake/video.mkv",
+        sel_start_ts=datetime(2024, 2, 2, 17, 1, 0),
+        sel_duration_sec=60.0,
+        sel_end_ts=None,
+        buf_before_sec=120.0,
+        buf_after_sec=0.0,
+        buffer_policy=BufferPolicy.FLEXIBLE,
+    )
+
+    assert sd.success is True
+    # Buffer start trimmed to video start
+    assert sd.buf_seg.start_ts == _VIDEO_START
+    assert sd.buf_seg.offset_sec == pytest.approx(0.0)
+
+
+@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
+@patch("reprostim.qr.split_video.get_file_video_audit")
+def test_calc_split_data_buffer_trim_at_end_flexible(mock_gfva, _mock_fmj):
+    """Flexible policy: buffer after trimmed when it extends past video end."""
+    mock_gfva.return_value = _make_va_record()
+
+    # Select ends 60 s before video end; buffer after = 120 s (overflows by 60 s)
+    sd = _calc_split_data(
+        path="/fake/video.mkv",
+        sel_start_ts=datetime(2024, 2, 2, 17, 58, 0),
+        sel_duration_sec=60.0,
+        sel_end_ts=None,
+        buf_before_sec=0.0,
+        buf_after_sec=120.0,
+        buffer_policy=BufferPolicy.FLEXIBLE,
+    )
+
+    assert sd.success is True
+    # Buffer end trimmed to video end
+    assert sd.buf_seg.end_ts == _VIDEO_END
+
+
+@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
+@patch("reprostim.qr.split_video.get_file_video_audit")
+def test_calc_split_data_buffer_overflow_strict_raises(mock_gfva, _mock_fmj):
+    """Strict policy: buffer overflow before video start raises ValueError."""
+    mock_gfva.return_value = _make_va_record()
+
+    with pytest.raises(ValueError, match="buffer.*before|before.*video"):
+        _calc_split_data(
+            path="/fake/video.mkv",
+            sel_start_ts=datetime(2024, 2, 2, 17, 1, 0),
+            sel_duration_sec=60.0,
+            sel_end_ts=None,
+            buf_before_sec=120.0,  # overflows video start
+            buf_after_sec=0.0,
+            buffer_policy=BufferPolicy.STRICT,
+        )
+
+
+@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
+@patch("reprostim.qr.split_video.get_file_video_audit")
+def test_calc_split_data_no_overlap_raises(mock_gfva, _mock_fmj):
+    """Selected segment starting before video start raises ValueError."""
+    mock_gfva.return_value = _make_va_record()
+
+    with pytest.raises(ValueError, match="before video start"):
+        _calc_split_data(
+            path="/fake/video.mkv",
+            sel_start_ts=datetime(2024, 2, 2, 16, 0, 0),  # before video start
+            sel_duration_sec=60.0,
+            sel_end_ts=None,
+            buf_before_sec=0.0,
+            buf_after_sec=0.0,
+            buffer_policy=BufferPolicy.STRICT,
+        )
+
+
+# ===========================================================================
+# _resolve_sidecar_path
+# ===========================================================================
+
+_RSP_START = datetime(2024, 2, 2, 17, 30, 0)
+_RSP_END = datetime(2024, 2, 2, 17, 33, 0)
+_RSP_DUR = 180.0
+
+
+def test_resolve_sidecar_path_auto():
+    """`auto` resolves to <output>.split-video.json."""
+    result = _resolve_sidecar_path(
+        "auto", "/out/clip.mkv", 1, _RSP_START, _RSP_END, _RSP_DUR
+    )
+    assert result == "/out/clip.mkv.split-video.json"
+
+
+def test_resolve_sidecar_path_explicit_no_tokens():
+    """Explicit path without template tokens is returned unchanged."""
+    result = _resolve_sidecar_path(
+        "/custom/meta.json", "/out/clip.mkv", 1, _RSP_START, _RSP_END, _RSP_DUR
+    )
+    assert result == "/custom/meta.json"
+
+
+def test_resolve_sidecar_path_none_returns_none():
+    """`None` input returns `None`."""
+    result = _resolve_sidecar_path(
+        None, "/out/clip.mkv", 1, _RSP_START, _RSP_END, _RSP_DUR
+    )
+    assert result is None
+
+
+# ===========================================================================
+# _write_sidecar
+# ===========================================================================
+
+_EXCLUDED_FIELDS = {"success", "input_path", "output_path", "start_time", "end_time"}
+_EXPECTED_FIELDS = {
+    "buffer_before",
+    "buffer_after",
+    "buffer_duration",
+    "duration",
+    "video_width",
+    "video_height",
+    "video_frame_rate",
+    "orig_buffer_start",
+    "orig_buffer_end",
+    "orig_buffer_offset",
+    "orig_start",
+    "orig_end",
+    "orig_offset",
+    "orig_device",
+    "orig_device_serial_number",
+    "audio_sample_rate",
+    "audio_bit_depth",
+    "audio_channel_count",
+    "audio_codec",
+}
+
+
+def _make_split_result() -> SplitResult:
+    return SplitResult(
+        success=True,
+        input_path="/fake/input.mkv",
+        output_path="/fake/output.mkv",
+        buffer_before=5.0,
+        buffer_after=5.0,
+        buffer_duration=190.0,
+        start_time=datetime(2024, 2, 2, 17, 30, 0),
+        end_time=datetime(2024, 2, 2, 17, 33, 0),
+        duration=180.0,
+        video_width="1920",
+        video_height="1080",
+        video_frame_rate=30.0,
+        video_size_mb=120.5,
+        video_rate_mbpm=50.0,
+        audio_sample_rate="48000",
+        audio_bit_depth="16",
+        audio_channel_count="2",
+        audio_codec="aac",
+        orig_buffer_start="17:25:00.000",
+        orig_buffer_end="17:38:00.000",
+        orig_buffer_offset=1500.0,
+        orig_start="17:30:00.000",
+        orig_end="17:33:00.000",
+        orig_offset=1800.0,
+        orig_device="TestDevice",
+        orig_device_serial_number="SN-12345",
+    )
+
+
+def test_write_sidecar_expected_fields_present_excluded_absent():
+    """All expected fields written; excluded fields absent from sidecar."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+
+    try:
+        _write_sidecar(tmp_path, sr)
+        with open(tmp_path) as f:
+            data = json.load(f)
+
+        for field in _EXPECTED_FIELDS:
+            assert field in data, f"Expected field '{field}' missing from sidecar"
+
+        for field in _EXCLUDED_FIELDS:
+            assert field not in data, f"Excluded field '{field}' found in sidecar"
+    finally:
+        os.unlink(tmp_path)
+
+
+def test_write_sidecar_no_absolute_dates():
+    """Sidecar JSON contains no absolute date strings (times only)."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+
+    try:
+        _write_sidecar(tmp_path, sr)
+        with open(tmp_path) as f:
+            raw = f.read()
+
+        # No YYYY-MM-DD date patterns should appear in the sidecar
+        import re
+
+        date_pattern = re.compile(r"\d{4}-\d{2}-\d{2}")
+        assert not date_pattern.search(
+            raw
+        ), "Sidecar contains absolute date string: " + str(date_pattern.findall(raw))
+    finally:
+        os.unlink(tmp_path)

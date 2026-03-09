@@ -119,19 +119,19 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 ### Core splitting logic
 
-- [ ] `_calc_split_data` — basic: start + duration within video → correct `SplitData`
-- [ ] `_calc_split_data` — buffer trimmed at video start (flexible policy)
-- [ ] `_calc_split_data` — buffer trimmed at video end (flexible policy)
-- [ ] `_calc_split_data` — buffer overflow with strict policy → error
-- [ ] `_calc_split_data` — video doesn't overlap → error
+- [x] `_calc_split_data` — basic: start + duration within video → correct `SplitData`
+- [x] `_calc_split_data` — buffer trimmed at video start (flexible policy)
+- [x] `_calc_split_data` — buffer trimmed at video end (flexible policy)
+- [x] `_calc_split_data` — buffer overflow with strict policy → error
+- [x] `_calc_split_data` — video doesn't overlap → error
 
 ### Sidecar JSON
 
-- [ ] `_resolve_sidecar_path` — `auto` → `<output>.split-video.jsonl`
-- [ ] `_resolve_sidecar_path` — explicit path → returned unchanged
-- [ ] `_resolve_sidecar_path` — `None` → `None`
-- [ ] `_write_sidecar` — all expected fields present; excluded fields absent
-- [ ] `_write_sidecar` — no absolute dates in sidecar (times only)
+- [x] `_resolve_sidecar_path` — `auto` → `<output>.split-video.json`
+- [x] `_resolve_sidecar_path` — explicit path → returned unchanged
+- [x] `_resolve_sidecar_path` — `None` → `None`
+- [x] `_write_sidecar` — all expected fields present; excluded fields absent
+- [x] `_write_sidecar` — no absolute dates in sidecar (times only)
 
 ### Multi-spec mode
 
