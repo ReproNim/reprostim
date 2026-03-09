@@ -7,7 +7,7 @@
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -15,8 +15,11 @@ import pytest
 from reprostim.qr.split_video import (
     BufferPolicy,
     SpecEntry,
+    SplitData,
     SplitResult,
+    VideoSegment,
     _calc_split_data,
+    _do_main_specs,
     _expand_output_template,
     _has_template_tokens,
     _parse_interval_sec,
@@ -570,3 +573,172 @@ def test_write_sidecar_no_absolute_dates():
         ), "Sidecar contains absolute date string: " + str(date_pattern.findall(raw))
     finally:
         os.unlink(tmp_path)
+
+
+# ===========================================================================
+# Multi-spec mode (_do_main_specs)
+# ===========================================================================
+
+_MS_VIDEO_START = datetime(2024, 2, 2, 17, 0, 0)
+_MS_VIDEO_END = datetime(2024, 2, 2, 18, 0, 0)
+
+
+def _make_sd(
+    start_hour: int = 17, start_min: int = 30, duration_s: float = 180.0
+) -> SplitData:
+    """Build a minimal successful SplitData for multi-spec tests."""
+    sel_start = datetime(2024, 2, 2, start_hour, start_min, 0)
+    sel_end = sel_start + timedelta(seconds=duration_s)
+    buf_offset = (sel_start - _MS_VIDEO_START).total_seconds()
+    return SplitData(
+        success=True,
+        path="/fake/video.mkv",
+        fps=30.0,
+        resolution="1920x1080",
+        audio_sr="48000Hz 16b 2ch aac",
+        full_seg=VideoSegment(
+            start_ts=_MS_VIDEO_START,
+            end_ts=_MS_VIDEO_END,
+            offset_sec=0.0,
+            duration_sec=3600.0,
+        ),
+        sel_seg=VideoSegment(
+            start_ts=sel_start,
+            end_ts=sel_end,
+            offset_sec=buf_offset,
+            duration_sec=duration_s,
+        ),
+        buf_seg=VideoSegment(
+            start_ts=sel_start,
+            end_ts=sel_end,
+            offset_sec=buf_offset,
+            duration_sec=duration_s,
+        ),
+    )
+
+
+def _make_sr_ms(output_path: str = "/fake/output.mkv") -> SplitResult:
+    """Build a minimal successful SplitResult for multi-spec tests."""
+    return SplitResult(
+        success=True,
+        input_path="/fake/video.mkv",
+        output_path=output_path,
+        buffer_before=0.0,
+        buffer_after=0.0,
+        buffer_duration=180.0,
+        duration=180.0,
+        video_width="1920",
+        video_height="1080",
+        video_frame_rate=30.0,
+        audio_sample_rate="48000",
+        audio_bit_depth="16",
+        audio_channel_count="2",
+        audio_codec="aac",
+        orig_buffer_start="17:30:00.000",
+        orig_buffer_end="17:33:00.000",
+        orig_buffer_offset=1800.0,
+        orig_start="17:30:00.000",
+        orig_end="17:33:00.000",
+        orig_offset=1800.0,
+        orig_device="n/a",
+        orig_device_serial_number="n/a",
+    )
+
+
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_single_spec_output_used_as_is(mock_csd, mock_sv):
+    """Single --spec: output path used as-is (no template expansion applied)."""
+    mock_csd.return_value = _make_sd()
+    mock_sv.return_value = _make_sr_ms(output_path="/out/clip.mkv")
+
+    failures = _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M",),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json=None,
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+    )
+
+    assert failures == 0
+    mock_sv.assert_called_once()
+    # Positional arg[1] is out_path; no tokens → unchanged
+    assert mock_sv.call_args[0][1] == "/out/clip.mkv"
+
+
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_multiple_specs_unique_output_files(mock_csd, mock_sv):
+    """Multiple --spec with {n} token produces unique, indexed output paths."""
+    mock_csd.side_effect = [_make_sd(17, 30), _make_sd(17, 40)]
+    mock_sv.side_effect = [
+        _make_sr_ms("/out/clip_001.mkv"),
+        _make_sr_ms("/out/clip_002.mkv"),
+    ]
+
+    failures = _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M", "2024-02-02T17:40:00/PT3M"),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip_{n}.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json=None,
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+    )
+
+    assert failures == 0
+    assert mock_sv.call_count == 2
+    out_paths = [c[0][1] for c in mock_sv.call_args_list]
+    assert "/out/clip_001.mkv" in out_paths
+    assert "/out/clip_002.mkv" in out_paths
+
+
+def test_do_main_specs_multiple_specs_no_template_token_raises():
+    """Multiple --spec without a template token in output raises ValueError."""
+    with pytest.raises(ValueError, match="template token"):
+        _do_main_specs(
+            specs=("2024-02-02T17:30:00/PT3M", "2024-02-02T17:40:00/PT3M"),
+            input_path="/fake/video.mkv",
+            output_template="/out/clip.mkv",  # no {n} token
+            buffer_before=None,
+            buffer_after=None,
+            buffer_policy="strict",
+            sidecar_json=None,
+            video_audit_file=None,
+            raw=False,
+            verbose=False,
+        )
+
+
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_per_spec_failure_continues_processing(mock_csd, mock_sv):
+    """Per-spec failure: remaining specs continue; return value
+    reflects failure count."""
+    mock_csd.side_effect = [ValueError("simulated failure"), _make_sd(17, 40)]
+    mock_sv.return_value = _make_sr_ms("/out/clip_002.mkv")
+
+    failures = _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M", "2024-02-02T17:40:00/PT3M"),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip_{n}.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json=None,
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+    )
+
+    assert failures == 1
+    # Second spec still ran despite first failure
+    mock_sv.assert_called_once()

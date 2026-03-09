@@ -135,10 +135,10 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 ### Multi-spec mode
 
-- [ ] Single `--spec` → output used as-is
-- [ ] Multiple `--spec` with `{n}` token → unique output files produced
-- [ ] Multiple `--spec` without template token → error with descriptive message
-- [ ] Per-spec failure: processing continues; exit code non-zero
+- [x] Single `--spec` → output used as-is
+- [x] Multiple `--spec` with `{n}` token → unique output files produced
+- [x] Multiple `--spec` without template token → error with descriptive message
+- [x] Per-spec failure: processing continues; exit code non-zero
 
 ### Integration tests (with real or synthetic video fixture)
 
