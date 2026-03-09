@@ -2,12 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Tests for timestamp/interval parsing and spec parsing in reprostim.qr.split_video."""
+"""Tests for timestamp/interval parsing, spec parsing, and CLI in
+reprostim.qr.split_video and reprostim.cli.cmd_split_video."""
 
 import json
 import os
 import tempfile
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -742,3 +744,150 @@ def test_do_main_specs_per_spec_failure_continues_processing(mock_csd, mock_sv):
     assert failures == 1
     # Second spec still ran despite first failure
     mock_sv.assert_called_once()
+
+
+# ===========================================================================
+# CLI tests (Click CliRunner) for cmd_split_video
+# ===========================================================================
+
+from click.testing import CliRunner  # noqa: E402
+
+from reprostim.cli.cmd_split_video import split_video  # noqa: E402
+
+
+@pytest.fixture()
+def input_video(tmp_path: Path) -> str:
+    """Create a minimal placeholder file so Click's exists=True check passes."""
+    f = tmp_path / "video.mkv"
+    f.write_bytes(b"")
+    return str(f)
+
+
+def test_cli_help_renders_without_error():
+    """--help exits with code 0 and produces output."""
+    result = CliRunner().invoke(split_video, ["--help"])
+    assert result.exit_code == 0
+    assert "Usage" in result.output
+
+
+def test_cli_missing_input_nonzero_exit():
+    """Omitting --input produces a non-zero exit code with an error message."""
+    result = CliRunner().invoke(split_video, ["--output", "out.mkv"])
+    assert result.exit_code != 0
+    assert "input" in result.output.lower() or "missing" in result.output.lower()
+
+
+def test_cli_missing_output_nonzero_exit(input_video):
+    """Omitting --output produces a non-zero exit code with an error message."""
+    result = CliRunner().invoke(split_video, ["-i", input_video])
+    assert result.exit_code != 0
+    assert "output" in result.output.lower() or "missing" in result.output.lower()
+
+
+def test_cli_spec_and_start_mutually_exclusive(input_video):
+    """Providing both --spec and --start raises a UsageError."""
+    result = CliRunner().invoke(
+        split_video,
+        [
+            "-i",
+            input_video,
+            "-o",
+            "out.mkv",
+            "--spec",
+            "2024-02-02T17:30:00/PT3M",
+            "--start",
+            "2024-02-02T17:30:00",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output.lower()
+
+
+def test_cli_duration_and_end_mutually_exclusive(input_video):
+    """Providing both --duration and --end raises a UsageError."""
+    result = CliRunner().invoke(
+        split_video,
+        [
+            "-i",
+            input_video,
+            "-o",
+            "out.mkv",
+            "--start",
+            "2024-02-02T17:30:00",
+            "--duration",
+            "180",
+            "--end",
+            "2024-02-02T17:33:00",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output.lower()
+
+
+def test_cli_neither_spec_nor_start_raises(input_video):
+    """Providing neither --spec nor --start raises a UsageError."""
+    result = CliRunner().invoke(
+        split_video,
+        ["-i", input_video, "-o", "out.mkv"],
+    )
+    assert result.exit_code != 0
+    assert "--spec" in result.output or "--start" in result.output
+
+
+def test_cli_lock_yes_passed_to_do_main(input_video):
+    """--lock yes results in lock=True passed to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "2024-02-02T17:30:00/PT3M",
+                "--lock",
+                "yes",
+            ],
+        )
+        mock_dm.assert_called_once()
+        assert mock_dm.call_args.kwargs["lock"] is True
+
+
+def test_cli_lock_no_passed_to_do_main(input_video):
+    """--lock no results in lock=False passed to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "2024-02-02T17:30:00/PT3M",
+                "--lock",
+                "no",
+            ],
+        )
+        mock_dm.assert_called_once()
+        assert mock_dm.call_args.kwargs["lock"] is False
+
+
+def test_cli_raw_flag_passed_to_do_main(input_video):
+    """--raw flag results in raw=True passed to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "300/180",
+                "--raw",
+            ],
+        )
+        mock_dm.assert_called_once()
+        assert mock_dm.call_args.kwargs["raw"] is True

@@ -150,14 +150,14 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 ### CLI tests (Click `CliRunner`)
 
-- [ ] `--help` renders without error
-- [ ] Missing `--input` → non-zero exit with error message
-- [ ] Missing `--output` → non-zero exit with error message
-- [ ] `--spec` and `--start` both provided → error (mutually exclusive)
-- [ ] `--duration` and `--end` both provided → error (mutually exclusive)
-- [ ] Neither `--spec` nor `--start` provided → error
-- [ ] `--lock yes` / `--lock no` → passed to `do_main` correctly
-- [ ] `--raw` flag → `raw=True` passed to `do_main`
+- [x] `--help` renders without error
+- [x] Missing `--input` → non-zero exit with error message
+- [x] Missing `--output` → non-zero exit with error message
+- [x] `--spec` and `--start` both provided → error (mutually exclusive)
+- [x] `--duration` and `--end` both provided → error (mutually exclusive)
+- [x] Neither `--spec` nor `--start` provided → error
+- [x] `--lock yes` / `--lock no` → passed to `do_main` correctly
+- [x] `--raw` flag → `raw=True` passed to `do_main`
 
 ### Coverage targets
 
