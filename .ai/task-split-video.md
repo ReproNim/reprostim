@@ -99,23 +99,23 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 ### Timestamp / interval parsing
 
-- [ ] `_parse_ts` — full ISO 8601 datetime → correct `datetime`
-- [ ] `_parse_ts` — time-only string → offset from epoch / video start
-- [ ] `_parse_ts` — invalid string → raises `ValueError`
-- [ ] `_parse_interval_sec` — float seconds string → float
-- [ ] `_parse_interval_sec` — ISO 8601 duration string (`PT3M`) → correct seconds
-- [ ] `_parse_interval_sec` — invalid string → raises `ValueError`
+- [x] `_parse_ts` — full ISO 8601 datetime → correct `datetime`
+- [x] `_parse_ts` — time-only string → offset from epoch / video start
+- [x] `_parse_ts` — invalid string → raises `ValueError`
+- [x] `_parse_interval_sec` — float seconds string → float
+- [x] `_parse_interval_sec` — ISO 8601 duration string (`PT3M`) → correct seconds
+- [x] `_parse_interval_sec` — invalid string → raises `ValueError`
 
 ### Spec parsing
 
-- [ ] `_parse_spec` — `START/DURATION` format → correct `SpecEntry`
-- [ ] `_parse_spec` — `START//END` format → correct `SpecEntry`
-- [ ] `_parse_spec` — time-only start with duration: `17:30:00/PT3M`
-- [ ] `_parse_spec` — numeric seconds start and duration: `300/180`
-- [ ] `_parse_spec` — invalid format (no `/`) → raises error
-- [ ] `_has_template_tokens` — `{n}` present → `True`
-- [ ] `_has_template_tokens` — no tokens → `False`
-- [ ] `_expand_output_template` — `{n}`, `{start}`, `{end}`, `{duration}` expanded correctly
+- [x] `_parse_spec` — `START/DURATION` format → correct `SpecEntry`
+- [x] `_parse_spec` — `START//END` format → correct `SpecEntry`
+- [x] `_parse_spec` — time-only start with duration: `17:30:00/PT3M`
+- [x] `_parse_spec` — numeric seconds start and duration: `300/180`
+- [x] `_parse_spec` — invalid format (no `/`) → raises error
+- [x] `_has_template_tokens` — `{n}` present → `True`
+- [x] `_has_template_tokens` — no tokens → `False`
+- [x] `_expand_output_template` — `{n}`, `{start}`, `{end}`, `{duration}` expanded correctly
 
 ### Core splitting logic
 
@@ -169,7 +169,7 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 ### Test infrastructure
 
-- [ ] Create `tests/qr/test_split_video.py`
+- [x] Create `tests/qr/test_split_video.py`
 - [ ] Provide a small synthetic video fixture (or mock `ffmpeg` calls) under `tests/data/split_video/`
 - [ ] Configure `pytest-cov` reporting for `split_video` modules
 
