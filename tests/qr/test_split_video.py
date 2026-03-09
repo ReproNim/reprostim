@@ -7,10 +7,11 @@ reprostim.qr.split_video and reprostim.cli.cmd_split_video."""
 
 import json
 import os
+import subprocess
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -24,11 +25,14 @@ from reprostim.qr.split_video import (
     _do_main_specs,
     _expand_output_template,
     _has_template_tokens,
+    _parse_audio_info,
     _parse_interval_sec,
     _parse_spec,
     _parse_ts,
     _resolve_sidecar_path,
+    _split_video,
     _write_sidecar,
+    do_main,
 )
 
 # ===========================================================================
@@ -891,3 +895,389 @@ def test_cli_raw_flag_passed_to_do_main(input_video):
         )
         mock_dm.assert_called_once()
         assert mock_dm.call_args.kwargs["raw"] is True
+
+
+# ===========================================================================
+# _parse_audio_info
+# ===========================================================================
+
+
+def test_parse_audio_info_full_string():
+    """Full audio info string parses all four fields correctly."""
+    result = _parse_audio_info("48000Hz 16b 2ch aac")
+    assert result["audio_sample_rate"] == "48000"
+    assert result["audio_bit_depth"] == "16"
+    assert result["audio_channel_count"] == "2"
+    assert result["audio_codec"] == "aac"
+
+
+def test_parse_audio_info_missing_bit_depth_defaults_to_16():
+    """String without explicit bit depth defaults audio_bit_depth to '16'."""
+    result = _parse_audio_info("48000Hz 2ch aac")
+    assert result["audio_sample_rate"] == "48000"
+    assert result["audio_bit_depth"] == "16"
+    assert result["audio_channel_count"] == "2"
+    assert result["audio_codec"] == "aac"
+
+
+def test_parse_audio_info_none_returns_na():
+    """None input returns all n/a fields."""
+    result = _parse_audio_info(None)
+    assert all(v == "n/a" for v in result.values())
+
+
+def test_parse_audio_info_na_string_returns_na():
+    """'n/a' string returns all n/a fields."""
+    result = _parse_audio_info("n/a")
+    assert all(v == "n/a" for v in result.values())
+
+
+def test_parse_audio_info_empty_string_returns_na():
+    """Empty string returns all n/a fields."""
+    result = _parse_audio_info("")
+    assert all(v == "n/a" for v in result.values())
+
+
+def test_parse_audio_info_sample_rate_only():
+    """String with only sample rate populates that field; others are n/a or default."""
+    result = _parse_audio_info("44100Hz")
+    assert result["audio_sample_rate"] == "44100"
+    assert result["audio_bit_depth"] == "16"  # hardcoded default
+
+
+# ===========================================================================
+# _split_video
+# ===========================================================================
+
+
+def _fake_proc():
+    """Return a mock subprocess.CompletedProcess-like object."""
+    proc = MagicMock()
+    proc.returncode = 0
+    proc.stdout = ""
+    proc.stderr = ""
+    return proc
+
+
+def test_split_video_success():
+    """_split_video with mocked ffmpeg returns success=True and populates size/rate."""
+    sd = _make_sd()
+    with patch("subprocess.run", return_value=_fake_proc()), patch(
+        "os.path.getsize", return_value=10 * 1024 * 1024
+    ):
+        sr = _split_video(sd, "/out/clip.mkv")
+
+    assert sr.success is True
+    assert sr.video_size_mb == pytest.approx(10.0)
+    assert sr.video_rate_mbpm is not None
+    assert sr.orig_start != "n/a"
+    assert sr.orig_end != "n/a"
+    assert sr.input_path == "/fake/video.mkv"
+    assert sr.output_path == "/out/clip.mkv"
+
+
+def test_split_video_ffmpeg_failure():
+    """CalledProcessError from ffmpeg leaves success=False."""
+    sd = _make_sd()
+    with patch(
+        "subprocess.run",
+        side_effect=subprocess.CalledProcessError(1, "ffmpeg"),
+    ):
+        sr = _split_video(sd, "/out/clip.mkv")
+
+    assert sr.success is False
+
+
+def test_split_video_resolution_na_gives_na_dimensions():
+    """SplitData with resolution='n/a' produces video_width/height='n/a'."""
+    sd = _make_sd()
+    sd.resolution = "n/a"
+    with patch("subprocess.run", return_value=_fake_proc()), patch(
+        "os.path.getsize", return_value=1024
+    ):
+        sr = _split_video(sd, "/out/clip.mkv")
+
+    assert sr.video_width == "n/a"
+    assert sr.video_height == "n/a"
+
+
+def test_split_video_resolution_none_gives_na_dimensions():
+    """SplitData with resolution=None produces video_width/height='n/a'."""
+    sd = _make_sd()
+    sd.resolution = None
+    with patch("subprocess.run", return_value=_fake_proc()), patch(
+        "os.path.getsize", return_value=1024
+    ):
+        sr = _split_video(sd, "/out/clip.mkv")
+
+    assert sr.video_width == "n/a"
+    assert sr.video_height == "n/a"
+
+
+# ===========================================================================
+# do_main dispatch
+# ===========================================================================
+
+
+def test_do_main_start_duration_builds_spec():
+    """do_main with start_time+duration builds a START/DURATION spec."""
+    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
+        result = do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            start_time="2024-02-02T17:30:00",
+            duration="PT3M",
+        )
+    assert result == 0
+    assert mock_dms.call_args.kwargs["specs"] == ("2024-02-02T17:30:00/PT3M",)
+
+
+def test_do_main_start_end_builds_spec():
+    """do_main with start_time+end_time builds a START//END spec."""
+    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
+        result = do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            start_time="2024-02-02T17:30:00",
+            end_time="2024-02-02T17:33:00",
+        )
+    assert result == 0
+    assert mock_dms.call_args.kwargs["specs"] == (
+        "2024-02-02T17:30:00//2024-02-02T17:33:00",
+    )
+
+
+def test_do_main_specs_provided_directly():
+    """do_main with specs tuple passes them straight to _do_main_specs."""
+    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
+        result = do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip_{n}.mkv",
+            specs=("2024-02-02T17:30:00/PT3M",),
+        )
+    assert result == 0
+    assert mock_dms.call_args.kwargs["specs"] == ("2024-02-02T17:30:00/PT3M",)
+
+
+def test_do_main_neither_spec_nor_start_returns_1():
+    """do_main with no spec and no start_time returns exit code 1."""
+    result = do_main(
+        input_path="/fake/video.mkv",
+        output_path="/out/clip.mkv",
+    )
+    assert result == 1
+
+
+def test_do_main_value_error_from_specs_returns_5():
+    """do_main returns 5 and emits ERROR when _do_main_specs raises ValueError."""
+    messages = []
+    with patch(
+        "reprostim.qr.split_video._do_main_specs",
+        side_effect=ValueError("bad template"),
+    ):
+        result = do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            specs=("2024-02-02T17:30:00/PT3M",),
+            out_func=messages.append,
+        )
+    assert result == 5
+    assert any("ERROR" in m for m in messages)
+
+
+# ===========================================================================
+# _do_main_specs — remaining gap coverage
+# ===========================================================================
+
+
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_sd_success_false_counts_as_failure(mock_csd, mock_sv):
+    """_calc_split_data returning success=False increments failure count."""
+    sd = _make_sd()
+    sd.success = False
+    mock_csd.return_value = sd
+
+    failures = _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M",),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json=None,
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+    )
+
+    assert failures == 1
+    mock_sv.assert_not_called()
+
+
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_split_video_failure_counts(mock_csd, mock_sv):
+    """_split_video returning success=False increments failure count."""
+    mock_csd.return_value = _make_sd()
+    sr = _make_sr_ms()
+    sr.success = False
+    mock_sv.return_value = sr
+
+    failures = _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M",),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json=None,
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+    )
+
+    assert failures == 1
+
+
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_verbose_emits_output(mock_csd, mock_sv):
+    """verbose=True causes spec progress lines to be emitted."""
+    mock_csd.return_value = _make_sd()
+    mock_sv.return_value = _make_sr_ms()
+
+    output = []
+    _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M",),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json=None,
+        video_audit_file=None,
+        raw=False,
+        verbose=True,
+        out_func=output.append,
+    )
+
+    assert any("Spec" in line for line in output)
+    assert any("Input path" in line or "Output path" in line for line in output)
+
+
+@patch("reprostim.qr.split_video._write_sidecar")
+@patch("reprostim.qr.split_video._split_video")
+@patch("reprostim.qr.split_video._calc_split_data")
+def test_do_main_specs_sidecar_auto_written(mock_csd, mock_sv, mock_ws):
+    """sidecar_json='auto' triggers _write_sidecar with a .split-video.json path."""
+    mock_csd.return_value = _make_sd()
+    mock_sv.return_value = _make_sr_ms()
+
+    _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M",),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json="auto",
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+    )
+
+    mock_ws.assert_called_once()
+    sidecar_path_used = mock_ws.call_args[0][0]
+    assert sidecar_path_used.endswith(".split-video.json")
+
+
+def test_do_main_specs_sidecar_no_token_multiple_specs_raises():
+    """Explicit sidecar path without template token raises
+    ValueError for multiple specs."""
+    with pytest.raises(ValueError, match="sidecar"):
+        _do_main_specs(
+            specs=("2024-02-02T17:30:00/PT3M", "2024-02-02T17:40:00/PT3M"),
+            input_path="/fake/video.mkv",
+            output_template="/out/clip_{n}.mkv",
+            buffer_before=None,
+            buffer_after=None,
+            buffer_policy="strict",
+            sidecar_json="/out/meta.json",  # no {n} token
+            video_audit_file=None,
+            raw=False,
+            verbose=False,
+        )
+
+
+# ===========================================================================
+# CLI — remaining gap coverage
+# ===========================================================================
+
+
+def test_cli_start_without_duration_or_end_raises(input_video):
+    """--start without --duration or --end raises UsageError."""
+    result = CliRunner().invoke(
+        split_video,
+        ["-i", input_video, "-o", "out.mkv", "--start", "2024-02-02T17:30:00"],
+    )
+    assert result.exit_code != 0
+    assert "--duration" in result.output or "--end" in result.output
+
+
+def test_cli_sidecar_json_auto_passed_to_do_main(input_video):
+    """--sidecar-json auto passes sidecar_json='auto' to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "2024-02-02T17:30:00/PT3M",
+                "--sidecar-json",
+                "auto",
+            ],
+        )
+    mock_dm.assert_called_once()
+    assert mock_dm.call_args.kwargs["sidecar_json"] == "auto"
+
+
+def test_cli_sidecar_json_explicit_path_passed_to_do_main(input_video):
+    """Explicit --sidecar-json path is forwarded unchanged to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "2024-02-02T17:30:00/PT3M",
+                "--sidecar-json",
+                "/custom/meta.json",
+            ],
+        )
+    mock_dm.assert_called_once()
+    assert mock_dm.call_args.kwargs["sidecar_json"] == "/custom/meta.json"
+
+
+def test_cli_verbose_emits_completed_message(input_video):
+    """--verbose causes the 'completed' elapsed-time line to be echoed."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0):
+        result = CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "2024-02-02T17:30:00/PT3M",
+                "--verbose",
+            ],
+        )
+    assert "completed" in result.output.lower()

@@ -163,14 +163,15 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/split_video.py` — parsing helpers | ≥ 90% | 0% (pending) |
-| `qr/split_video.py` — overall | ≥ 80% | 0% (pending) |
-| `cli/cmd_split_video.py` | ≥ 80% | 0% (pending) |
+| `qr/split_video.py` — parsing helpers | ≥ 90% | **90%** ✓ |
+| `qr/split_video.py` — overall | ≥ 80% | **90%** ✓ |
+| `cli/cmd_split_video.py` | ≥ 80% | **99%** ✓ |
 
 ### Test infrastructure
 
 - [x] Create `tests/qr/test_split_video.py`
-- [ ] Provide a small synthetic video fixture (or mock `ffmpeg` calls) under `tests/data/split_video/`
+- [x] Mock `ffmpeg` calls in unit tests (no real video fixture needed for coverage)
+- [ ] Provide a small synthetic video fixture under `tests/data/split_video/` (for integration tests)
 - [ ] Configure `pytest-cov` reporting for `split_video` modules
 
 ---
