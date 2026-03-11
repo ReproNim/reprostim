@@ -81,7 +81,7 @@ you can use it to run pre-built containers available at
 Note: at this moment the latest containers are not uploaded to the DataLad.
 
 Container binaries stored in format like `repronim-reprostim-{VERSION}.sing` there, e.g.:
-`repronim-reprostim-0.7.9.sing`.
+`repronim-reprostim-0.7.27.sing`.
 
 So, download containers first from DataLad:
 
@@ -103,7 +103,7 @@ singularity exec \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
-  ./containers/images/repronim/repronim-reprostim-0.7.9.sing \
+  ./containers/images/repronim/repronim-reprostim-0.7.27.sing \
   reprostim timesync-stimuli -t 10 --mode interval
 ```
 

@@ -38,7 +38,7 @@ Now running the following script works!::
 
     DISPLAY=:0 singularity exec \
             -B /run/user/$(id -u)/pulse \
-            containers/images/repronim/repronim-reprostim-0.7.13.sing \
+            containers/images/repronim/repronim-reprostim-0.7.27.sing \
             reprostim \
             timesync-stimuli --mode event  -t 100000 "$@"
 

@@ -21,7 +21,7 @@ docker pull repronim/reprostim:latest
 Pull a specific version:
 
 ```bash
-docker pull repronim/reprostim:0.7.18
+docker pull repronim/reprostim:0.7.27
 ```
 
 ## Usage
@@ -53,7 +53,7 @@ docker run -it --rm repronim/reprostim:latest bash
 
 - `latest` - Latest stable release
 - `master` - Built from master branch
-- `X.Y.Z` - Specific version tags (e.g., `0.7.5`)
+- `X.Y.Z` - Specific version tags (e.g., `0.7.27`)
 
 ## Documentation
 

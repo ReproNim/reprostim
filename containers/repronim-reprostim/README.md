@@ -93,7 +93,7 @@ cd containers/repronim-reprostim
 
 To test `reprostim` package version in singularity container run:
 ```shell
-singularity exec ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing reprostim --version
+singularity exec ./containers/repronim-reprostim/repronim-reprostim-0.7.27.sing reprostim --version
 ```
 
 To run `timesync-stimuli` command with audio codes use the following command:
@@ -107,7 +107,7 @@ singularity exec \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
-  ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing \
+  ./containers/repronim-reprostim/repronim-reprostim-0.7.27.sing \
   reprostim timesync-stimuli -t 10 --mode interval
 ```
 
@@ -119,12 +119,12 @@ and debugging purposes (with overlay):
 ```shell
 singularity overlay create \
   --size 1024 \
-  repronim-reprostim-0.7.5.overlay
+  repronim-reprostim-0.7.27.overlay
 
 sudo singularity exec \
-  --overlay repronim-reprostim-0.7.5.overlay \
+  --overlay repronim-reprostim-0.7.27.overlay \
   --cleanenv --contain -B ${REPROSTIM_PATH} \
-  repronim-reprostim-0.7.5.sing \
+  repronim-reprostim-0.7.27.sing \
   bash
 ```
 As sample install some package:
@@ -139,17 +139,17 @@ exit
 Optionally also uninstall current reprostim and install it from the local path:
 ```shell
 sudo singularity exec \
-  --overlay repronim-reprostim-0.7.5.overlay \
+  --overlay repronim-reprostim-0.7.27.overlay \
   --cleanenv --contain -B ${REPROSTIM_PATH} \
-  repronim-reprostim-0.7.5.sing \
+  repronim-reprostim-0.7.27.sing \
   /opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip uninstall reprostim
 
 
 sudo singularity exec \
-  --overlay repronim-reprostim-0.7.5.overlay \
+  --overlay repronim-reprostim-0.7.27.overlay \
   --cleanenv --contain -B ${REPROSTIM_PATH} \
-  repronim-reprostim-0.7.5.sing \
-  /opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install ${REPROSTIM_PATH}/dist/reprostim-0.7.8.tar.gz[all,disp_mon]
+  repronim-reprostim-0.7.27.sing \
+  /opt/psychopy/psychopy_2024.2.5_py3.10/bin/pip install ${REPROSTIM_PATH}/dist/reprostim-0.7.27.tar.gz[all,disp_mon]
 ```
 
 
@@ -165,8 +165,8 @@ singularity exec \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
-  --overlay ./repronim-reprostim-0.7.5.overlay \
-  ./repronim-reprostim-0.7.5.sing \
+  --overlay ./repronim-reprostim-0.7.27.overlay \
+  ./repronim-reprostim-0.7.27.sing \
   ${REPROSTIM_PATH}/tools/reprostim-timesync-stimuli output.log 1
 ```
 
@@ -194,11 +194,11 @@ export REPROSTIM_PATH=~/Projects/Dartmouth/branches/reprostim
 
 singularity overlay create \
   --size 1024 \
-  repronim-reprostim-0.7.5.overlay
+  repronim-reprostim-0.7.27.overlay
 
 sudo singularity exec \
-  --overlay repronim-reprostim-0.7.5.overlay \
-  repronim-reprostim-0.7.5.sing \
+  --overlay repronim-reprostim-0.7.27.overlay \
+  repronim-reprostim-0.7.27.sing \
   bash
 
 # execute in shell
@@ -209,8 +209,8 @@ exit
 
 # make sure all python packages are installed
 sudo singularity exec \
-  --overlay repronim-reprostim-0.7.5.overlay \
-  repronim-reprostim-0.7.5.sing \
+  --overlay repronim-reprostim-0.7.27.overlay \
+  repronim-reprostim-0.7.27.sing \
   python3 -m pip install pyzbar opencv-python numpy click pydantic sounddevice scipy pydub pyaudio reedsolo psychopy-sounddevice
 
 # and run the script
@@ -221,8 +221,8 @@ singularity exec \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
-  --overlay ./repronim-reprostim-0.7.5.overlay \
-  ./repronim-reprostim-0.7.5.sing \
+  --overlay ./repronim-reprostim-0.7.27.overlay \
+  ./repronim-reprostim-0.7.27.sing \
   reprostim timesync-stimuli --display 1
 
 ```
