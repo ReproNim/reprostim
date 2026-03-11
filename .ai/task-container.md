@@ -18,11 +18,11 @@ invoke `reprostim <args>` directly, without requiring explicit `python3 -m repro
 
 ### Tasks
 
-- [ ] **`setup_container.sh`**: Extend `PATH` to include `${PSYCHOPY_VENV_BIN}` (e.g. append to
+- [x] **`setup_container.sh`**: Extend `PATH` to include `${PSYCHOPY_VENV_BIN}` (e.g. append to
   `/etc/environment` or write a profile script under `/etc/profile.d/`) so that `reprostim` and
   other venv binaries are accessible system-wide without individual wrappers.
 
-- [ ] **`setup_container.sh`**: Add `/usr/local/bin/reprostim` wrapper script after the existing
+- [x] **`setup_container.sh`**: Add `/usr/local/bin/reprostim` wrapper script after the existing
   `python3` wrapper (same pattern: write a one-line `#!/bin/sh` wrapper pointing to
   `${PSYCHOPY_VENV_BIN}/reprostim`).
 
