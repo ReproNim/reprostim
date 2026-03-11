@@ -38,20 +38,24 @@ if [[ " ${REPROSTIM_RUN_RAW_MODES[*]} " == *" $REPROSTIM_CONTAINER_RUN_MODE "* ]
 
     # provide custom python module run command for singularity and docker
     if [ "$REPROSTIM_CONTAINER_RUN_MODE" = "python" ]; then
-        REPROSTIM_CONTAINER_ENTRYPOINT=""
         if [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
+            # override entrypoint explicitly: default is now reprostim, not python3
+            REPROSTIM_CONTAINER_ENTRYPOINT="--entrypoint=python3"
             REPROSTIM_CONTAINER_APP=""
         elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
+            REPROSTIM_CONTAINER_ENTRYPOINT=""
             REPROSTIM_CONTAINER_APP="python3"
         fi
     fi
 
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "docker" ]; then
-    REPROSTIM_CONTAINER_APP="-m reprostim"
+    # reprostim is the default entrypoint, no explicit app needed
+    REPROSTIM_CONTAINER_APP=""
 elif [ "$REPROSTIM_CONTAINER_TYPE" = "singularity" ]; then
-    REPROSTIM_CONTAINER_APP="python3 -m reprostim"
+    # singularity exec requires explicit command even when it matches entrypoint
+    REPROSTIM_CONTAINER_APP="reprostim"
 else
-    REPROSTIM_CONTAINER_APP="-m reprostim"
+    REPROSTIM_CONTAINER_APP="reprostim"
 fi
 
 

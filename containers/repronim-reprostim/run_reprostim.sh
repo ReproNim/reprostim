@@ -37,4 +37,4 @@ singularity exec \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
   ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER} \
-  python3 -m reprostim "$@"
+  reprostim "$@"
