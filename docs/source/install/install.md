@@ -104,7 +104,7 @@ singularity exec \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
   ./containers/images/repronim/repronim-reprostim-0.7.9.sing \
-  python3 -m reprostim timesync-stimuli -t 10 --mode interval
+  reprostim timesync-stimuli -t 10 --mode interval
 ```
 
 More details can be found in
@@ -243,9 +243,9 @@ To build the project, use `hatch` and `venv` with preferable Python
     hatch run reprostim --version
     hatch run reprostim echo 'Hello ReproStim CLI!'
 ```
-Note: in case `hatch run pip install -e .[all]` fails with errors like 
+Note: in case `hatch run pip install -e .[all]` fails with errors like
 ` ERROR: Failed building wheel for wxPython`, try to install wxPython package
-manually from https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ specifying 
+manually from https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ specifying
 appropriate OS and Python version, e.g.:
 
 ```shell
