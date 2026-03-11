@@ -1,3 +1,23 @@
+# 0.7.27 (Wed Mar 11 2026)
+
+#### 🐛 Bug Fix
+
+- Make `reprostim` the default `repronim-reprostim` container entrypoint [#232](https://github.com/ReproNim/reprostim/pull/232) ([@vmdocua](https://github.com/vmdocua))
+
+#### 🏠 Internal
+
+- Update copyright year to 2026 in source files [#227](https://github.com/ReproNim/reprostim/pull/227) ([@vmdocua](https://github.com/vmdocua))
+
+#### 📝 Documentation
+
+- Provide more tests for `split-video` command [#228](https://github.com/ReproNim/reprostim/pull/228) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.26 (Wed Mar 04 2026)
 
 #### 🐛 Bug Fix
