@@ -38,9 +38,17 @@ repos:
           - flake8-builtins
           # - flake8-unused-arguments
 
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
+  # NOTE: koalaman/shellcheck-precommit requires Docker; replaced with local hook
+  # - repo: https://github.com/koalaman/shellcheck-precommit
+  #   rev: v0.11.0
+  #   hooks:
+  #   - id: shellcheck
+  - repo: local
     hooks:
     - id: shellcheck
+      name: ShellCheck
+      language: system
+      entry: shellcheck
+      types: [shell]
 
-exclude: '^src/reprostim-capture/.*|.codespellrc|^examples/exp-alpha/'
+exclude: '^src/reprostim-capture/.*|.codespellrc|^examples/exp-alpha/|^Events/|^Parsing/|^QRCoding/'

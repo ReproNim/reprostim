@@ -81,7 +81,7 @@ you can use it to run pre-built containers available at
 Note: at this moment the latest containers are not uploaded to the DataLad.
 
 Container binaries stored in format like `repronim-reprostim-{VERSION}.sing` there, e.g.:
-`repronim-reprostim-0.7.9.sing`.
+`repronim-reprostim-0.7.27.sing`.
 
 So, download containers first from DataLad:
 
@@ -103,8 +103,8 @@ singularity exec \
   -B ${REPROSTIM_PATH} \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
-  ./containers/images/repronim/repronim-reprostim-0.7.9.sing \
-  python3 -m reprostim timesync-stimuli -t 10 --mode interval
+  ./containers/images/repronim/repronim-reprostim-0.7.27.sing \
+  reprostim timesync-stimuli -t 10 --mode interval
 ```
 
 More details can be found in
@@ -243,9 +243,9 @@ To build the project, use `hatch` and `venv` with preferable Python
     hatch run reprostim --version
     hatch run reprostim echo 'Hello ReproStim CLI!'
 ```
-Note: in case `hatch run pip install -e .[all]` fails with errors like 
+Note: in case `hatch run pip install -e .[all]` fails with errors like
 ` ERROR: Failed building wheel for wxPython`, try to install wxPython package
-manually from https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ specifying 
+manually from https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ specifying
 appropriate OS and Python version, e.g.:
 
 ```shell

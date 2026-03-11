@@ -54,11 +54,24 @@ echo "Install visidata"
 echo "Install py-spy"
 "${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir py-spy
 
+# Extend PATH to include PsychoPy venv bin so reprostim and other
+# venv tools are accessible system-wide without individual wrappers
+echo "Extending PATH to include PsychoPy venv bin: ${PSYCHOPY_VENV_BIN}"
+echo "export PATH=\"${PSYCHOPY_VENV_BIN}:\$PATH\"" > /etc/profile.d/psychopy_venv.sh
+chmod a+x /etc/profile.d/psychopy_venv.sh
+
 # Create symlink to python3 in psychopy venv as default python3
 echo "Creating symlink to python3 in psychopy venv as default python3"
 b=$(ls "${PSYCHOPY_VENV_BIN}/python3")
 echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/python3
 chmod a+x /usr/local/bin/python3
+
+# Create wrapper for reprostim in /usr/local/bin so it is usable as
+# the default container entrypoint
+echo "Creating wrapper script for reprostim in /usr/local/bin..."
+b="${PSYCHOPY_VENV_BIN}/reprostim"
+echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/reprostim
+chmod a+x /usr/local/bin/reprostim
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   # Build reprostim-capture from source

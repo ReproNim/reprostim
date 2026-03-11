@@ -38,8 +38,8 @@ Now running the following script works!::
 
     DISPLAY=:0 singularity exec \
             -B /run/user/$(id -u)/pulse \
-            containers/images/repronim/repronim-reprostim-0.7.13.sing \
-            /opt/psychopy/psychopy_2024.2.5_py3.10/bin/reprostim \
+            containers/images/repronim/repronim-reprostim-0.7.27.sing \
+            reprostim \
             timesync-stimuli --mode event  -t 100000 "$@"
 
 A version of it was adapted into actual `deployment`.

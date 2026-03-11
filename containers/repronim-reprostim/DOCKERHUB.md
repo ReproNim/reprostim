@@ -21,7 +21,7 @@ docker pull repronim/reprostim:latest
 Pull a specific version:
 
 ```bash
-docker pull repronim/reprostim:0.7.18
+docker pull repronim/reprostim:0.7.27
 ```
 
 ## Usage
@@ -29,7 +29,7 @@ docker pull repronim/reprostim:0.7.18
 ### Check Version
 
 ```bash
-docker run --rm repronim/reprostim:latest python3 -m reprostim --version
+docker run --rm repronim/reprostim:latest --version
 ```
 
 ### Run Time Synchronization
@@ -40,7 +40,7 @@ docker run --rm \
   -e DISPLAY=$DISPLAY \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   repronim/reprostim:latest \
-  python3 -m reprostim timesync-stimuli -t 10 --mode interval
+  timesync-stimuli -t 10 --mode interval
 ```
 
 ### Interactive Shell
@@ -53,7 +53,7 @@ docker run -it --rm repronim/reprostim:latest bash
 
 - `latest` - Latest stable release
 - `master` - Built from master branch
-- `X.Y.Z` - Specific version tags (e.g., `0.7.5`)
+- `X.Y.Z` - Specific version tags (e.g., `0.7.27`)
 
 ## Documentation
 
