@@ -1,6 +1,6 @@
-# Container Task List
+# `repronim-reprostim` Container Task List
 
-Tracks implementation tasks related to container configuration and scripts.
+Tracks implementation tasks related to `repronim-reprostim` container configuration and scripts.
 
 ---
 
