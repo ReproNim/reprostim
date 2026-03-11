@@ -29,7 +29,7 @@ docker pull repronim/reprostim:0.7.18
 ### Check Version
 
 ```bash
-docker run --rm repronim/reprostim:latest python3 -m reprostim --version
+docker run --rm repronim/reprostim:latest --version
 ```
 
 ### Run Time Synchronization
@@ -40,7 +40,7 @@ docker run --rm \
   -e DISPLAY=$DISPLAY \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   repronim/reprostim:latest \
-  python3 -m reprostim timesync-stimuli -t 10 --mode interval
+  timesync-stimuli -t 10 --mode interval
 ```
 
 ### Interactive Shell

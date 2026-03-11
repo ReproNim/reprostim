@@ -46,7 +46,7 @@ invoke `reprostim <args>` directly, without requiring explicit `python3 -m repro
   `reprostim` mode via `python3 -m reprostim`) to use `reprostim` directly, since that case
   is now dead code for known modes.
 
-- [ ] **Verify** GitHub Actions workflow (`docker.yml`) — `test_reprostim_container.sh` already
+- [x] **Verify** GitHub Actions workflow (`docker.yml`) — `test_reprostim_container.sh` already
   uses `REPROSTIM_CONTAINER_RUN_MODE="reprostim"` which will route through the updated
   `else` branch; confirm no workflow-level changes are needed after above fixes.
 
@@ -55,3 +55,10 @@ invoke `reprostim <args>` directly, without requiring explicit `python3 -m repro
 
 - [x] **`docs/source/notes/automated-setup.rst`**: Update the example script snippet —
   replace full venv path `/opt/psychopy/.../bin/reprostim` with just `reprostim`.
+
+- [x] **`containers/repronim-reprostim/DOCKERHUB.md`**: Replace `python3 -m reprostim` with
+  direct args — Docker entrypoint is now `reprostim`, so `docker run image python3 -m reprostim
+  --version` becomes `docker run image --version`.
+
+- [x] **`containers/repronim-reprostim/README.md`**: Replace all `python3 -m reprostim` with
+  `reprostim` in `singularity exec` examples (3 occurrences).

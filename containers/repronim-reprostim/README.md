@@ -93,7 +93,7 @@ cd containers/repronim-reprostim
 
 To test `reprostim` package version in singularity container run:
 ```shell
-singularity exec ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing python3 -m reprostim --version
+singularity exec ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing reprostim --version
 ```
 
 To run `timesync-stimuli` command with audio codes use the following command:
@@ -108,7 +108,7 @@ singularity exec \
   --env DISPLAY=$DISPLAY \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
   ./containers/repronim-reprostim/repronim-reprostim-0.7.5.sing \
-  python3 -m reprostim timesync-stimuli -t 10 --mode interval
+  reprostim timesync-stimuli -t 10 --mode interval
 ```
 
 ### Debug & Patch Notes
@@ -223,6 +223,6 @@ singularity exec \
   --env PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native \
   --overlay ./repronim-reprostim-0.7.5.overlay \
   ./repronim-reprostim-0.7.5.sing \
-  python3 -m reprostim timesync-stimuli --display 1
+  reprostim timesync-stimuli --display 1
 
 ```
