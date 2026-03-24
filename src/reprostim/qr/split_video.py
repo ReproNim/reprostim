@@ -515,18 +515,30 @@ def _calc_split_data(
 
     if buffer_policy == BufferPolicy.STRICT:
         if buffer_overflow_before:
-            logger.error("Buffer before extends before video start (strict mode).")
+            logger.error(
+                f"Buffer before extends before video start (strict mode): "
+                f"buffer_start={sd.buf_seg.start_ts}, "
+                f"video_start={sd.full_seg.start_ts} "
+                f"(video: {path})."
+            )
             raise ValueError(
                 f"Buffer before extends before video start: "
                 f"buffer_start={sd.buf_seg.start_ts}, "
-                f"video_start={sd.full_seg.start_ts}. "
+                f"video_start={sd.full_seg.start_ts} "
+                f"(video: {path}). "
                 f"Use --buffer-policy=flexible to trim buffers automatically."
             )
         if buffer_overflow_after:
-            logger.error("Buffer after extends after video end (strict mode).")
+            logger.error(
+                f"Buffer after extends after video end (strict mode): "
+                f"buffer_end={sd.buf_seg.end_ts}, "
+                f"video_end={sd.full_seg.end_ts} "
+                f"(video: {path})."
+            )
             raise ValueError(
                 f"Buffer after extends after video end: "
-                f"buffer_end={sd.buf_seg.end_ts}, video_end={sd.full_seg.end_ts}. "
+                f"buffer_end={sd.buf_seg.end_ts}, video_end={sd.full_seg.end_ts} "
+                f"(video: {path}). "
                 f"Use --buffer-policy=flexible to trim buffers automatically."
             )
     else:  # BufferPolicy.FLEXIBLE
