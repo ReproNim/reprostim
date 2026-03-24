@@ -784,10 +784,15 @@ def _do_inject_scans(ctx: BiContext, path: str):
                         logger.info("No matching video records found, skipping.")
                         ctx.summary.n_skipped += 1
                     elif n_va > 1:
+                        va_list = ", ".join(
+                            f"{va.name} " f"[{va.start_time} -- {va.end_time}]"
+                            for va in va_records
+                        )
                         logger.error(
                             f"Ambiguous match: {n_va} video records overlap "
-                            f"the scan window. Multiple videos per scan are "
-                            f"not yet supported; skipping."
+                            f"the scan window [{start_ts} -- {end_ts}]. "
+                            f"Multiple videos per scan are not yet supported; "
+                            f"skipping. Matched videos: {va_list}."
                         )
                         ctx.summary.n_errors += 1
                     else:
