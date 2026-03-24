@@ -486,17 +486,27 @@ def _calc_split_data(
 
     # D) Validate segments against video boundaries and adjust if necessary
     if sd.sel_seg.start_ts < sd.full_seg.start_ts:
-        logger.error("Selected start time is before video start.")
+        logger.error(
+            f"Selected start time is before video start: "
+            f"{sd.sel_seg.start_ts} < {sd.full_seg.start_ts} "
+            f"(video: {path})."
+        )
         raise ValueError(
             f"Selected start time is before video start: "
-            f"{sd.sel_seg.start_ts} < {sd.full_seg.start_ts}."
+            f"{sd.sel_seg.start_ts} < {sd.full_seg.start_ts} "
+            f"(video: {path})."
         )
 
     if sd.sel_seg.end_ts > sd.full_seg.end_ts:
-        logger.error("Selected end time is after video end.")
+        logger.error(
+            f"Selected end time is after video end: "
+            f"{sd.sel_seg.end_ts} > {sd.full_seg.end_ts} "
+            f"(video: {path})."
+        )
         raise ValueError(
             f"Selected end time is after video end: "
-            f"{sd.sel_seg.end_ts} > {sd.full_seg.end_ts}."
+            f"{sd.sel_seg.end_ts} > {sd.full_seg.end_ts} "
+            f"(video: {path})."
         )
 
     # Handle buffer overflow based on policy
