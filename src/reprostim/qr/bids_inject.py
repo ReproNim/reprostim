@@ -58,6 +58,15 @@ class LayoutMode(str, Enum):
     TOP_STIMULI = "top-stimuli"
 
 
+class OverwriteMode(str, Enum):
+    """Policy for handling existing output files."""
+
+    SKIP = "skip"
+    FORCE = "force"
+    ALWAYS = "always"
+    ERROR = "error"
+
+
 class MediaSuffix(str, Enum):
     """Recording-type suffix per BEP044:Stimuli."""
 
@@ -148,6 +157,14 @@ class BiContext(BaseModel):
         "'nearby': place output next to the NIfTI in the same datatype folder. "
         "'top-stimuli': place output under stimuli/ at the BIDS root, "
         "mirroring the subject/session/datatype hierarchy.",
+    )
+    overwrite: OverwriteMode = Field(
+        default=OverwriteMode.SKIP,
+        description="Policy for handling existing output files. "
+        "'skip': skip if output exists (default). "
+        "'force': remove existing file/symlink then re-inject. "
+        "'always': run split-video as-is without existence check. "
+        "'error': treat existing output as an error.",
     )
     reprostim_timezone: str = Field(
         default="local",
@@ -679,6 +696,35 @@ def _call_split_video(
     logger.info(f"Output video path      : {output_path}")
     logger.info(f"Sidecar JSON path      : {sidecar_path}")
 
+    # Apply overwrite policy when any output file already exists
+    output_exists = os.path.exists(output_path) or os.path.islink(output_path)
+    sidecar_exists = os.path.exists(sidecar_path) or os.path.islink(sidecar_path)
+    if output_exists or sidecar_exists:
+        existing = ", ".join(
+            p
+            for p, e in [(output_path, output_exists), (sidecar_path, sidecar_exists)]
+            if e
+        )
+        if ctx.overwrite == OverwriteMode.SKIP:
+            logger.info(f"Output already exists, skipping ({existing}).")
+            ctx.summary.n_skipped += 1
+            return
+        elif ctx.overwrite == OverwriteMode.FORCE:
+            logger.info(
+                f"Output already exists, removing before re-inject ({existing})."
+            )
+            if output_exists:
+                os.remove(output_path)
+            if sidecar_exists:
+                os.remove(sidecar_path)
+        elif ctx.overwrite == OverwriteMode.ERROR:
+            err_msg = f"Output already exists ({existing})"
+            logger.error(err_msg)
+            ctx.summary.errors.append(f"{record.filename}: {err_msg}")
+            ctx.summary.n_errors += 1
+            return
+        # OverwriteMode.ALWAYS: no action, fall through
+
     if ctx.dry_run:
         duration_sec = (end_ts - start_ts).total_seconds()
         if ctx.out_func:
@@ -1116,6 +1162,7 @@ def do_main(
     reprostim_timezone: str,
     bids_timezone: str,
     dry_run: bool,
+    overwrite: str,
     lock: bool,
     verbose: bool,
     out_func: Callable,
@@ -1174,6 +1221,11 @@ def do_main(
         places it under a ``stimuli/`` directory at the BIDS root, mirroring
         the subject/session/datatype hierarchy.
     :type layout: str
+    :param overwrite: Policy for existing output files: ``'skip'`` (default)
+        skips the scan, ``'force'`` removes existing file/symlink then
+        re-injects, ``'always'`` runs split-video as-is without an existence
+        check, ``'error'`` treats existing output as an error.
+    :type overwrite: str
     :param verbose: When ``True``, emit verbose progress output.
     :type verbose: bool
     :param out_func: Callable used for user-facing output (e.g. ``click.echo``).
@@ -1192,6 +1244,7 @@ def do_main(
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
         layout=LayoutMode(layout),
+        overwrite=OverwriteMode(overwrite),
         reprostim_timezone=reprostim_timezone,
         bids_timezone=bids_timezone,
         lock=lock,

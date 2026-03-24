@@ -19,6 +19,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] `-Z / --bids-timezone` — timezone for BIDS `acq_time` values
 - [x] `-m / --match REGEX` — filter scan records by filename
 - [x] `-d / --dry-run`
+- [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
 - [x] `-v / --verbose`
 
@@ -79,10 +80,20 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Structured per-scan summary printed to stdout (onset, duration, buffers, paths)
 - [x] Final `[DRY-RUN] N injected, M skipped, K errors` summary line
 
+### Overwrite mode
+- [x] `OverwriteMode` enum (`skip` / `force` / `always` / `error`)
+- [x] Check both output `.mkv` and sidecar `.json` for existence (including symlinks)
+- [x] `skip` — existing output → log info, count as skipped, return early
+- [x] `force` — existing output → `os.remove()` both files, then re-inject (handles git-annex read-only symlinks)
+- [x] `always` — no existence check, run `split-video` as-is (pre-feature behaviour)
+- [x] `error` — existing output → log error, append to `summary.errors`, count as error
+
 ### Summary / reporting
-- [x] Count injected / skipped / error records per run
-- [x] Print final `N injected, M skipped, K errors` summary line
+- [x] Count processed / injected / skipped / error records per run
+- [x] Print final `N processed, N injected, M skipped, K errors` summary line
+- [x] In verbose mode, print numbered error list after summary
 - [x] Non-zero exit code on errors
+- [x] Capture `ERROR:` lines from `split-video` `out_func` for detailed error summary
 
 ---
 
@@ -122,6 +133,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Spec: `--lock` section
 - [x] Spec: Layout Modes section
 - [x] Spec: Timezone Handling section with full `dt_` API
+- [x] Spec: Overwrite Mode section (all 4 modes, git-annex interaction)
 
 ---
 
@@ -186,7 +198,7 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [ ] Single `_scans.tsv` + matching video → `split-video` called with correct args (mocked)
 - [x] Dry-run: `split-video` not called; planned actions logged
 - [x] No matching video → scan skipped; no error raised
-- [x] Ambiguous match (2 videos overlap) → error logged, scan skipped
+- [x] Ambiguous match (2 videos overlap) → error logged with scan window + matched video list
 - [x] `--match 'func/.*'` → only functional scans processed
 - [ ] `--recursive` → all `_scans.tsv` files under directory tree processed
 - [ ] `nearby` layout → output path is beside NIfTI
@@ -195,6 +207,15 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [ ] `--lock no` → `FileLock` not acquired (mock / spy on `_get_tsv_records`)
 - [ ] `--reprostim-timezone` / `--bids-timezone` → passed into `BiContext` correctly
 - [ ] Mixed timezone scenario: Eastern ReproStim + UTC BIDS → times align after conversion
+
+### Overwrite mode tests
+
+- [x] `skip` + existing output → 0 injected, files untouched, counted as skipped
+- [x] `skip` + no existing output → 1 injected (normal path)
+- [x] `force` + existing output → both `.mkv` and `.json` removed, 1 injected
+- [x] `always` + existing output → 1 injected, files not pre-removed
+- [x] `error` + existing output → exit 1, 1 error, error detail in verbose output
+- [x] `error` + no existing output → 1 injected (normal path)
 
 ### CLI tests (Click `CliRunner`)
 
@@ -240,4 +261,5 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [ ] **Parallel processing** — `--jobs` option; lock protection for shared counters
 - [ ] **con/duct integration**
 - [ ] **`--skip` error policy** — e.g. `--skip=absent-video,unknown-timing,...`
+- [x] **`--overwrite` policy** — `-w / --overwrite [skip|force|always|error]` implemented for existing output file handling
 - [ ] **`--duration` override** — manual scan duration for edge cases
