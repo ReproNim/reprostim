@@ -74,16 +74,18 @@ try:
         elif _audio_lib == AudioLib.PSYCHOPY_PTB:
             logger.debug("Set psychopy audio library: ptb")
             prefs.hardware["audioLib"] = ["ptb"]
-        if _audio_lib in (AudioLib.PSYCHOPY_SOUNDDEVICE, AudioLib.PSYCHOPY_PTB):
+        if _audio_lib in (AudioLib.PSYCHOPY_SOUNDDEVICE):
             # PsychoPy 2025+ requires explicit plugin loading for sounddevice
             # Note: Review this code once psychopy-sounddevice will be back into PsychoPy
             # as reported in https://github.com/psychopy/psychopy-sounddevice/issues/5
             try:
-                import importlib
                 from psychopy import plugins
+
                 plugins.loadPlugin("psychopy-sounddevice")
                 logger.debug(f"Installed psychopy plugins: {plugins.listPlugins()}")
-                logger.debug(f"Loaded psychopy plugins: {plugins.listPlugins(which='loaded')}")
+                logger.debug(
+                    f"Loaded psychopy plugins: {plugins.listPlugins(which='loaded')}"
+                )
                 if "psychopy-sounddevice" not in plugins.listPlugins(which="loaded"):
                     # loadPlugin silently failed (e.g. PsychoPy 2025 compatibility
                     # issue) — bypass/temporary fix  to manual registration
@@ -93,9 +95,13 @@ try:
                     )
                     import psychopy_sounddevice
                     from psychopy import sound as _sound
+
                     _sound.backend_sounddevice = psychopy_sounddevice
                     importlib.reload(_sound)
-                    logger.debug("Manually registered psychopy_sounddevice backend and reloaded psychopy.sound")
+                    logger.debug(
+                        "Manually registered psychopy_sounddevice backend and reloaded "
+                        "psychopy.sound"
+                    )
                 else:
                     logger.debug("Loaded psychopy-sounddevice plugin")
             except Exception as e:
