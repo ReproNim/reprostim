@@ -74,6 +74,10 @@ class MediaSuffix(str, Enum):
 class BiSummary(BaseModel):
     """Mutable counters accumulating per-run injection statistics."""
 
+    n_processed: int = Field(
+        default=0,
+        description="Scan records considered for injection (matched by --match filter).",
+    )
     n_injected: int = Field(
         default=0,
         description="Scan records successfully injected (or planned in dry-run).",
@@ -86,6 +90,10 @@ class BiSummary(BaseModel):
         default=0,
         description="Scan records that encountered errors (ambiguous match, "
         "split-video failure, etc.).",
+    )
+    errors: List[str] = Field(
+        default_factory=list,
+        description="Human-readable description of each error encountered.",
     )
 
 
@@ -702,6 +710,14 @@ def _call_split_video(
 
     from reprostim.qr.split_video import do_main as split_video_main
 
+    captured_errors: List[str] = []
+
+    def _capturing_out_func(msg: str) -> None:
+        if msg.startswith("ERROR:"):
+            captured_errors.append(msg)
+        if ctx.out_func:
+            ctx.out_func(msg)
+
     ret = split_video_main(
         input_path=input_path,
         output_path=output_path,
@@ -714,10 +730,13 @@ def _call_split_video(
         video_audit_file=ctx.videos_tsv,
         lock=ctx.lock,
         verbose=ctx.verbose,
-        out_func=ctx.out_func or print,
+        out_func=_capturing_out_func,
     )
     if ret != 0:
-        logger.error(f"split-video failed with exit code {ret} ({record.filename})")
+        captured = "; ".join(captured_errors) if captured_errors else f"exit code {ret}"
+        err_msg = f"split-video failed for {record.filename}: {captured}"
+        logger.error(err_msg)
+        ctx.summary.errors.append(err_msg)
         ctx.summary.n_errors += 1
     else:
         logger.info(f"split-video completed successfully ({record.filename})")
@@ -745,6 +764,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
         scans: ScansModel = _parse_scans_model(path)
         for sr in scans.records:
             if re.search(ctx.match, sr.filename):
+                ctx.summary.n_processed += 1
                 logger.info(f"Processing scan record : {sr}")
                 sr.metadata = _parse_scan_metadata(scans, sr)
                 logger.debug(f"Scan metadata          : {sr.metadata}")
@@ -788,12 +808,14 @@ def _do_inject_scans(ctx: BiContext, path: str):
                             f"{va.name} " f"[{va.start_time} -- {va.end_time}]"
                             for va in va_records
                         )
-                        logger.error(
+                        err_msg = (
                             f"Ambiguous match: {n_va} video records overlap "
                             f"the scan window [{start_ts} -- {end_ts}]. "
                             f"Multiple videos per scan are not yet supported; "
                             f"skipping. Matched videos: {va_list}."
                         )
+                        logger.error(err_msg)
+                        ctx.summary.errors.append(f"{sr.filename}: {err_msg}")
                         ctx.summary.n_errors += 1
                     else:
                         _call_split_video(
@@ -1182,12 +1204,17 @@ def do_main(
     s = ctx.summary
     prefix = "[DRY-RUN] " if dry_run else ""
     summary_line = (
-        f"{prefix}{s.n_injected} injected, "
+        f"{prefix}{s.n_processed} processed, "
+        f"{s.n_injected} injected, "
         f"{s.n_skipped} skipped, "
         f"{s.n_errors} errors"
     )
     logger.debug(summary_line)
     if out_func:
         out_func(summary_line)
+        if verbose and s.errors:
+            out_func("Errors:")
+            for i, err in enumerate(s.errors, 1):
+                out_func(f"  [{i}] {err}")
 
     return 1 if s.n_errors > 0 else 0
