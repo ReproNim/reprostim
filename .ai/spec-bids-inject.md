@@ -138,6 +138,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-Z / --bids-timezone TIMEZONE`                 | String          | `local`    | Timezone assumed for naive BIDS `acq_time` values. When omitted, defaults to the value of `--reprostim-timezone` (see Timezone Handling below).                                                                                                    |
 | `-m / --match REGEX`                            | String          | `.*`       | Regular expression matched against the `filename` field of each scan record. Only records whose `filename` matches are processed; all others are skipped. Default `.*` matches every record. Example: `func/` to restrict to functional scans only. |
 | `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
+| `-w / --overwrite [skip\|force\|always\|error]` | Choice          | `skip`     | Policy for handling existing output files (see Overwrite Mode below).                                                                                                                                                                               |
 | `-k / --lock [yes\|no]`                         | Choice          | `yes`      | Whether to acquire a file lock (`videos.tsv.lock`) before reading `videos.tsv`. Use `no` for dirty-read mode when the lock is held by another user (see Lock / Dirty-read Mode below).                                                              |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                                                                                                                                                 |
 
@@ -218,6 +219,24 @@ reprostim bids-inject \
   --videos /data/reprostim/videos.tsv \
   --lock no \
   sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Re-run safely: skip scans whose output already exists (default behaviour)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --overwrite skip \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Force re-injection even if output already exists (removes existing file/symlink first)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --overwrite force \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Strict mode: treat existing outputs as errors (useful for CI/QA pipelines)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --overwrite error \
+  sourcedata/dbic-QA/sub-qa/ses-20250814/
 ```
 
 ---
@@ -245,6 +264,42 @@ encountered during analysis, non-zero otherwise.
 
 `--dry-run` is compatible with all other options, including `--qr` modes (QR data is read and
 parsed as normal; only the write step is suppressed).
+
+---
+
+## Overwrite Mode
+
+The `--overwrite / -w` option controls what `bids-inject` does when the output `.mkv` file for
+a scan already exists on disk. This is common when re-running `bids-inject` on a dataset where
+some or all injections were completed in a previous run, and especially relevant when the BIDS
+dataset is managed by **DataLad / git-annex**, where annexed files are stored as read-only
+symlinks.
+
+| Mode     | Behaviour                                                                                                                                                        |
+|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `skip`   | If the output file or symlink already exists, log an info message, count as skipped, and move on. **(default)**                                                 |
+| `force`  | If the output file or symlink exists, remove it first (`os.remove` unlinks the symlink without touching the annex object), then run `split-video` as normal.    |
+| `always` | No existence check — run `split-video` (and ffmpeg `-y`) as-is. Overwrites regular files fine; fails with "Permission denied" on read-only git-annex symlinks. This is the pre-feature behavior. |
+| `error`  | If the output file or symlink exists, log an error, count as an error, and skip the scan. Useful for strict CI/QA pipelines.                                    |
+
+Default is `skip`, which makes repeated runs idempotent and safe.
+
+### git-annex / DataLad interaction
+
+When a BIDS dataset is managed by DataLad, injected `.mkv` files are added to git-annex as
+read-only symlinks, e.g.:
+
+```
+func/sub-qa_ses-20250814_task-rest_recording-reprostim_audiovideo.mkv
+  -> ../../../.git/annex/objects/.../SHA256E-s....mkv   (-r--r--r--)
+```
+
+The annex object itself is read-only, so `ffmpeg -y` cannot overwrite it and produces a
+misleading "Permission denied" error. The correct remedies are:
+
+- **`--overwrite skip`** (default): do not attempt to write; existing content is preserved.
+- **`--overwrite force`**: `os.remove()` unlinks the symlink (annex object is untouched),
+  then `split-video` writes a fresh regular file. Re-annex with `datalad save` if needed.
 
 ---
 
@@ -637,15 +692,16 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 
 ## Error Handling
 
-| Condition                               | Behavior                                    |
-|-----------------------------------------|---------------------------------------------|
-| No matching video for a scan            | Warn and skip                               |
-| Multiple overlapping videos             | Error and skip that scan                    |
-| Incomplete/truncated video              | Warn; attempt if `--buffer-policy flexible` |
-| Cannot determine scan duration          | Error and skip                              |
-| `--qr embed-existing` and JSONL missing | Error and skip that scan                    |
-| `videos.tsv` not found                  | Fatal error                                 |
-| `_scans.tsv` not found                  | Warn and skip subject/session               |
+| Condition                               | Behavior                                                                                  |
+|-----------------------------------------|-------------------------------------------------------------------------------------------|
+| No matching video for a scan            | Warn and skip                                                                             |
+| Multiple overlapping videos             | Error and skip that scan                                                                  |
+| Incomplete/truncated video              | Warn; attempt if `--buffer-policy flexible`                                               |
+| Cannot determine scan duration          | Error and skip                                                                            |
+| `--qr embed-existing` and JSONL missing | Error and skip that scan                                                                  |
+| `videos.tsv` not found                  | Fatal error                                                                               |
+| `_scans.tsv` not found                  | Warn and skip subject/session                                                             |
+| Output file already exists              | Controlled by `--overwrite`: skip (default), force remove, always run, or error and skip |
 
 ---
 
@@ -663,4 +719,4 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 10. **Timezone handling**: ReproStim based timestamps are always in local time (TZ-neutral but implicitly in timezone of research center); BIDS `acq_time` is often in UTC. Need to ensure consistent timezone handling when matching.
 11. **Parallel processing**: The natural parallelism granularity is one `_scans.tsv` per worker (scans within a session stay sequential). When multiple sessions run concurrently, shared output data (summary counters, QR JSONL cache, any merged report files) will need lock protection. To be designed when a `--jobs` option is introduced.
 12. **con/duct**: ideally -- should have also used duct
-13. **Error processing**: Add an option on what to do about "problematic" cases. --skip=absent-video,unknown-timing,...
+13. ~~**Error processing**: Add an option on what to do about "problematic" cases.~~ → partially resolved as `-w / --overwrite [skip|force|always|error]` for existing output handling.

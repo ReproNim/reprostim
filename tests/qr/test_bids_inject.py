@@ -5,6 +5,7 @@
 """Tests for the Datetime / Timezone public API in reprostim.qr.bids_inject."""
 
 import re
+import shutil
 from datetime import datetime, time, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -615,9 +616,11 @@ def _run(
     *,
     match=".*",
     dry_run=True,
+    overwrite="skip",
     layout="nearby",
     reprostim_timezone="UTC",
     bids_timezone="UTC",
+    verbose=False,
 ):
     """Call do_main with sensible test defaults; return (exit_code, output_lines)."""
     output = []
@@ -635,8 +638,9 @@ def _run(
         reprostim_timezone=reprostim_timezone,
         bids_timezone=bids_timezone,
         dry_run=dry_run,
+        overwrite=overwrite,
         lock=False,
-        verbose=False,
+        verbose=verbose,
         out_func=output.append,
     )
     return ret, output
@@ -715,3 +719,162 @@ def test_integration_dry_run_match_func_only(tmp_path):
     summary = next(line for line in output if "injected" in line)
     assert "2 injected" in summary
     assert "1 skipped" in summary  # anat filtered by --match
+
+
+# ===========================================================================
+# Overwrite mode tests
+# ===========================================================================
+
+# Relative output path produced for the task-rest_acq-p2 scan (nearby layout,
+# audiovideo source) — relative to the session directory containing scans.tsv.
+_TASK_REST_OUTPUT_MKV = (
+    "func/sub-qa_ses-20250814_task-rest_acq-p2" "_recording-reprostim_audiovideo.mkv"
+)
+_TASK_REST_OUTPUT_JSON = (
+    "func/sub-qa_ses-20250814_task-rest_acq-p2" "_recording-reprostim_audiovideo.json"
+)
+# regex that matches only the first functional scan (not __dup-01 or anat)
+_MATCH_TASK_REST = r"task-rest_acq-p2_bold\.nii\.gz$"
+
+
+def _copy_bids_fixture(tmp_path: Path) -> Path:
+    """Copy the static BIDS fixture into tmp_path.
+
+    Returns the path to the copied scans.tsv so that output files will be
+    written next to it (under tmp_path), not into the committed fixture.
+    """
+    dst = tmp_path / "bids"
+    shutil.copytree(_BIDS_FIXTURE, dst)
+    return dst / "sub-qa" / "ses-20250814" / "sub-qa_ses-20250814_scans.tsv"
+
+
+def _pre_create_output(scans_tsv: Path) -> tuple:
+    """Create placeholder output mkv and sidecar json next to scans_tsv.
+
+    Returns (mkv_path, json_path) as Path objects.
+    """
+    ses_dir = scans_tsv.parent
+    mkv = ses_dir / _TASK_REST_OUTPUT_MKV
+    jsn = ses_dir / _TASK_REST_OUTPUT_JSON
+    mkv.parent.mkdir(parents=True, exist_ok=True)
+    mkv.write_bytes(b"placeholder")
+    jsn.write_text("{}")
+    return mkv, jsn
+
+
+def test_overwrite_skip_skips_when_output_exists(tmp_path):
+    """skip mode: existing output → scan counted as skipped, files untouched."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    mkv, jsn = _pre_create_output(scans_tsv)
+
+    ret, output = _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        overwrite="skip",
+    )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "0 injected" in summary
+    assert mkv.exists()  # untouched
+    assert jsn.exists()  # untouched
+
+
+def test_overwrite_skip_proceeds_when_no_output(tmp_path):
+    """skip mode: no existing output → injection proceeds normally."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    ret, output = _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        overwrite="skip",
+    )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "1 injected" in summary
+
+
+def test_overwrite_force_removes_existing_and_reinjects(tmp_path):
+    """force mode: existing output → files removed, injection replanned."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    mkv, jsn = _pre_create_output(scans_tsv)
+
+    ret, output = _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        overwrite="force",
+    )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "1 injected" in summary
+    assert not mkv.exists()  # removed by force
+    assert not jsn.exists()  # removed by force
+
+
+def test_overwrite_always_proceeds_without_removing(tmp_path):
+    """always mode: existing output → injection proceeds, files not pre-removed."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    mkv, jsn = _pre_create_output(scans_tsv)
+
+    ret, output = _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        overwrite="always",
+    )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "1 injected" in summary
+    assert mkv.exists()  # not removed — always just passes through
+
+
+def test_overwrite_error_fails_when_output_exists(tmp_path):
+    """error mode: existing output → counted as error, non-zero exit."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    mkv, _ = _pre_create_output(scans_tsv)
+
+    ret, output = _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        overwrite="error",
+        verbose=True,
+    )
+
+    assert ret == 1
+    summary = next(line for line in output if "injected" in line)
+    assert "0 injected" in summary
+    assert "1 errors" in summary
+    error_detail = next(
+        (line for line in output if "already exists" in line.lower()), None
+    )
+    assert error_detail is not None
+    assert mkv.exists()  # untouched
+
+
+def test_overwrite_error_proceeds_when_no_output(tmp_path):
+    """error mode: no existing output → injection proceeds normally."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    ret, output = _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        overwrite="error",
+    )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "1 injected" in summary

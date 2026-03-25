@@ -141,6 +141,18 @@ logger = logging.getLogger(__name__)
     "write any output files. Prints what would be done to stdout.",
 )
 @click.option(
+    "-w",
+    "--overwrite",
+    type=click.Choice(["skip", "force", "always", "error"], case_sensitive=False),
+    default="skip",
+    show_default=True,
+    help="Policy for handling existing output files. "
+    "'skip': skip the scan if output already exists (default). "
+    "'force': remove existing file/symlink then re-inject (handles git-annex). "
+    "'always': run split-video as-is without an existence check. "
+    "'error': treat existing output as an error.",
+)
+@click.option(
     "-k",
     "--lock",
     type=click.Choice(["yes", "no"], case_sensitive=False),
@@ -173,6 +185,7 @@ def bids_inject(
     bids_timezone: str,
     match: str,
     dry_run: bool,
+    overwrite: str,
     lock: str,
     verbose: bool,
 ):
@@ -203,6 +216,7 @@ def bids_inject(
     logger.info(f"BIDS TZ        : {bids_timezone} ({dt_tz_label(bids_timezone)})")
     logger.info(f"Match          : {match}")
     logger.info(f"Dry-run        : {dry_run}")
+    logger.info(f"Overwrite      : {overwrite}")
     logger.info(f"Lock           : {lock}")
     logger.info(f"Verbose        : {verbose}")
 
@@ -222,6 +236,7 @@ def bids_inject(
         reprostim_timezone=reprostim_timezone,
         bids_timezone=bids_timezone,
         dry_run=dry_run,
+        overwrite=overwrite,
         lock=lock.lower() != "no",
         verbose=verbose,
         out_func=click.echo,
