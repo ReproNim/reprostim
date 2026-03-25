@@ -486,28 +486,22 @@ def _calc_split_data(
 
     # D) Validate segments against video boundaries and adjust if necessary
     if sd.sel_seg.start_ts < sd.full_seg.start_ts:
-        logger.error(
+        msg = (
             f"Selected start time is before video start: "
             f"{sd.sel_seg.start_ts} < {sd.full_seg.start_ts} "
             f"(video: {path})."
         )
-        raise ValueError(
-            f"Selected start time is before video start: "
-            f"{sd.sel_seg.start_ts} < {sd.full_seg.start_ts} "
-            f"(video: {path})."
-        )
+        logger.error(msg)
+        raise ValueError(msg)
 
     if sd.sel_seg.end_ts > sd.full_seg.end_ts:
-        logger.error(
+        msg = (
             f"Selected end time is after video end: "
             f"{sd.sel_seg.end_ts} > {sd.full_seg.end_ts} "
             f"(video: {path})."
         )
-        raise ValueError(
-            f"Selected end time is after video end: "
-            f"{sd.sel_seg.end_ts} > {sd.full_seg.end_ts} "
-            f"(video: {path})."
-        )
+        logger.error(msg)
+        raise ValueError(msg)
 
     # Handle buffer overflow based on policy
     buffer_overflow_before = sd.buf_seg.start_ts < sd.full_seg.start_ts
@@ -515,32 +509,25 @@ def _calc_split_data(
 
     if buffer_policy == BufferPolicy.STRICT:
         if buffer_overflow_before:
-            logger.error(
+            msg = (
                 f"Buffer before extends before video start (strict mode): "
                 f"buffer_start={sd.buf_seg.start_ts}, "
                 f"video_start={sd.full_seg.start_ts} "
-                f"(video: {path})."
-            )
-            raise ValueError(
-                f"Buffer before extends before video start: "
-                f"buffer_start={sd.buf_seg.start_ts}, "
-                f"video_start={sd.full_seg.start_ts} "
                 f"(video: {path}). "
                 f"Use --buffer-policy=flexible to trim buffers automatically."
             )
+            logger.error(msg)
+            raise ValueError(msg)
         if buffer_overflow_after:
-            logger.error(
+            msg = (
                 f"Buffer after extends after video end (strict mode): "
                 f"buffer_end={sd.buf_seg.end_ts}, "
                 f"video_end={sd.full_seg.end_ts} "
-                f"(video: {path})."
-            )
-            raise ValueError(
-                f"Buffer after extends after video end: "
-                f"buffer_end={sd.buf_seg.end_ts}, video_end={sd.full_seg.end_ts} "
                 f"(video: {path}). "
                 f"Use --buffer-policy=flexible to trim buffers automatically."
             )
+            logger.error(msg)
+            raise ValueError(msg)
     else:  # BufferPolicy.FLEXIBLE
         if buffer_overflow_before:
             logger.warning("Buffer before extends before video start. Trimming buffer.")
