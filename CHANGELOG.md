@@ -1,3 +1,16 @@
+# 0.7.28 (Wed Mar 25 2026)
+
+#### 🐛 Bug Fix
+
+- Improved error reporting for `bids-inject` + `split-video` and added `--overwrite` policy for existing outputs [#236](https://github.com/ReproNim/reprostim/pull/236) ([@vmdocua](https://github.com/vmdocua))
+- Restore `psychopy-sounddevice` support in PsychoPy 2025+ [#235](https://github.com/ReproNim/reprostim/pull/235) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.27 (Wed Mar 11 2026)
 
 #### 🐛 Bug Fix
