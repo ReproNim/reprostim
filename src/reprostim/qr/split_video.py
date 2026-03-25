@@ -823,7 +823,9 @@ def _do_main_specs(
                 _write_sidecar(sidecar_path, sr, verbose, out_func)
 
         except Exception as e:
-            logger.error(f"Spec [{idx}] '{spec_str}': {e}")
+            msg = f"Spec [{idx}] '{spec_str}': {e}"
+            logger.error(msg)
+            out_func(f"ERROR: {msg}")
             failures += 1
             continue
 
