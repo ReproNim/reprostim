@@ -70,11 +70,13 @@ if [[ "$MODE" == "xvfb" ]]; then
   export REPROSTIM_PULSE_SERVER="unix:/tmp/reprostim_pulse.sock"
   export PULSE_SERVER="${REPROSTIM_PULSE_SERVER}"
   export PULSE_SINK=reprostim_sink
-  FFMPEG_AUDIO_ARGS=(-use_wallclock_as_timestamps 1 -f pulse -i "${PULSE_SINK}.monitor" -c:a aac)
+  export REPROSTIM_PULSE_LATENCY_MSEC=100
+  export PULSE_LATENCY_MSEC="${REPROSTIM_PULSE_LATENCY_MSEC}"
+  FFMPEG_AUDIO_ARGS=(-use_wallclock_as_timestamps 1 -f pulse -i "${PULSE_SINK}.monitor" -ac 1 -af aresample=async=1 -c:a pcm_s16le)
 
   echo "Started virtual PulseAudio sink"
   echo "Wait for pulseaudio to start"
-  sleep 10
+  sleep 5
 
   export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event -a psychopy_sounddevice -d \$(cat $tmp_dir/reprostim_last_display.txt)"
 
