@@ -76,15 +76,15 @@ Test file location: `tests/qr/test_timesync_stimuli.py`.
 
 ## CI/CD Virtual Audio Support
 
-- [ ] Add virtual audio (PulseAudio null sink) to `xvfb` mode in `test_reprostim_timesync-stimuli.sh`; switch from `--mute` to `-a psychopy_sounddevice`; record combined audio+video `mp4` artifact with `ffmpeg`; upload as artifact in `.github/workflows/ci-cd.yml`
-- [ ] Rename `reprostim_screenshot` artifact to be close to BIDS - `reprostim_audiovideo` one.
+- [x] Add virtual audio (PulseAudio null sink) to `xvfb` mode in `test_reprostim_timesync-stimuli.sh`; switch from `--mute` to `-a psychopy_sounddevice`; record combined audio+video artifact with `ffmpeg`; upload as `reprostim_audiovideo` artifact in `.github/workflows/ci-cd.yml`
+- [x] Rename `reprostim_screenshot` artifact/files to `reprostim_audiovideo`; rename `reprostim_psychopy_screenshot.png` to `reprostim_psychopy_image.png`
 
 ---
 
 ## Open Questions / Future Work
 
-- [ ] **PsychoPy headless audio** — verify `psychopy_sounddevice` works with PulseAudio null sink inside Singularity container
-- [ ] **Container audio passthrough** — Singularity `--bind /run/user` or `--env PULSE_SERVER` may be needed for PulseAudio socket
+- [x] **PsychoPy headless audio** — `psychopy_sounddevice` works with PulseAudio null sink via `PULSE_SERVER` socket in `/tmp`
+- [x] **Container audio passthrough** — implemented via `REPROSTIM_PULSE_SERVER` → `PULSE_SERVER` in `run_reprostim_ci.sh` for both Singularity and Docker
 - [ ] **Audio validation in CI** — add ffprobe check that `mp4` artifact contains an audio stream
 - [ ] **`DEVICES` mode smoke test** — run `timesync-stimuli -m devices` in CI and assert exit 0
 - [ ] **Mock `do_main` for CLI tests** — Click `CliRunner` tests for `cmd_timesync_stimuli.py` (all 13 options)
