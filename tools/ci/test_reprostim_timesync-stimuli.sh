@@ -62,13 +62,12 @@ if [[ "$MODE" == "xvfb" ]]; then
   export DISPLAY_START=25
 
   # Start virtual PulseAudio sink with socket in /tmp (accessible inside container)
+  pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
+  sleep 1
+  pactl load-module module-null-sink sink_name=reprostim_sink 2>/dev/null || true
+  pactl load-module module-native-protocol-unix auth-anonymous=1 socket=/tmp/reprostim_pulse.sock 2>/dev/null || true
   export REPROSTIM_PULSE_SERVER="unix:/tmp/reprostim_pulse.sock"
-  export PULSE_SERVER="${REPROSTIM_PULSE_SERVER:-}"
-  pulseaudio --start --exit-idle-time=-1 \
-    -n \
-    --load="module-null-sink sink_name=reprostim_sink" \
-    --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/reprostim_pulse.sock" \
-    2>/dev/null || true
+  export PULSE_SERVER="${REPROSTIM_PULSE_SERVER}"
   export PULSE_SINK=reprostim_sink
   FFMPEG_AUDIO_ARGS=(-f pulse -i "${PULSE_SINK}.monitor" -c:a aac)
 
@@ -117,7 +116,7 @@ START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
 END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
 export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_${START_TS}--${END_TS}.mkv"
 echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
-ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t 45 -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
+ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep $VIDEO_DURATION_SEC
 sleep 3
 ls -l "$tmp_dir"/reprostim_*
