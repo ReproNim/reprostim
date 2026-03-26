@@ -56,6 +56,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   export FRAME_WIDTH=1920
   export FRAME_HEIGHT=1080
   export FRAME_RATE=60
+  export RECORDING_FRAME_RATE=30
   export FRAME_BPP=24
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display.txt"
   export XVFB_OPTS="-screen 0 ${FRAME_WIDTH}x${FRAME_HEIGHT}x${FRAME_BPP} -ac +extension GLX +render -noreset"
@@ -63,13 +64,17 @@ if [[ "$MODE" == "xvfb" ]]; then
 
   # Start virtual PulseAudio sink with socket in /tmp (accessible inside container)
   pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
-  sleep 1
+  sleep 5
   pactl load-module module-null-sink sink_name=reprostim_sink 2>/dev/null || true
   pactl load-module module-native-protocol-unix auth-anonymous=1 socket=/tmp/reprostim_pulse.sock 2>/dev/null || true
   export REPROSTIM_PULSE_SERVER="unix:/tmp/reprostim_pulse.sock"
   export PULSE_SERVER="${REPROSTIM_PULSE_SERVER}"
   export PULSE_SINK=reprostim_sink
-  FFMPEG_AUDIO_ARGS=(-f pulse -i "${PULSE_SINK}.monitor" -c:a aac)
+  FFMPEG_AUDIO_ARGS=(-use_wallclock_as_timestamps 1 -f pulse -i "${PULSE_SINK}.monitor" -c:a aac)
+
+  echo "Started virtual PulseAudio sink"
+  echo "Wait for pulseaudio to start"
+  sleep 10
 
   export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event -a psychopy_sounddevice -d \$(cat $tmp_dir/reprostim_last_display.txt)"
 
@@ -115,8 +120,8 @@ echo "Record video for $VIDEO_DURATION_SEC seconds"
 START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
 END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
 export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_${START_TS}--${END_TS}.mkv"
-echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
-ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
+echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${RECORDING_FRAME_RATE:-$FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
+ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${RECORDING_FRAME_RATE:-$FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep $VIDEO_DURATION_SEC
 sleep 3
 ls -l "$tmp_dir"/reprostim_*
