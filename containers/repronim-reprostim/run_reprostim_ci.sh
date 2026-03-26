@@ -58,6 +58,11 @@ else
     REPROSTIM_CONTAINER_APP="reprostim"
 fi
 
+PULSE_ENV=()
+if [ -n "${REPROSTIM_PULSE_SERVER:-}" ]; then
+  PULSE_ENV=(--env "PULSE_SERVER=${REPROSTIM_PULSE_SERVER}")
+fi
+
 
 log() {
   if [[ "${REPROSTIM_QUIET:-0}" == "0" ]]; then
@@ -91,6 +96,7 @@ if [[ "$REPROSTIM_CONTAINER_TYPE" == "docker" ]]; then
     -v "${REPROSTIM_PATH}:${REPROSTIM_PATH}" \
     -w "${REPROSTIM_PATH}" \
     --env DISPLAY=$DISPLAY \
+    "${PULSE_ENV[@]}" \
     -v "${XAUTHORITY_HOST}:${XAUTHORITY_HOST}:ro" \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
@@ -101,6 +107,7 @@ elif [[ "$REPROSTIM_CONTAINER_TYPE" == "singularity" ]]; then
     -B ${TMPDIR:-/tmp} \
     -B ${REPROSTIM_PATH} \
     --env DISPLAY=$DISPLAY \
+    "${PULSE_ENV[@]}" \
     ${REPROSTIM_OVERLAY} ${REPROSTIM_CONTAINER_IMAGE} \
     ${REPROSTIM_CONTAINER_APP} "$@"
 else

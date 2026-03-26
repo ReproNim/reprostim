@@ -46,6 +46,8 @@ EVENTS_STARTUP_DELAY_SEC=20
 VIDEO_DURATION_SEC=45
 
 
+FFMPEG_AUDIO_ARGS=()
+
 if [[ "$MODE" == "xvfb" ]]; then
   echo "Running in CI/CD mode on virtual screen"
   # store the tmp_dir in GITHUB_ENV for later use
@@ -58,7 +60,19 @@ if [[ "$MODE" == "xvfb" ]]; then
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display.txt"
   export XVFB_OPTS="-screen 0 ${FRAME_WIDTH}x${FRAME_HEIGHT}x${FRAME_BPP} -ac +extension GLX +render -noreset"
   export DISPLAY_START=25
-  export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event --mute -d \$(cat $tmp_dir/reprostim_last_display.txt)"
+
+  # Start virtual PulseAudio sink with socket in /tmp (accessible inside container)
+  export REPROSTIM_PULSE_SERVER="unix:/tmp/reprostim_pulse.sock"
+  export PULSE_SERVER="${REPROSTIM_PULSE_SERVER:-}"
+  pulseaudio --start --exit-idle-time=-1 \
+    -n \
+    --load="module-null-sink sink_name=reprostim_sink" \
+    --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/reprostim_pulse.sock" \
+    2>/dev/null || true
+  export PULSE_SINK=reprostim_sink
+  FFMPEG_AUDIO_ARGS=(-f pulse -i "${PULSE_SINK}.monitor" -c:a aac)
+
+  export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event -a psychopy_sounddevice -d \$(cat $tmp_dir/reprostim_last_display.txt)"
 
   echo "Run Xvfb in background with REPROSTIM_CMD"
   xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD"&
@@ -102,18 +116,20 @@ echo "Record video for $VIDEO_DURATION_SEC seconds"
 START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
 END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
 export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_${START_TS}--${END_TS}.mkv"
-echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
-ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" -t 45 -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
+echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
+ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t 45 -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep $VIDEO_DURATION_SEC
 sleep 3
 ls -l "$tmp_dir"/reprostim_*
 
-# terminate xvfb process if it was started
+# terminate xvfb and virtual audio if they were started
 if [[ "$MODE" == "xvfb" ]]; then
   echo "Kill Xvfb at the end if any"
   sleep 1
   kill "$XVFB_RUN_PID" 2>/dev/null || true
   wait "$XVFB_RUN_PID" 2>/dev/null || true
+  echo "Kill PulseAudio at the end if any"
+  pulseaudio --kill 2>/dev/null || true
 fi
 
 if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then
