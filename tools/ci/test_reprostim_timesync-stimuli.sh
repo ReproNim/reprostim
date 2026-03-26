@@ -72,7 +72,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   export PULSE_SINK=reprostim_sink
   export REPROSTIM_PULSE_LATENCY_MSEC=100
   export PULSE_LATENCY_MSEC="${REPROSTIM_PULSE_LATENCY_MSEC}"
-  FFMPEG_AUDIO_ARGS=(-use_wallclock_as_timestamps 1 -f pulse -i "${PULSE_SINK}.monitor" -ac 1 -af "aresample=async=1,asetpts=PTS-STARTPTS" -c:a pcm_s16le)
+  FFMPEG_AUDIO_ARGS=(-thread_queue_size 512 -use_wallclock_as_timestamps 1 -f pulse -i "${PULSE_SINK}.monitor" -ac 1 -af aresample=async=1 -c:a pcm_s16le)
 
   echo "Started virtual PulseAudio sink"
   echo "Wait for pulseaudio to start"
@@ -122,8 +122,8 @@ echo "Record video for $VIDEO_DURATION_SEC seconds"
 START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
 END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
 export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_audiovideo_${START_TS}--${END_TS}.mkv"
-echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${RECORDING_FRAME_RATE:-$FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -vf setpts=PTS-STARTPTS -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
-ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${RECORDING_FRAME_RATE:-$FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -vf setpts=PTS-STARTPTS -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
+echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${RECORDING_FRAME_RATE:-$FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -preset ultrafast -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
+ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${RECORDING_FRAME_RATE:-$FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -c:v libx264 -preset ultrafast -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep $VIDEO_DURATION_SEC
 sleep 3
 ls -l "$tmp_dir"/reprostim_*
