@@ -119,7 +119,7 @@ echo "Record video for $VIDEO_DURATION_SEC seconds"
 # NOTE: video timestamps are rounded to seconds, might be reviewed in the future for better accuracy
 START_TS="$(date '+%Y.%m.%d-%H.%M.%S').000"
 END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
-export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_screenshot_${START_TS}--${END_TS}.mkv"
+export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_audiovideo_${START_TS}--${END_TS}.mkv"
 echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${RECORDING_FRAME_RATE:-$FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
 ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${RECORDING_FRAME_RATE:-$FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -c:v libx264 -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
 sleep $VIDEO_DURATION_SEC

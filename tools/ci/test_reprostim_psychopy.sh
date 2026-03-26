@@ -98,7 +98,7 @@ echo "Wait for PsychoPy window to appear.."
 sleep 10
 
 echo "Taking PsychoPy window screenshot of the virtual screen using ImageMagick.."
-export REPROSTIM_PSYCHOPY_SCREENSHOT_PATH="$tmp_dir/reprostim_psychopy_screenshot.png"
+export REPROSTIM_PSYCHOPY_SCREENSHOT_PATH="$tmp_dir/reprostim_psychopy_image.png"
 
 # Capture screenshot using ImageMagick's import command
 if DISPLAY="$DISPLAY_ID" import -window root "$REPROSTIM_PSYCHOPY_SCREENSHOT_PATH"; then

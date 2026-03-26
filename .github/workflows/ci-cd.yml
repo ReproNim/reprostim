@@ -111,12 +111,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reprostim-screenshot
+          name: reprostim_audiovideo
           path: |
-            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv
-            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.jsonl
-            ${{ env.tmp_dir }}/reprostim_screenshot*.mkv.qrinfo.log
-            ${{ env.tmp_dir }}/reprostim_psychopy_screenshot.png
+            ${{ env.tmp_dir }}/reprostim_audiovideo_*.mkv
+            ${{ env.tmp_dir }}/reprostim_audiovideo_*.mkv.qrinfo.jsonl
+            ${{ env.tmp_dir }}/reprostim_audiovideo_*.mkv.qrinfo.log
+            ${{ env.tmp_dir }}/reprostim_psychopy_image.png
             ${{ env.tmp_dir }}/reprostim_psychopy.log
 
       - name: Double check test results and fail if needed
