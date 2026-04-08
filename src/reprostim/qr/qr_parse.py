@@ -509,6 +509,7 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
 
     # remember parse start ts to calculate parse fps
     parse_start_ts: float = time.time()
+    # opencv_qr_detector = cv2.QRCodeDetector()
 
     while True:
         iframe += 1
@@ -521,6 +522,7 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
 
         f = np.mean(frame, axis=2)  # poor man greyscale from RGB
         # f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # f = np.mean(frame, axis=2).astype(np.uint8)
 
         if np.mod(iframe, 50) == 0:
             parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
@@ -531,6 +533,13 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
         #    if np.std(f) > 10:
         #        cv2.imwrite('grayscale_image.png', f)
         #        import pdb; pdb.set_trace()
+
+        # just for test, check QRCodeDetector().detectAndDecode
+        # data, pts, _ = opencv_qr_detector.detectAndDecode(f)
+        # data = None
+        #
+        # if data:
+        #    logger.debug(f"OpenCV QRCodeDetector found QR code: {data}, pts={pts}")
 
         cod = decode(f, symbols=[ZBarSymbol.QRCODE])
         if len(cod) > 0:
