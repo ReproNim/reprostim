@@ -30,13 +30,15 @@ Videos/2025/08/2025.08.14-15.04.15.714--2025.08.14-16.00.26.656.mkv
 
 All numbers are **frames per second (fps)** processed by the main frame loop in `qr_parse.py`.
 
-| # | Configuration                                      | fps     | Notes                              |
-|---|----------------------------------------------------|---------|------------------------------------|
-| 1 | Empty loop — frames read, no grayscale, no decode  | 475.5   | I/O + `cap.read()` ceiling         |
-| 2 | `np.mean(frame, axis=2)` only (no decode)          |  34.2   | Current code path                  |
-| 3 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` only     | 329.7   | ~10× faster than `np.mean`         |
-| 4 | `cv2.cvtColor` + `pyzbar.decode`                   |  46.1   | Full pipeline, fast grayscale      |
-| 5 | `np.mean` + `pyzbar.decode`                        |  23.7   | Full pipeline, current code        |
+| # | Configuration                                         | fps   | Notes                                                                             |
+|---|-------------------------------------------------------|-------|-----------------------------------------------------------------------------------|
+| 1 | Empty loop — frames read, no grayscale, no decode     | 475.5 | I/O + `cap.read()` ceiling                                                        |
+| 2 | `np.mean(frame, axis=2)` only (no decode)             |  34.2 | Current code path                                                                 |
+| 3 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` only        | 329.7 | ~10× faster than `np.mean`                                                        |
+| 4 | `cv2.cvtColor` + `pyzbar.decode`                      |  46.1 | Full pipeline, fast grayscale                                                     |
+| 5 | `np.mean` + `pyzbar.decode`                           |  23.7 | Full pipeline, current code                                                       |
+| 6 | `cv2.cvtColor` + `QRCodeDetector.detectAndDecode`     |  24.6 | OpenCV built-in decoder                                                           |
+| 7 | `np.mean(...).astype(np.uint8)` + `QRCodeDetector.detectAndDecode` |  15.2 | OpenCV built-in decoder with current grayscale + explicit cast; slowest pipeline  |
 
 ### Key takeaways
 
