@@ -31,14 +31,69 @@ Videos/2025/08/2025.08.14-15.04.15.714--2025.08.14-16.00.26.656.mkv
 All numbers are **frames per second (fps)** processed by the main frame loop in `qr_parse.py`.
 
 | # | Configuration                                         | fps   | Notes                                                                             |
-|---|-------------------------------------------------------|-------|-----------------------------------------------------------------------------------|
+|----|-------------------------------------------------------|-------|-----------------------------------------------------------------------------------|
 | 1 | Empty loop — frames read, no grayscale, no decode     | 475.5 | I/O + `cap.read()` ceiling                                                        |
-| 2 | `np.mean(frame, axis=2)` only (no decode)             |  34.2 | Current code path                                                                 |
+| 2 | `np.mean(frame, axis=2)` only (no decode)             | 34.2  | Current code path                                                                 |
 | 3 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` only        | 329.7 | ~10× faster than `np.mean`                                                        |
-| 4 | `cv2.cvtColor` + `pyzbar.decode`                      |  46.1 | Full pipeline, fast grayscale                                                     |
-| 5 | `np.mean` + `pyzbar.decode`                           |  23.7 | Full pipeline, current code                                                       |
-| 6 | `cv2.cvtColor` + `QRCodeDetector.detectAndDecode`     |  24.6 | OpenCV built-in decoder                                                           |
-| 7 | `np.mean(...).astype(np.uint8)` + `QRCodeDetector.detectAndDecode` |  15.2 | OpenCV built-in decoder with current grayscale + explicit cast; slowest pipeline  |
+| 4 | `cv2.cvtColor` + `pyzbar.decode`                      | 46.1  | Full pipeline, fast grayscale                                                     |
+| 5 | `np.mean` + `pyzbar.decode`                           | 23.7  | Full pipeline, current code                                                       |
+| 6 | `cv2.cvtColor` + `QRCodeDetector.detectAndDecode`     | 24.6  | OpenCV built-in decoder                                                           |
+| 7 | `np.mean(...).astype(np.uint8)` + `QRCodeDetector.detectAndDecode` | 15.2  | OpenCV built-in decoder with current grayscale + explicit cast; slowest pipeline  |
+| 8 | `cv2.resize(frame, None, fx=0.5, fy=0.5)` only (no grayscale, no decode) | 153.8 | Frame downscale 50% each axis (quarter area); cost of resize alone                |
+| 9 | `np.std(f)` only (no decode)                                              | 58.6  | Std deviation of grayscale frame; useful as a fast blank-frame pre-filter         |
+| 10 | `cv2.meanStdDev(f)` only (no decode)                                    | 256.6 | Std deviation on RGB frame (not grayscale); ~4.4× faster than `np.std`            |
+| 11 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` + `cv2.meanStdDev` (no decode) | 329.4 | Grayscale conversion + std deviation; faster than `np.std` and result matches     |
+
+### Notes on `np.std` vs `cv2.meanStdDev`
+
+- **`np.std(f)` always computes a single global std** over all elements regardless of the number of
+  channels — it treats the array as flat. The result is consistent whether `f` is grayscale or RGB.
+- **`cv2.meanStdDev(f)` returns per-channel std** (shape `(channels, 1)`). On an RGB frame,
+  `std[0][0]` is the std of the blue channel only — not the same as the global std. This means
+  `cv2.meanStdDev` on a raw BGR frame gives a **different (lower) number** than `np.std` on the
+  same frame.
+- To use `cv2.meanStdDev` as a drop-in replacement for `np.std`, the frame must first be converted
+  to grayscale with `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)`, after which both functions agree.
+- **Frames containing a QR code have a grayscale std deviation around 88**, clearly distinguishable
+  from non-QR frames which show much lower values (e.g. ~22.7 for content frames, ~2.5 for blank
+  frames). This makes std deviation a reliable and cheap pre-filter: skip `pyzbar.decode` on frames
+  with std below a threshold (e.g. < 88) to avoid the expensive decode on irrelevant frames.
+- The 256.6 fps benchmark for `cv2.meanStdDev` (row 10) was measured on the raw BGR frame. On a
+  grayscale frame it will be similarly fast but the result will then match `np.std`.
+
+---
+
+## Proposed Algorithm Improvements
+
+The following optimizations are candidates for implementation, roughly ordered by expected impact:
+
+1. **Use `cv2.cvtColor` for grayscale conversion** — replace `np.mean(frame, axis=2)` with
+   `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)`. Benchmarks show ~10× speedup for this step alone
+   (34.2 → 329.7 fps), doubling full-pipeline throughput (23.7 → 46.1 fps).
+
+2. **Use `cv2.meanStdDev` for std deviation** — replace `np.std(f)` with `cv2.meanStdDev(f)` after
+   grayscale conversion. Must be applied on the grayscale frame to produce a consistent result.
+   Faster than `np.std` and fits naturally in the OpenCV pipeline.
+
+3. **Frame std pre-filter with configurable threshold** — compute grayscale std before calling
+   `pyzbar.decode` and skip decode when std is below a threshold. Frames with a QR code have std
+   ~88; non-QR frames are much lower (~22.7 for content, ~2.5 for blank). Expose the threshold via
+   a CLI option (e.g. `--std-threshold`, default `88`) so it can be tuned without code changes.
+
+4. **Optional frame downscaling with configurable factor** — add a `--scale` CLI option (e.g.
+   `--scale 0.5`) to resize frames before grayscale conversion and decode. At 0.5, frame area is
+   reduced to 25%, significantly cutting decode cost. Should be off by default to preserve
+   accuracy, but useful for faster pre-scans or lower-resolution sources.
+
+5. **Parallel QR decoding across CPU cores** — offload `pyzbar.decode` calls to a thread/process
+   pool sized to the number of available CPUs (`os.cpu_count()`). Frames can be decoded
+   independently, so parallelism is safe. Use `concurrent.futures.ProcessPoolExecutor` (pyzbar
+   releases the GIL inconsistently, so processes are safer than threads).
+
+6. **GPU-accelerated decoding / ZXing-based decoder** — investigate GPU-backed QR detection (e.g.
+   OpenCV CUDA modules, or `zxing-cpp` / `QUDet`) as a drop-in replacement for `pyzbar`. Best
+   suited for machines with a discrete GPU; should be opt-in via a CLI flag (e.g.
+   `--decoder [pyzbar|zxing|gpu]`).
 
 ### Key takeaways
 
