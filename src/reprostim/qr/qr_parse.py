@@ -504,9 +504,15 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
     iframe: int = 0
     pos_sec: float = 0.0
     record: QrRecord = None
+    parse_fps: float = 0.0
+    parse_counter: int = 0
+
+    # remember parse start ts to calculate parse fps
+    parse_start_ts: float = time.time()
 
     while True:
         iframe += 1
+        parse_counter += 1
         # pos time in ms
         pos_sec = round((iframe - 1) / fps, 3)
         ret, frame = cap.read()
@@ -514,9 +520,13 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
             break
 
         f = np.mean(frame, axis=2)  # poor man greyscale from RGB
+        # f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if np.mod(iframe, 50) == 0:
-            logger.debug(f"iframe={iframe} {np.std(f)}")
+            parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
+            logger.debug(
+                f"iframe={iframe}, f={round(np.std(f),1)}, parse_fps={parse_fps} FPS"
+            )
 
         #    if np.std(f) > 10:
         #        cv2.imwrite('grayscale_image.png', f)
@@ -525,6 +535,7 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
         cod = decode(f, symbols=[ZBarSymbol.QRCODE])
         if len(cod) > 0:
             logger.debug("Found QR code: " + str(cod))
+            # logger.debug(" frame std={np.std(f)}")
             assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
             data = eval(eval(str(cod[0].data)).decode("utf-8"))
             if record is not None:
