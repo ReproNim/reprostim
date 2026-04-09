@@ -101,6 +101,10 @@ class ParseContext(BaseModel):
         Grayscale.OPENCV,
         description="Grayscale conversion method applied to each frame.",
     )
+    scale: float = Field(
+        1.0,
+        description="Frame downscale factor in (0, 1]. 1.0 = no resize.",
+    )
 
 
 # Define model for parsing summary info
@@ -565,6 +569,12 @@ def do_parse(
         # logger.debug(f"f.shape={f.shape}, f.dtype={f.dtype}, "
         #              f"f.min={f.min()}, f.max={f.max()}")
 
+        # Apply frame downscaling if requested (before grayscale conversion)
+        if ctx.scale != 1.0:
+            frame = cv2.resize(
+                frame, None, fx=ctx.scale, fy=ctx.scale, interpolation=cv2.INTER_AREA
+            )
+
         # Apply grayscale conversion according to the context configuration if any
         # Note: ? maybe we need to check frame.shape/dtype to decide if we need
         #       to convert or not
@@ -638,7 +648,13 @@ def do_parse(
     # print(ps.json())
 
 
-def do_main(path: str, mode: str, grayscale: str = Grayscale.OPENCV, out_func=print):
+def do_main(
+    path: str,
+    mode: str,
+    grayscale: str = Grayscale.OPENCV,
+    scale: float = 1.0,
+    out_func=print,
+):
     """Entry point for the ``qr-parse`` command.
 
     Initialises a :class:`ParseContext`, dispatches to :func:`do_parse` or
@@ -647,6 +663,7 @@ def do_main(path: str, mode: str, grayscale: str = Grayscale.OPENCV, out_func=pr
     :param path: Path to the video file or directory to process.
     :param mode: Execution mode — ``"PARSE"`` or ``"INFO"``.
     :param grayscale: Grayscale conversion method (see :class:`Grayscale`).
+    :param scale: Frame downscale factor in ``(0, 1]``; ``1.0`` = no resize.
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -654,13 +671,18 @@ def do_main(path: str, mode: str, grayscale: str = Grayscale.OPENCV, out_func=pr
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
     logger.info(f"Grayscale        : {grayscale}")
+    logger.info(f"Scale            : {scale}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
 
+    if scale <= 0.0 or scale > 1.0:
+        logger.error(f"Invalid scale value: {scale}, must be in (0, 1]")
+        return 1
+
     if mode == "PARSE":
-        ctx: ParseContext = ParseContext(grayscale=Grayscale(grayscale))
+        ctx: ParseContext = ParseContext(grayscale=Grayscale(grayscale), scale=scale)
         for item in do_parse(ctx, path):
             out_func(item.model_dump_json())
     elif mode == "INFO":

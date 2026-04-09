@@ -10,7 +10,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `-m / --mode [PARSE|INFO]` — execution mode
 - [x] `-g / --grayscale [none|numpy|opencv]` — frame grayscale conversion method; default `cvtcolor`
 - [ ] `-t / --std-threshold FLOAT` — grayscale std-deviation pre-filter; skip decode when std < threshold; disabled when ≤ 0; default `10.0`
-- [ ] `-x / --scale FLOAT` — frame downscale factor `(0, 1]`; `1.0` = no resize; default `1.0`
+- [x] `-x / --scale FLOAT` — frame downscale factor `(0, 1]`; `1.0` = no resize; default `1.0`
 - [ ] `-s / --skip INT` — frames to skip after each processed frame; `0` = every frame; default `0`
 - [ ] `-q / --qr-decoder [none|opencv|pyzbar]` — QR backend; `none` skips decode; default `pyzbar`
 - [ ] `-v / --video-decoder [opencv]` — video frame backend; only `opencv` supported now; placeholder for `ffmpeg`/`pyav`; default `opencv`
@@ -73,6 +73,6 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [ ] `cv2.cvtColor` grayscale (proposal 1) — 23.7 → 46.1 fps
 - [ ] `cv2.meanStdDev` std deviation (proposal 2)
 - [ ] Std pre-filter with `--std-threshold` (proposal 3)
-- [ ] Optional frame downscaling `-x / --scale` (proposal 4)
+- [x] Optional frame downscaling `-x / --scale` (proposal 4)
 - [ ] Parallel decoding via `ProcessPoolExecutor` (proposal 5)
 - [ ] GPU / ZXing decoder (proposal 6)
