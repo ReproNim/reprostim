@@ -8,7 +8,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 
 - [x] `PATH` argument — path to video file or directory
 - [x] `-m / --mode [PARSE|INFO]` — execution mode
-- [ ] `-g / --grayscale [none|mean|cvtcolor]` — frame grayscale conversion method; default `cvtcolor`
+- [x] `-g / --grayscale [none|numpy|opencv]` — frame grayscale conversion method; default `cvtcolor`
 - [ ] `-t / --std-threshold FLOAT` — grayscale std-deviation pre-filter; skip decode when std < threshold; disabled when ≤ 0; default `10.0`
 - [ ] `-x / --scale FLOAT` — frame downscale factor `(0, 1]`; `1.0` = no resize; default `1.0`
 - [ ] `-s / --skip INT` — frames to skip after each processed frame; `0` = every frame; default `0`
@@ -28,7 +28,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] Deduplicate consecutive identical QR codes
 - [x] Output JSONL (`ParseSummary` + per-code records) to stdout
 - [ ] Std-deviation pre-filter: compute grayscale std before decode, skip frame if below `--std-threshold`
-- [ ] Replace `np.mean` grayscale with `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` (×10 speedup)
+- [x] Replace `np.mean` grayscale with `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` (×10 speedup)
 - [ ] Replace `np.std` with `cv2.meanStdDev` on grayscale frame (faster, same result)
 
 ### INFO mode

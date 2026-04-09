@@ -56,9 +56,8 @@ def main(ctx, log_level: str, log_format):
     logger.debug(f"main(...), command={ctx.invoked_subcommand}")
 
 
-from .cmd_bids_inject import bids_inject  # noqa: E402
-
 # Import all CLI commands
+from .cmd_bids_inject import bids_inject  # noqa: E402
 from .cmd_detect_noscreen import detect_noscreen  # noqa: E402
 from .cmd_echo import echo  # noqa: E402
 from .cmd_list_displays import list_displays  # noqa: E402

@@ -13,10 +13,10 @@ import os
 import re
 import time
 from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-import click
 import cv2
 import numpy as np
 from pydantic import BaseModel, Field
@@ -72,6 +72,35 @@ class VideoTimeInfo(BaseModel):
         None, description="Duration of the video " "in seconds"
     )
     """Duration of the video in seconds."""
+
+
+# Define model for parse context/configuration
+class Grayscale(str, Enum):
+    """Grayscale conversion method applied to each frame before QR decoding."""
+
+    NONE = "none"
+    """Pass the raw BGR frame directly — may cause errors with single-channel
+    decoders."""
+
+    NUMPY = "numpy"
+    """Use ``np.mean(frame, axis=2)`` — legacy, slower (~34 fps)."""
+
+    OPENCV = "opencv"
+    """Use ``cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)`` — recommended (~330 fps)."""
+
+
+class ParseContext(BaseModel):
+    """
+    Configuration context for the QR parsing process.
+
+    Passed to :func:`do_parse` to control frame processing behaviour.
+    Fields are added as new CLI options are implemented.
+    """
+
+    grayscale: Grayscale = Field(
+        Grayscale.OPENCV,
+        description="Grayscale conversion method applied to each frame.",
+    )
 
 
 # Define model for parsing summary info
@@ -418,7 +447,12 @@ def do_info(path: str):
         logger.error(f"Path not found: {path}")
 
 
-def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = False):
+def do_parse(
+    ctx: ParseContext,
+    path_video: str,
+    summary_only: bool = False,
+    ignore_errors: bool = False,
+):
     """
     Parse a video file to extract QR code-encoded segments and video metadata.
 
@@ -431,6 +465,11 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
 
     QR codes are expected to be embedded as visual markers in the video. Each
     QR code corresponds to a data payload which is yielded as a finalized record.
+
+    :param ctx: Parse context holding configuration for frame processing (grayscale
+                method, std-threshold, scale, skip, QR decoder, etc.). Initialised
+                once by the caller and shared across the entire parse run.
+    :type ctx: ParseContext
 
     :param path_video: Path to the input video file (e.g., `*.mkv`, `*.mp4`).
     :type path_video: str
@@ -455,7 +494,10 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
 
     logger.info(f"Video start time : {vti.start_time}")
     logger.info(f"Video end time   : {vti.end_time}")
-    logger.info(f"Video duration   : {vti.duration_sec} sec")
+    logger.info(
+        f"Video duration   : "
+        f"{round(vti.duration_sec, 3) if vti.duration_sec is not None else None} sec"
+    )
 
     dt = time.time()
     cap = cv2.VideoCapture(path_video)
@@ -474,7 +516,7 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
     logger.info("Video media info : ")
     logger.info(f"    - resolution : {frame_width}x{frame_height}")
     logger.info(f"    - frame rate : {str(fps)} FPS")
-    logger.info(f"    - duration   : {str(duration_sec)} sec")
+    logger.info(f"    - duration   : {round(duration_sec, 3)} sec")
     logger.info(f"    - frame count: {str(frame_count)}")
     ps.video_frame_rate = fps
     ps.video_frame_width = frame_width
@@ -520,16 +562,19 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
         if not ret:
             break
 
-        # f = frame
-        #
-        # std_dev = 100
-        #
-        f = np.mean(frame, axis=2)  # poor man greyscale from RGB
-        # frame = cv2.resize(frame, None, fx=0.5, fy=0.5)
-        # f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # f = np.mean(frame, axis=2).astype(np.uint8)
         # logger.debug(f"f.shape={f.shape}, f.dtype={f.dtype}, "
         #              f"f.min={f.min()}, f.max={f.max()}")
+
+        # Apply grayscale conversion according to the context configuration if any
+        # Note: ? maybe we need to check frame.shape/dtype to decide if we need
+        #       to convert or not
+        if ctx.grayscale == Grayscale.OPENCV:
+            f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        elif ctx.grayscale == Grayscale.NUMPY:
+            f = np.mean(frame, axis=2)
+        else:  # Grayscale.NONE
+            f = frame
+
         # std1 = round(np.std(f),1)
         # _, std2 = cv2.meanStdDev(f)
         # std_dev = round(std2[0][0], 1)
@@ -593,36 +638,34 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
     # print(ps.json())
 
 
-@click.command(help="Utility to parse video and locate integrated " "QR time codes.")
-@click.argument("path", type=click.Path(exists=True))
-@click.option(
-    "-m",
-    "--mode",
-    default="PARSE",
-    type=click.Choice(["PARSE", "INFO"]),
-    help='Specify execution mode. Default is "PARSE", '
-    "normal execution. "
-    'Use "INFO" to dump video file info like duration, '
-    "bitrate, file size etc, (in this case "
-    '"path" argument specifies video file or directory '
-    "containing video files).",
-)
-@click.pass_context
-def main(ctx, path: str, mode: str):
+def do_main(path: str, mode: str, grayscale: str = Grayscale.OPENCV, out_func=print):
+    """Entry point for the ``qr-parse`` command.
+
+    Initialises a :class:`ParseContext`, dispatches to :func:`do_parse` or
+    :func:`do_info` depending on *mode*, and writes each result to *out_func*.
+
+    :param path: Path to the video file or directory to process.
+    :param mode: Execution mode — ``"PARSE"`` or ``"INFO"``.
+    :param grayscale: Grayscale conversion method (see :class:`Grayscale`).
+    :param out_func: Callable used to emit each output line (default: ``print``).
+    :returns: Exit code (``0`` on success, non-zero on error).
+    """
     logger.debug("qr-parse command")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
+    logger.info(f"Grayscale        : {grayscale}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
         return 1
 
     if mode == "PARSE":
-        for item in do_parse(path):
-            click.echo(item.model_dump_json())
+        ctx: ParseContext = ParseContext(grayscale=Grayscale(grayscale))
+        for item in do_parse(ctx, path):
+            out_func(item.model_dump_json())
     elif mode == "INFO":
         for item in do_info(path):
-            click.echo(item.model_dump_json())
+            out_func(item.model_dump_json())
     else:
         logger.error(f"Unknown mode: {mode}")
         return -1
