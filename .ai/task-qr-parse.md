@@ -11,7 +11,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `-g / --grayscale [none|numpy|opencv]` — frame grayscale conversion method; default `cvtcolor`
 - [ ] `-t / --std-threshold FLOAT` — grayscale std-deviation pre-filter; skip decode when std < threshold; disabled when ≤ 0; default `10.0`
 - [x] `-x / --scale FLOAT` — frame downscale factor `(0, 1]`; `1.0` = no resize; default `1.0`
-- [ ] `-s / --skip INT` — frames to skip after each processed frame; `0` = every frame; default `0`
+- [x] `-s / --skip INT` — frames to skip after each processed frame; `0` = every frame; default `0`
 - [ ] `-q / --qr-decoder [none|opencv|pyzbar]` — QR backend; `none` skips decode; default `pyzbar`
 - [ ] `-v / --video-decoder [opencv]` — video frame backend; only `opencv` supported now; placeholder for `ffmpeg`/`pyav`; default `opencv`
 - [ ] `-Q / --qrdet` — enable qrdet-based frame pre-filter; default `False`

@@ -105,6 +105,11 @@ class ParseContext(BaseModel):
         1.0,
         description="Frame downscale factor in (0, 1]. 1.0 = no resize.",
     )
+    skip: int = Field(
+        0,
+        description="Number of frames to skip after each processed frame. "
+        "0 = process every frame.",
+    )
 
 
 # Define model for parsing summary info
@@ -552,6 +557,7 @@ def do_parse(
     record: QrRecord = None
     parse_fps: float = 0.0
     parse_counter: int = 0
+    skip_counter: int = 0
 
     # remember parse start ts to calculate parse fps
     parse_start_ts: float = time.time()
@@ -559,12 +565,23 @@ def do_parse(
 
     while True:
         iframe += 1
-        parse_counter += 1
         # pos time in ms
         pos_sec = round((iframe - 1) / fps, 3)
         ret, frame = cap.read()
         if not ret:
             break
+
+        # Handle frame skipping: when skip > 0, only process 1 of every (skip+1) frames
+        if ctx.skip > 0:
+            if skip_counter > 0:
+                skip_counter -= 1
+                # logger.debug(f"skip frame {iframe}, skip_counter={skip_counter}")
+                continue
+            else:
+                skip_counter = ctx.skip
+                # logger.debug(f"process frame {iframe}, skip_counter={skip_counter}")
+
+        parse_counter += 1
 
         # logger.debug(f"f.shape={f.shape}, f.dtype={f.dtype}, "
         #              f"f.min={f.min()}, f.max={f.max()}")
@@ -591,7 +608,7 @@ def do_parse(
         # std_dev = 0
         # logger.debug(f"std1={std1}, std2={round(std2[0][0],1)}")
 
-        if np.mod(iframe, 50) == 0:
+        if np.mod(parse_counter, 50) == 0:
             parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
             logger.debug(
                 f"iframe={iframe}, f={round(np.std(f),1)}, parse_fps={parse_fps} FPS"
@@ -653,6 +670,7 @@ def do_main(
     mode: str,
     grayscale: str = Grayscale.OPENCV,
     scale: float = 1.0,
+    skip: int = 0,
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -664,14 +682,16 @@ def do_main(
     :param mode: Execution mode — ``"PARSE"`` or ``"INFO"``.
     :param grayscale: Grayscale conversion method (see :class:`Grayscale`).
     :param scale: Frame downscale factor in ``(0, 1]``; ``1.0`` = no resize.
+    :param skip: Frames to skip after each processed frame; ``0`` = process every frame.
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
     logger.debug("qr-parse command")
     logger.debug(f"Working dir      : {os.getcwd()}")
     logger.info(f"Video full path  : {path}")
-    logger.info(f"Grayscale        : {grayscale}")
-    logger.info(f"Scale            : {scale}")
+    logger.info(f"Grayscale method : {grayscale}")
+    logger.info(f"Scale frame      : {scale}")
+    logger.info(f"Skip frames      : {skip}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -681,8 +701,14 @@ def do_main(
         logger.error(f"Invalid scale value: {scale}, must be in (0, 1]")
         return 1
 
+    if skip < 0:
+        logger.error(f"Invalid skip value: {skip}, must be >= 0")
+        return 1
+
     if mode == "PARSE":
-        ctx: ParseContext = ParseContext(grayscale=Grayscale(grayscale), scale=scale)
+        ctx: ParseContext = ParseContext(
+            grayscale=Grayscale(grayscale), scale=scale, skip=skip
+        )
         for item in do_parse(ctx, path):
             out_func(item.model_dump_json())
     elif mode == "INFO":
