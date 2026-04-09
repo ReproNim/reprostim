@@ -30,19 +30,20 @@ Videos/2025/08/2025.08.14-15.04.15.714--2025.08.14-16.00.26.656.mkv
 
 All numbers are **frames per second (fps)** processed by the main frame loop in `qr_parse.py`.
 
-| # | Configuration                                         | fps   | Notes                                                                             |
-|----|-------------------------------------------------------|-------|-----------------------------------------------------------------------------------|
-| 1 | Empty loop — frames read, no grayscale, no decode     | 475.5 | I/O + `cap.read()` ceiling                                                        |
-| 2 | `np.mean(frame, axis=2)` only (no decode)             | 34.2  | Current code path                                                                 |
-| 3 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` only        | 329.7 | ~10× faster than `np.mean`                                                        |
-| 4 | `cv2.cvtColor` + `pyzbar.decode`                      | 46.1  | Full pipeline, fast grayscale                                                     |
-| 5 | `np.mean` + `pyzbar.decode`                           | 23.7  | Full pipeline, current code                                                       |
-| 6 | `cv2.cvtColor` + `QRCodeDetector.detectAndDecode`     | 24.6  | OpenCV built-in decoder                                                           |
-| 7 | `np.mean(...).astype(np.uint8)` + `QRCodeDetector.detectAndDecode` | 15.2  | OpenCV built-in decoder with current grayscale + explicit cast; slowest pipeline  |
-| 8 | `cv2.resize(frame, None, fx=0.5, fy=0.5)` only (no grayscale, no decode) | 153.8 | Frame downscale 50% each axis (quarter area); cost of resize alone                |
-| 9 | `np.std(f)` only (no decode)                                              | 58.6  | Std deviation of grayscale frame; useful as a fast blank-frame pre-filter         |
-| 10 | `cv2.meanStdDev(f)` only (no decode)                                    | 256.6 | Std deviation on RGB frame (not grayscale); ~4.4× faster than `np.std`            |
-| 11 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` + `cv2.meanStdDev` (no decode) | 329.4 | Grayscale conversion + std deviation; faster than `np.std` and result matches     |
+| # | Configuration                                                            | fps   | Notes                                                                            |
+|----|--------------------------------------------------------------------------|-------|----------------------------------------------------------------------------------|
+| 0 | Initial algorithm — full pipeline as shipped                             | 19.4  | End-to-end baseline, default performance for build 0.7.28                        |
+| 1 | Empty loop — frames read, no grayscale, no decode                        | 475.5 | I/O + `cap.read()` ceiling                                                       |
+| 2 | `np.mean(frame, axis=2)` only (no decode)                                | 34.2  | Current code path                                                                |
+| 3 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` only                           | 329.7 | ~10× faster than `np.mean`                                                       |
+| 4 | `cv2.cvtColor` + `pyzbar.decode`                                         | 46.1  | Full pipeline, fast grayscale                                                    |
+| 5 | `np.mean` + `pyzbar.decode`                                              | 23.7  | Full pipeline, current code                                                      |
+| 6 | `cv2.cvtColor` + `QRCodeDetector.detectAndDecode`                        | 24.6  | OpenCV built-in decoder                                                          |
+| 7 | `np.mean(...).astype(np.uint8)` + `QRCodeDetector.detectAndDecode`       | 15.2  | OpenCV built-in decoder with current grayscale + explicit cast; slowest pipeline |
+| 8 | `cv2.resize(frame, None, fx=0.5, fy=0.5)` only (no grayscale, no decode) | 153.8 | Frame downscale 50% each axis (quarter area); cost of resize alone               |
+| 9 | `np.std(f)` only (no decode)                                             | 58.6  | Std deviation of grayscale frame; useful as a fast blank-frame pre-filter        |
+| 10 | `cv2.meanStdDev(f)` only (no decode)                                     | 256.6 | Std deviation on RGB frame (not grayscale); ~4.4× faster than `np.std`           |
+| 11 | `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` + `cv2.meanStdDev` (no decode) | 329.4 | Grayscale conversion + std deviation; faster than `np.std` and result matches    |
 
 ### Notes on `np.std` vs `cv2.meanStdDev`
 

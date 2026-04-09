@@ -520,9 +520,21 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
         if not ret:
             break
 
+        # f = frame
+        #
+        # std_dev = 100
+        #
         f = np.mean(frame, axis=2)  # poor man greyscale from RGB
+        # frame = cv2.resize(frame, None, fx=0.5, fy=0.5)
         # f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         # f = np.mean(frame, axis=2).astype(np.uint8)
+        # logger.debug(f"f.shape={f.shape}, f.dtype={f.dtype}, "
+        #              f"f.min={f.min()}, f.max={f.max()}")
+        # std1 = round(np.std(f),1)
+        # _, std2 = cv2.meanStdDev(f)
+        # std_dev = round(std2[0][0], 1)
+        # std_dev = 0
+        # logger.debug(f"std1={std1}, std2={round(std2[0][0],1)}")
 
         if np.mod(iframe, 50) == 0:
             parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
@@ -542,9 +554,12 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
         #    logger.debug(f"OpenCV QRCodeDetector found QR code: {data}, pts={pts}")
 
         cod = decode(f, symbols=[ZBarSymbol.QRCODE])
+        # if std_dev>10:
+        #    cod = decode(f, symbols=[ZBarSymbol.QRCODE])
+
         if len(cod) > 0:
             logger.debug("Found QR code: " + str(cod))
-            # logger.debug(" frame std={np.std(f)}")
+            # logger.debug(f"Found QR code: {cod}, f={round(np.std(f),1)}")
             assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
             data = eval(eval(str(cod[0].data)).decode("utf-8"))
             if record is not None:
