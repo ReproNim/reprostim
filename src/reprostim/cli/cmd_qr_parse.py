@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 )
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
+    "-m",
     "--mode",
     default="PARSE",
     type=click.Choice(["PARSE", "INFO"]),

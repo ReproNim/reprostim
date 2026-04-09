@@ -596,6 +596,7 @@ def do_parse(path_video: str, summary_only: bool = False, ignore_errors: bool = 
 @click.command(help="Utility to parse video and locate integrated " "QR time codes.")
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
+    "-m",
     "--mode",
     default="PARSE",
     type=click.Choice(["PARSE", "INFO"]),

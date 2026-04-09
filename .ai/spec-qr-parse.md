@@ -13,6 +13,49 @@ structured log/output.
 
 ---
 
+## CLI Interface
+
+```
+reprostim qr-parse [OPTIONS] PATH
+```
+
+### Arguments
+
+| Argument | Description                                                                                                                           |
+|----------|---------------------------------------------------------------------------------------------------------------------------------------|
+| `PATH`   | Path to a video file (`.mkv`) to parse in `PARSE` mode, or a video file or directory containing video files in `INFO` mode. Required. |
+
+### Options
+
+| Option                 | Type   | Default | Description                                                                                                                                                                                                                                           |
+|------------------------|--------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-m / --mode [PARSE\|INFO]` | Choice | `PARSE` | Execution mode. `PARSE` reads frames, extracts QR codes, and outputs one JSONL record per detected code. `INFO` dumps file-level metadata (duration, bitrate, size) for the given video file or all `.mkv` files in a directory. |
+
+### Output
+
+Both modes write newline-delimited JSON (JSONL) to **stdout**, one record per line. Log messages go to **stderr**.
+
+- **`PARSE` mode** — each record is a `ParseSummary` or `QRCode` Pydantic model serialised with `.model_dump_json()`.
+- **`INFO` mode** — each record is an `InfoSummary` model with `path`, `duration_sec`, `size_mb`, and `rate_mbpm`.
+
+### Example invocations
+
+```shell
+# Parse QR codes from a single video file (default PARSE mode)
+reprostim qr-parse Videos/2025/08/2025.08.14-15.04.15.714--2025.08.14-16.00.26.656.mkv
+
+# Dump metadata for a single video file
+reprostim qr-parse --mode INFO video.mkv
+
+# Dump metadata for all .mkv files in a directory
+reprostim qr-parse --mode INFO Videos/2025/08/
+
+# Redirect JSONL output to a file
+reprostim qr-parse video.mkv > qrcodes.jsonl
+```
+
+---
+
 ## Optimization & Profiling
 
 ### Test video
