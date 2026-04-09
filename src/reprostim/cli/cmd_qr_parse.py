@@ -59,8 +59,25 @@ logger = logging.getLogger(__name__)
     help="Number of frames to skip after each processed frame. "
     "0 = process every frame. 1 = process 1 of 2. 2 = process 1 of 3, etc.",
 )
+@click.option(
+    "-t",
+    "--std-threshold",
+    default=10.0,
+    type=float,
+    show_default=True,
+    help="Grayscale std-deviation pre-filter threshold. Frames with std dev below "
+    "this value are skipped before QR decode. Set to 0 or less to disable.",
+)
 @click.pass_context
-def qr_parse(ctx, path: str, mode: str, grayscale: str, scale: float, skip: int):
+def qr_parse(
+    ctx,
+    path: str,
+    mode: str,
+    grayscale: str,
+    scale: float,
+    skip: int,
+    std_threshold: float,
+):
     """Parse QR codes in captured videos."""
 
     from ..qr.qr_parse import do_main
@@ -75,6 +92,7 @@ def qr_parse(ctx, path: str, mode: str, grayscale: str, scale: float, skip: int)
         grayscale=grayscale,
         scale=scale,
         skip=skip,
+        std_threshold=std_threshold,
         out_func=click.echo,
     )
 

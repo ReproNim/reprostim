@@ -110,6 +110,11 @@ class ParseContext(BaseModel):
         description="Number of frames to skip after each processed frame. "
         "0 = process every frame.",
     )
+    std_threshold: float = Field(
+        10.0,
+        description="Grayscale std-deviation pre-filter threshold. Frames below "
+        "this value are skipped before QR decode. 0 or less = disabled.",
+    )
 
 
 # Define model for parsing summary info
@@ -562,20 +567,26 @@ def do_parse(
     # remember parse start ts to calculate parse fps
     parse_start_ts: float = time.time()
     # opencv_qr_detector = cv2.QRCodeDetector()
+    f_decode: bool = True
 
     while True:
         iframe += 1
         # pos time in ms
         pos_sec = round((iframe - 1) / fps, 3)
+        std_dev = 0.0
         ret, frame = cap.read()
         if not ret:
             break
+
+        # init decode flag
+        f_decode = True
 
         # Handle frame skipping: when skip > 0, only process 1 of every (skip+1) frames
         if ctx.skip > 0:
             if skip_counter > 0:
                 skip_counter -= 1
                 # logger.debug(f"skip frame {iframe}, skip_counter={skip_counter}")
+                # TODO: should we finalize record ???
                 continue
             else:
                 skip_counter = ctx.skip
@@ -602,16 +613,19 @@ def do_parse(
         else:  # Grayscale.NONE
             f = frame
 
-        # std1 = round(np.std(f),1)
-        # _, std2 = cv2.meanStdDev(f)
-        # std_dev = round(std2[0][0], 1)
-        # std_dev = 0
-        # logger.debug(f"std1={std1}, std2={round(std2[0][0],1)}")
+        # Apply std-deviation pre-filter: skip frames unlikely to contain a QR code
+        if f_decode and ctx.std_threshold > 0:
+            _, std = cv2.meanStdDev(f)
+            std_dev = std[0][0]
+            if std_dev < ctx.std_threshold:
+                # logger.debug(f"Skip frame={iframe} std-threshold: "
+                #              f"{std_dev:.2f} < {ctx.std_threshold}")
+                f_decode = False
 
         if np.mod(parse_counter, 50) == 0:
             parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
             logger.debug(
-                f"iframe={iframe}, f={round(np.std(f),1)}, parse_fps={parse_fps} FPS"
+                f"iframe={iframe}, std={round(std_dev,1)}, parse_fps={parse_fps} FPS"
             )
 
         #    if np.std(f) > 10:
@@ -625,13 +639,10 @@ def do_parse(
         # if data:
         #    logger.debug(f"OpenCV QRCodeDetector found QR code: {data}, pts={pts}")
 
-        cod = decode(f, symbols=[ZBarSymbol.QRCODE])
-        # if std_dev>10:
-        #    cod = decode(f, symbols=[ZBarSymbol.QRCODE])
+        cod = decode(f, symbols=[ZBarSymbol.QRCODE]) if f_decode else ()
 
         if len(cod) > 0:
-            logger.debug("Found QR code: " + str(cod))
-            # logger.debug(f"Found QR code: {cod}, f={round(np.std(f),1)}")
+            logger.debug(f"Found QR code: {cod}, std={round(std_dev,1)}")
             assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
             data = eval(eval(str(cod[0].data)).decode("utf-8"))
             if record is not None:
@@ -671,6 +682,7 @@ def do_main(
     grayscale: str = Grayscale.OPENCV,
     scale: float = 1.0,
     skip: int = 0,
+    std_threshold: float = 10.0,
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -683,6 +695,7 @@ def do_main(
     :param grayscale: Grayscale conversion method (see :class:`Grayscale`).
     :param scale: Frame downscale factor in ``(0, 1]``; ``1.0`` = no resize.
     :param skip: Frames to skip after each processed frame; ``0`` = process every frame.
+    :param std_threshold: Grayscale std-deviation threshold; ``0`` or less = disabled.
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -692,6 +705,7 @@ def do_main(
     logger.info(f"Grayscale method : {grayscale}")
     logger.info(f"Scale frame      : {scale}")
     logger.info(f"Skip frames      : {skip}")
+    logger.info(f"Std threshold    : {std_threshold}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -707,7 +721,10 @@ def do_main(
 
     if mode == "PARSE":
         ctx: ParseContext = ParseContext(
-            grayscale=Grayscale(grayscale), scale=scale, skip=skip
+            grayscale=Grayscale(grayscale),
+            scale=scale,
+            skip=skip,
+            std_threshold=std_threshold,
         )
         for item in do_parse(ctx, path):
             out_func(item.model_dump_json())
