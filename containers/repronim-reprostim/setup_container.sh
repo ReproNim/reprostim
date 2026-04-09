@@ -32,7 +32,7 @@ cd /opt/psychopy-installer
 
 # Install PsychoPy via psychopy_linux_installer
 echo "Install PsychoPy v${PSYCHOPY_VERSION} via psychopy_linux_installer..."
-/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2,con-duct==0.18.0 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 --cleanup -v -f
+/opt/psychopy-installer/psychopy_linux_installer --install-dir=${PSYCHOPY_INSTALL_DIR} --venv-name=${PSYCHOPY_VENV_NAME} --psychopy-version=${PSYCHOPY_VERSION} --additional-packages=psychopy_bids==2025.1.2,psychopy-mri-emulator==0.0.2,con-duct==0.18.0 --python-version=${PYTHON_VERSION} --wxpython-version=4.2.3 --cleanup --log-level=debug -f
 # Create symlink to psychopy executable
 ln -sf "${PSYCHOPY_HOME}/start_psychopy" /usr/local/bin/psychopy
 
