@@ -103,6 +103,13 @@ class QrDecoder(str, Enum):
     """Use ``pyzbar.decode`` — default, generally more robust."""
 
 
+class VideoDecoder(str, Enum):
+    """Video frame decoding backend."""
+
+    OPENCV = "opencv"
+    """Use ``cv2.VideoCapture`` — default, currently the only supported backend."""
+
+
 class ParseContext(BaseModel):
     """
     Configuration context for the QR parsing process.
@@ -134,6 +141,11 @@ class ParseContext(BaseModel):
         description="QR decoding backend. `pyzbar` uses pyzbar.decode (default). "
         "`opencv` uses cv2.QRCodeDetector.detectAndDecode. "
         "`none` disables QR decoding entirely.",
+    )
+    video_decoder: VideoDecoder = Field(
+        VideoDecoder.OPENCV,
+        description="Video frame decoding backend. Only `opencv` is supported now; "
+        "placeholder for future backends such as `ffmpeg` or `pyav`.",
     )
 
 
@@ -737,6 +749,7 @@ def do_main(
     skip: int = 0,
     std_threshold: float = 10.0,
     qr_decoder: str = QrDecoder.PYZBAR,
+    video_decoder: str = VideoDecoder.OPENCV,
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -751,6 +764,7 @@ def do_main(
     :param skip: Frames to skip after each processed frame; ``0`` = process every frame.
     :param std_threshold: Grayscale std-deviation threshold; ``0`` or less = disabled.
     :param qr_decoder: QR decoding backend (see :class:`QrDecoder`).
+    :param video_decoder: Video frame decoding backend (see :class:`VideoDecoder`).
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -762,6 +776,7 @@ def do_main(
     logger.info(f"Skip frames      : {skip}")
     logger.info(f"Std threshold    : {std_threshold}")
     logger.info(f"QR decoder       : {qr_decoder}")
+    logger.info(f"Video decoder    : {video_decoder}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -782,6 +797,7 @@ def do_main(
             skip=skip,
             std_threshold=std_threshold,
             qr_decoder=QrDecoder(qr_decoder),
+            video_decoder=VideoDecoder(video_decoder),
         )
         for item in do_parse(ctx, path):
             out_func(item.model_dump_json())

@@ -79,6 +79,16 @@ logger = logging.getLogger(__name__)
     "`opencv` uses cv2.QRCodeDetector.detectAndDecode. "
     "`none` disables QR decoding entirely — useful for benchmarking.",
 )
+@click.option(
+    "-v",
+    "--video-decoder",
+    default="opencv",
+    type=click.Choice(["opencv"]),
+    show_default=True,
+    help="Video frame decoding backend. "
+    "Currently only `opencv` (cv2.VideoCapture) is supported. "
+    "Placeholder for future backends such as `ffmpeg` or `pyav`.",
+)
 @click.pass_context
 def qr_parse(
     ctx,
@@ -89,6 +99,7 @@ def qr_parse(
     skip: int,
     std_threshold: float,
     qr_decoder: str,
+    video_decoder: str,
 ):
     """Parse QR codes in captured videos."""
 
@@ -106,6 +117,7 @@ def qr_parse(
         skip=skip,
         std_threshold=std_threshold,
         qr_decoder=qr_decoder,
+        video_decoder=video_decoder,
         out_func=click.echo,
     )
 

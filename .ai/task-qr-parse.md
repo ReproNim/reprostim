@@ -13,7 +13,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `-x / --scale FLOAT` — frame downscale factor `(0, 1]`; `1.0` = no resize; default `1.0`
 - [x] `-s / --skip INT` — frames to skip after each processed frame; `0` = every frame; default `0`
 - [x] `-q / --qr-decoder [none|opencv|pyzbar]` — QR backend; `none` skips decode; default `pyzbar`
-- [ ] `-v / --video-decoder [opencv]` — video frame backend; only `opencv` supported now; placeholder for `ffmpeg`/`pyav`; default `opencv`
+- [x] `-v / --video-decoder [opencv]` — video frame backend; only `opencv` supported now; placeholder for `ffmpeg`/`pyav`; default `opencv`
 - [ ] `-Q / --qrdet` — enable qrdet-based frame pre-filter; default `False`
 - [ ] `-M / --qrdet-model-size [n|s|m|l]` — qrdet model size; default `s`; only used when `--qrdet` is set
 
@@ -76,3 +76,14 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] Optional frame downscaling `-x / --scale` (proposal 4)
 - [ ] Parallel decoding via `ProcessPoolExecutor` (proposal 5)
 - [ ] GPU / ZXing decoder (proposal 6)
+
+---
+
+## Future: Video Decoder Backends
+
+Extend `-v / --video-decoder` with additional backends once `opencv` path is stable.
+
+- [ ] `ffmpeg` — drive frame extraction via `ffmpeg` subprocess or `ffmpeg-python` bindings; useful for formats/codecs OpenCV cannot handle
+- [ ] `pyav` — use `av` (PyAV) bindings for libavcodec/libavformat; lower overhead than subprocess, supports hardware-accelerated decode (VAAPI, NVDEC)
+- [ ] ? `decord` — GPU-accelerated video reader (`decord` package); designed for ML workloads, supports batch frame reads and CUDA tensors
+- [ ] Abstract `_open_video(ctx) -> iterator[frame]` API in `qr_parse.py` so backends are swappable without touching the main frame loop
