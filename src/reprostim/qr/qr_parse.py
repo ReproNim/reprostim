@@ -89,6 +89,20 @@ class Grayscale(str, Enum):
     """Use ``cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)`` — recommended (~330 fps)."""
 
 
+class QrDecoder(str, Enum):
+    """QR decoding backend."""
+
+    NONE = "none"
+    """Disable QR decoding entirely — frame processing (std filter, scaling,
+    skipping) still runs, useful for benchmarking or dry-run profiling."""
+
+    OPENCV = "opencv"
+    """Use ``cv2.QRCodeDetector().detectAndDecode``."""
+
+    PYZBAR = "pyzbar"
+    """Use ``pyzbar.decode`` — default, generally more robust."""
+
+
 class ParseContext(BaseModel):
     """
     Configuration context for the QR parsing process.
@@ -114,6 +128,12 @@ class ParseContext(BaseModel):
         10.0,
         description="Grayscale std-deviation pre-filter threshold. Frames below "
         "this value are skipped before QR decode. 0 or less = disabled.",
+    )
+    qr_decoder: QrDecoder = Field(
+        QrDecoder.PYZBAR,
+        description="QR decoding backend. `pyzbar` uses pyzbar.decode (default). "
+        "`opencv` uses cv2.QRCodeDetector.detectAndDecode. "
+        "`none` disables QR decoding entirely.",
     )
 
 
@@ -461,6 +481,53 @@ def do_info(path: str):
         logger.error(f"Path not found: {path}")
 
 
+def _decode_qr_pyzbar(frame) -> Optional[dict]:
+    """Decode a QR code from *frame* using ``pyzbar``.
+
+    :param frame: Grayscale frame array.
+    :returns: Decoded QR payload as a dict, or ``None`` if no QR code found.
+    """
+    cod = decode(frame, symbols=[ZBarSymbol.QRCODE])
+    if len(cod) == 0:
+        return None
+    assert len(cod) == 1, f"Expecting only one QR code, got {len(cod)}"
+    logger.debug(f"Found QR code: {cod}")
+    return eval(eval(str(cod[0].data)).decode("utf-8"))
+
+
+def _decode_qr_opencv(frame) -> Optional[dict]:
+    """Decode a QR code from *frame* using ``cv2.QRCodeDetector``.
+
+    :param frame: Grayscale frame array.
+    :returns: Decoded QR payload as a dict, or ``None`` if no QR code found.
+    """
+    qr_str, _, _ = cv2.QRCodeDetector().detectAndDecode(frame)
+    if not qr_str:
+        return None
+    logger.debug(f"Found QR code (opencv): {qr_str}")
+    return eval(qr_str)
+
+
+def _decode_qr(ctx: ParseContext, frame) -> Optional[dict]:
+    """Decode a QR code from *frame* using the backend configured in *ctx*.
+
+    Dispatches to :func:`_decode_qr_pyzbar`, :func:`_decode_qr_opencv`, or
+    returns ``None`` immediately when the decoder is ``none``.
+
+    :param ctx: Parse context — selects the QR decoding backend via
+                ``ctx.qr_decoder``.
+    :param frame: Grayscale (or raw) frame array as returned by the frame
+                  processing step in :func:`do_parse`.
+    :returns: Decoded QR payload as a dict, or ``None`` if no QR code found.
+    """
+    if ctx.qr_decoder == QrDecoder.PYZBAR:
+        return _decode_qr_pyzbar(frame)
+    elif ctx.qr_decoder == QrDecoder.OPENCV:
+        return _decode_qr_opencv(frame)
+    else:  # QrDecoder.NONE
+        return None
+
+
 def do_parse(
     ctx: ParseContext,
     path_video: str,
@@ -566,7 +633,6 @@ def do_parse(
 
     # remember parse start ts to calculate parse fps
     parse_start_ts: float = time.time()
-    # opencv_qr_detector = cv2.QRCodeDetector()
     f_decode: bool = True
 
     while True:
@@ -579,7 +645,7 @@ def do_parse(
             break
 
         # init decode flag
-        f_decode = True
+        f_decode = False if ctx.qr_decoder == QrDecoder.NONE else True
 
         # Handle frame skipping: when skip > 0, only process 1 of every (skip+1) frames
         if ctx.skip > 0:
@@ -598,7 +664,7 @@ def do_parse(
         #              f"f.min={f.min()}, f.max={f.max()}")
 
         # Apply frame downscaling if requested (before grayscale conversion)
-        if ctx.scale != 1.0:
+        if f_decode and ctx.scale != 1.0:
             frame = cv2.resize(
                 frame, None, fx=ctx.scale, fy=ctx.scale, interpolation=cv2.INTER_AREA
             )
@@ -606,9 +672,9 @@ def do_parse(
         # Apply grayscale conversion according to the context configuration if any
         # Note: ? maybe we need to check frame.shape/dtype to decide if we need
         #       to convert or not
-        if ctx.grayscale == Grayscale.OPENCV:
+        if f_decode and ctx.grayscale == Grayscale.OPENCV:
             f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        elif ctx.grayscale == Grayscale.NUMPY:
+        elif f_decode and ctx.grayscale == Grayscale.NUMPY:
             f = np.mean(frame, axis=2)
         else:  # Grayscale.NONE
             f = frame
@@ -628,23 +694,10 @@ def do_parse(
                 f"iframe={iframe}, std={round(std_dev,1)}, parse_fps={parse_fps} FPS"
             )
 
-        #    if np.std(f) > 10:
-        #        cv2.imwrite('grayscale_image.png', f)
-        #        import pdb; pdb.set_trace()
+        data = _decode_qr(ctx, f) if f_decode else None
 
-        # just for test, check QRCodeDetector().detectAndDecode
-        # data, pts, _ = opencv_qr_detector.detectAndDecode(f)
-        # data = None
-        #
-        # if data:
-        #    logger.debug(f"OpenCV QRCodeDetector found QR code: {data}, pts={pts}")
-
-        cod = decode(f, symbols=[ZBarSymbol.QRCODE]) if f_decode else ()
-
-        if len(cod) > 0:
-            logger.debug(f"Found QR code: {cod}, std={round(std_dev,1)}")
-            assert len(cod) == 1, f"Expecting only one, got {len(cod)}"
-            data = eval(eval(str(cod[0].data)).decode("utf-8"))
+        if data is not None:
+            logger.debug(f"Found QR code, std={round(std_dev,1)}")
             if record is not None:
                 if data == record.data:
                     # we are still in the same QR code record
@@ -683,6 +736,7 @@ def do_main(
     scale: float = 1.0,
     skip: int = 0,
     std_threshold: float = 10.0,
+    qr_decoder: str = QrDecoder.PYZBAR,
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -696,6 +750,7 @@ def do_main(
     :param scale: Frame downscale factor in ``(0, 1]``; ``1.0`` = no resize.
     :param skip: Frames to skip after each processed frame; ``0`` = process every frame.
     :param std_threshold: Grayscale std-deviation threshold; ``0`` or less = disabled.
+    :param qr_decoder: QR decoding backend (see :class:`QrDecoder`).
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -706,6 +761,7 @@ def do_main(
     logger.info(f"Scale frame      : {scale}")
     logger.info(f"Skip frames      : {skip}")
     logger.info(f"Std threshold    : {std_threshold}")
+    logger.info(f"QR decoder       : {qr_decoder}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -725,6 +781,7 @@ def do_main(
             scale=scale,
             skip=skip,
             std_threshold=std_threshold,
+            qr_decoder=QrDecoder(qr_decoder),
         )
         for item in do_parse(ctx, path):
             out_func(item.model_dump_json())

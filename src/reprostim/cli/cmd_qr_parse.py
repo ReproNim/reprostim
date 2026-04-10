@@ -68,6 +68,17 @@ logger = logging.getLogger(__name__)
     help="Grayscale std-deviation pre-filter threshold. Frames with std dev below "
     "this value are skipped before QR decode. Set to 0 or less to disable.",
 )
+@click.option(
+    "-q",
+    "--qr-decoder",
+    default="pyzbar",
+    type=click.Choice(["none", "opencv", "pyzbar"]),
+    show_default=True,
+    help="QR decoding backend. "
+    "`pyzbar` uses pyzbar.decode (default). "
+    "`opencv` uses cv2.QRCodeDetector.detectAndDecode. "
+    "`none` disables QR decoding entirely — useful for benchmarking.",
+)
 @click.pass_context
 def qr_parse(
     ctx,
@@ -77,6 +88,7 @@ def qr_parse(
     scale: float,
     skip: int,
     std_threshold: float,
+    qr_decoder: str,
 ):
     """Parse QR codes in captured videos."""
 
@@ -93,6 +105,7 @@ def qr_parse(
         scale=scale,
         skip=skip,
         std_threshold=std_threshold,
+        qr_decoder=qr_decoder,
         out_func=click.echo,
     )
 
