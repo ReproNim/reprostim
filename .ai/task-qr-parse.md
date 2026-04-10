@@ -40,21 +40,21 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 ## Tests
 
 ### CLI option handling
-- [ ] `--grayscale none` — verify raw BGR frame is passed through without conversion
-- [ ] `--grayscale mean` — verify `np.mean(frame, axis=2)` path is taken
-- [ ] `--grayscale cvtcolor` — verify `cv2.cvtColor` path is taken (default)
-- [ ] `--std-threshold 0` — verify pre-filter is disabled, all frames reach decoder
-- [ ] `--std-threshold 40` — verify frames below threshold are skipped
-- [ ] `--scale 0.5` — verify frames are resized before decode
-- [ ] `--scale 1.0` — verify no resize is applied (default, no-op)
-- [ ] `--skip 0` — verify every frame is processed
-- [ ] `--skip 2` — verify only every 3rd frame is processed
-- [ ] `--qr-decoder none` — verify decode is skipped, output still produced
-- [ ] `--qr-decoder opencv` — verify `cv2.QRCodeDetector.detectAndDecode` is used
-- [ ] `--qr-decoder pyzbar` — verify `pyzbar.decode` is used (default)
-- [ ] `--video-decoder opencv` — verify `cv2.VideoCapture` is used (default)
-- [ ] `--qrdet` — verify qrdet pre-filter is activated
-- [ ] `--qrdet-model-size n/s/m/l` — verify correct model variant is loaded
+- [x] `--grayscale none` — verify raw BGR frame is passed through without conversion
+- [x] `--grayscale numpy` — verify `np.mean(frame, axis=2)` path is taken
+- [x] `--grayscale opencv` — verify `cv2.cvtColor` path is taken (default)
+- [x] `--std-threshold 0` — verify pre-filter is disabled, all frames reach decoder
+- [x] `--std-threshold 40` — verify frames below threshold are skipped
+- [x] `--scale 0.5` — verify frames are resized before decode
+- [x] `--scale 1.0` — verify no resize is applied (default, no-op)
+- [x] `--skip 0` — verify every frame is processed
+- [x] `--skip 2` — verify only every 3rd frame is processed
+- [x] `--qr-decoder none` — verify decode is skipped, output still produced
+- [x] `--qr-decoder opencv` — verify `cv2.QRCodeDetector.detectAndDecode` is used
+- [x] `--qr-decoder pyzbar` — verify `pyzbar.decode` is used (default)
+- [x] `--video-decoder opencv` — verify `cv2.VideoCapture` is used (default)
+- [x] `--qrdet` — verify qrdet pre-filter is activated (mocked, no GPU needed)
+- [x] `--qrdet-model-size n/s/m/l` — verify correct model variant is loaded (mocked)
 
 ### Integration
 - [ ] Combined `--grayscale cvtcolor --std-threshold 40 --skip 1` — verify all three interact correctly on a real video
