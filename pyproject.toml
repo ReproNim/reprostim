@@ -76,6 +76,13 @@ psychopy = [
   "psychopy",
   "psychopy-sounddevice",
 ]
+# GPU-accelerated QR pre-filter via qrdet (YOLOv8) + PyTorch
+# Note: install the CUDA-enabled torch variant manually if a GPU is available:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+gpu = [
+  "torch>=2.0.0",
+  "qrdet>=2.2",
+]
 all = [
   "reprostim[audio]",
   "reprostim[disp_mon]",

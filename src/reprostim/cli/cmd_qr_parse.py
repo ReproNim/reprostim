@@ -89,6 +89,28 @@ logger = logging.getLogger(__name__)
     "Currently only `opencv` (cv2.VideoCapture) is supported. "
     "Placeholder for future backends such as `ffmpeg` or `pyav`.",
 )
+@click.option(
+    "-Q",
+    "--qrdet",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Enable qrdet-based GPU frame pre-filter. "
+    "A YOLOv8 QR detector runs on each frame before the full QR decode; "
+    "frames with no detected QR region are skipped. "
+    "Requires `qrdet` and `torch` packages (pip install reprostim[gpu]).",
+)
+@click.option(
+    "-M",
+    "--qrdet-model-size",
+    default="s",
+    type=click.Choice(["n", "s", "m", "l"]),
+    show_default=True,
+    help="qrdet model size. "
+    "`n` (nano) is fastest; `s` (small) balances speed/accuracy (default); "
+    "`m` and `l` give higher accuracy at greater cost. "
+    "Only used when --qrdet is set.",
+)
 @click.pass_context
 def qr_parse(
     ctx,
@@ -100,6 +122,8 @@ def qr_parse(
     std_threshold: float,
     qr_decoder: str,
     video_decoder: str,
+    qrdet: bool,
+    qrdet_model_size: str,
 ):
     """Parse QR codes in captured videos."""
 
@@ -118,6 +142,8 @@ def qr_parse(
         std_threshold=std_threshold,
         qr_decoder=qr_decoder,
         video_decoder=video_decoder,
+        qrdet=qrdet,
+        qrdet_model_size=qrdet_model_size,
         out_func=click.echo,
     )
 

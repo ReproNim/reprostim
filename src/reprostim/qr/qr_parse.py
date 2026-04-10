@@ -147,6 +147,17 @@ class ParseContext(BaseModel):
         description="Video frame decoding backend. Only `opencv` is supported now; "
         "placeholder for future backends such as `ffmpeg` or `pyav`.",
     )
+    qrdet: bool = Field(
+        False,
+        description="Enable qrdet-based GPU frame pre-filter. When True, a YOLOv8 "
+        "QR detector runs on each frame before the full QR decode; frames with no "
+        "detected QR region are skipped. Requires `qrdet` and `torch` packages.",
+    )
+    qrdet_model_size: str = Field(
+        "s",
+        description="qrdet model size: 'n' (nano), 's' (small), 'm' (medium), "
+        "'l' (large). Only used when qrdet=True.",
+    )
 
 
 # Define model for parsing summary info
@@ -493,6 +504,55 @@ def do_info(path: str):
         logger.error(f"Path not found: {path}")
 
 
+# Module-level qrdet detector instance — initialised once in do_main when --qrdet is set.
+_qrdet_detector = None
+
+
+def _init_qrdet(ctx: "ParseContext") -> None:
+    """Initialise the module-level ``_qrdet_detector`` when ``ctx.qrdet`` is True.
+
+    Imports ``qrdet`` and ``torch`` lazily.  Raises :exc:`ImportError` with an
+    actionable install hint when the packages are missing.
+
+    :param ctx: Parse context — reads ``qrdet`` and ``qrdet_model_size``.
+    :raises ImportError: When ``qrdet`` or ``torch`` is not installed.
+    """
+    global _qrdet_detector
+    if not ctx.qrdet:
+        _qrdet_detector = None
+        return
+    try:
+        import torch
+        from qrdet import QRDetector
+    except ImportError as e:
+        raise ImportError(
+            "The --qrdet pre-filter requires the 'qrdet' and 'torch' packages. "
+            "Install them with:  pip install reprostim[gpu]\n"
+            f"Original error: {e}"
+        ) from e
+    _qrdet_detector = QRDetector(model_size=ctx.qrdet_model_size)
+    if torch.cuda.is_available():
+        _qrdet_detector.model.to("cuda")
+    else:
+        logger.warning("qrdet: CUDA not available, running on CPU")
+
+
+def _qrdet_filter(frame) -> bool:
+    """Return ``True`` if *frame* should proceed to QR decode.
+
+    Uses the module-level ``_qrdet_detector``.  Returns ``True`` immediately
+    when the detector is ``None`` (qrdet disabled).  Otherwise runs the YOLOv8
+    region check on the scaled BGR *frame*.
+
+    :param frame: Scaled BGR frame array (before grayscale conversion).
+    :returns: ``True`` to proceed with decode, ``False`` to skip the frame.
+    """
+    if _qrdet_detector is None:
+        return True
+    detections = _qrdet_detector.detect(image=frame, is_bgr=True)
+    return bool(detections)
+
+
 def _decode_qr_pyzbar(frame) -> Optional[dict]:
     """Decode a QR code from *frame* using ``pyzbar``.
 
@@ -700,6 +760,10 @@ def do_parse(
                 #              f"{std_dev:.2f} < {ctx.std_threshold}")
                 f_decode = False
 
+        # Apply qrdet GPU pre-filter: skip frames with no detected QR region
+        if f_decode and not _qrdet_filter(frame):
+            f_decode = False
+
         if np.mod(parse_counter, 50) == 0:
             parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
             logger.debug(
@@ -750,6 +814,8 @@ def do_main(
     std_threshold: float = 10.0,
     qr_decoder: str = QrDecoder.PYZBAR,
     video_decoder: str = VideoDecoder.OPENCV,
+    qrdet: bool = False,
+    qrdet_model_size: str = "s",
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -765,6 +831,8 @@ def do_main(
     :param std_threshold: Grayscale std-deviation threshold; ``0`` or less = disabled.
     :param qr_decoder: QR decoding backend (see :class:`QrDecoder`).
     :param video_decoder: Video frame decoding backend (see :class:`VideoDecoder`).
+    :param qrdet: Enable qrdet GPU frame pre-filter.
+    :param qrdet_model_size: qrdet model size (``'n'``, ``'s'``, ``'m'``, ``'l'``).
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -777,6 +845,7 @@ def do_main(
     logger.info(f"Std threshold    : {std_threshold}")
     logger.info(f"QR decoder       : {qr_decoder}")
     logger.info(f"Video decoder    : {video_decoder}")
+    logger.info(f"QRDet pre-filter : {qrdet} (model={qrdet_model_size})")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -798,7 +867,14 @@ def do_main(
             std_threshold=std_threshold,
             qr_decoder=QrDecoder(qr_decoder),
             video_decoder=VideoDecoder(video_decoder),
+            qrdet=qrdet,
+            qrdet_model_size=qrdet_model_size,
         )
+        try:
+            _init_qrdet(ctx)
+        except ImportError as e:
+            logger.error(str(e))
+            return 1
         for item in do_parse(ctx, path):
             out_func(item.model_dump_json())
     elif mode == "INFO":

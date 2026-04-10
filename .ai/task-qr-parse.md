@@ -14,8 +14,8 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `-s / --skip INT` — frames to skip after each processed frame; `0` = every frame; default `0`
 - [x] `-q / --qr-decoder [none|opencv|pyzbar]` — QR backend; `none` skips decode; default `pyzbar`
 - [x] `-v / --video-decoder [opencv]` — video frame backend; only `opencv` supported now; placeholder for `ffmpeg`/`pyav`; default `opencv`
-- [ ] `-Q / --qrdet` — enable qrdet-based frame pre-filter; default `False`
-- [ ] `-M / --qrdet-model-size [n|s|m|l]` — qrdet model size; default `s`; only used when `--qrdet` is set
+- [x] `-Q / --qrdet` — enable qrdet-based frame pre-filter; default `False`
+- [x] `-M / --qrdet-model-size [n|s|m|l]` — qrdet model size; default `s`; only used when `--qrdet` is set
 
 ---
 
