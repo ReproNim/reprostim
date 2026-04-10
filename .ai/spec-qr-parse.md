@@ -72,43 +72,25 @@ CLI option; stages whose option is at its default no-op value are bypassed entir
 
 ```mermaid
 flowchart TD
-    READ["📹 cap.read()\n<i>-v / --video-decoder</i>"]
+    classDef stage min-width:220px,text-align:center
+    classDef opt fill:none,stroke:none,font-style:italic
 
-    READ --> SKIP_CHK
+    A["<b>Video Decode</b>"]:::stage
+    --> B["<b>Skip Frame Filter</b>"]:::stage
+    --> C["<b>Scale Frame Filter</b>"]:::stage
+    --> D["<b>Grayscale Frame Filter</b>"]:::stage
+    --> E["<b>Std Frame Filter</b>"]:::stage
+    --> F["<b>QR Detect Frame GPU Filter</b>"]:::stage
+    --> G["<b>QR Decoder</b>"]:::stage
+    --> H["<b>QrRecord Output</b>"]:::stage
 
-    SKIP_CHK{"-s / --skip\nskip_counter > 0?"}
-    SKIP_CHK -- "yes\ndecrement counter" --> READ
-    SKIP_CHK -- "no\nprocess frame" --> SCALE_CHK
-
-    SCALE_CHK{"-x / --scale\nscale ≠ 1.0?"}
-    SCALE_CHK -- "yes" --> SCALE["cv2.resize(fx, fy)"]
-    SCALE_CHK -- "no" --> GRAY
-    SCALE --> GRAY
-
-    GRAY["-g / --grayscale\nopencv → cv2.cvtColor BGR→GRAY\nnumpy → np.mean axis=2\nnone → pass raw frame"]
-    GRAY --> STD_CHK
-
-    STD_CHK{"-t / --std-threshold\nthreshold > 0?"}
-    STD_CHK -- "yes → cv2.meanStdDev\nstd &lt; threshold" --> SKIP_FRAME
-    STD_CHK -- "std ≥ threshold\nor disabled" --> QRDET_CHK
-
-    QRDET_CHK{"-Q / --qrdet\nenabled?"}
-    QRDET_CHK -- "yes → run model\n(-M / --qrdet-model-size)\nno QR region found" --> SKIP_FRAME
-    QRDET_CHK -- "QR region found\nor disabled" --> DECODER
-
-    DECODER{"-q / --qr-decoder"}
-    DECODER -- "none" --> SKIP_FRAME["⏭ skip frame"]
-    DECODER -- "pyzbar" --> PYZBAR["pyzbar.decode()"]
-    DECODER -- "opencv" --> OPENCV["cv2.QRCodeDetector\n.detectAndDecode()"]
-
-    PYZBAR --> FOUND{"QR found?"}
-    OPENCV --> FOUND
-
-    FOUND -- "yes" --> EMIT["📤 emit / finalize QrRecord"]
-    FOUND -- "no" --> NEXT["→ next frame"]
-    SKIP_FRAME --> NEXT
-    EMIT --> NEXT
-    NEXT --> READ
+    OA["--video-decoder"]:::opt -.-> A
+    OB["--skip"]:::opt -.-> B
+    OC["--scale"]:::opt -.-> C
+    OD["--grayscale"]:::opt -.-> D
+    OE["--std-threshold"]:::opt -.-> E
+    OF["--qrdet<br/>--qrdet-model-size"]:::opt -.-> F
+    OG["--qr-decoder"]:::opt -.-> G
 ```
 
 ### Stage summary
