@@ -5,11 +5,12 @@
 """Tests for CLI option handling in ``reprostim.qr.qr_parse``.
 
 Covers: --grayscale, --std-threshold, --scale, --skip, --qr-decoder,
---video-decoder, --qrdet, --qrdet-model-size.
+--video-decoder, --qrdet, --qrdet-model-size, --qr-decoder-workers.
 
 qrdet tests use mocks only — no real GPU or qrdet/torch packages required.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 import cv2
@@ -20,6 +21,7 @@ import reprostim.qr.qr_parse as qp_mod
 from reprostim.qr.qr_parse import (
     Grayscale,
     ParseContext,
+    ParseSummary,
     QrDecoder,
     VideoDecoder,
     _init_qrdet,
@@ -332,3 +334,87 @@ def test_do_main_qrdet_missing_packages_returns_error(tmp_path):
     with patch.dict("sys.modules", {"qrdet": None}):
         result = do_main(path=video, mode="PARSE", qrdet=True)
     assert result == 1
+
+
+# ===========================================================================
+# --qr-decoder-workers
+# ===========================================================================
+
+
+def test_qr_decoder_workers_default_is_zero():
+    """ParseContext default qr_decoder_workers is 0 (sequential)."""
+    ctx = ParseContext()
+    assert ctx.qr_decoder_workers == 0
+
+
+def test_qr_decoder_workers_zero_does_not_use_thread_pool(tmp_path):
+    """--qr-decoder-workers 0: ThreadPoolExecutor is not instantiated."""
+    ctx = ParseContext(qr_decoder_workers=0, std_threshold=0, qr_decoder=QrDecoder.NONE)
+    with patch("reprostim.qr.qr_parse.ThreadPoolExecutor") as mock_pool:
+        _run_parse(ctx, [_blank_frame()], _video(tmp_path))
+    mock_pool.assert_not_called()
+
+
+def test_qr_decoder_workers_one_does_not_use_thread_pool(tmp_path):
+    """--qr-decoder-workers 1: ThreadPoolExecutor is not instantiated
+    (threshold is > 1)."""
+    ctx = ParseContext(qr_decoder_workers=1, std_threshold=0, qr_decoder=QrDecoder.NONE)
+    with patch("reprostim.qr.qr_parse.ThreadPoolExecutor") as mock_pool:
+        _run_parse(ctx, [_blank_frame()], _video(tmp_path))
+    mock_pool.assert_not_called()
+
+
+def test_qr_decoder_workers_parallel_uses_thread_pool(tmp_path):
+    """--qr-decoder-workers 4: ThreadPoolExecutor is instantiated with max_workers=4."""
+    ctx = ParseContext(qr_decoder_workers=4, std_threshold=0, qr_decoder=QrDecoder.NONE)
+    with patch(
+        "reprostim.qr.qr_parse.ThreadPoolExecutor", wraps=ThreadPoolExecutor
+    ) as mock_pool:
+        _run_parse(ctx, [_blank_frame()], _video(tmp_path))
+    mock_pool.assert_called_once_with(max_workers=4)
+
+
+def test_qr_decoder_workers_parallel_processes_all_frames(tmp_path):
+    """--qr-decoder-workers 4: _process_frame is called once per non-skipped frame."""
+    frames = [_blank_frame()] * 5
+    ctx = ParseContext(
+        qr_decoder_workers=4, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
+    )
+    with patch("reprostim.qr.qr_parse._process_frame", return_value=None) as mock_pf:
+        _run_parse(ctx, frames, _video(tmp_path))
+    assert mock_pf.call_count == len(frames)
+
+
+def test_qr_decoder_workers_parallel_output_matches_sequential(tmp_path):
+    """--qr-decoder-workers 4: QrRecords and ParseSummary match the sequential path."""
+    frames = [_blank_frame()] * 6
+    # _process_frame returns QR data for frames 1-3, None for the rest.
+    # All three return the same payload so the state machine collapses them
+    # to one record.
+    qr_data = {
+        "time_formatted": "2025-01-01T00:00:01",
+        "keys_time_str": "2025-01-01T00:00:01",
+    }
+    per_frame = [qr_data, qr_data, qr_data, None, None, None]
+
+    ctx_seq = ParseContext(
+        qr_decoder_workers=0, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
+    )
+    ctx_par = ParseContext(
+        qr_decoder_workers=4, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
+    )
+
+    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+        seq_items = _run_parse(ctx_seq, frames, _video(tmp_path))
+
+    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+        par_items = _run_parse(ctx_par, frames, _video(tmp_path))
+
+    seq_records = [i for i in seq_items if not isinstance(i, ParseSummary)]
+    par_records = [i for i in par_items if not isinstance(i, ParseSummary)]
+
+    assert len(seq_records) == len(par_records)
+    for s, p in zip(seq_records, par_records):
+        assert s.data == p.data
+        assert s.frame_start == p.frame_start
+        assert s.time_start == p.time_start

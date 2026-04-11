@@ -16,6 +16,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `-v / --video-decoder [opencv]` — video frame backend; only `opencv` supported now; placeholder for `ffmpeg`/`pyav`; default `opencv`
 - [x] `-Q / --qrdet` — enable qrdet-based frame pre-filter; default `False`
 - [x] `-M / --qrdet-model-size [n|s|m|l]` — qrdet model size; default `s`; only used when `--qrdet` is set
+- [x] `-W / --qr-decoder-workers INT` — worker threads for parallel QR decoding; `0`/`1` = sequential (streaming); `N > 1` = parallel (buffered, iframe-ordered)
 
 ---
 
@@ -55,6 +56,11 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `--video-decoder opencv` — verify `cv2.VideoCapture` is used (default)
 - [x] `--qrdet` — verify qrdet pre-filter is activated (mocked, no GPU needed)
 - [x] `--qrdet-model-size n/s/m/l` — verify correct model variant is loaded (mocked)
+- [x] `--qr-decoder-workers 0` — verify sequential path is taken (ThreadPoolExecutor not instantiated)
+- [x] `--qr-decoder-workers 1` — verify sequential path is taken (threshold is `> 1`)
+- [x] `--qr-decoder-workers 4` — verify ThreadPoolExecutor instantiated with `max_workers=4`
+- [x] `--qr-decoder-workers 4` — verify `_process_frame` called once per non-skipped frame
+- [x] `--qr-decoder-workers 4` — verify output records match sequential path (data, frame_start, time_start)
 
 ### Integration
 - [ ] Combined `--grayscale cvtcolor --std-threshold 40 --skip 1` — verify all three interact correctly on a real video
@@ -74,7 +80,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [x] `cv2.meanStdDev` std deviation (proposal 2)
 - [x] Std pre-filter with `--std-threshold` (proposal 3)
 - [x] Optional frame downscaling `-x / --scale` (proposal 4)
-- [ ] Parallel decoding via `ProcessPoolExecutor` (proposal 5)
+- [x] Parallel decoding via `ThreadPoolExecutor` + `-W / --qr-decoder-workers` (proposal 5)
 - [ ] GPU / ZXing decoder (proposal 6)
 
 ---

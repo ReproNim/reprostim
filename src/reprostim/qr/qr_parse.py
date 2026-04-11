@@ -11,7 +11,9 @@ JSONL format.
 import logging
 import os
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -157,6 +159,11 @@ class ParseContext(BaseModel):
         "s",
         description="qrdet model size: 'n' (nano), 's' (small), 'm' (medium), "
         "'l' (large). Only used when qrdet=True.",
+    )
+    qr_decoder_workers: int = Field(
+        0,
+        description="Number of worker threads for parallel QR decoding. "
+        "0 or 1 = sequential (default). N > 1 = parallel with N threads.",
     )
 
 
@@ -563,7 +570,7 @@ def _decode_qr_pyzbar(frame) -> Optional[dict]:
     if len(cod) == 0:
         return None
     assert len(cod) == 1, f"Expecting only one QR code, got {len(cod)}"
-    logger.debug(f"Found QR code: {cod}")
+    logger.debug(f"Found QR code (pyzbar): {cod}")
     return eval(eval(str(cod[0].data)).decode("utf-8"))
 
 
@@ -598,6 +605,118 @@ def _decode_qr(ctx: ParseContext, frame) -> Optional[dict]:
         return _decode_qr_opencv(frame)
     else:  # QrDecoder.NONE
         return None
+
+
+def _process_frame(ctx: ParseContext, frame) -> Optional[dict]:
+    """Apply scale, grayscale, std-threshold, qrdet pre-filter, and QR decode to *frame*.
+
+    Shared by both the sequential and parallel frame processing paths in
+    :func:`do_parse`.
+
+    :returns: Decoded QR payload as a dict, or ``None`` if the frame was
+              filtered out or no QR code was found.
+    """
+    f_decode = False if ctx.qr_decoder == QrDecoder.NONE else True
+
+    # Apply frame downscaling if requested (before grayscale conversion)
+    if f_decode and ctx.scale != 1.0:
+        frame = cv2.resize(
+            frame, None, fx=ctx.scale, fy=ctx.scale, interpolation=cv2.INTER_AREA
+        )
+
+    # Apply grayscale conversion according to the context configuration if any
+    if f_decode and ctx.grayscale == Grayscale.OPENCV:
+        f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    elif f_decode and ctx.grayscale == Grayscale.NUMPY:
+        f = np.mean(frame, axis=2)
+    else:  # Grayscale.NONE
+        f = frame
+
+    # Apply std-deviation pre-filter: skip frames unlikely to contain a QR code
+    if f_decode and ctx.std_threshold > 0:
+        _, std = cv2.meanStdDev(f)
+        if std[0][0] < ctx.std_threshold:
+            f_decode = False
+
+    # Apply qrdet GPU pre-filter: skip frames with no detected QR region
+    if f_decode and not _qrdet_filter(frame):
+        f_decode = False
+
+    return _decode_qr(ctx, f) if f_decode else None
+
+
+def _iter_raw_frames(ctx: ParseContext, cap, fps: float):
+    """Yield ``(iframe, pos_sec, frame)`` from *cap*, applying skip logic.
+
+    Handles frame-counter bookkeeping and periodic parse-rate logging.
+    Shared frame source for both processing paths in :func:`do_parse`.
+    """
+    iframe = 0
+    parse_counter = 0
+    skip_counter = 0
+    parse_start_ts = time.time()
+    while True:
+        iframe += 1
+        pos_sec = round((iframe - 1) / fps, 3)
+        ret, frame = cap.read()
+        if not ret:
+            break
+        # Handle frame skipping: when skip > 0, only process 1 of every (skip+1) frames
+        if ctx.skip > 0:
+            if skip_counter > 0:
+                skip_counter -= 1
+                # logger.debug(f"skip frame {iframe}, skip_counter={skip_counter}")
+                # TODO: should we finalize record ???
+                continue
+            else:
+                skip_counter = ctx.skip
+                # logger.debug(f"process frame {iframe}, skip_counter={skip_counter}")
+        parse_counter += 1
+        if np.mod(parse_counter, 50) == 0:
+            parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
+            read_fps = round(iframe / (time.time() - parse_start_ts), 1)
+            logger.debug(
+                f"iframe={iframe}, read_fps={read_fps}, parse_fps={parse_fps} FPS"
+            )
+        yield iframe, pos_sec, frame
+
+
+def _qr_state_machine(ps, vti, results):
+    """Run the same/different QR record state machine over *results*.
+
+    Consumes an iterable of ``(iframe, pos_sec, data)`` tuples (where *data*
+    is the decoded QR payload dict or ``None``) and yields finalized
+    :class:`QrRecord` objects. Works with both lazy generators (sequential
+    path) and pre-resolved lists (parallel path).
+    """
+    record: QrRecord = None
+    iframe: int = 0
+    pos_sec: float = 0.0
+    for iframe, pos_sec, data in results:
+        if data is not None:
+            logger.debug("Found QR code")
+            if record is not None:
+                if data == record.data:
+                    # we are still in the same QR code record
+                    logger.debug("Same QR code: continue")
+                    continue
+                # It is a different QR code! we need to finalize current one
+                yield finalize_record(ps, vti, record, iframe, pos_sec)
+                record = None
+            # We just got beginning of the QR code!
+            logger.debug("New QR code: " + str(data))
+            record = QrRecord()
+            record.frame_start = iframe
+            record.isotime_start = calc_time(vti.start_time, pos_sec)
+            record.isotime_end = None
+            record.time_start = pos_sec
+            record.data = data
+        else:
+            if record:
+                yield finalize_record(ps, vti, record, iframe, pos_sec)
+                record = None
+    if record:
+        yield finalize_record(ps, vti, record, iframe, pos_sec)
 
 
 def do_parse(
@@ -693,116 +812,33 @@ def do_parse(
             f" {duration_sec} sec vs {vti.duration_sec} sec"
         )
 
-    # for f in vid.iter_frames(with_times=True):
+    if ctx.qr_decoder_workers > 1:
+        # Parallel path: main thread reads frames and submits _process_frame to a
+        # thread pool; a semaphore bounds how many frames are in-flight at once.
+        sem = threading.Semaphore(ctx.qr_decoder_workers * 4)
+        futures: list = []
+        with ThreadPoolExecutor(max_workers=ctx.qr_decoder_workers) as executor:
+            for iframe, pos_sec, frame in _iter_raw_frames(ctx, cap, fps):
+                sem.acquire()
+                future = executor.submit(_process_frame, ctx, frame)
+                future.add_done_callback(lambda _f: sem.release())
+                futures.append((iframe, pos_sec, future))
+        # All futures are resolved after the executor context exits.
+        # Submission order == iframe order, so no explicit sort needed.
+        results = ((ifr, p, fut.result()) for ifr, p, fut in futures)
+    else:
+        # Sequential path: process each frame immediately as it is read.
+        # results is a lazy generator — no buffering.
+        results = (
+            (ifr, p, _process_frame(ctx, frame))
+            for ifr, p, frame in _iter_raw_frames(ctx, cap, fps)
+        )
 
-    # TODO: just use tqdm for progress indication
-    iframe: int = 0
-    pos_sec: float = 0.0
-    record: QrRecord = None
-    parse_fps: float = 0.0
-    parse_counter: int = 0
-    skip_counter: int = 0
-
-    # remember parse start ts to calculate parse fps
-    parse_start_ts: float = time.time()
-    f_decode: bool = True
-
-    while True:
-        iframe += 1
-        # pos time in ms
-        pos_sec = round((iframe - 1) / fps, 3)
-        std_dev = 0.0
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # init decode flag
-        f_decode = False if ctx.qr_decoder == QrDecoder.NONE else True
-
-        # Handle frame skipping: when skip > 0, only process 1 of every (skip+1) frames
-        if ctx.skip > 0:
-            if skip_counter > 0:
-                skip_counter -= 1
-                # logger.debug(f"skip frame {iframe}, skip_counter={skip_counter}")
-                # TODO: should we finalize record ???
-                continue
-            else:
-                skip_counter = ctx.skip
-                # logger.debug(f"process frame {iframe}, skip_counter={skip_counter}")
-
-        parse_counter += 1
-
-        # logger.debug(f"f.shape={f.shape}, f.dtype={f.dtype}, "
-        #              f"f.min={f.min()}, f.max={f.max()}")
-
-        # Apply frame downscaling if requested (before grayscale conversion)
-        if f_decode and ctx.scale != 1.0:
-            frame = cv2.resize(
-                frame, None, fx=ctx.scale, fy=ctx.scale, interpolation=cv2.INTER_AREA
-            )
-
-        # Apply grayscale conversion according to the context configuration if any
-        # Note: ? maybe we need to check frame.shape/dtype to decide if we need
-        #       to convert or not
-        if f_decode and ctx.grayscale == Grayscale.OPENCV:
-            f = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        elif f_decode and ctx.grayscale == Grayscale.NUMPY:
-            f = np.mean(frame, axis=2)
-        else:  # Grayscale.NONE
-            f = frame
-
-        # Apply std-deviation pre-filter: skip frames unlikely to contain a QR code
-        if f_decode and ctx.std_threshold > 0:
-            _, std = cv2.meanStdDev(f)
-            std_dev = std[0][0]
-            if std_dev < ctx.std_threshold:
-                # logger.debug(f"Skip frame={iframe} std-threshold: "
-                #              f"{std_dev:.2f} < {ctx.std_threshold}")
-                f_decode = False
-
-        # Apply qrdet GPU pre-filter: skip frames with no detected QR region
-        if f_decode and not _qrdet_filter(frame):
-            f_decode = False
-
-        if np.mod(parse_counter, 50) == 0:
-            parse_fps = round(parse_counter / (time.time() - parse_start_ts), 1)
-            logger.debug(
-                f"iframe={iframe}, std={round(std_dev,1)}, parse_fps={parse_fps} FPS"
-            )
-
-        data = _decode_qr(ctx, f) if f_decode else None
-
-        if data is not None:
-            logger.debug(f"Found QR code, std={round(std_dev,1)}")
-            if record is not None:
-                if data == record.data:
-                    # we are still in the same QR code record
-                    logger.debug("Same QR code: continue")
-                    continue
-                # It is a different QR code! we need to finalize current one
-                yield finalize_record(ps, vti, record, iframe, pos_sec)
-                record = None
-            # We just got beginning of the QR code!
-            logger.debug("New QR code: " + str(data))
-            record = QrRecord()
-            record.frame_start = iframe
-            record.isotime_start = calc_time(vti.start_time, pos_sec)
-            record.isotime_end = None
-            record.time_start = pos_sec
-            record.data = data
-        else:
-            if record:
-                yield finalize_record(ps, vti, record, iframe, pos_sec)
-                record = None
-
-    if record:
-        yield finalize_record(ps, vti, record, iframe, pos_sec)
-        record = None
+    yield from _qr_state_machine(ps, vti, results)
 
     ps.exit_code = 0
     ps.parsing_duration = round(time.time() - dt, 1)
     yield ps
-    # print(ps.json())
 
 
 def do_main(
@@ -816,6 +852,7 @@ def do_main(
     video_decoder: str = VideoDecoder.OPENCV,
     qrdet: bool = False,
     qrdet_model_size: str = "s",
+    qr_decoder_workers: int = 0,
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -833,6 +870,8 @@ def do_main(
     :param video_decoder: Video frame decoding backend (see :class:`VideoDecoder`).
     :param qrdet: Enable qrdet GPU frame pre-filter.
     :param qrdet_model_size: qrdet model size (``'n'``, ``'s'``, ``'m'``, ``'l'``).
+    :param qr_decoder_workers: Worker threads for parallel QR decoding;
+    ``0`` or ``1`` = sequential.
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -846,6 +885,7 @@ def do_main(
     logger.info(f"QR decoder       : {qr_decoder}")
     logger.info(f"Video decoder    : {video_decoder}")
     logger.info(f"QRDet pre-filter : {qrdet} (model={qrdet_model_size})")
+    logger.info(f"QR decoder workers: {qr_decoder_workers}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -869,6 +909,7 @@ def do_main(
             video_decoder=VideoDecoder(video_decoder),
             qrdet=qrdet,
             qrdet_model_size=qrdet_model_size,
+            qr_decoder_workers=qr_decoder_workers,
         )
         try:
             _init_qrdet(ctx)

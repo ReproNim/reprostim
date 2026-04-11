@@ -38,6 +38,7 @@ reprostim qr-parse [OPTIONS] PATH
 | `-v / --video-decoder [opencv]`            | str | `opencv` | Video frame decoding backend. Currently only `opencv` (`cv2.VideoCapture`) is supported. Placeholder for future backends such as `ffmpeg` or `pyav`.                                                                                                                                                                                                           |
 | `-Q / --qrdet`                             | Flag | `False` | Enable `qrdet`-based frame pre-filter. When set, a QR detector model runs on GPU a fast region check on each frame before the full QR decode; frames with no detected QR region are skipped. Requires `qrdet` package. Can be combined with `--std-threshold`.                                                                                                 |
 | `-M / --qrdet-model-size [n\|s\|m\|l]`    | str  | `s`     | Size of the `qrdet` model to load. `n` (nano) is fastest with lowest accuracy; `s` (small) balances speed and accuracy; `m` (medium) and `l` (large) are progressively more capable for difficult or low-contrast QR codes. Only used when `--qrdet` is set.                                                                                                   |
+| `-W / --qr-decoder-workers INT`            | Int  | `0`     | Number of worker threads for parallel QR decoding. `0` or `1` = sequential (default, streaming). `N > 1` = parallel: the main thread reads frames and submits each to a `ThreadPoolExecutor` with N workers; results are collected in submission (iframe) order after all frames are processed, then the same/different QR state machine runs once over the sorted results. Named `qr_decoder_workers` to pair with `--qr-decoder` and leave room for a future `--video-decoder-workers` option. |
 
 ### Output
 
@@ -180,10 +181,19 @@ The following optimizations are candidates for implementation, roughly ordered b
    reduced to 25%, significantly cutting decode cost. Should be off by default to preserve
    accuracy, but useful for faster pre-scans or lower-resolution sources.
 
-5. **Parallel QR decoding across CPU cores** — offload `pyzbar.decode` calls to a thread/process
-   pool sized to the number of available CPUs (`os.cpu_count()`). Frames can be decoded
-   independently, so parallelism is safe. Use `concurrent.futures.ProcessPoolExecutor` (pyzbar
-   releases the GIL inconsistently, so processes are safer than threads).
+5. **Parallel QR decoding across CPU cores** — offload the full per-frame pipeline
+   (`_process_frame`: scale → grayscale → std-filter → qrdet → decode) to a
+   `ThreadPoolExecutor` controlled by `-W / --qr-decoder-workers`. The main thread
+   reads frames sequentially (OpenCV `VideoCapture` is not thread-safe), submits each
+   to the pool, and collects futures in submission order. A `threading.Semaphore` bounds
+   in-flight frames to `workers × 4` to prevent unbounded memory use. Results are
+   resolved in iframe order (no explicit sort needed) and fed into the shared
+   `_qr_state_machine` generator. Sequential mode (`workers ≤ 1`) uses the same helpers
+   but as a lazy generator — no buffering, records yielded as found. **Implemented with
+   `ThreadPoolExecutor` (threads, not processes)**: `cv2` operations release the GIL,
+   making threads effective here without the serialisation overhead of
+   `ProcessPoolExecutor`. Trade-off: parallel path buffers all futures before yielding
+   any records; sequential path remains streaming.
 
 6. **GPU-accelerated decoding / ZXing-based decoder** — investigate GPU-backed QR detection (e.g.
    OpenCV CUDA modules, or `zxing-cpp` / `QUDet`) as a drop-in replacement for `pyzbar`. Best

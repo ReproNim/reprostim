@@ -111,6 +111,15 @@ logger = logging.getLogger(__name__)
     "`m` and `l` give higher accuracy at greater cost. "
     "Only used when --qrdet is set.",
 )
+@click.option(
+    "-W",
+    "--qr-decoder-workers",
+    default=0,
+    type=click.IntRange(min=0),
+    show_default=True,
+    help="Number of worker threads for parallel QR decoding. "
+    "0 or 1 = sequential (default). N > 1 = parallel with N threads.",
+)
 @click.pass_context
 def qr_parse(
     ctx,
@@ -124,6 +133,7 @@ def qr_parse(
     video_decoder: str,
     qrdet: bool,
     qrdet_model_size: str,
+    qr_decoder_workers: int,
 ):
     """Parse QR codes in captured videos."""
 
@@ -144,6 +154,7 @@ def qr_parse(
         video_decoder=video_decoder,
         qrdet=qrdet,
         qrdet_model_size=qrdet_model_size,
+        qr_decoder_workers=qr_decoder_workers,
         out_func=click.echo,
     )
 
