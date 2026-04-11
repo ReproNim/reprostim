@@ -871,7 +871,7 @@ def do_main(
     :param qrdet: Enable qrdet GPU frame pre-filter.
     :param qrdet_model_size: qrdet model size (``'n'``, ``'s'``, ``'m'``, ``'l'``).
     :param qr_decoder_workers: Worker threads for parallel QR decoding;
-    ``0`` or ``1`` = sequential.
+        ``0`` or ``1`` = sequential.
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
