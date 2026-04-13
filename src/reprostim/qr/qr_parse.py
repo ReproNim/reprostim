@@ -8,6 +8,7 @@ utility and extract embedded video media info, QR-codes and audiocodes into
 JSONL format.
 """
 
+import ast
 import logging
 import os
 import re
@@ -571,7 +572,11 @@ def _decode_qr_pyzbar(frame) -> Optional[dict]:
         return None
     assert len(cod) == 1, f"Expecting only one QR code, got {len(cod)}"
     logger.debug(f"Found QR code (pyzbar): {cod}")
-    return eval(eval(str(cod[0].data)).decode("utf-8"))
+    try:
+        return ast.literal_eval(cod[0].data.decode("utf-8"))
+    except (ValueError, SyntaxError):
+        logger.error("Failed to parse QR code data (pyzbar).")
+        return None
 
 
 def _decode_qr_opencv(frame) -> Optional[dict]:
@@ -584,7 +589,11 @@ def _decode_qr_opencv(frame) -> Optional[dict]:
     if not qr_str:
         return None
     logger.debug(f"Found QR code (opencv): {qr_str}")
-    return eval(qr_str)
+    try:
+        return ast.literal_eval(qr_str)
+    except (ValueError, SyntaxError):
+        logger.error("Failed to parse QR code data (opencv).")
+        return None
 
 
 def _decode_qr(ctx: ParseContext, frame) -> Optional[dict]:
