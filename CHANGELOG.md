@@ -1,3 +1,16 @@
+# 0.7.29 (Mon Apr 13 2026)
+
+#### 🐛 Bug Fix
+
+- Optimize `qr_parse` processing [#239](https://github.com/ReproNim/reprostim/pull/239) ([@vmdocua](https://github.com/vmdocua))
+- Add virtual audio support to CI/CD `timesync-stimuli` test [#238](https://github.com/ReproNim/reprostim/pull/238) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.28 (Wed Mar 25 2026)
 
 #### 🐛 Bug Fix
