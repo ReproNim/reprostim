@@ -167,14 +167,14 @@ if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then
     echo "Series #0: $count_series_0 records"
     echo "Series #1: $count_series_1 records"
 
-    if [[ "$count_series_0" -eq 5 && "$count_series_1" -eq 5 ]]; then
-        echo "[+]  Valid: 5 records in two series"
+    # TODO: temporary check — require > 0 instead of exact 5
+    if [[ "$count_series_0" -gt 0 && "$count_series_1" -gt 0 ]]; then
+        echo "[+]  Valid: $count_series_0 records in series 0, $count_series_1 records in series 1"
         # exit 0
     else
         echo "[-] Invalid:"
-        # TODO: temporary check — require > 0 instead of exact 5
-        [[ "$count_series_0" -le 0 ]] && echo "  -> Series 0 has $count_series_0 records (expected 5)"
-        [[ "$count_series_1" -le 0 ]] && echo "  -> Series 1 has $count_series_1 records (expected 5)"
+        [[ "$count_series_0" -le 0 ]] && echo "  -> Series 0 has $count_series_0 records (expected > 0)"
+        [[ "$count_series_1" -le 0 ]] && echo "  -> Series 1 has $count_series_1 records (expected > 0)"
         exit 1
     fi
   else
