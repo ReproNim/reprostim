@@ -32,7 +32,7 @@ Main Python package with CLI tools and analysis utilities.
 **Key Modules:**
 - **cli/** - Command-line interface (Click-based with DYMGroup for suggestions)
   - `entrypoint.py` - Main CLI dispatcher
-  - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes)
+  - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [spec-qr-parse.md](.ai/spec-qr-parse.md))
   - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
@@ -43,7 +43,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
-  - `qr_parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL
+  - `qr_parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [spec-qr-parse.md](.ai/spec-qr-parse.md))
   - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities

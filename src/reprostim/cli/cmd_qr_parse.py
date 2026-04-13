@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-import os
+import time
 
 import click
 
@@ -18,9 +18,11 @@ logger = logging.getLogger(__name__)
 )
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
+    "-m",
     "--mode",
     default="PARSE",
     type=click.Choice(["PARSE", "INFO"]),
+    show_default=True,
     help="Specify execution mode. Default is `PARSE`, "
     "normal execution. "
     "Use `INFO` to dump video file info like duration, "
@@ -28,26 +30,134 @@ logger = logging.getLogger(__name__)
     "`PATH` argument specifies video file or directory "
     "containing video files).",
 )
+@click.option(
+    "-g",
+    "--grayscale",
+    default="opencv",
+    type=click.Choice(["none", "numpy", "opencv"]),
+    show_default=True,
+    help="Grayscale conversion method applied to each frame before QR decoding. "
+    "`opencv` uses cv2.cvtColor (fast, recommended). "
+    "`numpy` uses np.mean (slow, legacy). "
+    "`none` passes raw frame as is — may cause errors with some decoders.",
+)
+@click.option(
+    "-x",
+    "--scale",
+    default=1.0,
+    type=click.FloatRange(min=0.0, min_open=True, max=1.0),
+    show_default=True,
+    help="Frame downscale factor in (0, 1]. At 0.5 frame area is reduced to 25%, "
+    "cutting decode cost. At 1.0 (default) no resize is applied.",
+)
+@click.option(
+    "-s",
+    "--skip",
+    default=0,
+    type=click.IntRange(min=0),
+    show_default=True,
+    help="Number of frames to skip after each processed frame. "
+    "0 = process every frame. 1 = process 1 of 2. 2 = process 1 of 3, etc.",
+)
+@click.option(
+    "-t",
+    "--std-threshold",
+    default=10.0,
+    type=float,
+    show_default=True,
+    help="Grayscale std-deviation pre-filter threshold. Frames with std dev below "
+    "this value are skipped before QR decode. Set to 0 or less to disable.",
+)
+@click.option(
+    "-q",
+    "--qr-decoder",
+    default="pyzbar",
+    type=click.Choice(["none", "opencv", "pyzbar"]),
+    show_default=True,
+    help="QR decoding backend. "
+    "`pyzbar` uses pyzbar.decode (default). "
+    "`opencv` uses cv2.QRCodeDetector.detectAndDecode. "
+    "`none` disables QR decoding entirely — useful for benchmarking.",
+)
+@click.option(
+    "-v",
+    "--video-decoder",
+    default="opencv",
+    type=click.Choice(["opencv"]),
+    show_default=True,
+    help="Video frame decoding backend. "
+    "Currently only `opencv` (cv2.VideoCapture) is supported. "
+    "Placeholder for future backends such as `ffmpeg` or `pyav`.",
+)
+@click.option(
+    "-Q",
+    "--qrdet",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Enable qrdet-based GPU frame pre-filter. "
+    "A YOLOv8 QR detector runs on each frame before the full QR decode; "
+    "frames with no detected QR region are skipped. "
+    "Requires `qrdet` and `torch` packages (pip install reprostim[gpu]).",
+)
+@click.option(
+    "-M",
+    "--qrdet-model-size",
+    default="s",
+    type=click.Choice(["n", "s", "m", "l"]),
+    show_default=True,
+    help="qrdet model size. "
+    "`n` (nano) is fastest; `s` (small) balances speed/accuracy (default); "
+    "`m` and `l` give higher accuracy at greater cost. "
+    "Only used when --qrdet is set.",
+)
+@click.option(
+    "-W",
+    "--qr-decoder-workers",
+    default=0,
+    type=click.IntRange(min=0),
+    show_default=True,
+    help="Number of worker threads for parallel QR decoding. "
+    "0 or 1 = sequential (default). N > 1 = parallel with N threads.",
+)
 @click.pass_context
-def qr_parse(ctx, path: str, mode: str):
+def qr_parse(
+    ctx,
+    path: str,
+    mode: str,
+    grayscale: str,
+    scale: float,
+    skip: int,
+    std_threshold: float,
+    qr_decoder: str,
+    video_decoder: str,
+    qrdet: bool,
+    qrdet_model_size: str,
+    qr_decoder_workers: int,
+):
     """Parse QR codes in captured videos."""
 
-    from ..qr.qr_parse import do_info, do_parse
+    from ..qr.qr_parse import do_main
 
     logger.debug("qr_parse(...)")
-    logger.debug(f"Working dir      : {os.getcwd()}")
-    logger.info(f"Video full path  : {path}")
 
-    if not os.path.exists(path):
-        logger.error(f"Path does not exist: {path}")
-        return 1
+    start_time_sec = time.time()
 
-    if mode == "PARSE":
-        for item in do_parse(path):
-            print(item.model_dump_json())
-    elif mode == "INFO":
-        for item in do_info(path):
-            print(item.model_dump_json())
-    else:
-        logger.error(f"Unknown mode: {mode}")
-    return 0
+    res = do_main(
+        path=path,
+        mode=mode,
+        grayscale=grayscale,
+        scale=scale,
+        skip=skip,
+        std_threshold=std_threshold,
+        qr_decoder=qr_decoder,
+        video_decoder=video_decoder,
+        qrdet=qrdet,
+        qrdet_model_size=qrdet_model_size,
+        qr_decoder_workers=qr_decoder_workers,
+        out_func=click.echo,
+    )
+
+    elapsed_sec = round(time.time() - start_time_sec, 1)
+    logger.debug(f"Command 'qr-parse' completed in {elapsed_sec} sec, exit code {res}")
+    return res
