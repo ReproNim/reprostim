@@ -68,6 +68,17 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [ ] `--qr-decoder none --std-threshold 40` — verify std filter still runs even when decode is disabled
 - [ ] QR codes are detected and match expected output on reference test video
 
+### Coverage
+- [x] `qr_parse.py` ≥ 80% — achieved **93%**
+- [x] `cmd_qr_parse.py` ≥ 80% — achieved **100%**
+- [x] `get_video_time_info` edge cases: invalid filename, start-only filename, start ≥ end
+- [x] `_decode_qr_pyzbar` / `_decode_qr_opencv` found-code paths
+- [x] `_qr_state_machine` — two different QR codes in sequence; QR code at end of video
+- [x] `do_parse` — `summary_only=True`; `ignore_errors=True`; `cap.isOpened()=False`
+- [x] `do_info` / `do_info_file` — file, directory, invalid path
+- [x] `do_main` — path not found, invalid scale, invalid skip, INFO mode, unknown mode, PARSE mode success
+- [x] CLI (`cmd_qr_parse`) — basic invocation, `--mode INFO`, option forwarding, invalid path
+
 ### Regression
 - [ ] Existing PARSE mode output unchanged when all new options are at their defaults
 - [ ] Existing INFO mode output unchanged

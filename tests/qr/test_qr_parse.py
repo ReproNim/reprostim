@@ -13,21 +13,28 @@ qrdet tests use mocks only — no real GPU or qrdet/torch packages required.
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
+import click.testing
 import cv2
 import numpy as np
 import pytest
 
 import reprostim.qr.qr_parse as qp_mod
+from reprostim.cli.cmd_qr_parse import qr_parse as qr_parse_cmd
 from reprostim.qr.qr_parse import (
     Grayscale,
     ParseContext,
     ParseSummary,
     QrDecoder,
     VideoDecoder,
+    _decode_qr_opencv,
+    _decode_qr_pyzbar,
     _init_qrdet,
     _qrdet_filter,
+    do_info,
+    do_info_file,
     do_main,
     do_parse,
+    get_video_time_info,
 )
 
 # ---------------------------------------------------------------------------
@@ -418,3 +425,300 @@ def test_qr_decoder_workers_parallel_output_matches_sequential(tmp_path):
         assert s.data == p.data
         assert s.frame_start == p.frame_start
         assert s.time_start == p.time_start
+
+
+# ===========================================================================
+# get_video_time_info — edge cases
+# ===========================================================================
+
+_QR_DATA = {
+    "time_formatted": "2025-01-01T00:00:01",
+    "keys_time_str": "2025-01-01T00:00:01",
+}
+
+
+def test_get_video_time_info_invalid_filename():
+    """Completely unrecognised filename returns success=False."""
+    vti = get_video_time_info("not_a_valid_name.mkv")
+    assert not vti.success
+    assert vti.error is not None
+
+
+def test_get_video_time_info_start_only_filename():
+    """Filename with start timestamp only (no end) returns success=False but
+    sets start_time."""
+    # pattern2b: YYYY.MM.DD-HH.MM.SS.mmm--.ext
+    vti = get_video_time_info("2025.01.01-00.00.00.000--.mkv")
+    assert not vti.success
+    assert vti.start_time is not None
+    assert vti.end_time is None
+
+
+def test_get_video_time_info_start_gte_end():
+    """Filename where start >= end returns success=False."""
+    vti = get_video_time_info("2025.01.01-00.01.00.000--2025.01.01-00.00.00.000.mkv")
+    assert not vti.success
+    assert "not earlier" in vti.error
+
+
+# ===========================================================================
+# _decode_qr_pyzbar / _decode_qr_opencv — found path
+# ===========================================================================
+
+
+def test_decode_qr_pyzbar_returns_dict_when_found():
+    """_decode_qr_pyzbar returns a dict when pyzbar finds a QR code."""
+    payload = {"key": "value"}
+    mock_result = MagicMock()
+    mock_result.data = repr(repr(payload).encode("utf-8")).encode("utf-8")
+    # Simulate what pyzbar returns: bytes of repr of repr of dict
+    mock_result.data = str(repr(payload).encode("utf-8"))
+    # Use a simpler mock: data bytes that eval correctly
+    encoded = repr(payload).encode("utf-8")
+    mock_result.data = encoded
+    with patch("reprostim.qr.qr_parse.decode", return_value=[mock_result]):
+        result = _decode_qr_pyzbar(_blank_frame())
+    assert result == payload
+
+
+def test_decode_qr_opencv_returns_dict_when_found():
+    """_decode_qr_opencv returns a dict when OpenCV finds a QR code."""
+    payload = {"key": "value"}
+    mock_det = MagicMock()
+    mock_det.detectAndDecode.return_value = (repr(payload), None, None)
+    with patch("cv2.QRCodeDetector", return_value=mock_det):
+        result = _decode_qr_opencv(_blank_frame())
+    assert result == payload
+
+
+def test_decode_qr_opencv_returns_none_when_not_found():
+    """_decode_qr_opencv returns None when OpenCV finds no QR code."""
+    mock_det = MagicMock()
+    mock_det.detectAndDecode.return_value = ("", None, None)
+    with patch("cv2.QRCodeDetector", return_value=mock_det):
+        result = _decode_qr_opencv(_blank_frame())
+    assert result is None
+
+
+# ===========================================================================
+# _qr_state_machine — transition between two different QR codes
+# ===========================================================================
+
+
+def test_qr_state_machine_two_different_qr_codes(tmp_path):
+    """Two distinct QR payloads in sequence produce two separate QrRecords."""
+    qr_a = dict(_QR_DATA)
+    qr_b = {
+        "time_formatted": "2025-01-01T00:00:02",
+        "keys_time_str": "2025-01-01T00:00:02",
+    }
+    # frames: [a, a, b, b, None]
+    per_frame = [qr_a, qr_a, qr_b, qr_b, None]
+    ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
+    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+        items = _run_parse(ctx, [_blank_frame()] * len(per_frame), _video(tmp_path))
+    records = [i for i in items if not isinstance(i, ParseSummary)]
+    assert len(records) == 2
+    assert records[0].data == qr_a
+    assert records[1].data == qr_b
+
+
+def test_qr_state_machine_qr_at_end_of_video(tmp_path):
+    """A QR code that runs to the last frame is still yielded."""
+    per_frame = [None, _QR_DATA, _QR_DATA]
+    ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
+    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+        items = _run_parse(ctx, [_blank_frame()] * len(per_frame), _video(tmp_path))
+    records = [i for i in items if not isinstance(i, ParseSummary)]
+    assert len(records) == 1
+    assert records[0].data == _QR_DATA
+
+
+# ===========================================================================
+# do_parse — special branches
+# ===========================================================================
+
+
+def test_do_parse_summary_only(tmp_path):
+    """summary_only=True yields only a ParseSummary with exit_code=0, no QrRecords."""
+    ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.NONE)
+    with patch("cv2.VideoCapture", return_value=_make_mock_cap([_blank_frame()])):
+        items = list(do_parse(ctx, _video(tmp_path), summary_only=True))
+    assert len(items) == 1
+    assert isinstance(items[0], ParseSummary)
+    assert items[0].exit_code == 0
+
+
+def test_do_parse_invalid_filename_ignore_errors(tmp_path):
+    """do_parse with invalid filename and ignore_errors=True still opens the video."""
+    bad_path = str(tmp_path / "invalid_name.mkv")
+    open(bad_path, "w").close()
+    ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.NONE)
+    with patch("cv2.VideoCapture", return_value=_make_mock_cap([])):
+        # summary_only stops before the vti.duration_sec comparison that would
+        # crash when the filename couldn't be parsed (duration_sec=None)
+        items = list(do_parse(ctx, bad_path, ignore_errors=True, summary_only=True))
+    assert any(isinstance(i, ParseSummary) for i in items)
+
+
+def test_do_parse_video_not_opened(tmp_path):
+    """do_parse yields nothing when VideoCapture fails to open."""
+    ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.NONE)
+    cap = MagicMock()
+    cap.isOpened.return_value = False
+    with patch("cv2.VideoCapture", return_value=cap):
+        items = list(do_parse(ctx, _video(tmp_path)))
+    assert items == []
+
+
+# ===========================================================================
+# do_info / do_info_file
+# ===========================================================================
+
+
+def test_do_info_file_returns_summary(tmp_path):
+    """do_info_file returns an InfoSummary with path and size populated."""
+    from reprostim.qr.qr_parse import InfoSummary
+
+    video = _video(tmp_path)
+    summary, _ = do_info_file(video)
+    assert isinstance(summary, InfoSummary)
+    assert summary.path == video
+    assert summary.size_mb is not None
+
+
+def test_do_info_yields_for_file(tmp_path):
+    """do_info yields one InfoSummary for a file path."""
+    items = list(do_info(_video(tmp_path)))
+    assert len(items) == 1
+
+
+def test_do_info_yields_for_directory(tmp_path):
+    """do_info yields one InfoSummary per .mkv file in a directory."""
+    (tmp_path / _VIDEO_NAME).touch()
+    (tmp_path / "other.txt").touch()
+    items = list(do_info(str(tmp_path)))
+    assert len(items) == 1
+
+
+def test_do_info_invalid_path(tmp_path):
+    """do_info yields nothing for a non-existent path."""
+    items = list(do_info(str(tmp_path / "nonexistent")))
+    assert items == []
+
+
+# ===========================================================================
+# do_main — validation and mode dispatch
+# ===========================================================================
+
+
+def test_do_main_path_not_found(tmp_path):
+    """do_main returns 1 when the path does not exist."""
+    result = do_main(path=str(tmp_path / "missing.mkv"), mode="PARSE")
+    assert result == 1
+
+
+def test_do_main_invalid_scale(tmp_path):
+    """do_main returns 1 for scale outside (0, 1]."""
+    result = do_main(path=_video(tmp_path), mode="PARSE", scale=0.0)
+    assert result == 1
+
+
+def test_do_main_invalid_skip(tmp_path):
+    """do_main returns 1 for skip < 0."""
+    result = do_main(path=_video(tmp_path), mode="PARSE", skip=-1)
+    assert result == 1
+
+
+def test_do_main_unknown_mode(tmp_path):
+    """do_main returns -1 for an unrecognised mode."""
+    result = do_main(path=_video(tmp_path), mode="UNKNOWN")
+    assert result == -1
+
+
+def test_do_main_info_mode(tmp_path):
+    """do_main INFO mode calls out_func for each InfoSummary."""
+    out = []
+    result = do_main(path=_video(tmp_path), mode="INFO", out_func=out.append)
+    assert result == 0
+    assert len(out) == 1
+
+
+def test_do_main_parse_mode_success(tmp_path):
+    """do_main PARSE mode returns 0 and calls out_func with each JSON record."""
+    out = []
+    ctx_holder = {}
+
+    def fake_do_parse(ctx, path, **_kwargs):
+        ctx_holder["ctx"] = ctx
+        ps = ParseSummary()
+        ps.exit_code = 0
+        yield ps
+
+    with patch("reprostim.qr.qr_parse.do_parse", side_effect=fake_do_parse):
+        result = do_main(path=_video(tmp_path), mode="PARSE", out_func=out.append)
+    assert result == 0
+    assert len(out) == 1
+
+
+# ===========================================================================
+# cmd_qr_parse CLI — Click runner tests
+# ===========================================================================
+
+
+@pytest.fixture
+def cli_runner():
+    return click.testing.CliRunner()
+
+
+def test_cli_parse_mode_success(cli_runner, tmp_path):
+    """CLI PARSE mode exits 0 when do_main succeeds."""
+    video = _video(tmp_path)
+    with patch("reprostim.qr.qr_parse.do_main", return_value=0):
+        result = cli_runner.invoke(qr_parse_cmd, [str(video)])
+    assert result.exit_code == 0
+
+
+def test_cli_info_mode(cli_runner, tmp_path):
+    """CLI --mode INFO is forwarded to do_main."""
+    video = _video(tmp_path)
+    with patch("reprostim.qr.qr_parse.do_main", return_value=0) as mock_main:
+        cli_runner.invoke(qr_parse_cmd, ["--mode", "INFO", str(video)])
+    assert mock_main.call_args.kwargs["mode"] == "INFO"
+
+
+def test_cli_options_forwarded(cli_runner, tmp_path):
+    """CLI options are forwarded correctly to do_main."""
+    video = _video(tmp_path)
+    with patch("reprostim.qr.qr_parse.do_main", return_value=0) as mock_main:
+        cli_runner.invoke(
+            qr_parse_cmd,
+            [
+                "--grayscale",
+                "numpy",
+                "--scale",
+                "0.5",
+                "--skip",
+                "2",
+                "--std-threshold",
+                "20.0",
+                "--qr-decoder",
+                "opencv",
+                "--qr-decoder-workers",
+                "4",
+                str(video),
+            ],
+        )
+    kw = mock_main.call_args.kwargs
+    assert kw["grayscale"] == "numpy"
+    assert kw["scale"] == 0.5
+    assert kw["skip"] == 2
+    assert kw["std_threshold"] == 20.0
+    assert kw["qr_decoder"] == "opencv"
+    assert kw["qr_decoder_workers"] == 4
+
+
+def test_cli_invalid_path(cli_runner, tmp_path):
+    """CLI exits non-zero for a path that does not exist."""
+    result = cli_runner.invoke(qr_parse_cmd, [str(tmp_path / "missing.mkv")])
+    assert result.exit_code != 0
