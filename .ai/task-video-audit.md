@@ -14,8 +14,8 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `-l / --max-files` — limit number of records processed
 - [x] `-p / --path-mask` — fnmatch-style filter on file paths
 - [x] `-v / --verbose` — print JSON records to stdout
-- [x] `--nosignal-opts` — override detect-noscreen options (shlex string)
-- [x] `--qr-opts` — override qr-parse options (shlex string)
+- [ ] `--nosignal-opts` — override detect-noscreen options (shlex string)
+- [ ] `--qr-opts` — override qr-parse options (shlex string)
 
 ---
 
@@ -43,8 +43,8 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] Store log output under dated path in `nosignal_log_dir`
 - [x] Parse `nosignal_rate` from JSON and store as percentage
 - [x] Per-file lock (`.nosignal.lock`) to prevent concurrent runs
-- [x] Pass `nosignal_opts` to detect-noscreen via `VaContext`
-- [x] Accept `--nosignal-opts` override from CLI (shlex-parsed)
+- [ ] Pass `nosignal_opts` to detect-noscreen via `VaContext`
+- [ ] Accept `--nosignal-opts` override from CLI (shlex-parsed)
 
 ### External audit — QR (`VaSource.QR`)
 - [x] Convert video to audio-free copy via ffmpeg (temp dir)
@@ -53,8 +53,8 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] Store log output under dated path in `qr_log_dir`
 - [x] Parse `ParseSummary.qr_count` from JSONL output
 - [x] Per-file lock (`.qr.lock`) to prevent concurrent runs
-- [x] Pass `qr_opts` to qr-parse via `VaContext`
-- [x] Accept `--qr-opts` override from CLI (shlex-parsed)
+- [ ] Pass `qr_opts` to qr-parse via `VaContext`
+- [ ] Accept `--qr-opts` override from CLI (shlex-parsed)
 
 ### Operation modes (`VaMode`)
 - [x] `full` — regenerate all records from scratch
