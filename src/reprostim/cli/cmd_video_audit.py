@@ -113,6 +113,27 @@ logger = logging.getLogger(__name__)
     default=False,
     help="Enable verbose output with JSON records.",
 )
+@click.option(
+    "--nosignal-opts",
+    type=str,
+    default=None,
+    help=(
+        "Override default options passed to detect-noscreen tool. "
+        "Provide as a quoted string, e.g. "
+        "'--number-of-checks 200 --threshold 0.9'. "
+        "If omitted, built-in defaults are used."
+    ),
+)
+@click.option(
+    "--qr-opts",
+    type=str,
+    default=None,
+    help=(
+        "Additional options to pass to qr-parse tool. "
+        "Provide as a quoted string, e.g. '--some-flag value'. "
+        "If omitted, no extra options are passed."
+    ),
+)
 @click.pass_context
 def video_audit(
     ctx,
@@ -124,6 +145,8 @@ def video_audit(
     max_files: int,
     path_mask: str,
     verbose: bool,
+    nosignal_opts: str,
+    qr_opts: str,
 ):
     """Analyze recorded video files."""
 
@@ -140,6 +163,10 @@ def video_audit(
     if path_mask:
         logger.info(f"Path mask        : {path_mask}")
     logger.info(f"Verbose output   : {verbose}")
+    if nosignal_opts:
+        logger.info(f"Nosignal opts    : {nosignal_opts}")
+    if qr_opts:
+        logger.info(f"QR opts          : {qr_opts}")
 
     for path in paths:
         if not os.path.exists(path):
@@ -156,5 +183,7 @@ def video_audit(
         path_mask,
         verbose,
         click.echo,
+        nosignal_opts=nosignal_opts,
+        qr_opts=qr_opts,
     )
     return 0
