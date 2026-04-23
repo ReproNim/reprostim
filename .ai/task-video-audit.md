@@ -14,8 +14,11 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `-l / --max-files` — limit number of records processed
 - [x] `-p / --path-mask` — fnmatch-style filter on file paths
 - [x] `-v / --verbose` — print JSON records to stdout
-- [ ] `--nosignal-opts` — override detect-noscreen options (shlex string)
-- [ ] `--qr-opts` — override qr-parse options (shlex string)
+- [x] `-n / --nosignal-opts` — override detect-noscreen options (shlex string)
+- [x] `-q / --qr-opts` — override qr-parse options (shlex string)
+- [ ] Add short forms `-n` and `-q` to existing `--nosignal-opts` / `--qr-opts` in CLI code
+- [ ] `-c / --config` — optional YAML config file with CLI-override precedence
+- [ ] Add `pyyaml>=6.0` to `pyproject.toml` dependencies
 
 ---
 
@@ -43,8 +46,8 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] Store log output under dated path in `nosignal_log_dir`
 - [x] Parse `nosignal_rate` from JSON and store as percentage
 - [x] Per-file lock (`.nosignal.lock`) to prevent concurrent runs
-- [ ] Pass `nosignal_opts` to detect-noscreen via `VaContext`
-- [ ] Accept `--nosignal-opts` override from CLI (shlex-parsed)
+- [x] Pass `nosignal_opts` to detect-noscreen via `VaContext`
+- [x] Accept `--nosignal-opts` override from CLI (shlex-parsed)
 
 ### External audit — QR (`VaSource.QR`)
 - [x] Convert video to audio-free copy via ffmpeg (temp dir)
@@ -53,8 +56,8 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] Store log output under dated path in `qr_log_dir`
 - [x] Parse `ParseSummary.qr_count` from JSONL output
 - [x] Per-file lock (`.qr.lock`) to prevent concurrent runs
-- [ ] Pass `qr_opts` to qr-parse via `VaContext`
-- [ ] Accept `--qr-opts` override from CLI (shlex-parsed)
+- [x] Pass `qr_opts` to qr-parse via `VaContext`
+- [x] Accept `--qr-opts` override from CLI (shlex-parsed)
 
 ### Operation modes (`VaMode`)
 - [x] `full` — regenerate all records from scratch
@@ -118,10 +121,14 @@ Test file location: `tests/qr/test_video_audit.py`
 ### CLI tests (Click `CliRunner`)
 
 - [ ] `--help` renders without error
-- [ ] `--nosignal-opts` string parsed and forwarded to `VaContext.nosignal_opts`
-- [ ] `--qr-opts` string parsed and forwarded to `VaContext.qr_opts`
-- [ ] Omitting `--nosignal-opts` → `VaContext` uses built-in default
-- [ ] Omitting `--qr-opts` → `VaContext` uses built-in default
+- [x] `--nosignal-opts` string parsed and forwarded to `VaContext.nosignal_opts`
+- [x] `--qr-opts` string parsed and forwarded to `VaContext.qr_opts`
+- [x] Omitting `--nosignal-opts` → `VaContext` uses built-in default
+- [x] Omitting `--qr-opts` → `VaContext` uses built-in default
+- [ ] `-c / --config` YAML loaded; config values used as defaults, CLI flags override
+- [ ] Config key `nosignal-opts` forwarded to `VaContext.nosignal_opts`
+- [ ] Config key `qr-opts` forwarded to `VaContext.qr_opts`
+- [ ] Config keys for all other CLI options respected
 - [ ] `--mode full` → `VaMode.FULL` passed to `do_main`
 - [ ] Unknown `--mode` value → Click error
 
@@ -137,7 +144,7 @@ Test file location: `tests/qr/test_video_audit.py`
 ## Open Questions / Future Work
 
 - [ ] **Parallel processing** — `--jobs` option for concurrent file processing
-- [ ] **`--nosignal-opts` / `--qr-opts` from config file** — TOML/YAML config support
+- [ ] **`-c / --config` YAML support** — implemented, see CLI Options section
 - [ ] **Progress reporting** — tqdm progress bar for large directories
 - [ ] **`--columns` filter** — select which TSV columns to populate
 - [ ] **DataLad integration** — auto-`datalad save` after TSV update

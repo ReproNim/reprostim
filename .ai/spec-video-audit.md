@@ -41,8 +41,9 @@ reprostim video-audit [OPTIONS] [PATHS]...
 | `-l / --max-files` | Int | `-1` | Max number of files/records to process; `-1` = unlimited |
 | `-p / --path-mask` | Str | `None` | fnmatch-style filter on file paths |
 | `-v / --verbose` | Flag | `False` | Print each record as JSON to stdout |
-| `--nosignal-opts` | Str | `None` | Override default options passed to `detect-noscreen` (shlex-parsed string); uses built-in defaults when omitted |
-| `--qr-opts` | Str | `None` | Extra options passed to `qr-parse` (shlex-parsed string); uses built-in defaults when omitted |
+| `-n / --nosignal-opts` | Str | `None` | Override default options passed to `detect-noscreen` (shlex-parsed string); uses built-in defaults when omitted |
+| `-q / --qr-opts` | Str | `None` | Extra options passed to `qr-parse` (shlex-parsed string); no extra options by default |
+| `-c / --config` | Path | `None` | Optional YAML config file; provides defaults for any option not set on the CLI (see [Config File](#config-file)) |
 
 ### Example invocations
 
@@ -72,9 +73,38 @@ reprostim video-audit -s nosignal \
 
 # Pass extra options to qr-parse
 reprostim video-audit -s qr \
-  --qr-opts "--skip 2 --std-threshold 15" \
+  -q "--skip 2 --std-threshold 15" \
   /data/recordings/
+
+# Use a YAML config file for defaults, override one option on the CLI
+reprostim video-audit -c audit.yaml -s nosignal /data/recordings/
 ```
+
+---
+
+## Config File
+
+`-c / --config` accepts an optional path to a YAML file. Values in the config file act as
+defaults — any option explicitly passed on the CLI takes precedence.
+
+Keys mirror the CLI long option names (hyphens, no leading `--`). Supported keys:
+
+```yaml
+# audit.yaml — example config
+mode: incremental
+output: videos.tsv
+recursive: false
+audit-src:
+  - internal
+  - qr
+max-files: -1
+path-mask: null
+verbose: false
+nosignal-opts: "--number-of-checks 200 --threshold 0.9"
+qr-opts: "--skip 2 --std-threshold 15"
+```
+
+Precedence (lowest → highest): built-in CLI defaults → config file → explicit CLI flags.
 
 ---
 
@@ -215,7 +245,6 @@ Key public symbols in `reprostim.qr.video_audit`:
 ## Open Questions / Future Work
 
 - **Parallel processing** — `--jobs` option for concurrent file processing
-- **Config file** — TOML/YAML support for `nosignal_opts` / `qr_opts` defaults
 - **Progress reporting** — tqdm progress bar for large directories
 - **DataLad integration** — auto-`datalad save` after TSV update
 - **`--columns` filter** — select which TSV columns to populate per run
