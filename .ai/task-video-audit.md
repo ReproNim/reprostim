@@ -110,13 +110,105 @@ Test file location: `tests/qr/test_video_audit.py`
 
 ### Unit tests
 
-- [ ] `format_duration` — zero, sub-minute, hours
-- [ ] `format_date` / `format_time` — known datetime → expected string
-- [ ] `check_coherent` — coherent record → `True`; missing fields → `False`
-- [ ] `_compare_rec_ts` — `n/a` ordering, equal timestamps, earlier/later
-- [ ] `_merge_rec` — internal/nosignal/qr timestamp priority
-- [ ] `_merge_recs` — full / force / incremental / rerun-for-na modes
-- [ ] `find_video_audit_by_timerange` — intersects, non-overlapping, boundary cases
+#### Format utilities
+- [ ] `format_duration` — zero, sub-minute, hours, `None` → `"n/a"`
+- [ ] `format_date` — known datetime → `"YYYY-MM-DD"`, `None` → `"n/a"`
+- [ ] `format_time` — known datetime → `"HH:MM:SS.mmm"`, `None` → `"n/a"`
+
+#### `check_coherent`
+- [ ] All fields valid and matching → `True`
+- [ ] `present=False` → `False`
+- [ ] `complete=False` → `False`
+- [ ] Missing start / end date-time → `False`
+- [ ] Missing detected or recorded res/fps → `False`
+- [ ] Resolution mismatch (detected ≠ recorded) → `False`
+- [ ] FPS mismatch (detected ≠ recorded) → `False`
+
+#### `check_ffprobe`
+- [ ] `ffprobe` available (subprocess mock) → `True`
+- [ ] `ffprobe` not found (`FileNotFoundError` mock) → `False`
+
+#### `_compare_rec_ts`
+- [ ] Both `n/a` → `0`
+- [ ] Equal timestamps → `0`
+- [ ] Left `n/a`, right valid → `-1`
+- [ ] Right `n/a`, left valid → `1`
+- [ ] Left earlier → `-1`, left later → `1`
+
+#### `_match_recs`
+- [ ] Identical lists → `True`
+- [ ] Different length → `False`
+- [ ] Same length, different content → `False`
+
+#### `_merge_rec`
+- [ ] All timestamps equal → returns `rec_new`
+- [ ] Newer internal in `rec_new` → internal fields from `rec_new`
+- [ ] Newer nosignal in `rec_cur` → nosignal fields from `rec_cur`
+- [ ] Newer QR in `rec_new` → qr fields from `rec_new`
+
+#### `_merge_recs`
+- [ ] `full` mode → `rec_new` overrides everything
+- [ ] `force` mode → new records merged over existing
+- [ ] `incremental` mode → timestamp-based selective merge
+- [ ] `rerun-for-na` mode → timestamp-based selective merge
+- [ ] No change in `recs_cur` → merge skipped
+
+#### TSV I/O
+- [ ] `_save_tsv` / `_load_tsv` round-trip with temp file
+- [ ] `_get_tsv_records` — with lock (default)
+- [ ] `_get_tsv_records` — cached=True returns cached list on second call
+- [ ] `_get_tsv_records` — use_lock=False dirty-read
+
+#### Metadata log parsing
+- [ ] `iter_metadata_json` — valid JSON lines yielded
+- [ ] `iter_metadata_json` — missing log file → empty generator
+- [ ] `find_metadata_json` — matching entry found
+- [ ] `find_metadata_json` — no matching entry → `None`
+
+#### `_parse_rec_datetime`
+- [ ] Valid date + time strings → `datetime` object
+- [ ] Either value is `"n/a"` → `None`
+
+#### `find_video_audit_by_timerange`
+- [ ] Record intersects range → included in result
+- [ ] Record entirely before range → excluded
+- [ ] Record entirely after range → excluded
+- [ ] Records sorted by start time ascending
+
+#### Path and context helpers
+- [ ] `_build_dated_path` — with valid `start_date` → dated subdirectory created
+- [ ] `_build_dated_path` — `start_date="n/a"` → file placed in base dir
+
+#### `do_audit_file`
+- [ ] Happy path (all mocked): present file, session_begin metadata, full vi/vti/audio → coherent VaRecord yielded
+- [ ] File does not exist → VaRecord with `present=False` yielded
+- [ ] `max_counter` reached → nothing yielded
+- [ ] `skip_names` match → nothing yielded
+- [ ] `path_mask` no-match → nothing yielded
+
+#### `do_audit_dir` / `do_audit_internal`
+- [ ] `do_audit_dir` — directory with .mkv files → records yielded
+- [ ] `do_audit_internal` — skipped for `rerun-for-na` mode
+- [ ] `do_audit_internal` — skipped for `reset-to-na` mode
+
+#### External tool early-exit paths
+- [ ] `run_ext_nosignal` — source not NOSIGNAL/ALL → returns `vr` unchanged
+- [ ] `run_ext_nosignal` — `reset-to-na` mode → `no_signal_frames` set to `"n/a"`
+- [ ] `run_ext_nosignal` — `rerun-for-na` + non-`n/a` → skipped
+- [ ] `run_ext_qr` — source not QR/ALL → returns `vr` unchanged
+- [ ] `run_ext_qr` — `reset-to-na` mode → `qr_records_number` set to `"n/a"`
+- [ ] `run_ext_qr` — `rerun-for-na` + non-`n/a` → skipped
+
+#### `do_main`
+- [ ] Invalid path → returns `1`
+- [ ] Incremental mode, no existing TSV → creates new TSV, returns `0`
+- [ ] Incremental mode, existing TSV → loads existing, merges, saves
+- [ ] `rerun-for-na` mode → calls `do_ext` on existing records
+- [ ] `nosignal_opts` / `qr_opts` strings shlex-parsed into `VaContext`
+
+#### `get_file_video_audit`
+- [ ] TSV exists and contains matching path → returns cached record
+- [ ] TSV missing match → falls back to live `do_audit_file`
 
 ### CLI tests (Click `CliRunner`)
 
@@ -129,6 +221,7 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] Config key `nosignal-opts` forwarded to `VaContext.nosignal_opts`
 - [x] Config key `qr-opts` forwarded to `VaContext.qr_opts`
 - [x] Config keys for all other CLI options respected
+- [ ] Config `audit-src` as scalar string → wrapped in tuple
 - [ ] `--mode full` → `VaMode.FULL` passed to `do_main`
 - [ ] Unknown `--mode` value → Click error
 
@@ -136,8 +229,8 @@ Test file location: `tests/qr/test_video_audit.py`
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/video_audit.py` — overall | ≥ 80% | 0% (pending) |
-| `cli/cmd_video_audit.py` | ≥ 80% | 0% (pending) |
+| `qr/video_audit.py` — overall | ≥ 80% | 14% |
+| `cli/cmd_video_audit.py` | ≥ 80% | 92% |
 
 ---
 
