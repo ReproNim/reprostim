@@ -16,7 +16,7 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `-v / --verbose` — print JSON records to stdout
 - [x] `-n / --nosignal-opts` — override detect-noscreen options (shlex string)
 - [x] `-q / --qr-opts` — override qr-parse options (shlex string)
-- [ ] Add short forms `-n` and `-q` to existing `--nosignal-opts` / `--qr-opts` in CLI code
+- [x] Add short forms `-n` and `-q` to existing `--nosignal-opts` / `--qr-opts` in CLI code
 - [ ] `-c / --config` — optional YAML config file with CLI-override precedence
 - [ ] Add `pyyaml>=6.0` to `pyproject.toml` dependencies
 

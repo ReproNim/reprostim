@@ -114,6 +114,7 @@ logger = logging.getLogger(__name__)
     help="Enable verbose output with JSON records.",
 )
 @click.option(
+    "-n",
     "--nosignal-opts",
     type=str,
     default=None,
@@ -125,6 +126,7 @@ logger = logging.getLogger(__name__)
     ),
 )
 @click.option(
+    "-q",
     "--qr-opts",
     type=str,
     default=None,
