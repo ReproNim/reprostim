@@ -6,9 +6,24 @@ import logging
 import os
 
 import click
+import yaml
+from click.core import ParameterSource
 
 # setup logging
 logger = logging.getLogger(__name__)
+
+
+def _load_config(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _apply_config(ctx, config: dict, param_name: str, current_val):
+    """Return the config value when the param was not explicitly set on CLI."""
+    if ctx.get_parameter_source(param_name) != ParameterSource.DEFAULT:
+        return current_val
+    key = param_name.replace("_", "-")
+    return config.get(key, current_val)
 
 
 @click.command(
@@ -136,6 +151,17 @@ logger = logging.getLogger(__name__)
         "If omitted, no extra options are passed."
     ),
 )
+@click.option(
+    "-c",
+    "--config",
+    "config_path",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    default=None,
+    help=(
+        "Optional YAML config file providing defaults for any option not "
+        "explicitly set on the CLI. CLI flags always take precedence."
+    ),
+)
 @click.pass_context
 def video_audit(
     ctx,
@@ -149,13 +175,32 @@ def video_audit(
     verbose: bool,
     nosignal_opts: str,
     qr_opts: str,
+    config_path: str,
 ):
     """Analyze recorded video files."""
 
     from ..qr.video_audit import VaMode, VaSource, do_main
 
+    # load config file and apply as defaults for any param not set on CLI
+    config = _load_config(config_path) if config_path else {}
+    mode = _apply_config(ctx, config, "mode", mode)
+    output = _apply_config(ctx, config, "output", output)
+    recursive = _apply_config(ctx, config, "recursive", recursive)
+    audit_src = _apply_config(ctx, config, "audit_src", audit_src)
+    if isinstance(audit_src, str):
+        audit_src = (audit_src,)
+    elif isinstance(audit_src, list):
+        audit_src = tuple(audit_src)
+    max_files = _apply_config(ctx, config, "max_files", max_files)
+    path_mask = _apply_config(ctx, config, "path_mask", path_mask)
+    verbose = _apply_config(ctx, config, "verbose", verbose)
+    nosignal_opts = _apply_config(ctx, config, "nosignal_opts", nosignal_opts)
+    qr_opts = _apply_config(ctx, config, "qr_opts", qr_opts)
+
     logger.debug("video_audit(...)")
     logger.debug(f"Working dir      : {os.getcwd()}")
+    if config_path:
+        logger.info(f"Config file      : {config_path}")
     logger.info(f"Video full paths : {paths}")
     logger.info(f"Output TSV file  : {output}")
     logger.info(f"Recursive scan   : {recursive}")

@@ -17,8 +17,8 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `-n / --nosignal-opts` — override detect-noscreen options (shlex string)
 - [x] `-q / --qr-opts` — override qr-parse options (shlex string)
 - [x] Add short forms `-n` and `-q` to existing `--nosignal-opts` / `--qr-opts` in CLI code
-- [ ] `-c / --config` — optional YAML config file with CLI-override precedence
-- [ ] Add `pyyaml>=6.0` to `pyproject.toml` dependencies
+- [x] `-c / --config` — optional YAML config file with CLI-override precedence
+- [x] Add `pyyaml>=6.0` to `pyproject.toml` dependencies
 
 ---
 
@@ -144,7 +144,7 @@ Test file location: `tests/qr/test_video_audit.py`
 ## Open Questions / Future Work
 
 - [ ] **Parallel processing** — `--jobs` option for concurrent file processing
-- [ ] **`-c / --config` YAML support** — implemented, see CLI Options section
+- [x] **`-c / --config` YAML support** — implemented
 - [ ] **Progress reporting** — tqdm progress bar for large directories
 - [ ] **`--columns` filter** — select which TSV columns to populate
 - [ ] **DataLad integration** — auto-`datalad save` after TSV update
