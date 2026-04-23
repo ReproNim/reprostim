@@ -10,8 +10,6 @@ Covers: --nosignal-opts, --qr-opts, --config and their default behaviour.
 
 import json
 import os
-
-# import subprocess
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -1017,3 +1015,705 @@ def test_get_file_video_audit_tsv_miss_fallback(tmp_path):
     ):
         result = get_file_video_audit(str(mkv), path_tsv=tsv, use_lock=False)
     assert result is not None and result.name == "test.mkv"
+
+
+# ===========================================================================
+# iter_metadata_json — invalid JSON branch
+# ===========================================================================
+
+
+def test_iter_metadata_json_invalid_json(tmp_path):
+    """Invalid JSON embedded in a metadata marker line is silently skipped."""
+    log = tmp_path / "bad.log"
+    log.write_text(
+        "PREFIX REPROSTIM-METADATA-JSON: not-valid-json :REPROSTIM-METADATA-JSON\n"
+    )
+    assert list(iter_metadata_json(str(log))) == []
+
+
+# ===========================================================================
+# get_audio_info_ffprobe
+# ===========================================================================
+
+
+def test_get_audio_info_ffprobe_success():
+
+    from reprostim.qr.video_audit import get_audio_info_ffprobe
+
+    ffprobe_output = json.dumps(
+        {
+            "streams": [
+                {
+                    "codec_type": "audio",
+                    "codec_name": "pcm_s16le",
+                    "sample_rate": "44100",
+                    "channels": 2,
+                    "bits_per_sample": 16,
+                    "tags": {"DURATION": "00:01:00.000000000"},
+                }
+            ]
+        }
+    )
+    mock_result = MagicMock(stdout=ffprobe_output, returncode=0)
+    with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
+        ai = get_audio_info_ffprobe("/fake/test.mkv")
+    assert ai.codec == "pcm_s16le"
+    assert ai.sample_rate == 44100
+    assert ai.channels == 2
+    assert ai.bits_per_sample == 16
+    assert abs(ai.duration_sec - 60.0) < 0.01
+
+
+def test_get_audio_info_ffprobe_duration_from_stream():
+    from reprostim.qr.video_audit import get_audio_info_ffprobe
+
+    ffprobe_output = json.dumps(
+        {
+            "streams": [
+                {
+                    "codec_type": "audio",
+                    "codec_name": "aac",
+                    "sample_rate": "48000",
+                    "channels": 1,
+                    "duration": "30.5",
+                }
+            ]
+        }
+    )
+    mock_result = MagicMock(stdout=ffprobe_output, returncode=0)
+    with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
+        ai = get_audio_info_ffprobe("/fake/test.mkv")
+    assert abs(ai.duration_sec - 30.5) < 0.01
+
+
+def test_get_audio_info_ffprobe_no_audio_streams():
+    from reprostim.qr.video_audit import get_audio_info_ffprobe
+
+    ffprobe_output = json.dumps({"streams": [{"codec_type": "video"}]})
+    mock_result = MagicMock(stdout=ffprobe_output, returncode=0)
+    with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
+        ai = get_audio_info_ffprobe("/fake/test.mkv")
+    assert ai.codec is None
+
+
+def test_get_audio_info_ffprobe_not_found():
+    from reprostim.qr.video_audit import get_audio_info_ffprobe
+
+    with patch(
+        "reprostim.qr.video_audit.subprocess.run", side_effect=FileNotFoundError
+    ):
+        ai = get_audio_info_ffprobe("/fake/test.mkv")
+    assert ai.codec is None
+
+
+def test_get_audio_info_ffprobe_called_process_error():
+    import subprocess as _subprocess
+
+    from reprostim.qr.video_audit import get_audio_info_ffprobe
+
+    err = _subprocess.CalledProcessError(1, "ffprobe", output="", stderr="error")
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=err):
+        ai = get_audio_info_ffprobe("/fake/test.mkv")
+    assert ai.codec is None
+
+
+# ===========================================================================
+# _merge_rec — name mismatch raises ValueError
+# ===========================================================================
+
+
+def test_merge_rec_name_mismatch_raises():
+    with pytest.raises(ValueError, match="Record names do not match"):
+        _merge_rec(_ctx(), _rec(name="a.mkv"), _rec(name="b.mkv"))
+
+
+# ===========================================================================
+# _merge_recs — additional branches
+# ===========================================================================
+
+
+def test_merge_recs_force_empty_recs_cur():
+    """FORCE mode with empty recs_cur returns recs_new directly."""
+    r_old = _rec(name="a.mkv", updated_on=_TS_EARLY)
+    r_new = _rec(name="b.mkv", updated_on=_TS_EARLY)
+    result = _merge_recs(_ctx(mode=VaMode.FORCE), [r_old], [], [r_new])
+    assert result == [r_new]
+
+
+def test_merge_recs_incremental_new_record_added():
+    """Incremental mode: a brand-new record is added alongside existing ones."""
+    r_old = _rec(name="existing.mkv", updated_on="n/a")
+    r_cur = _rec(name="existing.mkv", updated_on=_TS_EARLY)
+    r_new = _rec(name="brand_new.mkv", updated_on=_TS_EARLY)
+    result = _merge_recs(_ctx(mode=VaMode.INCREMENTAL), [r_old], [r_cur], [r_new])
+    names = {r.name for r in result}
+    assert "brand_new.mkv" in names and "existing.mkv" in names
+
+
+# ===========================================================================
+# do_audit_dir — additional branches
+# ===========================================================================
+
+
+def test_do_audit_dir_missing_path(tmp_path):
+    from reprostim.qr.video_audit import do_audit_dir
+
+    assert list(do_audit_dir(_ctx(), str(tmp_path / "missing"))) == []
+
+
+def test_do_audit_dir_not_a_directory(tmp_path):
+    from reprostim.qr.video_audit import do_audit_dir
+
+    f = tmp_path / "file.txt"
+    f.touch()
+    assert list(do_audit_dir(_ctx(), str(f))) == []
+
+
+def test_do_audit_dir_max_counter(tmp_path):
+    from reprostim.qr.video_audit import do_audit_dir
+
+    assert list(do_audit_dir(_ctx(max_counter=0, c_internal=0), str(tmp_path))) == []
+
+
+def test_do_audit_dir_recursive(tmp_path):
+    from reprostim.qr.video_audit import do_audit_dir
+
+    subdir = tmp_path / "sub"
+    subdir.mkdir()
+    (subdir / "a.mkv").touch()
+    mock_rec = VaRecord(name="a.mkv", path=str(subdir / "a.mkv"), present=True)
+    with patch("reprostim.qr.video_audit.do_audit_file", return_value=iter([mock_rec])):
+        records = list(do_audit_dir(_ctx(recursive=True), str(tmp_path)))
+    assert len(records) == 1 and records[0].name == "a.mkv"
+
+
+# ===========================================================================
+# do_audit_file — skip by base name (after existence check, line 734-736)
+# ===========================================================================
+
+
+def test_do_audit_file_skip_by_base_name(tmp_path):
+    from reprostim.qr.video_audit import do_audit_file
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    ctx = _ctx(skip_names={"test.mkv"})
+    assert list(do_audit_file(ctx, str(mkv))) == []
+
+
+# ===========================================================================
+# do_audit_internal — file and directory paths
+# ===========================================================================
+
+
+def test_do_audit_internal_with_file(tmp_path):
+    from reprostim.qr.video_audit import do_audit_internal
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    mock_rec = VaRecord(name="test.mkv", path=str(mkv), present=True)
+    with patch("reprostim.qr.video_audit.do_audit_file", return_value=iter([mock_rec])):
+        records = list(do_audit_internal(_ctx(), [str(mkv)]))
+    assert len(records) == 1
+
+
+def test_do_audit_internal_with_dir(tmp_path):
+    from reprostim.qr.video_audit import do_audit_internal
+
+    mock_rec = VaRecord(name="a.mkv", path=str(tmp_path / "a.mkv"), present=True)
+    with patch("reprostim.qr.video_audit.do_audit_dir", return_value=iter([mock_rec])):
+        records = list(do_audit_internal(_ctx(), [str(tmp_path)]))
+    assert len(records) == 1
+
+
+def test_do_audit_internal_nonexistent_path(tmp_path):
+    from reprostim.qr.video_audit import do_audit_internal
+
+    records = list(do_audit_internal(_ctx(), [str(tmp_path / "missing")]))
+    assert records == []
+
+
+# ===========================================================================
+# run_ext_nosignal — max_counter / path_mask early exits
+# ===========================================================================
+
+
+def test_run_ext_nosignal_max_counter():
+    from reprostim.qr.video_audit import run_ext_nosignal
+
+    vr = _rec(no_signal_frames="n/a")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, max_counter=0, c_nosignal=0)
+    assert run_ext_nosignal(ctx, vr) is vr
+
+
+def test_run_ext_nosignal_path_mask_no_match():
+    from reprostim.qr.video_audit import run_ext_nosignal
+
+    vr = _rec(no_signal_frames="n/a", path="/data/2024/video.mkv")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, path_mask="*/2025/*")
+    assert run_ext_nosignal(ctx, vr) is vr
+
+
+# ===========================================================================
+# run_ext_nosignal — subprocess execution
+# ===========================================================================
+
+
+def test_run_ext_nosignal_subprocess_success(tmp_path):
+    from reprostim.qr.video_audit import run_ext_nosignal
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    vr = _rec(name="test.mkv", path=str(mkv), no_signal_frames="n/a", start_date="n/a")
+    ctx = _ctx(
+        source={VaSource.NOSIGNAL},
+        nosignal_data_dir=str(tmp_path / "data"),
+        nosignal_log_dir=str(tmp_path / "log"),
+    )
+
+    def _fake_run(cmd, **kwargs):
+        for i, arg in enumerate(cmd):
+            if arg == "--output" and i + 1 < len(cmd):
+                out = cmd[i + 1]
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                with open(out, "w") as f:
+                    json.dump({"nosignal_rate": 0.05}, f)
+        return MagicMock(returncode=0)
+
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=_fake_run):
+        result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "5.0"
+
+
+def test_run_ext_nosignal_no_nosignal_rate_key(tmp_path):
+    """JSON output without 'nosignal_rate' sets no_signal_frames to '0.0'."""
+    from reprostim.qr.video_audit import run_ext_nosignal
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    vr = _rec(name="test.mkv", path=str(mkv), no_signal_frames="n/a", start_date="n/a")
+    ctx = _ctx(
+        source={VaSource.NOSIGNAL},
+        nosignal_data_dir=str(tmp_path / "data"),
+        nosignal_log_dir=str(tmp_path / "log"),
+    )
+
+    def _fake_run(cmd, **kwargs):
+        for i, arg in enumerate(cmd):
+            if arg == "--output" and i + 1 < len(cmd):
+                out = cmd[i + 1]
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                with open(out, "w") as f:
+                    json.dump({"other_key": 42}, f)
+        return MagicMock(returncode=0)
+
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=_fake_run):
+        result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "0.0"
+
+
+def test_run_ext_nosignal_subprocess_error(tmp_path):
+    """CalledProcessError from detect-noscreen → no_signal_frames unchanged."""
+    import subprocess as _subprocess
+
+    from reprostim.qr.video_audit import run_ext_nosignal
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    vr = _rec(name="test.mkv", path=str(mkv), no_signal_frames="n/a", start_date="n/a")
+    ctx = _ctx(
+        source={VaSource.NOSIGNAL},
+        nosignal_data_dir=str(tmp_path / "data"),
+        nosignal_log_dir=str(tmp_path / "log"),
+    )
+    err = _subprocess.CalledProcessError(1, "reprostim", output="", stderr="")
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=err):
+        result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "n/a"
+
+
+# ===========================================================================
+# run_ext_qr — max_counter / path_mask early exits
+# ===========================================================================
+
+
+def test_run_ext_qr_max_counter():
+    from reprostim.qr.video_audit import run_ext_qr
+
+    vr = _rec(qr_records_number="n/a")
+    ctx = _ctx(source={VaSource.QR}, max_counter=0, c_qr=0)
+    assert run_ext_qr(ctx, vr) is vr
+
+
+def test_run_ext_qr_path_mask_no_match():
+    from reprostim.qr.video_audit import run_ext_qr
+
+    vr = _rec(qr_records_number="n/a", path="/data/2024/video.mkv")
+    ctx = _ctx(source={VaSource.QR}, path_mask="*/2025/*")
+    assert run_ext_qr(ctx, vr) is vr
+
+
+# ===========================================================================
+# run_ext_qr — subprocess execution
+# ===========================================================================
+
+
+def test_run_ext_qr_subprocess_success(tmp_path):
+    from reprostim.qr.video_audit import run_ext_qr
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    vr = _rec(name="test.mkv", path=str(mkv), qr_records_number="n/a", start_date="n/a")
+    ctx = _ctx(
+        source={VaSource.QR},
+        qr_data_dir=str(tmp_path / "qr_data"),
+        qr_log_dir=str(tmp_path / "qr_log"),
+    )
+    summary_line = '{"type": "ParseSummary", "qr_count": 42}\n'
+
+    def _fake_run(cmd, **kwargs):
+        stdout = kwargs.get("stdout")
+        if stdout is not None and "qr-parse" in cmd:
+            stdout.write(summary_line)
+        return MagicMock(returncode=0)
+
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=_fake_run):
+        result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "42"
+
+
+def test_run_ext_qr_subprocess_ffmpeg_error(tmp_path):
+    """ffmpeg CalledProcessError → qr_records_number stays at '-2'."""
+    import subprocess as _subprocess
+
+    from reprostim.qr.video_audit import run_ext_qr
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    vr = _rec(name="test.mkv", path=str(mkv), qr_records_number="n/a", start_date="n/a")
+    ctx = _ctx(
+        source={VaSource.QR},
+        qr_data_dir=str(tmp_path / "qr_data"),
+        qr_log_dir=str(tmp_path / "qr_log"),
+    )
+    err = _subprocess.CalledProcessError(1, "ffmpeg", output="", stderr="")
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=err):
+        result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-2"
+
+
+def test_run_ext_qr_no_parse_summary(tmp_path):
+    """qr-parse writes nothing → qr_records_number stays at '-1'."""
+    from reprostim.qr.video_audit import run_ext_qr
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    vr = _rec(name="test.mkv", path=str(mkv), qr_records_number="n/a", start_date="n/a")
+    ctx = _ctx(
+        source={VaSource.QR},
+        qr_data_dir=str(tmp_path / "qr_data"),
+        qr_log_dir=str(tmp_path / "qr_log"),
+    )
+
+    def _fake_run(cmd, **kwargs):
+        return MagicMock(returncode=0)
+
+    with patch("reprostim.qr.video_audit.subprocess.run", side_effect=_fake_run):
+        result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-1"
+
+
+# ===========================================================================
+# run_ext_all / do_audit
+# ===========================================================================
+
+
+def test_run_ext_all_with_internal_source():
+    from reprostim.qr.video_audit import run_ext_all
+
+    vr = _rec()
+    ctx = _ctx(source={VaSource.INTERNAL})
+    assert run_ext_all(ctx, vr) is vr
+
+
+def test_do_audit_delegates(tmp_path):
+    from reprostim.qr.video_audit import do_audit
+
+    mkv = tmp_path / "a.mkv"
+    mkv.touch()
+    mock_rec = VaRecord(name="a.mkv", path=str(mkv), present=True)
+    with patch(
+        "reprostim.qr.video_audit.do_audit_internal", return_value=iter([mock_rec])
+    ), patch("reprostim.qr.video_audit.run_ext_all", return_value=mock_rec):
+        records = list(do_audit(_ctx(), [str(tmp_path)]))
+    assert len(records) == 1
+
+
+# ===========================================================================
+# do_ext
+# ===========================================================================
+
+
+def test_do_ext_no_filter_processes_all():
+    """Empty path list → no filter; all records passed to run_ext_all."""
+    from reprostim.qr.video_audit import do_ext
+
+    vr = _rec(name="a.mkv", path="/data/a.mkv")
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], []))
+    mock_ext.assert_called_once()
+
+
+def test_do_ext_wildcard_processes_all():
+    """Path list ['*'] disables the filter; all records are processed."""
+    from reprostim.qr.video_audit import do_ext
+
+    vr = _rec(name="a.mkv", path="/data/a.mkv")
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], ["*"]))
+    mock_ext.assert_called_once()
+
+
+def test_do_ext_filter_by_file(tmp_path):
+    """Record path matches an explicit file path in the filter."""
+    from reprostim.qr.video_audit import do_ext
+
+    mkv = tmp_path / "a.mkv"
+    mkv.touch()
+    vr = _rec(name="a.mkv", path=str(mkv))
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], [str(mkv)]))
+    mock_ext.assert_called_once()
+
+
+def test_do_ext_filter_by_directory(tmp_path):
+    """Record path starts with a directory in the filter."""
+    from reprostim.qr.video_audit import do_ext
+
+    mkv = tmp_path / "a.mkv"
+    mkv.touch()
+    vr = _rec(name="a.mkv", path=str(mkv))
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], [str(tmp_path)]))
+    mock_ext.assert_called_once()
+
+
+def test_do_ext_no_filter_match_yields_unchanged(tmp_path):
+    """Record not matching any filter path is yielded unchanged without processing."""
+    from reprostim.qr.video_audit import do_ext
+
+    other = tmp_path / "other"
+    other.mkdir()
+    vr = _rec(name="a.mkv", path="/data/a.mkv")
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all") as mock_ext:
+        result = list(do_ext(ctx, [vr], [str(other)]))
+    mock_ext.assert_not_called()
+    assert result == [vr]
+
+
+# ===========================================================================
+# get_file_video_audit — Timeout and generic exception fallbacks
+# ===========================================================================
+
+
+def test_get_file_video_audit_timeout_falls_back(tmp_path):
+    from filelock import Timeout
+
+    from reprostim.qr.video_audit import _tsv_cache, get_file_video_audit
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    tsv = str(tmp_path / "videos.tsv")
+    _save_tsv([_rec(name="test.mkv", path=str(mkv))], tsv)
+    _tsv_cache.pop(tsv, None)
+    fallback = _rec(name="test.mkv", path=str(mkv))
+    with patch(
+        "reprostim.qr.video_audit._get_tsv_records", side_effect=Timeout(tsv)
+    ), patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.do_audit_file", return_value=iter([fallback])
+    ):
+        result = get_file_video_audit(str(mkv), path_tsv=tsv, use_lock=False)
+    assert result is not None and result.name == "test.mkv"
+
+
+def test_get_file_video_audit_exception_falls_back(tmp_path):
+    from reprostim.qr.video_audit import _tsv_cache, get_file_video_audit
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    tsv = str(tmp_path / "videos.tsv")
+    _save_tsv([_rec(name="test.mkv", path=str(mkv))], tsv)
+    _tsv_cache.pop(tsv, None)
+    fallback = _rec(name="test.mkv", path=str(mkv))
+    with patch(
+        "reprostim.qr.video_audit._get_tsv_records", side_effect=IOError("disk error")
+    ), patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.do_audit_file", return_value=iter([fallback])
+    ):
+        result = get_file_video_audit(str(mkv), path_tsv=tsv, use_lock=False)
+    assert result is not None and result.name == "test.mkv"
+
+
+# ===========================================================================
+# _parse_rec_datetime — ValueError path
+# ===========================================================================
+
+
+def test_parse_rec_datetime_invalid_format():
+    """Malformed strings return None rather than raising ValueError."""
+    assert _parse_rec_datetime("not-a-date", "not-a-time") is None
+
+
+# ===========================================================================
+# find_video_audit_by_timerange — skip conditions
+# ===========================================================================
+
+
+def test_find_video_audit_skip_not_present(tmp_path):
+    """Records with present=False are excluded from results."""
+    r = VaRecord(
+        name="a.mkv",
+        path="/data/a.mkv",
+        present=False,
+        complete=True,
+        start_date="2025-01-01",
+        start_time="10:00:00.000",
+        end_date="2025-01-01",
+        end_time="11:00:00.000",
+    )
+    path = _tsv_with(tmp_path, [r])
+    result = find_video_audit_by_timerange(
+        path,
+        datetime(2025, 1, 1, 9, 0),
+        datetime(2025, 1, 1, 12, 0),
+        use_lock=False,
+    )
+    assert result == []
+
+
+def test_find_video_audit_skip_not_complete(tmp_path):
+    """Records with complete=False are excluded from results."""
+    r = VaRecord(
+        name="a.mkv",
+        path="/data/a.mkv",
+        present=True,
+        complete=False,
+        start_date="2025-01-01",
+        start_time="10:00:00.000",
+        end_date="2025-01-01",
+        end_time="11:00:00.000",
+    )
+    path = _tsv_with(tmp_path, [r])
+    result = find_video_audit_by_timerange(
+        path,
+        datetime(2025, 1, 1, 9, 0),
+        datetime(2025, 1, 1, 12, 0),
+        use_lock=False,
+    )
+    assert result == []
+
+
+def test_find_video_audit_skip_na_start(tmp_path):
+    """Records with n/a start_date are excluded."""
+    r = VaRecord(
+        name="a.mkv",
+        path="/data/a.mkv",
+        present=True,
+        complete=True,
+        start_date="n/a",
+        start_time="10:00:00.000",
+        end_date="2025-01-01",
+        end_time="11:00:00.000",
+    )
+    path = _tsv_with(tmp_path, [r])
+    result = find_video_audit_by_timerange(
+        path,
+        datetime(2025, 1, 1, 9, 0),
+        datetime(2025, 1, 1, 12, 0),
+        use_lock=False,
+    )
+    assert result == []
+
+
+def test_find_video_audit_skip_na_end(tmp_path):
+    """Records with n/a end_date are excluded (end is required for intersection)."""
+    r = VaRecord(
+        name="a.mkv",
+        path="/data/a.mkv",
+        present=True,
+        complete=True,
+        start_date="2025-01-01",
+        start_time="10:00:00.000",
+        end_date="n/a",
+        end_time="n/a",
+    )
+    path = _tsv_with(tmp_path, [r])
+    result = find_video_audit_by_timerange(
+        path,
+        datetime(2025, 1, 1, 9, 0),
+        datetime(2025, 1, 1, 12, 0),
+        use_lock=False,
+    )
+    assert result == []
+
+
+# ===========================================================================
+# do_main — additional branches
+# ===========================================================================
+
+
+def test_do_main_ffprobe_missing_still_returns_zero(tmp_path):
+    """When ffprobe is absent do_main emits an error message but returns 0."""
+    from reprostim.qr.video_audit import do_main
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    tsv = str(tmp_path / "videos.tsv")
+    mock_rec = _rec(name="test.mkv", path=str(mkv))
+    messages = []
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=False
+    ), patch("reprostim.qr.video_audit.do_audit", return_value=iter([mock_rec])):
+        rc = do_main([str(tmp_path)], tsv, out_func=messages.append)
+    assert rc == 0
+    assert any("ffprobe" in m for m in messages)
+
+
+def test_do_main_verbose_prints_json(tmp_path):
+    """verbose=True causes each record to be printed as JSON via out_func."""
+    from reprostim.qr.video_audit import do_main
+
+    mkv = tmp_path / "test.mkv"
+    mkv.touch()
+    tsv = str(tmp_path / "videos.tsv")
+    mock_rec = _rec(name="test.mkv", path=str(mkv))
+    outputs = []
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=True
+    ), patch("reprostim.qr.video_audit.do_audit", return_value=iter([mock_rec])):
+        do_main([str(tmp_path)], tsv, verbose=True, out_func=outputs.append)
+    assert len(outputs) >= 1
+
+
+def test_do_main_incremental_merges_existing(tmp_path):
+    """Incremental mode loads an existing TSV and merges new records into it."""
+    from reprostim.qr.video_audit import _load_tsv, do_main
+
+    mkv = tmp_path / "new.mkv"
+    mkv.touch()
+    tsv = str(tmp_path / "videos.tsv")
+    existing = _rec(name="old.mkv", path=str(tmp_path / "old.mkv"))
+    _save_tsv([existing], tsv)
+    new_rec = _rec(name="new.mkv", path=str(mkv))
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=True
+    ), patch("reprostim.qr.video_audit.do_audit", return_value=iter([new_rec])):
+        rc = do_main([str(tmp_path)], tsv, mode=VaMode.INCREMENTAL)
+    assert rc == 0
+    names = {r.name for r in _load_tsv(tsv)}
+    assert "old.mkv" in names and "new.mkv" in names
