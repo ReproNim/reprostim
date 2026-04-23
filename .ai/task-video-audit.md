@@ -120,7 +120,7 @@ Test file location: `tests/qr/test_video_audit.py`
 
 ### CLI tests (Click `CliRunner`)
 
-- [ ] `--help` renders without error
+- [x] `--help` renders without error
 - [x] `--nosignal-opts` string parsed and forwarded to `VaContext.nosignal_opts`
 - [x] `--qr-opts` string parsed and forwarded to `VaContext.qr_opts`
 - [x] Omitting `--nosignal-opts` → `VaContext` uses built-in default
