@@ -125,10 +125,10 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] `--qr-opts` string parsed and forwarded to `VaContext.qr_opts`
 - [x] Omitting `--nosignal-opts` → `VaContext` uses built-in default
 - [x] Omitting `--qr-opts` → `VaContext` uses built-in default
-- [ ] `-c / --config` YAML loaded; config values used as defaults, CLI flags override
-- [ ] Config key `nosignal-opts` forwarded to `VaContext.nosignal_opts`
-- [ ] Config key `qr-opts` forwarded to `VaContext.qr_opts`
-- [ ] Config keys for all other CLI options respected
+- [x] `-c / --config` YAML loaded; config values used as defaults, CLI flags override
+- [x] Config key `nosignal-opts` forwarded to `VaContext.nosignal_opts`
+- [x] Config key `qr-opts` forwarded to `VaContext.qr_opts`
+- [x] Config keys for all other CLI options respected
 - [ ] `--mode full` → `VaMode.FULL` passed to `do_main`
 - [ ] Unknown `--mode` value → Click error
 

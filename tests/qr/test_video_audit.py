@@ -4,7 +4,7 @@
 
 """CLI tests for ``reprostim video-audit``.
 
-Covers: --nosignal-opts, --qr-opts and their default behaviour.
+Covers: --nosignal-opts, --qr-opts, --config and their default behaviour.
 ``do_main`` is patched so no real video processing takes place.
 """
 
@@ -110,3 +110,81 @@ def test_qr_opts_default_is_none(tmp_mkv):
         result = _invoke([tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["qr_opts"] is None
+
+
+# ---------------------------------------------------------------------------
+# -c / --config
+# ---------------------------------------------------------------------------
+
+
+def test_config_nosignal_opts(tmp_path, tmp_mkv):
+    """nosignal-opts from config file is forwarded to do_main as nosignal_opts."""
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("nosignal-opts: '--number-of-checks 300 --threshold 0.8'\n")
+    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+        result = _invoke(["-c", str(cfg), tmp_mkv])
+    assert result.exit_code == 0
+    assert (
+        mock_do_main.call_args.kwargs["nosignal_opts"]
+        == "--number-of-checks 300 --threshold 0.8"
+    )
+
+
+def test_config_qr_opts(tmp_path, tmp_mkv):
+    """qr-opts from config file is forwarded to do_main as qr_opts."""
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("qr-opts: '--skip 3 --std-threshold 20'\n")
+    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+        result = _invoke(["-c", str(cfg), tmp_mkv])
+    assert result.exit_code == 0
+    assert mock_do_main.call_args.kwargs["qr_opts"] == "--skip 3 --std-threshold 20"
+
+
+def test_config_cli_overrides_nosignal_opts(tmp_path, tmp_mkv):
+    """Explicit -n on CLI takes precedence over nosignal-opts in config."""
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("nosignal-opts: '--number-of-checks 300'\n")
+    cli_opts = "--number-of-checks 999"
+    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+        result = _invoke(["-c", str(cfg), "-n", cli_opts, tmp_mkv])
+    assert result.exit_code == 0
+    assert mock_do_main.call_args.kwargs["nosignal_opts"] == cli_opts
+
+
+def test_config_cli_overrides_qr_opts(tmp_path, tmp_mkv):
+    """Explicit -q on CLI takes precedence over qr-opts in config."""
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("qr-opts: '--skip 3'\n")
+    cli_opts = "--skip 99"
+    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+        result = _invoke(["-c", str(cfg), "-q", cli_opts, tmp_mkv])
+    assert result.exit_code == 0
+    assert mock_do_main.call_args.kwargs["qr_opts"] == cli_opts
+
+
+def test_config_other_keys(tmp_path, tmp_mkv):
+    """mode, recursive, and max-files from config are passed correctly to do_main."""
+    from reprostim.qr.video_audit import VaMode
+
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("mode: full\nrecursive: true\nmax-files: 5\n")
+    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+        result = _invoke(["-c", str(cfg), tmp_mkv])
+    assert result.exit_code == 0
+    args = mock_do_main.call_args.args
+    assert args[2] is True  # recursive
+    assert args[3] == VaMode.FULL  # mode
+    assert args[5] == 5  # max_files
+
+
+def test_config_audit_src_list(tmp_path, tmp_mkv):
+    """audit-src list in config is converted to a set of VaSource values."""
+    from reprostim.qr.video_audit import VaSource
+
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("audit-src:\n  - internal\n  - qr\n")
+    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+        result = _invoke(["-c", str(cfg), tmp_mkv])
+    assert result.exit_code == 0
+    va_src = mock_do_main.call_args.args[4]
+    assert va_src == {VaSource.INTERNAL, VaSource.QR}
