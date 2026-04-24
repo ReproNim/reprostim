@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 from reprostim.qr.qr_parse import (
     InfoSummary,
+    ParseContext,
     ParseSummary,
     VideoTimeInfo,
     do_info_file,
@@ -766,7 +767,8 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
                 if vi.rate_mbpm is not None:
                     vr.video_rate_mbpm = str(vi.rate_mbpm)
 
-                ps: ParseSummary = next(do_parse(path, True, True))
+                # Note: just quick parse w/o QR processing so default context is used
+                ps: ParseSummary = next(do_parse(ParseContext(), path, True, True))
                 logger.info(f"ps: {ps}")
                 if ps is not None:
                     if (
