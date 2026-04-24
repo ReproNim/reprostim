@@ -1,3 +1,16 @@
+# 0.7.30 (Fri Apr 24 2026)
+
+#### 🐛 Bug Fix
+
+- Release 0.7.30 [#243](https://github.com/ReproNim/reprostim/pull/243) ([@vmdocua](https://github.com/vmdocua))
+- Extend `video-audit` with custom opts for external tools and apply them to `typhon` [#242](https://github.com/ReproNim/reprostim/pull/242) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.29 (Mon Apr 13 2026)
 
 #### 🐛 Bug Fix
