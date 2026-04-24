@@ -111,104 +111,154 @@ Test file location: `tests/qr/test_video_audit.py`
 ### Unit tests
 
 #### Format utilities
-- [ ] `format_duration` — zero, sub-minute, hours, `None` → `"n/a"`
-- [ ] `format_date` — known datetime → `"YYYY-MM-DD"`, `None` → `"n/a"`
-- [ ] `format_time` — known datetime → `"HH:MM:SS.mmm"`, `None` → `"n/a"`
+- [x] `format_duration` — zero, sub-minute, hours, `None` → `"n/a"`
+- [x] `format_date` — known datetime → `"YYYY-MM-DD"`, `None` → `"n/a"`
+- [x] `format_time` — known datetime → `"HH:MM:SS.mmm"`, `None` → `"n/a"`
 
 #### `check_coherent`
-- [ ] All fields valid and matching → `True`
-- [ ] `present=False` → `False`
-- [ ] `complete=False` → `False`
-- [ ] Missing start / end date-time → `False`
-- [ ] Missing detected or recorded res/fps → `False`
-- [ ] Resolution mismatch (detected ≠ recorded) → `False`
-- [ ] FPS mismatch (detected ≠ recorded) → `False`
+- [x] All fields valid and matching → `True`
+- [x] `present=False` → `False`
+- [x] `complete=False` → `False`
+- [x] Missing start / end date-time → `False`
+- [x] Missing detected or recorded res/fps → `False`
+- [x] Resolution mismatch (detected ≠ recorded) → `False`
+- [x] FPS mismatch (detected ≠ recorded) → `False`
 
 #### `check_ffprobe`
-- [ ] `ffprobe` available (subprocess mock) → `True`
-- [ ] `ffprobe` not found (`FileNotFoundError` mock) → `False`
+- [x] `ffprobe` available (subprocess mock) → `True`
+- [x] `ffprobe` not found (`FileNotFoundError` mock) → `False`
+
+#### `get_audio_info_ffprobe`
+- [x] Success with DURATION tag → codec/sample_rate/channels/bits_per_sample/duration set
+- [x] Duration read from stream `duration` field (no DURATION tag)
+- [x] No audio streams → all fields `None`
+- [x] `FileNotFoundError` → returns empty `AudioInfo`
+- [x] `CalledProcessError` → returns empty `AudioInfo`
 
 #### `_compare_rec_ts`
-- [ ] Both `n/a` → `0`
-- [ ] Equal timestamps → `0`
-- [ ] Left `n/a`, right valid → `-1`
-- [ ] Right `n/a`, left valid → `1`
-- [ ] Left earlier → `-1`, left later → `1`
+- [x] Both `n/a` → `0`
+- [x] Equal timestamps → `0`
+- [x] Left `n/a`, right valid → `-1`
+- [x] Right `n/a`, left valid → `1`
+- [x] Left earlier → `-1`, left later → `1`
 
 #### `_match_recs`
-- [ ] Identical lists → `True`
-- [ ] Different length → `False`
-- [ ] Same length, different content → `False`
+- [x] Identical lists → `True`
+- [x] Different length → `False`
+- [x] Same length, different content → `False`
 
 #### `_merge_rec`
-- [ ] All timestamps equal → returns `rec_new`
-- [ ] Newer internal in `rec_new` → internal fields from `rec_new`
-- [ ] Newer nosignal in `rec_cur` → nosignal fields from `rec_cur`
-- [ ] Newer QR in `rec_new` → qr fields from `rec_new`
+- [x] All timestamps equal → returns `rec_new`
+- [x] Newer internal in `rec_new` → internal fields from `rec_new`
+- [x] Newer nosignal in `rec_cur` → nosignal fields from `rec_cur`
+- [x] Newer QR in `rec_new` → qr fields from `rec_new`
+- [x] Name mismatch → `ValueError` raised
 
 #### `_merge_recs`
-- [ ] `full` mode → `rec_new` overrides everything
-- [ ] `force` mode → new records merged over existing
-- [ ] `incremental` mode → timestamp-based selective merge
-- [ ] `rerun-for-na` mode → timestamp-based selective merge
-- [ ] No change in `recs_cur` → merge skipped
+- [x] `full` mode → `rec_new` overrides everything
+- [x] `force` mode → new records merged over existing
+- [x] `force` mode with empty `recs_cur` → returns `recs_new` directly
+- [x] `incremental` mode → timestamp-based selective merge
+- [x] `incremental` mode → brand-new record added alongside existing
+- [x] `rerun-for-na` mode → timestamp-based selective merge
+- [x] No change in `recs_cur` → merge skipped
 
 #### TSV I/O
-- [ ] `_save_tsv` / `_load_tsv` round-trip with temp file
-- [ ] `_get_tsv_records` — with lock (default)
-- [ ] `_get_tsv_records` — cached=True returns cached list on second call
-- [ ] `_get_tsv_records` — use_lock=False dirty-read
+- [x] `_save_tsv` / `_load_tsv` round-trip with temp file
+- [x] `_get_tsv_records` — with lock (default)
+- [x] `_get_tsv_records` — cached=True returns cached list on second call
+- [x] `_get_tsv_records` — use_lock=False dirty-read
 
 #### Metadata log parsing
-- [ ] `iter_metadata_json` — valid JSON lines yielded
-- [ ] `iter_metadata_json` — missing log file → empty generator
-- [ ] `find_metadata_json` — matching entry found
-- [ ] `find_metadata_json` — no matching entry → `None`
+- [x] `iter_metadata_json` — valid JSON lines yielded
+- [x] `iter_metadata_json` — missing log file → empty generator
+- [x] `iter_metadata_json` — invalid JSON in line → silently skipped
+- [x] `find_metadata_json` — matching entry found
+- [x] `find_metadata_json` — no matching entry → `None`
 
 #### `_parse_rec_datetime`
-- [ ] Valid date + time strings → `datetime` object
-- [ ] Either value is `"n/a"` → `None`
+- [x] Valid date + time strings → `datetime` object
+- [x] Either value is `"n/a"` → `None`
+- [x] Malformed strings → `None` (ValueError path)
 
 #### `find_video_audit_by_timerange`
-- [ ] Record intersects range → included in result
-- [ ] Record entirely before range → excluded
-- [ ] Record entirely after range → excluded
-- [ ] Records sorted by start time ascending
+- [x] Record intersects range → included in result
+- [x] Record entirely before range → excluded
+- [x] Record entirely after range → excluded
+- [x] Records sorted by start time ascending
+- [x] `present=False` → excluded
+- [x] `complete=False` → excluded
+- [x] `start_date="n/a"` → excluded
+- [x] `end_date="n/a"` → excluded
 
 #### Path and context helpers
-- [ ] `_build_dated_path` — with valid `start_date` → dated subdirectory created
-- [ ] `_build_dated_path` — `start_date="n/a"` → file placed in base dir
+- [x] `_build_dated_path` — with valid `start_date` → dated subdirectory created
+- [x] `_build_dated_path` — `start_date="n/a"` → file placed in base dir
 
 #### `do_audit_file`
-- [ ] Happy path (all mocked): present file, session_begin metadata, full vi/vti/audio → coherent VaRecord yielded
-- [ ] File does not exist → VaRecord with `present=False` yielded
-- [ ] `max_counter` reached → nothing yielded
-- [ ] `skip_names` match → nothing yielded
-- [ ] `path_mask` no-match → nothing yielded
+- [x] Happy path (all mocked): present file, session_begin metadata, full vi/vti/audio → coherent VaRecord yielded
+- [x] File does not exist → VaRecord with `present=False` yielded
+- [x] `max_counter` reached → nothing yielded
+- [x] `skip_names` match by full path → nothing yielded
+- [x] `skip_names` match by base name (after existence check) → nothing yielded
+- [x] `path_mask` no-match → nothing yielded
 
 #### `do_audit_dir` / `do_audit_internal`
-- [ ] `do_audit_dir` — directory with .mkv files → records yielded
-- [ ] `do_audit_internal` — skipped for `rerun-for-na` mode
-- [ ] `do_audit_internal` — skipped for `reset-to-na` mode
+- [x] `do_audit_dir` — directory with .mkv files → records yielded
+- [x] `do_audit_dir` — missing path → nothing yielded
+- [x] `do_audit_dir` — non-directory path → nothing yielded
+- [x] `do_audit_dir` — `max_counter` reached → nothing yielded
+- [x] `do_audit_dir` — recursive descent into subdirectory
+- [x] `do_audit_internal` — skipped for `rerun-for-na` mode
+- [x] `do_audit_internal` — skipped for `reset-to-na` mode
+- [x] `do_audit_internal` — skipped for non-INTERNAL source
+- [x] `do_audit_internal` — single file path → delegates to `do_audit_file`
+- [x] `do_audit_internal` — directory path → delegates to `do_audit_dir`
+- [x] `do_audit_internal` — non-existent path → nothing yielded
 
 #### External tool early-exit paths
-- [ ] `run_ext_nosignal` — source not NOSIGNAL/ALL → returns `vr` unchanged
-- [ ] `run_ext_nosignal` — `reset-to-na` mode → `no_signal_frames` set to `"n/a"`
-- [ ] `run_ext_nosignal` — `rerun-for-na` + non-`n/a` → skipped
-- [ ] `run_ext_qr` — source not QR/ALL → returns `vr` unchanged
-- [ ] `run_ext_qr` — `reset-to-na` mode → `qr_records_number` set to `"n/a"`
-- [ ] `run_ext_qr` — `rerun-for-na` + non-`n/a` → skipped
+- [x] `run_ext_nosignal` — source not NOSIGNAL/ALL → returns `vr` unchanged
+- [x] `run_ext_nosignal` — `reset-to-na` mode → `no_signal_frames` set to `"n/a"`
+- [x] `run_ext_nosignal` — `reset-to-na` already `n/a` → counter not incremented
+- [x] `run_ext_nosignal` — `rerun-for-na` + non-`n/a` → skipped
+- [x] `run_ext_nosignal` — `max_counter` reached → returns `vr` unchanged
+- [x] `run_ext_nosignal` — `path_mask` no-match → returns `vr` unchanged
+- [x] `run_ext_nosignal` — subprocess success with `nosignal_rate` → percentage stored
+- [x] `run_ext_nosignal` — subprocess success without `nosignal_rate` key → `"0.0"`
+- [x] `run_ext_nosignal` — `CalledProcessError` → `no_signal_frames` unchanged
+- [x] `run_ext_qr` — source not QR/ALL → returns `vr` unchanged
+- [x] `run_ext_qr` — `reset-to-na` mode → `qr_records_number` set to `"n/a"`
+- [x] `run_ext_qr` — `reset-to-na` already `n/a` → counter not incremented
+- [x] `run_ext_qr` — `rerun-for-na` + non-`n/a` → skipped
+- [x] `run_ext_qr` — `max_counter` reached → returns `vr` unchanged
+- [x] `run_ext_qr` — `path_mask` no-match → returns `vr` unchanged
+- [x] `run_ext_qr` — subprocess success with `ParseSummary` → `qr_count` stored
+- [x] `run_ext_qr` — ffmpeg `CalledProcessError` → `qr_records_number` = `"-2"`
+- [x] `run_ext_qr` — no `ParseSummary` in output → `qr_records_number` = `"-1"`
+- [x] `run_ext_all` — delegates to nosignal then qr
+- [x] `do_audit` — delegates to `do_audit_internal` + `run_ext_all`
+
+#### `do_ext`
+- [x] Empty path list → all records processed
+- [x] `["*"]` path list → all records processed
+- [x] Record path matches explicit file → processed
+- [x] Record path starts with directory → processed
+- [x] Record not matching filter → yielded unchanged
 
 #### `do_main`
-- [ ] Invalid path → returns `1`
-- [ ] Incremental mode, no existing TSV → creates new TSV, returns `0`
-- [ ] Incremental mode, existing TSV → loads existing, merges, saves
-- [ ] `rerun-for-na` mode → calls `do_ext` on existing records
-- [ ] `nosignal_opts` / `qr_opts` strings shlex-parsed into `VaContext`
+- [x] Invalid path → returns `1`
+- [x] Incremental mode, no existing TSV → creates new TSV, returns `0`
+- [x] Incremental mode, existing TSV → loads existing, merges, saves
+- [x] `rerun-for-na` mode → calls `do_ext` on existing records
+- [x] `nosignal_opts` / `qr_opts` strings shlex-parsed into `VaContext`
+- [x] `ffprobe` missing → prints error message, still returns `0`
+- [x] `verbose=True` → records printed as JSON via `out_func`
 
 #### `get_file_video_audit`
-- [ ] TSV exists and contains matching path → returns cached record
-- [ ] TSV missing match → falls back to live `do_audit_file`
+- [x] TSV exists and contains matching path → returns cached record
+- [x] TSV missing match → falls back to live `do_audit_file`
+- [x] `Timeout` while acquiring lock → falls back to `do_audit_file`
+- [x] Generic exception loading TSV → falls back to `do_audit_file`
 
 ### CLI tests (Click `CliRunner`)
 
@@ -221,16 +271,16 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] Config key `nosignal-opts` forwarded to `VaContext.nosignal_opts`
 - [x] Config key `qr-opts` forwarded to `VaContext.qr_opts`
 - [x] Config keys for all other CLI options respected
-- [ ] Config `audit-src` as scalar string → wrapped in tuple
-- [ ] `--mode full` → `VaMode.FULL` passed to `do_main`
-- [ ] Unknown `--mode` value → Click error
+- [x] Config `audit-src` as scalar string → wrapped in tuple
+- [x] `--mode full` → `VaMode.FULL` passed to `do_main`
+- [x] Unknown `--mode` value → Click error
 
 ### Coverage targets
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/video_audit.py` — overall | ≥ 80% | 14% |
-| `cli/cmd_video_audit.py` | ≥ 80% | 92% |
+| `qr/video_audit.py` — overall | ≥ 80% | 93% |
+| `cli/cmd_video_audit.py` | ≥ 80% | 94% |
 
 ---
 
