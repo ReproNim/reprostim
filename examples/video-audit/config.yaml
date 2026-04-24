@@ -1,0 +1,39 @@
+# video-audit config example
+# Usage: reprostim video-audit -c config.yaml [PATHS]...
+#
+# CLI flags always take precedence over values defined here.
+# Uncomment and adjust any key to override the built-in CLI default.
+
+# Operation mode: incremental | full | force | rerun-for-na | reset-to-na
+#mode: incremental
+
+# Output TSV file
+#output: videos.tsv
+
+# Recursively scan subdirectories
+#recursive: false
+
+# Audit sources to run.
+# Use a list to combine sources (equivalent to: -s internal -s qr).
+# Allowed values: internal | qr | nosignal | all
+#audit-src:
+#  - internal
+#  - qr
+#  - nosignal
+#  - all
+
+# Maximum number of video files/records to process (-1 = unlimited)
+#max-files: -1
+
+# fnmatch-style filter on file paths, e.g. "*/2025/*/*.mkv"
+#path-mask: "*/2025/*/*.mkv"
+
+# Print each record as JSON to stdout
+#verbose: false
+
+# Options forwarded to reprostim detect-noscreen (shlex-parsed string).
+# Overrides the built-in defaults when set.
+#nosignal-opts: "--number-of-checks 200 --threshold 0.9 --truncated fixup --invalid-timing fixup"
+
+# Extra options forwarded to reprostim qr-parse (shlex-parsed string).
+#qr-opts: "--skip 2 --std-threshold 15"

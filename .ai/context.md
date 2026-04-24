@@ -37,7 +37,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
   - `cmd_monitor_displays.py` - Monitor display connection status with callbacks
-  - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes)
+  - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
   - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
   - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
   - `cmd_echo.py` - Simple echo command for testing
@@ -47,7 +47,7 @@ Main Python package with CLI tools and analysis utilities.
   - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities
-  - `video_audit.py` - Comprehensive video analysis with multiple audit sources
+  - `video_audit.py` - Comprehensive video analysis with multiple audit sources (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
   - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
   - `bids_inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
 

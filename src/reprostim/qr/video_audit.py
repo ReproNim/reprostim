@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import subprocess
 import tempfile
 import traceback
@@ -28,6 +29,7 @@ from pydantic import BaseModel
 
 from reprostim.qr.qr_parse import (
     InfoSummary,
+    ParseContext,
     ParseSummary,
     VideoTimeInfo,
     do_info_file,
@@ -765,7 +767,8 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
                 if vi.rate_mbpm is not None:
                     vr.video_rate_mbpm = str(vi.rate_mbpm)
 
-                ps: ParseSummary = next(do_parse(path, True, True))
+                # Note: just quick parse w/o QR processing so default context is used
+                ps: ParseSummary = next(do_parse(ParseContext(), path, True, True))
                 logger.info(f"ps: {ps}")
                 if ps is not None:
                     if (
@@ -1452,6 +1455,8 @@ def do_main(
     path_mask: str = None,
     verbose: bool = False,
     out_func=print,
+    nosignal_opts: str = None,
+    qr_opts: str = None,
 ):
     """The main function invoked by CLI to analyze video files with
     logs and save the results to a TSV file.
@@ -1485,6 +1490,15 @@ def do_main(
 
     :param out_func: Function to stdout results (default: print)
     :type out_func: Callable[[str], None]
+
+    :param nosignal_opts: Optional string of extra options to pass to
+                          detect-noscreen, parsed via shlex. Overrides
+                          the built-in defaults when provided.
+    :type nosignal_opts: str
+
+    :param qr_opts: Optional string of extra options to pass to qr-parse,
+                    parsed via shlex. No extra options by default.
+    :type qr_opts: str
 
     :return: 0 on success, 1 on failure
     :rtype: int
@@ -1538,7 +1552,17 @@ def do_main(
         log_level=os.environ["REPROSTIM_LOG_LEVEL"],
         max_counter=max_files,
         mode=mode,
+        nosignal_opts=(
+            shlex.split(nosignal_opts)
+            if nosignal_opts is not None
+            else VaContext.model_fields["nosignal_opts"].default
+        ),
         path_mask=path_mask,
+        qr_opts=(
+            shlex.split(qr_opts)
+            if qr_opts is not None
+            else VaContext.model_fields["qr_opts"].default
+        ),
         recursive=recursive,
         source=va_src,
     )
