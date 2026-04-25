@@ -558,7 +558,7 @@ def test_save_tsv_uses_lf_line_endings(tmp_path):
     """_save_tsv must write Unix LF-only line endings (no CRLF / ^M)."""
     path = str(tmp_path / "videos.tsv")
     _save_tsv([_rec(name="a.mkv"), _rec(name="b.mkv")], path)
-    raw = open(path, "rb").read()
+    raw = (tmp_path / "videos.tsv").read_bytes()
     assert b"\r\n" not in raw, "TSV file must not contain CRLF (^M) line endings"
     assert b"\n" in raw
 
