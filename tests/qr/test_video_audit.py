@@ -554,6 +554,51 @@ def test_save_load_tsv_roundtrip(tmp_path):
     assert [r.name for r in loaded] == ["a.mkv", "b.mkv"]
 
 
+def test_save_tsv_uses_lf_line_endings(tmp_path):
+    """_save_tsv must write Unix LF-only line endings (no CRLF / ^M)."""
+    path = str(tmp_path / "videos.tsv")
+    _save_tsv([_rec(name="a.mkv"), _rec(name="b.mkv")], path)
+    raw = open(path, "rb").read()
+    assert b"\r\n" not in raw, "TSV file must not contain CRLF (^M) line endings"
+    assert b"\n" in raw
+
+
+def test_load_tsv_reads_lf_file(tmp_path):
+    """_load_tsv correctly reads a file with Unix LF line endings."""
+    path = str(tmp_path / "videos.tsv")
+    _save_tsv([_rec(name="lf.mkv")], path)
+    loaded = _load_tsv(path)
+    assert len(loaded) == 1
+    assert loaded[0].name == "lf.mkv"
+
+
+def test_load_tsv_reads_crlf_file(tmp_path):
+    """_load_tsv correctly reads a file with Windows CRLF line endings.
+
+    A TSV produced by an older version of the code (or on Windows) may have
+    CRLF terminators.  _load_tsv must parse it without embedding \\r in any
+    field value.
+    """
+    import csv
+
+    path = str(tmp_path / "videos.tsv")
+    rec = _rec(name="crlf.mkv")
+    fields = list(VaRecord.model_fields.keys())
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=fields, delimiter="\t", lineterminator="\r\n"
+        )
+        writer.writeheader()
+        writer.writerow(rec.model_dump())
+
+    loaded = _load_tsv(path)
+    assert len(loaded) == 1
+    assert loaded[0].name == "crlf.mkv"
+    for field in fields:
+        value = getattr(loaded[0], field)
+        assert "\r" not in str(value), f"Field '{field}' must not contain \\r"
+
+
 def test_get_tsv_records_with_lock(tmp_path):
     from reprostim.qr.video_audit import _get_tsv_records, _tsv_cache
 
