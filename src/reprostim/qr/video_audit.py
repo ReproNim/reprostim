@@ -464,7 +464,9 @@ def get_audio_info_ffprobe(path: str) -> AudioInfo:
 def _save_tsv(records: List[VaRecord], path_out: str):
     fields = list(VaRecord.model_fields.keys())
     with open(path_out, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields, delimiter="\t")
+        writer = csv.DictWriter(
+            f, fieldnames=fields, delimiter="\t", lineterminator="\n"
+        )
         writer.writeheader()
         for r in records:
             writer.writerow(r.model_dump())

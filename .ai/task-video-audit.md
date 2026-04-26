@@ -165,6 +165,9 @@ Test file location: `tests/qr/test_video_audit.py`
 
 #### TSV I/O
 - [x] `_save_tsv` / `_load_tsv` round-trip with temp file
+- [x] `_save_tsv` writes LF-only line endings (no CRLF / `^M`) on all platforms
+- [x] `_load_tsv` reads file with LF line endings correctly
+- [x] `_load_tsv` reads file with CRLF line endings correctly (no `\r` in field values)
 - [x] `_get_tsv_records` — with lock (default)
 - [x] `_get_tsv_records` — cached=True returns cached list on second call
 - [x] `_get_tsv_records` — use_lock=False dirty-read
