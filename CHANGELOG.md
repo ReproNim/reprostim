@@ -1,3 +1,15 @@
+# 0.7.31 (Sun Apr 26 2026)
+
+#### 🐛 Bug Fix
+
+- Ensure saved `videos.tsv` uses LF-only line endings [#244](https://github.com/ReproNim/reprostim/pull/244) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.30 (Fri Apr 24 2026)
 
 #### 🐛 Bug Fix
