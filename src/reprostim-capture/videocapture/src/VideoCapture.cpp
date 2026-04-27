@@ -1,4 +1,4 @@
-﻿/************************************************************************************************/
+/************************************************************************************************/
 // VideoCapture.cpp : Detects if device connected or changes state, if video
 // input available, then it calls ffmpeg to start recording video. If it changes
 // state while recording it stops recording and begins a new recording if
@@ -118,8 +118,8 @@ bool killProc(const std::string& procName,
 bool killExtProc(const std::string& cmd,
 			  int sig = SIGKILL) {
 	std::string pid = exec("pgrep -o -f " + cmd);
-	_INFO("Kill external process, pid: " << pid.c_str());
 	if( pid.length() > 0 ) {
+		_INFO("Kill external process '" << cmd << "', pid: " << pid);
 		killProcById(std::stoi(pid), sig, true);
 		/*
 		// this doesn't work well with singularity containers and python
@@ -130,6 +130,7 @@ bool killExtProc(const std::string& cmd,
 		*/
 		return true;
 	}
+	_VERBOSE("No external process found to kill: " << cmd);
 	return false;
 }
 
@@ -678,10 +679,10 @@ void VideoCaptureApp::stopRecording(const std::string& start_ts,
 	}
 
 	if (cfg.ext_proc_opts.enabled) {
-		_INFO("terminating external process with SIGINT: " << cfg.ext_proc_opts.exec_command);
+		_VERBOSE("terminating external process with SIGINT: " << cfg.ext_proc_opts.exec_command);
 		killExtProc(cfg.ext_proc_opts.exec_command, SIGINT);
 		SLEEP_SEC(1.5);
-		_INFO("terminating external process with SIGTERM: " << cfg.ext_proc_opts.exec_command);
+		_VERBOSE("terminating external process with SIGTERM: " << cfg.ext_proc_opts.exec_command);
 		killExtProc(cfg.ext_proc_opts.exec_command, SIGTERM);
 	}
 
