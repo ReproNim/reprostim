@@ -117,6 +117,10 @@ bool killProc(const std::string& procName,
 
 bool killExtProc(const std::string& cmd,
 			  int sig = SIGKILL) {
+	if( cmd.empty() ) {
+		_VERBOSE("killExtProc: command is empty, skipping");
+		return false;
+	}
 	std::string pid = exec("pgrep -o -f " + cmd);
 	if( pid.length() > 0 ) {
 		_INFO("Kill external process '" << cmd << "', pid: " << pid);
