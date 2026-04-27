@@ -121,7 +121,7 @@ bool killExtProc(const std::string& cmd,
 		_VERBOSE("killExtProc: command is empty, skipping");
 		return false;
 	}
-	std::string pid = exec("pgrep -o -f " + cmd);
+	std::string pid = exec("pgrep -o -f \"" + cmd + "\"");
 	if( pid.length() > 0 ) {
 		_INFO("Kill external process '" << cmd << "', pid: " << pid);
 		killProcById(std::stoi(pid), sig, true);
@@ -134,7 +134,7 @@ bool killExtProc(const std::string& cmd,
 		*/
 		return true;
 	}
-	_VERBOSE("No external process found to kill: " << cmd);
+	_VERBOSE("No external process found to kill: '" << cmd << "'");
 	return false;
 }
 
@@ -335,7 +335,7 @@ void VideoCaptureApp::checkExtProc(const std::string& mode) {
 		std::thread([cmd]() {
 			SLEEP_SEC(1*60);
 			_INFO("Kill external process command for testing purposes");
-			killExtProc("\"" + cmd + "\"", SIGTERM);
+			killExtProc(cmd, SIGTERM);
 		}).detach(); // run in the background
 
 		_INFO(" ");
