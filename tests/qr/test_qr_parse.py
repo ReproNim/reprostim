@@ -22,6 +22,7 @@ import reprostim.qr.qr_parse as qp_mod
 from reprostim.cli.cmd_qr_parse import qr_parse as qr_parse_cmd
 from reprostim.qr.qr_parse import (
     Grayscale,
+    InfoSummary,
     ParseContext,
     ParseSummary,
     QrDecoder,
@@ -578,8 +579,6 @@ def test_do_parse_video_not_opened(tmp_path):
 
 def test_do_info_file_returns_summary(tmp_path):
     """do_info_file returns an InfoSummary with path and size populated."""
-    from reprostim.qr.qr_parse import InfoSummary
-
     video = _video(tmp_path)
     summary, _ = do_info_file(video)
     assert isinstance(summary, InfoSummary)
