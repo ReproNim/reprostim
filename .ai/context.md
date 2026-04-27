@@ -326,6 +326,11 @@ Integrated with BIDS datasets for archival
 - Run C++ tests: `cd build && make test`
 - CI tests: `tools/ci/test_reprostim_container.sh`
 
+#### Test file conventions
+- **All imports must be at the top of the test file** — never inside test functions or helpers. Inline imports inside functions cause reviewer friction and inconsistency (see PR #244). When a symbol is only used in one test, still place its import at the top of the file alongside the other imports.
+- Standard-library imports first (alphabetical), then third-party, then `reprostim` package imports — follow PEP 8 import order.
+- Use `.venv/bin/python -m pytest` (not bare `python`) to ensure the project virtual environment is used.
+
 ### Documentation
 - Build docs: `cd docs && make html`
 - Auto-generated CLI docs via sphinx-click

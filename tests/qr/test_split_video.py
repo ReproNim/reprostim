@@ -7,6 +7,7 @@ reprostim.qr.split_video and reprostim.cli.cmd_split_video."""
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 from datetime import datetime, timedelta
@@ -34,6 +35,7 @@ from reprostim.qr.split_video import (
     _write_sidecar,
     do_main,
 )
+from reprostim.qr.video_audit import VaRecord
 
 # ===========================================================================
 # _parse_ts
@@ -320,8 +322,6 @@ _VIDEO_END = datetime(2024, 2, 2, 18, 0, 0)
 
 def _make_va_record():
     """Return a minimal VaRecord for a 1-hour test video."""
-    from reprostim.qr.video_audit import VaRecord
-
     return VaRecord(
         path="/fake/video.mkv",
         present=True,
@@ -571,8 +571,6 @@ def test_write_sidecar_no_absolute_dates():
             raw = f.read()
 
         # No YYYY-MM-DD date patterns should appear in the sidecar
-        import re
-
         date_pattern = re.compile(r"\d{4}-\d{2}-\d{2}")
         assert not date_pattern.search(
             raw
