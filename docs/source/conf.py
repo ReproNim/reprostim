@@ -90,9 +90,13 @@ linkcheck_ignore = [
     r"https://github\.com/conda-forge/reprostim-feedstock#installing-reprostim",
     r"https://anaconda\.org/conda-forge/reprostim",
     r"https://img.shields\.io/conda/vn/conda-forge/reprostim\.svg",
-    r"https://github\.com/ReproNim/artwork/blob/master/posters/ReproFlow-OHBM2024-poster\.svg",
+    r"https://github\.com/ReproNim/artwork/blob/master/"
+    r"posters/ReproFlow-OHBM2024-poster\.svg",
     r"https://wiki\.curdes\.com/bin/view/CdiDocs/BirchUsersManual",
-    r"https://raw\.githubusercontent\.com/ReproNim/reprostim/refs/heads/master/examples/psychopy/04_fmri_audiocode\.py",
+    r"https://raw\.githubusercontent\.com/ReproNim/reprostim/refs/heads/"
+    r"master/examples/psychopy/04_fmri_audiocode\.py",
+    r"https://zenodo\.org/badge/243008647\.svg",
+    r"https://zenodo\.org/badge/latestdoi/243008647",
 ]
 
 # configure myst_parser
