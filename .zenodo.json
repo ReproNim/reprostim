@@ -36,7 +36,11 @@
         "data provenance",
         "open science"
     ],
+    "title": "ReproStim: Video Capture and Recording Suite for Neuroimaging and Psychology Experiments",
     "description": "ReproStim is a video capture and recording suite for neuroimaging and psychology experiments. It provides automated capture of audio-visual stimuli as presented to experimental subjects, storing recordings alongside behavioral or neuroimaging data in BIDS-compliant datasets.",
+    "upload_type": "software",
+    "publication_date": "2026-05-14",
+    "version": "0.7.31",
     "license": "MIT",
-    "upload_type": "software"
+    "access_right": "open"
 }
