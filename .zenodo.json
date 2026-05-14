@@ -15,6 +15,11 @@
             "orcid": "0009-0007-3981-0798"
         }
     ],
+    "grants": [
+        {
+            "id": "10.13039/100000002::1P41EB019936"
+        }
+    ],
     "keywords": [
         "reproducible-research",
         "psychology",
