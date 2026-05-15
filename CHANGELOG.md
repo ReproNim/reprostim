@@ -1,3 +1,18 @@
+# 0.7.32 (Fri May 15 2026)
+
+#### 🐛 Bug Fix
+
+- Release Add Zenodo integration [#249](https://github.com/ReproNim/reprostim/pull/249) ([@vmdocua](https://github.com/vmdocua))
+- Add Zenodo integration [#248](https://github.com/ReproNim/reprostim/pull/248) ([@vmdocua](https://github.com/vmdocua))
+- Merge pull request #246 from ReproNim/enh-capture-ext-proc-logs [#246](https://github.com/ReproNim/reprostim/pull/246) ([@vmdocua](https://github.com/vmdocua))
+- Re-style test files to have all imports at the beginning [#245](https://github.com/ReproNim/reprostim/pull/245) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.31 (Sun Apr 26 2026)
 
 #### 🐛 Bug Fix
