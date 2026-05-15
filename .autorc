@@ -8,6 +8,7 @@
         [
             "exec",
             {
+                  "beforeRelease": "bash tools/ci/release_reprostim_zenodo.sh && git add .zenodo.json",
                   "afterRelease": "python -m build && twine upload dist/* && bash tools/ci/release_reprostim_docker.sh"
             }
         ],

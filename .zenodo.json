@@ -1,0 +1,46 @@
+{
+    "creators": [
+        {
+            "affiliation": "Center for Open Neuroscience; Dartmouth College, Hanover, NH, United States",
+            "name": "Halchenko, Yaroslav O.",
+            "orcid": "0000-0003-3456-2493"
+        },
+        {
+            "name": "Christian, Horea",
+            "orcid": "0000-0001-7037-2449"
+        },
+        {
+            "affiliation": "Center for Open Neuroscience",
+            "name": "Melnik, Vadim",
+            "orcid": "0009-0007-3981-0798"
+        }
+    ],
+    "grants": [
+        {
+            "id": "10.13039/100000002::1P41EB019936"
+        }
+    ],
+    "keywords": [
+        "reproducible-research",
+        "psychology",
+        "neuroimaging",
+        "reproducibility",
+        "BIDS",
+        "audio-visual stimuli",
+        "video capture",
+        "stimulus recording",
+        "fMRI",
+        "ReproNim",
+        "open neuroscience",
+        "experimental psychology",
+        "data provenance",
+        "open science"
+    ],
+    "title": "ReproStim: Video Capture and Recording Suite for Neuroimaging and Psychology Experiments",
+    "description": "ReproStim is a video capture and recording suite for neuroimaging and psychology experiments. It provides automated capture of audio-visual stimuli as presented to experimental subjects, storing recordings alongside behavioral or neuroimaging data in BIDS-compliant datasets.",
+    "upload_type": "software",
+    "publication_date": "2026-05-14",
+    "version": "0.7.31",
+    "license": "MIT",
+    "access_right": "open"
+}
