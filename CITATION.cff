@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "ReproStim: Video Capture and Recording Suite for Neuroimaging and Psychology Experiments"
+abstract: "ReproStim is a video capture and recording suite for neuroimaging and psychology experiments. It provides automated capture of audio-visual stimuli as presented to experimental subjects, storing recordings alongside behavioral or neuroimaging data in BIDS-compliant datasets."
+authors:
+  - family-names: Halchenko
+    given-names: "Yaroslav O."
+    orcid: "https://orcid.org/0000-0003-3456-2493"
+    affiliation: "Center for Open Neuroscience, Dartmouth College, Hanover, NH, United States"
+  - family-names: Christian
+    given-names: Horea
+    orcid: "https://orcid.org/0000-0001-7037-2449"
+  - family-names: Melnik
+    given-names: Vadim
+    orcid: "https://orcid.org/0009-0007-3981-0798"
+    affiliation: "Center for Open Neuroscience"
+license: MIT
+repository-code: "https://github.com/ReproNim/reprostim"
+keywords:
+  - reproducible-research
+  - psychology
+  - neuroimaging
+  - reproducibility
+  - BIDS
+  - audio-visual stimuli
+  - video capture
+  - stimulus recording
+  - fMRI
+  - ReproNim
+  - open neuroscience
+  - experimental psychology
+  - data provenance
+  - open science
