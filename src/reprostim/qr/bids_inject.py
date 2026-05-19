@@ -754,6 +754,7 @@ def _call_split_video(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
+    from reprostim.qr.split_video import SidecarFormat
     from reprostim.qr.split_video import do_main as split_video_main
 
     captured_errors: List[str] = []
@@ -773,6 +774,7 @@ def _call_split_video(
         buffer_after=ctx.buffer_after,
         buffer_policy=ctx.buffer_policy,
         sidecar_json=sidecar_path,
+        sidecar_format=SidecarFormat.BIDS,
         video_audit_file=ctx.videos_tsv,
         lock=ctx.lock,
         verbose=ctx.verbose,

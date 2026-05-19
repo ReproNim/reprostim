@@ -129,6 +129,15 @@ logger = logging.getLogger(__name__)
     "the lock is held by a different OS user.",
 )
 @click.option(
+    "--sidecar-format",
+    type=click.Choice(["bids", "raw"], case_sensitive=False),
+    default="bids",
+    show_default=True,
+    help="Format for the sidecar JSON file. "
+    "'bids' (default): BEP044/BEP047 field names (RecordingDuration, FrameRate, etc.). "
+    "'raw': raw SplitResult model dump.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -148,6 +157,7 @@ def split_video(
     input_path: str,
     output: str,
     sidecar_json: str | None,
+    sidecar_format: str | None,
     video_audit_file: str | None,
     raw: bool,
     lock: str,
@@ -191,6 +201,7 @@ def split_video(
     logger.info(f"Buffer after     : {buffer_after}")
     logger.info(f"Buffer policy    : {buffer_policy}")
     logger.info(f"Sidecar JSON     : {sidecar_json}")
+    logger.info(f"Sidecar format   : {sidecar_format}")
     logger.info(f"Video audit file : {video_audit_file}")
     logger.info(f"Raw mode         : {raw}")
     logger.info(f"Lock             : {lock}")
@@ -216,6 +227,7 @@ def split_video(
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
         sidecar_json=sidecar_path,
+        sidecar_format=sidecar_format,
         video_audit_file=video_audit_file,
         raw=raw,
         verbose=verbose,

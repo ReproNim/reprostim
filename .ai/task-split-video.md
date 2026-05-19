@@ -16,6 +16,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] `--buffer-policy [strict|flexible]` — error or trim when buffers exceed video boundaries
 - [x] `--spec` — compact inline segment spec (`START/DURATION` or `START//END`); repeatable; mutually exclusive with `--start`/`--duration`/`--end`
 - [x] `-j / --sidecar-json` — sidecar JSON output control (`none` / `auto` / explicit path)
+- [x] `--sidecar-format [bids|raw]` — sidecar JSON schema: BIDS field names (default) or raw `SplitResult` dump
 - [x] `-a / --video-audit-file` — path to `videos.tsv` (optional, skips on-the-fly metadata)
 - [x] `--raw` — raw mode: any video file accepted, no filename timestamp required
 - [x] `-k / --lock [yes|no]` — advisory file lock for `videos.tsv`
@@ -57,7 +58,9 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 
 ### Sidecar JSON
 - [x] `_resolve_sidecar_path` — derive sidecar path from output path and `--sidecar-json` value
-- [x] `_write_sidecar` — serialise `SplitResult` to JSON file
+- [x] `_write_sidecar` — serialise `SplitResult` to JSON file (BIDS or raw format)
+- [x] `SidecarFormat` enum — `bids` (default) / `raw`
+- [x] `_to_bids_model` — convert `SplitResult` to BEP044/BEP047 BIDS sidecar dict
 - [x] `auto` / flag-only → `<output>.split-video.jsonl`
 - [x] Explicit path → use that path (treated as template in multi-spec mode)
 - [x] `none` / not specified → no sidecar created
@@ -130,8 +133,15 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_resolve_sidecar_path` — `auto` → `<output>.split-video.json`
 - [x] `_resolve_sidecar_path` — explicit path → returned unchanged
 - [x] `_resolve_sidecar_path` — `None` → `None`
-- [x] `_write_sidecar` — all expected fields present; excluded fields absent
-- [x] `_write_sidecar` — no absolute dates in sidecar (times only)
+- [x] `_write_sidecar` — raw format: all expected fields present; excluded fields absent
+- [x] `_write_sidecar` — raw format: no absolute dates in sidecar (times only)
+- [x] `_write_sidecar` — default format is BIDS
+- [x] `_write_sidecar` — BIDS format: correct BIDS field names written
+- [x] `_write_sidecar` — raw format: raw `SplitResult` fields written when `sidecar_format="raw"`
+- [x] `_to_bids_model` — full mapping: all populated fields produce correct BIDS keys
+- [x] `_to_bids_model` — `n/a` string fields omitted from output
+- [x] `_to_bids_model` — `None` optional fields omitted from output
+- [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioChannelCount` as int)
 
 ### Multi-spec mode
 
@@ -158,6 +168,8 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] Neither `--spec` nor `--start` provided → error
 - [x] `--lock yes` / `--lock no` → passed to `do_main` correctly
 - [x] `--raw` flag → `raw=True` passed to `do_main`
+- [x] `--sidecar-format bids` → `sidecar_format="bids"` passed to `do_main`
+- [x] `--sidecar-format raw` → `sidecar_format="raw"` passed to `do_main`
 
 ### Coverage targets
 

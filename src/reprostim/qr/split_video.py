@@ -7,6 +7,7 @@ API to split and audit video files recorded by reprostim-videocapture,
 along with their corresponding log files and QR/audio metadata.
 """
 
+import json
 import logging
 import os
 import subprocess
@@ -31,6 +32,13 @@ class BufferPolicy(str, Enum):
 
     STRICT = "strict"
     FLEXIBLE = "flexible"
+
+
+class SidecarFormat(str, Enum):
+    """Format for sidecar JSON output."""
+
+    RAW = "raw"
+    BIDS = "bids"
 
 
 class VideoSegment(BaseModel):
@@ -94,6 +102,53 @@ class SplitResult(BaseModel):
     orig_offset: Optional[float] = None  # Offset of the split segment in seconds
     orig_device: str = "n/a"  # Video-audio capture device name
     orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
+
+
+def _to_bids_model(sr: "SplitResult") -> dict:
+    """Convert SplitResult to a BEP044/BEP047 BIDS sidecar dict.
+
+    Maps SplitResult fields to BIDS metadata field names as defined in
+    the common media file definitions (bids-standard/bids-specification PR #2367).
+
+    :param sr: SplitResult to convert
+    :return: Dict with BIDS-compliant metadata field names
+    """
+    result = {}
+
+    if sr.duration is not None:
+        result["RecordingDuration"] = sr.duration
+
+    if sr.video_frame_rate is not None:
+        result["FrameRate"] = sr.video_frame_rate
+
+    if sr.video_width != "n/a":
+        try:
+            result["Width"] = int(sr.video_width)
+        except (ValueError, TypeError):
+            pass
+
+    if sr.video_height != "n/a":
+        try:
+            result["Height"] = int(sr.video_height)
+        except (ValueError, TypeError):
+            pass
+
+    if sr.audio_codec != "n/a":
+        result["AudioCodec"] = sr.audio_codec
+
+    if sr.audio_sample_rate != "n/a":
+        try:
+            result["AudioSampleRate"] = float(sr.audio_sample_rate)
+        except (ValueError, TypeError):
+            pass
+
+    if sr.audio_channel_count != "n/a":
+        try:
+            result["AudioChannelCount"] = int(sr.audio_channel_count)
+        except (ValueError, TypeError):
+            pass
+
+    return result
 
 
 def _parse_audio_info(audio_info: Optional[str]) -> dict:
@@ -638,19 +693,27 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
 
 
 def _write_sidecar(
-    sidecar_path: str, sr: SplitResult, verbose: bool = False, out_func=print
+    sidecar_path: str,
+    sr: SplitResult,
+    sidecar_format: SidecarFormat = SidecarFormat.BIDS,
+    verbose: bool = False,
+    out_func=print,
 ) -> None:
     """Write sidecar JSON file with split result metadata.
 
     :param sidecar_path: Path to write sidecar JSON file
     :param sr: SplitResult to serialize
+    :param sidecar_format: Output format — BIDS (default) or RAW
     :param verbose: Enable verbose output
     :param out_func: Output function for printing messages
     :raises IOError: If the file cannot be written
     """
     logger.info(f"Writing sidecar JSON to: {sidecar_path}")
     with open(sidecar_path, "w") as f:
-        f.write(sr.model_dump_json(indent=2))
+        if sidecar_format == SidecarFormat.BIDS:
+            f.write(json.dumps(_to_bids_model(sr), indent=2))
+        else:
+            f.write(sr.model_dump_json(indent=2))
         f.write("\n")
     logger.debug("Sidecar JSON file written successfully")
     if verbose:
@@ -693,9 +756,10 @@ def _do_main_specs(
     buffer_after: str | None,
     buffer_policy: str,
     sidecar_json: str | None,
-    video_audit_file: str | None,
-    raw: bool,
-    verbose: bool,
+    sidecar_format: str | None = None,
+    video_audit_file: str | None = None,
+    raw: bool = False,
+    verbose: bool = False,
     lock: bool = True,
     out_func=print,
 ) -> int:
@@ -737,6 +801,7 @@ def _do_main_specs(
     buf_before_sec = _parse_interval_sec(buffer_before)
     buf_after_sec = _parse_interval_sec(buffer_after)
     bp = BufferPolicy(buffer_policy.lower())
+    sf = SidecarFormat((sidecar_format or "bids").lower())
 
     for idx, spec_str in enumerate(specs, start=1):
         try:
@@ -807,7 +872,7 @@ def _do_main_specs(
                     sd.sel_seg.end_ts,
                     sd.sel_seg.duration_sec,
                 )
-                _write_sidecar(sidecar_path, sr, verbose, out_func)
+                _write_sidecar(sidecar_path, sr, sf, verbose, out_func)
 
         except Exception as e:
             msg = f"Spec [{idx}] '{spec_str}': {e}"
@@ -829,6 +894,7 @@ def do_main(
     buffer_after: str | None = None,
     buffer_policy: str = "strict",
     sidecar_json: str | None = None,
+    sidecar_format: str = "bids",
     video_audit_file: str | None = None,
     raw: bool = False,
     verbose: bool = False,
@@ -867,6 +933,9 @@ def do_main(
     sidecar_json : str | None
         Path to write sidecar JSON file with split metadata. If None, no sidecar
         file is created.
+    sidecar_format : str
+        Format for the sidecar JSON. 'bids' (default) uses BEP044/BEP047 field
+        names; 'raw' dumps the SplitResult model directly.
     video_audit_file : str | None
         Path to video audit TSV file. If provided, uses this file instead of
         generating video metadata on-the-fly. Passed to get_file_video_audit
@@ -936,6 +1005,7 @@ def do_main(
             buffer_after=buffer_after,
             buffer_policy=buffer_policy,
             sidecar_json=sidecar_json,
+            sidecar_format=sidecar_format,
             video_audit_file=video_audit_file,
             raw=raw,
             verbose=verbose,

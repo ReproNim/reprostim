@@ -45,6 +45,62 @@ option `--buffer-policy=strict|flexible` so if strict, would error out if buffer
 
 ## Enhancements
 
+### BIDS Sidecar Format (`--sidecar-format`) (Implemented)
+
+Added `--sidecar-format` option and `SidecarFormat` enum to control the JSON schema written
+to the sidecar file.
+
+**Enum values:**
+- `bids` (default): Output uses BEP044/BEP047 field names as defined in
+  [bids-standard/bids-specification PR #2367](https://github.com/bids-standard/bids-specification/pull/2367).
+- `raw`: Output is the raw `SplitResult` model dump (previous behaviour, all `orig_*` fields included).
+
+**`_to_bids_model(sr)` mapping:**
+
+| `SplitResult` field   | BIDS field            | Notes                                |
+|-----------------------|-----------------------|--------------------------------------|
+| `duration`            | `RecordingDuration`   | float seconds                        |
+| `video_frame_rate`    | `FrameRate`           | float Hz                             |
+| `video_width`         | `Width`               | int pixels (parsed from string)      |
+| `video_height`        | `Height`              | int pixels (parsed from string)      |
+| `audio_codec`         | `AudioCodec`          | FFmpeg codec name string             |
+| `audio_sample_rate`   | `AudioSampleRate`     | float Hz (parsed from string)        |
+| `audio_channel_count` | `AudioChannelCount`   | int (parsed from string)             |
+
+Fields with value `"n/a"` or `None` are omitted from the BIDS output.
+
+**Example BIDS sidecar JSON:**
+```json
+{
+  "RecordingDuration": 180.0,
+  "FrameRate": 30.0,
+  "Width": 1920,
+  "Height": 1080,
+  "AudioCodec": "aac",
+  "AudioSampleRate": 48000.0,
+  "AudioChannelCount": 2
+}
+```
+
+**`do_main` / `_do_main_specs` signature change:**
+- Both accept `sidecar_format: str | None = None`; `None` resolves to `"bids"` at call time.
+- `_do_main_specs` converts the string to `SidecarFormat` enum analogously to how
+  `buffer_policy` is converted to `BufferPolicy`.
+
+**`bids_inject` behaviour:**
+- Always passes `sidecar_format="bids"` — the BIDS format is hardcoded, no CLI option exposed.
+
+**Usage:**
+```shell
+# BIDS format (default)
+reprostim split-video --sidecar-json auto --sidecar-format bids -i input.mkv -o output.mkv --spec 17:30:00/PT3M
+
+# Raw legacy format
+reprostim split-video --sidecar-json auto --sidecar-format raw -i input.mkv -o output.mkv --spec 17:30:00/PT3M
+```
+
+
+
 ### Buffer Policy (Implemented)
 
 Added `--buffer-policy` option with two modes:
