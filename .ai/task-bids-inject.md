@@ -46,6 +46,10 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [ ] Filter: skip non-functional scans (those not starting with `func/`)
 - [ ] Filter: skip single-volume acquisitions (4th NIfTI dimension < 2)
 
+### ScanMetadata model
+- [x] `TaskName` — parsed from BIDS JSON sidecar; `None` when absent; excluded from `extra`
+- [x] `FrameAcquisitionDuration`, `AcquisitionTime`, `RepetitionTime`, `NumberOfVolumes` — existing typed fields
+
 ### Scan duration computation
 - [x] Priority 1: `FrameAcquisitionDuration` (ms → seconds)
 - [x] Priority 2: `AcquisitionTime` array — `(t_last − t_first) + TR`
@@ -176,6 +180,11 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `_calc_media_suffix` — audio only → `_audio`
 - [x] `_calc_media_suffix` — both → `_audiovideo`
 - [x] `_calc_media_suffix` — neither → `None`
+- [x] `ScanMetadata.TaskName` — defaults to `None`
+- [x] `ScanMetadata.TaskName` — stores task name string when set
+- [x] `_parse_scan_metadata` — reads `TaskName` from JSON sidecar when present
+- [x] `_parse_scan_metadata` — `TaskName` is `None` when key absent from sidecar
+- [x] `_parse_scan_metadata` — `TaskName` is NOT stored in `extra` (it is a known key)
 - [x] `_calc_scan_duration_sec` — Priority 1: `FrameAcquisitionDuration` (ms → sec)
 - [x] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` array (2+ elements)
 - [x] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` with single element → falls through

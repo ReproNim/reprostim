@@ -587,6 +587,23 @@ wrappers around `dt_convert`.
 
 ---
 
+## ScanMetadata Model
+
+`ScanMetadata` holds fields extracted from the BIDS JSON sidecar (`*_bold.json` etc.).
+Fields promoted to typed attributes (excluded from `extra`):
+
+| Field                    | Type              | Description                                              |
+|--------------------------|-------------------|----------------------------------------------------------|
+| `TaskName`               | `str \| None`     | Task name from the BIDS sidecar (e.g. `"rest"`)          |
+| `FrameAcquisitionDuration` | `float \| None` | Frame acquisition duration in ms (DICOM tag)             |
+| `AcquisitionTime`        | `list[str] \| None` | Per-volume acquisition times (from `time.samples`)     |
+| `RepetitionTime`         | `float \| None`   | TR in seconds                                            |
+| `NumberOfVolumes`        | `int \| None`     | Number of volumes (from NIfTI header or JSON sidecar)    |
+
+All other keys are stored verbatim in `extra`.
+
+---
+
 ## Duration Computation
 
 Priority order for determining scan duration from BIDS JSON sidecars:

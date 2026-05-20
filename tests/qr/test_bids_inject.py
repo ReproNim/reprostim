@@ -17,12 +17,14 @@ from reprostim.qr.bids_inject import (
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
+    ScansModel,
     _calc_bids_output_stem,
     _calc_media_suffix,
     _calc_scan_duration_sec,
     _calc_scan_start_end_ts,
     _find_bids_root,
     _is_scans_file,
+    _parse_scan_metadata,
     do_main,
     dt_bids_to_reprostim,
     dt_bids_to_utc,
@@ -475,6 +477,86 @@ def test_calc_scan_duration_sec_priority3_tr_times_volumes():
 def test_calc_scan_duration_sec_no_metadata_returns_none():
     r = ScanRecord(filename="func/test_bold.nii.gz", acq_time="2025-01-15T12:00:00")
     assert _calc_scan_duration_sec(r) is None
+
+
+# ===========================================================================
+# ScanMetadata.TaskName / _load_scan_metadata
+# ===========================================================================
+
+BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+_BOLD_JSON = (
+    BIDS_FIXTURE
+    / "sub-qa"
+    / "ses-20250814"
+    / "func"
+    / "sub-qa_ses-20250814_task-rest_acq-p2_bold.json"
+)
+_SCANS_TSV = BIDS_FIXTURE / "sub-qa" / "ses-20250814" / "sub-qa_ses-20250814_scans.tsv"
+
+
+def test_scan_metadata_task_name_defaults_to_none():
+    """ScanMetadata.TaskName is None when not provided."""
+    m = ScanMetadata()
+    assert m.TaskName is None
+
+
+def test_scan_metadata_task_name_set():
+    """ScanMetadata.TaskName stores the task name string."""
+    m = ScanMetadata(TaskName="rest")
+    assert m.TaskName == "rest"
+
+
+def test_load_scan_metadata_task_name_present(tmp_path):
+    """_load_scan_metadata reads TaskName from JSON sidecar."""
+    scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    scans_tsv.write_text("filename\tacq_time\n")
+    json_sidecar = tmp_path / "func" / "sub-qa_ses-20250814_task-rest_bold.json"
+    json_sidecar.parent.mkdir()
+    json_sidecar.write_text(
+        '{"TaskName": "rest", "RepetitionTime": 2.0, "NumberOfVolumes": 5}'
+    )
+    record = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+    )
+    model = ScansModel(path=str(scans_tsv), records=[record])
+    meta = _parse_scan_metadata(model, record)
+    assert meta is not None
+    assert meta.TaskName == "rest"
+
+
+def test_load_scan_metadata_task_name_absent(tmp_path):
+    """_parse_scan_metadata sets TaskName to None when key absent from sidecar."""
+    scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    scans_tsv.write_text("filename\tacq_time\n")
+    json_sidecar = tmp_path / "func" / "sub-qa_ses-20250814_task-rest_bold.json"
+    json_sidecar.parent.mkdir()
+    json_sidecar.write_text('{"RepetitionTime": 2.0, "NumberOfVolumes": 5}')
+    record = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+    )
+    model = ScansModel(path=str(scans_tsv), records=[record])
+    meta = _parse_scan_metadata(model, record)
+    assert meta is not None
+    assert meta.TaskName is None
+
+
+def test_load_scan_metadata_task_name_not_in_extra(tmp_path):
+    """TaskName is a known key and must not appear in ScanMetadata.extra."""
+    scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    scans_tsv.write_text("filename\tacq_time\n")
+    json_sidecar = tmp_path / "func" / "sub-qa_ses-20250814_task-rest_bold.json"
+    json_sidecar.parent.mkdir()
+    json_sidecar.write_text('{"TaskName": "rest", "RepetitionTime": 2.0}')
+    record = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+    )
+    model = ScansModel(path=str(scans_tsv), records=[record])
+    meta = _parse_scan_metadata(model, record)
+    assert meta is not None
+    assert "TaskName" not in meta.extra
 
 
 # ===========================================================================

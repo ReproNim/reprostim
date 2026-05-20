@@ -225,6 +225,11 @@ class ScanMetadata(BaseModel):
     3. ``RepetitionTime`` (s) × ``NumberOfVolumes``.
     """
 
+    TaskName: Optional[str] = Field(
+        default=None,
+        description="Name of the task performed during the acquisition "
+        "(BIDS TaskName field).",
+    )
     FrameAcquisitionDuration: Optional[float] = Field(
         default=None,
         description="Total frame acquisition duration in milliseconds (DICOM tag).",
@@ -350,11 +355,13 @@ def _parse_scan_metadata(
     )
 
     known_keys = {
+        "TaskName",
         "FrameAcquisitionDuration",
         "RepetitionTime",
         "NumberOfVolumes",
     }
     return ScanMetadata(
+        TaskName=data.get("TaskName"),
         FrameAcquisitionDuration=data.get("FrameAcquisitionDuration"),
         AcquisitionTime=acq_time_list,
         RepetitionTime=data.get("RepetitionTime"),
