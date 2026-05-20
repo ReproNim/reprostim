@@ -530,6 +530,7 @@ def _make_split_result() -> SplitResult:
         audio_bit_depth="16",
         audio_channel_count="2",
         audio_codec="aac",
+        video_codec="h264",
         orig_buffer_start="17:25:00.000",
         orig_buffer_end="17:38:00.000",
         orig_buffer_offset=1500.0,
@@ -595,6 +596,7 @@ def test_to_bids_model_full_mapping():
     assert data["FrameRate"] == 30.0
     assert data["Width"] == 1920
     assert data["Height"] == 1080
+    assert data["VideoCodec"] == "h264"
     assert data["AudioCodec"] == "aac"
     assert data["AudioSampleRate"] == 48000.0
     assert data["AudioChannelCount"] == 2
@@ -607,6 +609,7 @@ def test_to_bids_model_na_fields_omitted():
         video_frame_rate=25.0,
         video_width="n/a",
         video_height="n/a",
+        video_codec="n/a",
         audio_codec="n/a",
         audio_sample_rate="n/a",
         audio_channel_count="n/a",
@@ -615,6 +618,7 @@ def test_to_bids_model_na_fields_omitted():
 
     assert "Width" not in data
     assert "Height" not in data
+    assert "VideoCodec" not in data
     assert "AudioCodec" not in data
     assert "AudioSampleRate" not in data
     assert "AudioChannelCount" not in data
@@ -650,6 +654,20 @@ def test_to_bids_model_numeric_types():
     assert isinstance(data["AudioChannelCount"], int) and data["AudioChannelCount"] == 1
 
 
+def test_to_bids_model_video_codec_present_when_resolution_known():
+    """VideoCodec is included when video_codec is set (resolution present)."""
+    sr = SplitResult(video_width="1920", video_height="1080", video_codec="h264")
+    data = _to_bids_model(sr)
+    assert data["VideoCodec"] == "h264"
+
+
+def test_to_bids_model_video_codec_absent_when_na():
+    """VideoCodec is omitted when video_codec is 'n/a' (no video stream)."""
+    sr = SplitResult(video_width="n/a", video_height="n/a", video_codec="n/a")
+    data = _to_bids_model(sr)
+    assert "VideoCodec" not in data
+
+
 def test_to_bids_model_no_raw_fields():
     """BIDS output contains no raw SplitResult field names."""
     sr = _make_split_result()
@@ -659,6 +677,7 @@ def test_to_bids_model_no_raw_fields():
         "video_frame_rate",
         "video_width",
         "video_height",
+        "video_codec",
         "audio_codec",
         "audio_sample_rate",
         "audio_channel_count",

@@ -92,6 +92,7 @@ class SplitResult(BaseModel):
     audio_bit_depth: str = "n/a"  # Audio bit depth (hardcoded to '16')
     audio_channel_count: str = "n/a"  # Number of audio channels (e.g., '2')
     audio_codec: str = "n/a"  # Audio codec name (e.g., 'aac')
+    video_codec: str = "n/a"  # Video codec name (e.g., 'h264')
     # orig_ prefixed fields at the end - describe original video timing
     #  context (BIDS compliance)
     orig_buffer_start: str = "n/a"  # Start time of the buffer in ISO 8601 format
@@ -132,6 +133,9 @@ def _to_bids_model(sr: "SplitResult") -> dict:
             result["Height"] = int(sr.video_height)
         except (ValueError, TypeError):
             pass
+
+    if sr.video_codec != "n/a":
+        result["VideoCodec"] = sr.video_codec
 
     if sr.audio_codec != "n/a":
         result["AudioCodec"] = sr.audio_codec
@@ -647,6 +651,7 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
             else "n/a"
         ),
         video_frame_rate=sd.fps,
+        video_codec="h264" if sd.resolution and sd.resolution != "n/a" else "n/a",
         **_parse_audio_info(sd.audio_sr),
         orig_device=sd.device,
         orig_device_serial_number=sd.device_serial_number,

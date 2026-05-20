@@ -57,17 +57,23 @@ to the sidecar file.
 
 **`_to_bids_model(sr)` mapping:**
 
-| `SplitResult` field   | BIDS field            | Notes                                |
-|-----------------------|-----------------------|--------------------------------------|
-| `duration`            | `RecordingDuration`   | float seconds                        |
-| `video_frame_rate`    | `FrameRate`           | float Hz                             |
-| `video_width`         | `Width`               | int pixels (parsed from string)      |
-| `video_height`        | `Height`              | int pixels (parsed from string)      |
-| `audio_codec`         | `AudioCodec`          | FFmpeg codec name string             |
-| `audio_sample_rate`   | `AudioSampleRate`     | float Hz (parsed from string)        |
-| `audio_channel_count` | `AudioChannelCount`   | int (parsed from string)             |
+| `SplitResult` field   | BIDS field            | Notes                                                      |
+|-----------------------|-----------------------|------------------------------------------------------------|
+| `duration`            | `RecordingDuration`   | float seconds                                              |
+| `video_frame_rate`    | `FrameRate`           | float Hz                                                   |
+| `video_width`         | `Width`               | int pixels (parsed from string)                            |
+| `video_height`        | `Height`              | int pixels (parsed from string)                            |
+| `video_codec`         | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
+| `audio_codec`         | `AudioCodec`          | FFmpeg codec name string                                   |
+| `audio_sample_rate`   | `AudioSampleRate`     | float Hz (parsed from string)                              |
+| `audio_channel_count` | `AudioChannelCount`   | int (parsed from string)                                   |
 
 Fields with value `"n/a"` or `None` are omitted from the BIDS output.
+
+**`video_codec` inference:** `SplitResult.video_codec` is set to `"h264"` whenever a valid
+video resolution is detected, reflecting that reprostim-videocapture encodes with
+`-c:v libx264`. When no video stream is present (`resolution` is `"n/a"`), it remains `"n/a"`
+and `VideoCodec` is omitted from the BIDS sidecar.
 
 **Example BIDS sidecar JSON:**
 ```json
@@ -76,6 +82,7 @@ Fields with value `"n/a"` or `None` are omitted from the BIDS output.
   "FrameRate": 30.0,
   "Width": 1920,
   "Height": 1080,
+  "VideoCodec": "h264",
   "AudioCodec": "aac",
   "AudioSampleRate": 48000.0,
   "AudioChannelCount": 2

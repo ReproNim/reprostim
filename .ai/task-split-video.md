@@ -61,6 +61,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] `_write_sidecar` — serialise `SplitResult` to JSON file (BIDS or raw format)
 - [x] `SidecarFormat` enum — `bids` (default) / `raw`
 - [x] `_to_bids_model` — convert `SplitResult` to BEP044/BEP047 BIDS sidecar dict
+- [x] `SplitResult.video_codec` — new field; set to `"h264"` when resolution present (reprostim uses `-c:v libx264`)
 - [x] `auto` / flag-only → `<output>.split-video.jsonl`
 - [x] Explicit path → use that path (treated as template in multi-spec mode)
 - [x] `none` / not specified → no sidecar created
@@ -83,8 +84,8 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] Fields: `buffer_before`, `buffer_after`, `orig_buffer_start`, `orig_buffer_end`,
       `buffer_duration`, `orig_buffer_offset`, `orig_start`, `orig_end`, `duration`,
       `orig_offset`, `video_width`, `video_height`, `video_frame_rate`, `video_size_mb`,
-      `video_rate_mbpm`, `audio_sample_rate`, `audio_bit_depth`, `audio_channel_count`,
-      `audio_codec`, `orig_device`, `orig_device_serial_number`
+      `video_rate_mbpm`, `video_codec`, `audio_sample_rate`, `audio_bit_depth`,
+      `audio_channel_count`, `audio_codec`, `orig_device`, `orig_device_serial_number`
 - [x] No absolute dates stored; times only (ISO 8601 time without date)
 
 ---
@@ -142,6 +143,8 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_to_bids_model` — `n/a` string fields omitted from output
 - [x] `_to_bids_model` — `None` optional fields omitted from output
 - [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioChannelCount` as int)
+- [x] `_to_bids_model` — `VideoCodec` present when `video_codec="h264"` (resolution known)
+- [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
 
 ### Multi-spec mode
 
