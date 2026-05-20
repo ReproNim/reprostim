@@ -772,6 +772,10 @@ def _call_split_video(
         if ctx.out_func:
             ctx.out_func(msg)
 
+    sidecar_metadata: dict = {}
+    if record.metadata and record.metadata.TaskName:
+        sidecar_metadata["TaskName"] = record.metadata.TaskName
+
     ret = split_video_main(
         input_path=input_path,
         output_path=output_path,
@@ -782,6 +786,7 @@ def _call_split_video(
         buffer_policy=ctx.buffer_policy,
         sidecar_json=sidecar_path,
         sidecar_format=SidecarFormat.BIDS,
+        sidecar_metadata=sidecar_metadata,
         video_audit_file=ctx.videos_tsv,
         lock=ctx.lock,
         verbose=ctx.verbose,

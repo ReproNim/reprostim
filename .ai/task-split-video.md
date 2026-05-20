@@ -59,8 +59,11 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 ### Sidecar JSON
 - [x] `_resolve_sidecar_path` — derive sidecar path from output path and `--sidecar-json` value
 - [x] `_write_sidecar` — serialise `SplitResult` to JSON file (BIDS or raw format)
+- [x] `_write_sidecar` — accepts `sidecar_metadata: dict | None`; passed to `_to_bids_model`
 - [x] `SidecarFormat` enum — `bids` (default) / `raw`
 - [x] `_to_bids_model` — convert `SplitResult` to BEP044/BEP047 BIDS sidecar dict
+- [x] `_to_bids_model` — accepts `sidecar_metadata: dict | None = None`
+- [x] `_to_bids_model` — `TaskName` from `sidecar_metadata` written as **first** field when present
 - [x] `SplitResult.video_codec` — new field; set to `"h264"` when resolution present (reprostim uses `-c:v libx264`)
 - [x] `auto` / flag-only → `<output>.split-video.jsonl`
 - [x] Explicit path → use that path (treated as template in multi-spec mode)
@@ -71,6 +74,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 ### Entry point (`do_main`)
 - [x] Dispatch to `_do_main_specs` when `--spec` provided
 - [x] Legacy path: `--start` + (`--duration` or `--end`)
+- [x] `sidecar_metadata: dict | None = None` — forwarded to `_do_main_specs`
 
 ---
 
@@ -149,6 +153,11 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
 - [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` emitted alongside `VideoCodec` as placeholder (no `SplitResult` field; resolved internally)
 - [x] `_to_bids_model` — `AudioCodecRFC6381: "n/a"` emitted alongside `AudioCodec` as placeholder (no `SplitResult` field; resolved internally)
+- [x] `_to_bids_model` — `TaskName` first field when `sidecar_metadata["TaskName"]` set
+- [x] `_to_bids_model` — `TaskName` absent when `sidecar_metadata` is `None` or empty
+- [x] `_to_bids_model` — `TaskName` precedes `Device` in field order
+- [x] `_write_sidecar` — `sidecar_metadata` threaded through to BIDS output (`TaskName` as first key)
+- [x] `do_main` — `sidecar_metadata` forwarded to `_do_main_specs`
 - [ ] `_to_bids_model` — populate `VideoCodecRFC6381` / `AudioCodecRFC6381` from ffprobe output (future work)
 
 ### Multi-spec mode

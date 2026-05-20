@@ -55,10 +55,22 @@ to the sidecar file.
   [bids-standard/bids-specification PR #2367](https://github.com/bids-standard/bids-specification/pull/2367).
 - `raw`: Output is the raw `SplitResult` model dump (previous behaviour, all `orig_*` fields included).
 
-**`_to_bids_model(sr)` mapping:**
+**`_to_bids_model(sr, sidecar_metadata)` signature:**
 
-| `SplitResult` field          | BIDS field            | Notes                                                      |
+```python
+def _to_bids_model(sr: SplitResult, sidecar_metadata: dict | None = None) -> dict
+```
+
+The optional `sidecar_metadata` dict allows callers to inject extra BIDS fields.
+Currently the only recognised key is `TaskName`; when present it is written as the
+**first** field in the output dict (before `Device`/`DeviceSerialNumber`).
+`bids_inject` populates this from `ScanMetadata.TaskName` at call time.
+
+**`_to_bids_model` field mapping (in output order):**
+
+| Source                       | BIDS field            | Notes                                                      |
 |------------------------------|-----------------------|------------------------------------------------------------|
+| `sidecar_metadata["TaskName"]` | `TaskName`          | First field; omitted when not in `sidecar_metadata`        |
 | `orig_device`                | `Device`              | Capture device name; omitted when `"n/a"`                  |
 | `orig_device_serial_number`  | `DeviceSerialNumber`  | Capture device serial number; omitted when `"n/a"`         |
 | `duration`                   | `RecordingDuration`   | float seconds                                              |
@@ -87,9 +99,10 @@ Exact values require `ffprobe` to read the encoded profile/level from the output
 Both fields are set purely inside `_to_bids_model`; no corresponding fields in `SplitResult`.
 A future enhancement can populate them via ffprobe after the split.
 
-**Example BIDS sidecar JSON:**
+**Example BIDS sidecar JSON (with TaskName from bids_inject):**
 ```json
 {
+  "TaskName": "rest",
   "Device": "Magewell USB Capture HDMI 4K Plus",
   "DeviceSerialNumber": "D321220101234",
   "RecordingDuration": 180.0,
@@ -106,13 +119,16 @@ A future enhancement can populate them via ffprobe after the split.
 }
 ```
 
-**`do_main` / `_do_main_specs` signature change:**
-- Both accept `sidecar_format: str | None = None`; `None` resolves to `"bids"` at call time.
+**`do_main` / `_do_main_specs` / `_write_sidecar` signature:**
+- All accept `sidecar_format: str | None = None`; `None` resolves to `"bids"` at call time.
+- All accept `sidecar_metadata: dict | None = None`; passed through to `_to_bids_model`.
 - `_do_main_specs` converts the string to `SidecarFormat` enum analogously to how
   `buffer_policy` is converted to `BufferPolicy`.
 
 **`bids_inject` behaviour:**
 - Always passes `sidecar_format="bids"` — the BIDS format is hardcoded, no CLI option exposed.
+- Builds `sidecar_metadata = {"TaskName": record.metadata.TaskName}` when `TaskName` is set,
+  otherwise passes an empty dict `{}`.
 
 **Usage:**
 ```shell

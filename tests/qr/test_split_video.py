@@ -704,6 +704,38 @@ def test_to_bids_model_no_raw_fields():
         assert key not in data, f"Raw field '{key}' should not appear in BIDS output"
 
 
+def test_to_bids_model_task_name_first_field():
+    """TaskName from sidecar_metadata is output as the first field in BIDS JSON."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata={"TaskName": "rest"})
+    assert data["TaskName"] == "rest"
+    keys = list(data.keys())
+    assert keys[0] == "TaskName", f"TaskName must be the first key, got: {keys}"
+
+
+def test_to_bids_model_task_name_absent_when_not_in_metadata():
+    """TaskName is absent when sidecar_metadata does not contain it."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata={})
+    assert "TaskName" not in data
+
+
+def test_to_bids_model_task_name_absent_when_metadata_is_none():
+    """TaskName is absent when sidecar_metadata is None."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata=None)
+    assert "TaskName" not in data
+
+
+def test_to_bids_model_task_name_first_before_device():
+    """TaskName precedes Device in field order when both are present."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata={"TaskName": "faces"})
+    keys = list(data.keys())
+    assert "TaskName" in keys and "Device" in keys
+    assert keys.index("TaskName") < keys.index("Device")
+
+
 # ===========================================================================
 # _write_sidecar — format variants
 # ===========================================================================
@@ -758,6 +790,26 @@ def test_write_sidecar_raw_format():
         assert "video_frame_rate" in data
         assert "audio_codec" in data
         assert "RecordingDuration" not in data
+    finally:
+        os.unlink(tmp_path)
+
+
+def test_write_sidecar_bids_with_sidecar_metadata():
+    """sidecar_metadata is threaded through to BIDS output (TaskName as first key)."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+    try:
+        _write_sidecar(
+            tmp_path,
+            sr,
+            SidecarFormat.BIDS,
+            sidecar_metadata={"TaskName": "memory"},
+        )
+        with open(tmp_path) as f:
+            data = json.load(f)
+        assert data["TaskName"] == "memory"
+        assert list(data.keys())[0] == "TaskName"
     finally:
         os.unlink(tmp_path)
 
@@ -1304,6 +1356,20 @@ def test_do_main_value_error_from_specs_returns_5():
         )
     assert result == 5
     assert any("ERROR" in m for m in messages)
+
+
+def test_do_main_sidecar_metadata_passed_to_do_main_specs():
+    """do_main forwards sidecar_metadata to _do_main_specs."""
+    meta = {"TaskName": "nback"}
+    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
+        do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            start_time="2024-02-02T17:30:00",
+            duration="PT3M",
+            sidecar_metadata=meta,
+        )
+    assert mock_dms.call_args.kwargs.get("sidecar_metadata") == meta
 
 
 # ===========================================================================

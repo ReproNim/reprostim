@@ -105,16 +105,23 @@ class SplitResult(BaseModel):
     orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
 
 
-def _to_bids_model(sr: "SplitResult") -> dict:
+def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> dict:
     """Convert SplitResult to a BEP044/BEP047 BIDS sidecar dict.
 
     Maps SplitResult fields to BIDS metadata field names as defined in
     the common media file definitions (bids-standard/bids-specification PR #2367).
 
     :param sr: SplitResult to convert
+    :param sidecar_metadata: Optional dict with extra BIDS fields to inject.
+        Currently supports ``TaskName`` (written as the first field when present).
     :return: Dict with BIDS-compliant metadata field names
     """
     result = {}
+
+    if sidecar_metadata:
+        task_name = sidecar_metadata.get("TaskName")
+        if task_name:
+            result["TaskName"] = task_name
 
     if sr.orig_device != "n/a":
         result["Device"] = sr.orig_device
@@ -715,6 +722,7 @@ def _write_sidecar(
     sidecar_path: str,
     sr: SplitResult,
     sidecar_format: SidecarFormat = SidecarFormat.BIDS,
+    sidecar_metadata: dict | None = None,
     verbose: bool = False,
     out_func=print,
 ) -> None:
@@ -723,6 +731,8 @@ def _write_sidecar(
     :param sidecar_path: Path to write sidecar JSON file
     :param sr: SplitResult to serialize
     :param sidecar_format: Output format — BIDS (default) or RAW
+    :param sidecar_metadata: Optional extra BIDS fields (e.g. ``TaskName``) to
+        inject into the BIDS sidecar.  Ignored in RAW format.
     :param verbose: Enable verbose output
     :param out_func: Output function for printing messages
     :raises IOError: If the file cannot be written
@@ -730,7 +740,7 @@ def _write_sidecar(
     logger.info(f"Writing sidecar JSON to: {sidecar_path}")
     with open(sidecar_path, "w") as f:
         if sidecar_format == SidecarFormat.BIDS:
-            f.write(json.dumps(_to_bids_model(sr), indent=2))
+            f.write(json.dumps(_to_bids_model(sr, sidecar_metadata), indent=2))
         else:
             f.write(sr.model_dump_json(indent=2))
         f.write("\n")
@@ -776,6 +786,7 @@ def _do_main_specs(
     buffer_policy: str,
     sidecar_json: str | None,
     sidecar_format: str | None = None,
+    sidecar_metadata: dict | None = None,
     video_audit_file: str | None = None,
     raw: bool = False,
     verbose: bool = False,
@@ -891,7 +902,9 @@ def _do_main_specs(
                     sd.sel_seg.end_ts,
                     sd.sel_seg.duration_sec,
                 )
-                _write_sidecar(sidecar_path, sr, sf, verbose, out_func)
+                _write_sidecar(
+                    sidecar_path, sr, sf, sidecar_metadata, verbose, out_func
+                )
 
         except Exception as e:
             msg = f"Spec [{idx}] '{spec_str}': {e}"
@@ -914,6 +927,7 @@ def do_main(
     buffer_policy: str = "strict",
     sidecar_json: str | None = None,
     sidecar_format: str = "bids",
+    sidecar_metadata: dict | None = None,
     video_audit_file: str | None = None,
     raw: bool = False,
     verbose: bool = False,
@@ -955,6 +969,9 @@ def do_main(
     sidecar_format : str
         Format for the sidecar JSON. 'bids' (default) uses BEP044/BEP047 field
         names; 'raw' dumps the SplitResult model directly.
+    sidecar_metadata : dict | None
+        Optional dict with extra BIDS fields to inject into the BIDS sidecar
+        (e.g. ``{"TaskName": "rest"}``).  Ignored in RAW format.
     video_audit_file : str | None
         Path to video audit TSV file. If provided, uses this file instead of
         generating video metadata on-the-fly. Passed to get_file_video_audit
@@ -1025,6 +1042,7 @@ def do_main(
             buffer_policy=buffer_policy,
             sidecar_json=sidecar_json,
             sidecar_format=sidecar_format,
+            sidecar_metadata=sidecar_metadata,
             video_audit_file=video_audit_file,
             raw=raw,
             verbose=verbose,

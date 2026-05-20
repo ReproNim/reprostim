@@ -78,6 +78,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] ReproIn `__dup-XX` suffix preserved in output filename
 - [x] Media suffix determination (`_video` / `_audio` / `_audiovideo`) from `videos.tsv`
 - [x] Delegate to `split-video` Python API (`do_main`)
+- [x] Build `sidecar_metadata` dict from `record.metadata.TaskName` and pass to `do_main`
 
 ### Dry-run mode
 - [x] Skip `split-video` call and file writes when `--dry-run`
@@ -225,6 +226,11 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `always` + existing output → 1 injected, files not pre-removed
 - [x] `error` + existing output → exit 1, 1 error, error detail in verbose output
 - [x] `error` + no existing output → 1 injected (normal path)
+
+### sidecar_metadata propagation tests
+
+- [x] `_call_split_video` passes `sidecar_metadata` with `TaskName` from `record.metadata` to `split-video` `do_main`
+- [x] `_call_split_video` passes empty `sidecar_metadata` when `TaskName` is absent from sidecar JSON
 
 ### CLI tests (Click `CliRunner`)
 
