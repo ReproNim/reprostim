@@ -64,6 +64,7 @@ to the sidecar file.
 | `video_width`         | `Width`               | int pixels (parsed from string)                            |
 | `video_height`        | `Height`              | int pixels (parsed from string)                            |
 | `video_codec`         | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
+| *(internal)*          | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
 | `audio_codec`         | `AudioCodec`          | FFmpeg codec name string                                   |
 | `audio_sample_rate`   | `AudioSampleRate`     | float Hz (parsed from string)                              |
 | `audio_channel_count` | `AudioChannelCount`   | int (parsed from string)                                   |
@@ -74,6 +75,12 @@ Fields with value `"n/a"` or `None` are omitted from the BIDS output.
 video resolution is detected, reflecting that reprostim-videocapture encodes with
 `-c:v libx264`. When no video stream is present (`resolution` is `"n/a"`), it remains `"n/a"`
 and `VideoCodec` is omitted from the BIDS sidecar.
+
+**`VideoCodecRFC6381`:** Emitted alongside `VideoCodec` as `"n/a"` — a placeholder indicating
+the RFC 6381 codec string (e.g. `avc1.640028` for H.264 High Profile Level 4.0) is not yet
+resolved. Exact value requires `ffprobe` to read the encoded profile/level from the output
+file. This field is set purely inside `_to_bids_model`; no corresponding field in `SplitResult`.
+A future enhancement can populate it via ffprobe after the split.
 
 **Example BIDS sidecar JSON:**
 ```json

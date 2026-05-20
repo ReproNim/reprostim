@@ -597,6 +597,7 @@ def test_to_bids_model_full_mapping():
     assert data["Width"] == 1920
     assert data["Height"] == 1080
     assert data["VideoCodec"] == "h264"
+    assert data["VideoCodecRFC6381"] == "n/a"
     assert data["AudioCodec"] == "aac"
     assert data["AudioSampleRate"] == 48000.0
     assert data["AudioChannelCount"] == 2
@@ -655,10 +656,11 @@ def test_to_bids_model_numeric_types():
 
 
 def test_to_bids_model_video_codec_present_when_resolution_known():
-    """VideoCodec is included when video_codec is set (resolution present)."""
+    """VideoCodec and VideoCodecRFC6381 are included when video_codec is set."""
     sr = SplitResult(video_width="1920", video_height="1080", video_codec="h264")
     data = _to_bids_model(sr)
     assert data["VideoCodec"] == "h264"
+    assert data["VideoCodecRFC6381"] == "n/a"
 
 
 def test_to_bids_model_video_codec_absent_when_na():

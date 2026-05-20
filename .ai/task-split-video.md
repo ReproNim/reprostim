@@ -145,6 +145,8 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioChannelCount` as int)
 - [x] `_to_bids_model` — `VideoCodec` present when `video_codec="h264"` (resolution known)
 - [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
+- [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` emitted alongside `VideoCodec` as placeholder (no `SplitResult` field; resolved internally)
+- [ ] `_to_bids_model` — populate `VideoCodecRFC6381` from ffprobe output (future work)
 
 ### Multi-spec mode
 

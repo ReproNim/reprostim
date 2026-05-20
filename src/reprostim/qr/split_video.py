@@ -136,6 +136,7 @@ def _to_bids_model(sr: "SplitResult") -> dict:
 
     if sr.video_codec != "n/a":
         result["VideoCodec"] = sr.video_codec
+        result["VideoCodecRFC6381"] = "n/a"
 
     if sr.audio_codec != "n/a":
         result["AudioCodec"] = sr.audio_codec
