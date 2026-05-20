@@ -119,6 +119,10 @@ def _to_bids_model(sr: "SplitResult") -> dict:
     if sr.duration is not None:
         result["RecordingDuration"] = sr.duration
 
+    if sr.video_codec != "n/a":
+        result["VideoCodec"] = sr.video_codec
+        result["VideoCodecRFC6381"] = "n/a"
+
     if sr.video_frame_rate is not None:
         result["FrameRate"] = sr.video_frame_rate
 
@@ -134,12 +138,9 @@ def _to_bids_model(sr: "SplitResult") -> dict:
         except (ValueError, TypeError):
             pass
 
-    if sr.video_codec != "n/a":
-        result["VideoCodec"] = sr.video_codec
-        result["VideoCodecRFC6381"] = "n/a"
-
     if sr.audio_codec != "n/a":
         result["AudioCodec"] = sr.audio_codec
+        result["AudioCodecRFC6381"] = "n/a"
 
     if sr.audio_sample_rate != "n/a":
         try:

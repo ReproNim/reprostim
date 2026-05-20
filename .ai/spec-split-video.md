@@ -66,6 +66,7 @@ to the sidecar file.
 | `video_codec`         | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
 | *(internal)*          | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
 | `audio_codec`         | `AudioCodec`          | FFmpeg codec name string                                   |
+| *(internal)*          | `AudioCodecRFC6381`   | Always `"n/a"` when `AudioCodec` present; placeholder until ffprobe integration |
 | `audio_sample_rate`   | `AudioSampleRate`     | float Hz (parsed from string)                              |
 | `audio_channel_count` | `AudioChannelCount`   | int (parsed from string)                                   |
 
@@ -76,21 +77,24 @@ video resolution is detected, reflecting that reprostim-videocapture encodes wit
 `-c:v libx264`. When no video stream is present (`resolution` is `"n/a"`), it remains `"n/a"`
 and `VideoCodec` is omitted from the BIDS sidecar.
 
-**`VideoCodecRFC6381`:** Emitted alongside `VideoCodec` as `"n/a"` — a placeholder indicating
-the RFC 6381 codec string (e.g. `avc1.640028` for H.264 High Profile Level 4.0) is not yet
-resolved. Exact value requires `ffprobe` to read the encoded profile/level from the output
-file. This field is set purely inside `_to_bids_model`; no corresponding field in `SplitResult`.
-A future enhancement can populate it via ffprobe after the split.
+**`VideoCodecRFC6381` / `AudioCodecRFC6381`:** Each is emitted alongside its FFmpeg-name
+counterpart as `"n/a"` — a placeholder indicating the RFC 6381 codec string is not yet
+resolved. Examples: `avc1.640028` (H.264 High Profile Level 4.0), `mp4a.40.2` (AAC-LC).
+Exact values require `ffprobe` to read the encoded profile/level from the output file.
+Both fields are set purely inside `_to_bids_model`; no corresponding fields in `SplitResult`.
+A future enhancement can populate them via ffprobe after the split.
 
 **Example BIDS sidecar JSON:**
 ```json
 {
   "RecordingDuration": 180.0,
+  "VideoCodec": "h264",
+  "VideoCodecRFC6381": "n/a",
   "FrameRate": 30.0,
   "Width": 1920,
   "Height": 1080,
-  "VideoCodec": "h264",
   "AudioCodec": "aac",
+  "AudioCodecRFC6381": "n/a",
   "AudioSampleRate": 48000.0,
   "AudioChannelCount": 2
 }

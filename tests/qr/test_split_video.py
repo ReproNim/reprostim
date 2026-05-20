@@ -599,6 +599,7 @@ def test_to_bids_model_full_mapping():
     assert data["VideoCodec"] == "h264"
     assert data["VideoCodecRFC6381"] == "n/a"
     assert data["AudioCodec"] == "aac"
+    assert data["AudioCodecRFC6381"] == "n/a"
     assert data["AudioSampleRate"] == 48000.0
     assert data["AudioChannelCount"] == 2
 
