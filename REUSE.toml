@@ -5,6 +5,7 @@ path = [
     ".ai/**",
     ".github/**",
     "*.md",
+    "*.cff",
     "*.toml",
     "docs/**",
     "containers/**",
