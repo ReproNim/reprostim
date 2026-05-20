@@ -592,15 +592,18 @@ def test_to_bids_model_full_mapping():
     sr = _make_split_result()
     data = _to_bids_model(sr)
 
+    assert data["Device"] == "TestDevice"
+    assert data["DeviceSerialNumber"] == "SN-12345"
     assert data["RecordingDuration"] == 180.0
+    assert data["VideoCodec"] == "h264"
+    assert data["VideoCodecRFC6381"] == "n/a"
     assert data["FrameRate"] == 30.0
     assert data["Width"] == 1920
     assert data["Height"] == 1080
-    assert data["VideoCodec"] == "h264"
-    assert data["VideoCodecRFC6381"] == "n/a"
     assert data["AudioCodec"] == "aac"
     assert data["AudioCodecRFC6381"] == "n/a"
     assert data["AudioSampleRate"] == 48000.0
+    assert data["AudioBitDepth"] == 16
     assert data["AudioChannelCount"] == 2
 
 
@@ -614,15 +617,21 @@ def test_to_bids_model_na_fields_omitted():
         video_codec="n/a",
         audio_codec="n/a",
         audio_sample_rate="n/a",
+        audio_bit_depth="n/a",
         audio_channel_count="n/a",
+        orig_device="n/a",
+        orig_device_serial_number="n/a",
     )
     data = _to_bids_model(sr)
 
+    assert "Device" not in data
+    assert "DeviceSerialNumber" not in data
     assert "Width" not in data
     assert "Height" not in data
     assert "VideoCodec" not in data
     assert "AudioCodec" not in data
     assert "AudioSampleRate" not in data
+    assert "AudioBitDepth" not in data
     assert "AudioChannelCount" not in data
     assert data["RecordingDuration"] == 60.0
     assert data["FrameRate"] == 25.0
@@ -683,7 +692,10 @@ def test_to_bids_model_no_raw_fields():
         "video_codec",
         "audio_codec",
         "audio_sample_rate",
+        "audio_bit_depth",
         "audio_channel_count",
+        "orig_device",
+        "orig_device_serial_number",
         "orig_start",
         "orig_end",
         "orig_buffer_start",

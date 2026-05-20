@@ -116,6 +116,12 @@ def _to_bids_model(sr: "SplitResult") -> dict:
     """
     result = {}
 
+    if sr.orig_device != "n/a":
+        result["Device"] = sr.orig_device
+
+    if sr.orig_device_serial_number != "n/a":
+        result["DeviceSerialNumber"] = sr.orig_device_serial_number
+
     if sr.duration is not None:
         result["RecordingDuration"] = sr.duration
 
@@ -145,6 +151,12 @@ def _to_bids_model(sr: "SplitResult") -> dict:
     if sr.audio_sample_rate != "n/a":
         try:
             result["AudioSampleRate"] = float(sr.audio_sample_rate)
+        except (ValueError, TypeError):
+            pass
+
+    if sr.audio_bit_depth != "n/a":
+        try:
+            result["AudioBitDepth"] = int(sr.audio_bit_depth)
         except (ValueError, TypeError):
             pass
 

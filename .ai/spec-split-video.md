@@ -57,18 +57,21 @@ to the sidecar file.
 
 **`_to_bids_model(sr)` mapping:**
 
-| `SplitResult` field   | BIDS field            | Notes                                                      |
-|-----------------------|-----------------------|------------------------------------------------------------|
-| `duration`            | `RecordingDuration`   | float seconds                                              |
-| `video_frame_rate`    | `FrameRate`           | float Hz                                                   |
-| `video_width`         | `Width`               | int pixels (parsed from string)                            |
-| `video_height`        | `Height`              | int pixels (parsed from string)                            |
-| `video_codec`         | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
-| *(internal)*          | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
-| `audio_codec`         | `AudioCodec`          | FFmpeg codec name string                                   |
-| *(internal)*          | `AudioCodecRFC6381`   | Always `"n/a"` when `AudioCodec` present; placeholder until ffprobe integration |
-| `audio_sample_rate`   | `AudioSampleRate`     | float Hz (parsed from string)                              |
-| `audio_channel_count` | `AudioChannelCount`   | int (parsed from string)                                   |
+| `SplitResult` field          | BIDS field            | Notes                                                      |
+|------------------------------|-----------------------|------------------------------------------------------------|
+| `orig_device`                | `Device`              | Capture device name; omitted when `"n/a"`                  |
+| `orig_device_serial_number`  | `DeviceSerialNumber`  | Capture device serial number; omitted when `"n/a"`         |
+| `duration`                   | `RecordingDuration`   | float seconds                                              |
+| `video_codec`                | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
+| *(internal)*                 | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
+| `video_frame_rate`           | `FrameRate`           | float Hz                                                   |
+| `video_width`                | `Width`               | int pixels (parsed from string)                            |
+| `video_height`               | `Height`              | int pixels (parsed from string)                            |
+| `audio_codec`                | `AudioCodec`          | FFmpeg codec name string                                   |
+| *(internal)*                 | `AudioCodecRFC6381`   | Always `"n/a"` when `AudioCodec` present; placeholder until ffprobe integration |
+| `audio_sample_rate`          | `AudioSampleRate`     | float Hz (parsed from string)                              |
+| `audio_bit_depth`            | `AudioBitDepth`       | int bits (parsed from string, e.g. `"16"` → `16`)         |
+| `audio_channel_count`        | `AudioChannelCount`   | int (parsed from string)                                   |
 
 Fields with value `"n/a"` or `None` are omitted from the BIDS output.
 
@@ -87,6 +90,8 @@ A future enhancement can populate them via ffprobe after the split.
 **Example BIDS sidecar JSON:**
 ```json
 {
+  "Device": "Magewell USB Capture HDMI 4K Plus",
+  "DeviceSerialNumber": "D321220101234",
   "RecordingDuration": 180.0,
   "VideoCodec": "h264",
   "VideoCodecRFC6381": "n/a",
@@ -96,6 +101,7 @@ A future enhancement can populate them via ffprobe after the split.
   "AudioCodec": "aac",
   "AudioCodecRFC6381": "n/a",
   "AudioSampleRate": 48000.0,
+  "AudioBitDepth": 16,
   "AudioChannelCount": 2
 }
 ```

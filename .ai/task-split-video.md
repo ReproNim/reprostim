@@ -142,7 +142,9 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_to_bids_model` — full mapping: all populated fields produce correct BIDS keys
 - [x] `_to_bids_model` — `n/a` string fields omitted from output
 - [x] `_to_bids_model` — `None` optional fields omitted from output
-- [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioChannelCount` as int)
+- [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioBitDepth` as int, `AudioChannelCount` as int)
+- [x] `_to_bids_model` — `Device` / `DeviceSerialNumber` from `orig_device` / `orig_device_serial_number` (at start of output)
+- [x] `_to_bids_model` — `AudioBitDepth` after `AudioSampleRate`
 - [x] `_to_bids_model` — `VideoCodec` present when `video_codec="h264"` (resolution known)
 - [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
 - [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` emitted alongside `VideoCodec` as placeholder (no `SplitResult` field; resolved internally)
