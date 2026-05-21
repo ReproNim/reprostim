@@ -225,6 +225,11 @@ class ScanMetadata(BaseModel):
     3. ``RepetitionTime`` (s) × ``NumberOfVolumes``.
     """
 
+    TaskName: Optional[str] = Field(
+        default=None,
+        description="Name of the task performed during the acquisition "
+        "(BIDS TaskName field).",
+    )
     FrameAcquisitionDuration: Optional[float] = Field(
         default=None,
         description="Total frame acquisition duration in milliseconds (DICOM tag).",
@@ -350,11 +355,13 @@ def _parse_scan_metadata(
     )
 
     known_keys = {
+        "TaskName",
         "FrameAcquisitionDuration",
         "RepetitionTime",
         "NumberOfVolumes",
     }
     return ScanMetadata(
+        TaskName=data.get("TaskName"),
         FrameAcquisitionDuration=data.get("FrameAcquisitionDuration"),
         AcquisitionTime=acq_time_list,
         RepetitionTime=data.get("RepetitionTime"),
@@ -754,6 +761,7 @@ def _call_split_video(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
+    from reprostim.qr.split_video import SidecarFormat
     from reprostim.qr.split_video import do_main as split_video_main
 
     captured_errors: List[str] = []
@@ -764,6 +772,10 @@ def _call_split_video(
         if ctx.out_func:
             ctx.out_func(msg)
 
+    sidecar_metadata: dict = {}
+    if record.metadata and record.metadata.TaskName:
+        sidecar_metadata["TaskName"] = record.metadata.TaskName
+
     ret = split_video_main(
         input_path=input_path,
         output_path=output_path,
@@ -773,6 +785,8 @@ def _call_split_video(
         buffer_after=ctx.buffer_after,
         buffer_policy=ctx.buffer_policy,
         sidecar_json=sidecar_path,
+        sidecar_format=SidecarFormat.BIDS,
+        sidecar_metadata=sidecar_metadata,
         video_audit_file=ctx.videos_tsv,
         lock=ctx.lock,
         verbose=ctx.verbose,

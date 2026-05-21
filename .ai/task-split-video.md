@@ -16,6 +16,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] `--buffer-policy [strict|flexible]` — error or trim when buffers exceed video boundaries
 - [x] `--spec` — compact inline segment spec (`START/DURATION` or `START//END`); repeatable; mutually exclusive with `--start`/`--duration`/`--end`
 - [x] `-j / --sidecar-json` — sidecar JSON output control (`none` / `auto` / explicit path)
+- [x] `--sidecar-format [bids|raw]` — sidecar JSON schema: BIDS field names (default) or raw `SplitResult` dump
 - [x] `-a / --video-audit-file` — path to `videos.tsv` (optional, skips on-the-fly metadata)
 - [x] `--raw` — raw mode: any video file accepted, no filename timestamp required
 - [x] `-k / --lock [yes|no]` — advisory file lock for `videos.tsv`
@@ -57,7 +58,13 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 
 ### Sidecar JSON
 - [x] `_resolve_sidecar_path` — derive sidecar path from output path and `--sidecar-json` value
-- [x] `_write_sidecar` — serialise `SplitResult` to JSON file
+- [x] `_write_sidecar` — serialise `SplitResult` to JSON file (BIDS or raw format)
+- [x] `_write_sidecar` — accepts `sidecar_metadata: dict | None`; passed to `_to_bids_model`
+- [x] `SidecarFormat` enum — `bids` (default) / `raw`
+- [x] `_to_bids_model` — convert `SplitResult` to BEP044/BEP047 BIDS sidecar dict
+- [x] `_to_bids_model` — accepts `sidecar_metadata: dict | None = None`
+- [x] `_to_bids_model` — `TaskName` from `sidecar_metadata` written as **first** field when present
+- [x] `SplitResult.video_codec` — new field; set to `"h264"` when resolution present (reprostim uses `-c:v libx264`)
 - [x] `auto` / flag-only → `<output>.split-video.jsonl`
 - [x] Explicit path → use that path (treated as template in multi-spec mode)
 - [x] `none` / not specified → no sidecar created
@@ -67,6 +74,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 ### Entry point (`do_main`)
 - [x] Dispatch to `_do_main_specs` when `--spec` provided
 - [x] Legacy path: `--start` + (`--duration` or `--end`)
+- [x] `sidecar_metadata: dict | None = None` — forwarded to `_do_main_specs`
 
 ---
 
@@ -80,8 +88,8 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] Fields: `buffer_before`, `buffer_after`, `orig_buffer_start`, `orig_buffer_end`,
       `buffer_duration`, `orig_buffer_offset`, `orig_start`, `orig_end`, `duration`,
       `orig_offset`, `video_width`, `video_height`, `video_frame_rate`, `video_size_mb`,
-      `video_rate_mbpm`, `audio_sample_rate`, `audio_bit_depth`, `audio_channel_count`,
-      `audio_codec`, `orig_device`, `orig_device_serial_number`
+      `video_rate_mbpm`, `video_codec`, `audio_sample_rate`, `audio_bit_depth`,
+      `audio_channel_count`, `audio_codec`, `orig_device`, `orig_device_serial_number`
 - [x] No absolute dates stored; times only (ISO 8601 time without date)
 
 ---
@@ -130,8 +138,27 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_resolve_sidecar_path` — `auto` → `<output>.split-video.json`
 - [x] `_resolve_sidecar_path` — explicit path → returned unchanged
 - [x] `_resolve_sidecar_path` — `None` → `None`
-- [x] `_write_sidecar` — all expected fields present; excluded fields absent
-- [x] `_write_sidecar` — no absolute dates in sidecar (times only)
+- [x] `_write_sidecar` — raw format: all expected fields present; excluded fields absent
+- [x] `_write_sidecar` — raw format: no absolute dates in sidecar (times only)
+- [x] `_write_sidecar` — default format is BIDS
+- [x] `_write_sidecar` — BIDS format: correct BIDS field names written
+- [x] `_write_sidecar` — raw format: raw `SplitResult` fields written when `sidecar_format="raw"`
+- [x] `_to_bids_model` — full mapping: all populated fields produce correct BIDS keys
+- [x] `_to_bids_model` — `n/a` string fields omitted from output
+- [x] `_to_bids_model` — `None` optional fields omitted from output
+- [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioBitDepth` as int, `AudioChannelCount` as int)
+- [x] `_to_bids_model` — `Device` / `DeviceSerialNumber` from `orig_device` / `orig_device_serial_number` (at start of output)
+- [x] `_to_bids_model` — `AudioBitDepth` after `AudioSampleRate`
+- [x] `_to_bids_model` — `VideoCodec` present when `video_codec="h264"` (resolution known)
+- [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
+- [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` emitted alongside `VideoCodec` as placeholder (no `SplitResult` field; resolved internally)
+- [x] `_to_bids_model` — `AudioCodecRFC6381: "n/a"` emitted alongside `AudioCodec` as placeholder (no `SplitResult` field; resolved internally)
+- [x] `_to_bids_model` — `TaskName` first field when `sidecar_metadata["TaskName"]` set
+- [x] `_to_bids_model` — `TaskName` absent when `sidecar_metadata` is `None` or empty
+- [x] `_to_bids_model` — `TaskName` precedes `Device` in field order
+- [x] `_write_sidecar` — `sidecar_metadata` threaded through to BIDS output (`TaskName` as first key)
+- [x] `do_main` — `sidecar_metadata` forwarded to `_do_main_specs`
+- [ ] `_to_bids_model` — populate `VideoCodecRFC6381` / `AudioCodecRFC6381` from ffprobe output (future work)
 
 ### Multi-spec mode
 
@@ -158,6 +185,8 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] Neither `--spec` nor `--start` provided → error
 - [x] `--lock yes` / `--lock no` → passed to `do_main` correctly
 - [x] `--raw` flag → `raw=True` passed to `do_main`
+- [x] `--sidecar-format bids` → `sidecar_format="bids"` passed to `do_main`
+- [x] `--sidecar-format raw` → `sidecar_format="raw"` passed to `do_main`
 
 ### Coverage targets
 

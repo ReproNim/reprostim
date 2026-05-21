@@ -22,3 +22,4 @@ dist/
 *.pyc
 src/reprostim/_version.py
 /temp/
+uv.lock

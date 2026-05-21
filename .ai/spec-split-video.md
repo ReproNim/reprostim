@@ -45,6 +45,102 @@ option `--buffer-policy=strict|flexible` so if strict, would error out if buffer
 
 ## Enhancements
 
+### BIDS Sidecar Format (`--sidecar-format`) (Implemented)
+
+Added `--sidecar-format` option and `SidecarFormat` enum to control the JSON schema written
+to the sidecar file.
+
+**Enum values:**
+- `bids` (default): Output uses BEP044/BEP047 field names as defined in
+  [bids-standard/bids-specification PR #2367](https://github.com/bids-standard/bids-specification/pull/2367).
+- `raw`: Output is the raw `SplitResult` model dump (previous behaviour, all `orig_*` fields included).
+
+**`_to_bids_model(sr, sidecar_metadata)` signature:**
+
+```python
+def _to_bids_model(sr: SplitResult, sidecar_metadata: dict | None = None) -> dict
+```
+
+The optional `sidecar_metadata` dict allows callers to inject extra BIDS fields.
+Currently the only recognised key is `TaskName`; when present it is written as the
+**first** field in the output dict (before `Device`/`DeviceSerialNumber`).
+`bids_inject` populates this from `ScanMetadata.TaskName` at call time.
+
+**`_to_bids_model` field mapping (in output order):**
+
+| Source                       | BIDS field            | Notes                                                      |
+|------------------------------|-----------------------|------------------------------------------------------------|
+| `sidecar_metadata["TaskName"]` | `TaskName`          | First field; omitted when not in `sidecar_metadata`        |
+| `orig_device`                | `Device`              | Capture device name; omitted when `"n/a"`                  |
+| `orig_device_serial_number`  | `DeviceSerialNumber`  | Capture device serial number; omitted when `"n/a"`         |
+| `buffer_duration`            | `RecordingDuration`   | float seconds — total file duration including buffers before and after |
+| `video_codec`                | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
+| *(internal)*                 | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
+| `video_frame_rate`           | `FrameRate`           | float Hz                                                   |
+| `video_width`                | `Width`               | int pixels (parsed from string)                            |
+| `video_height`               | `Height`              | int pixels (parsed from string)                            |
+| `audio_codec`                | `AudioCodec`          | FFmpeg codec name string                                   |
+| *(internal)*                 | `AudioCodecRFC6381`   | Always `"n/a"` when `AudioCodec` present; placeholder until ffprobe integration |
+| `audio_sample_rate`          | `AudioSampleRate`     | float Hz (parsed from string)                              |
+| `audio_bit_depth`            | `AudioBitDepth`       | int bits (parsed from string, e.g. `"16"` → `16`)         |
+| `audio_channel_count`        | `AudioChannelCount`   | int (parsed from string)                                   |
+
+Fields with value `"n/a"` or `None` are omitted from the BIDS output.
+
+**`video_codec` inference:** `SplitResult.video_codec` is set to `"h264"` whenever a valid
+video resolution is detected, reflecting that reprostim-videocapture encodes with
+`-c:v libx264`. When no video stream is present (`resolution` is `"n/a"`), it remains `"n/a"`
+and `VideoCodec` is omitted from the BIDS sidecar.
+
+**`VideoCodecRFC6381` / `AudioCodecRFC6381`:** Each is emitted alongside its FFmpeg-name
+counterpart as `"n/a"` — a placeholder indicating the RFC 6381 codec string is not yet
+resolved. Examples: `avc1.640028` (H.264 High Profile Level 4.0), `mp4a.40.2` (AAC-LC).
+Exact values require `ffprobe` to read the encoded profile/level from the output file.
+Both fields are set purely inside `_to_bids_model`; no corresponding fields in `SplitResult`.
+A future enhancement can populate them via ffprobe after the split.
+
+**Example BIDS sidecar JSON (with TaskName from bids_inject):**
+```json
+{
+  "TaskName": "rest",
+  "Device": "Magewell USB Capture HDMI 4K Plus",
+  "DeviceSerialNumber": "D321220101234",
+  "RecordingDuration": 190.0,
+  "VideoCodec": "h264",
+  "VideoCodecRFC6381": "n/a",
+  "FrameRate": 30.0,
+  "Width": 1920,
+  "Height": 1080,
+  "AudioCodec": "aac",
+  "AudioCodecRFC6381": "n/a",
+  "AudioSampleRate": 48000.0,
+  "AudioBitDepth": 16,
+  "AudioChannelCount": 2
+}
+```
+
+**`do_main` / `_do_main_specs` / `_write_sidecar` signature:**
+- All accept `sidecar_format: str | None = None`; `None` resolves to `"bids"` at call time.
+- All accept `sidecar_metadata: dict | None = None`; passed through to `_to_bids_model`.
+- `_do_main_specs` converts the string to `SidecarFormat` enum analogously to how
+  `buffer_policy` is converted to `BufferPolicy`.
+
+**`bids_inject` behaviour:**
+- Always passes `sidecar_format="bids"` — the BIDS format is hardcoded, no CLI option exposed.
+- Builds `sidecar_metadata = {"TaskName": record.metadata.TaskName}` when `TaskName` is set,
+  otherwise passes an empty dict `{}`.
+
+**Usage:**
+```shell
+# BIDS format (default)
+reprostim split-video --sidecar-json auto --sidecar-format bids -i input.mkv -o output.mkv --spec 17:30:00/PT3M
+
+# Raw legacy format
+reprostim split-video --sidecar-json auto --sidecar-format raw -i input.mkv -o output.mkv --spec 17:30:00/PT3M
+```
+
+
+
 ### Buffer Policy (Implemented)
 
 Added `--buffer-policy` option with two modes:

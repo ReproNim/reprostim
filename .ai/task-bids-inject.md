@@ -46,6 +46,10 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [ ] Filter: skip non-functional scans (those not starting with `func/`)
 - [ ] Filter: skip single-volume acquisitions (4th NIfTI dimension < 2)
 
+### ScanMetadata model
+- [x] `TaskName` — parsed from BIDS JSON sidecar; `None` when absent; excluded from `extra`
+- [x] `FrameAcquisitionDuration`, `AcquisitionTime`, `RepetitionTime`, `NumberOfVolumes` — existing typed fields
+
 ### Scan duration computation
 - [x] Priority 1: `FrameAcquisitionDuration` (ms → seconds)
 - [x] Priority 2: `AcquisitionTime` array — `(t_last − t_first) + TR`
@@ -74,6 +78,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] ReproIn `__dup-XX` suffix preserved in output filename
 - [x] Media suffix determination (`_video` / `_audio` / `_audiovideo`) from `videos.tsv`
 - [x] Delegate to `split-video` Python API (`do_main`)
+- [x] Build `sidecar_metadata` dict from `record.metadata.TaskName` and pass to `do_main`
 
 ### Dry-run mode
 - [x] Skip `split-video` call and file writes when `--dry-run`
@@ -106,6 +111,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 ### B) Sidecar JSON — BEP047:Behavior
 - [x] Write `_recording-reprostim_<suffix>.json` alongside the `.mkv`
 - [x] Include onset, duration, actual buffer values, etc
+- [x] `RecordingDuration` maps from `SplitResult.buffer_duration` (total file duration with buffers)
 - [ ] Confirm field names against BEP044/BEP047 schema
 
 ### C) QR codes file — BIDS events-like `.tsv`
@@ -176,6 +182,11 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `_calc_media_suffix` — audio only → `_audio`
 - [x] `_calc_media_suffix` — both → `_audiovideo`
 - [x] `_calc_media_suffix` — neither → `None`
+- [x] `ScanMetadata.TaskName` — defaults to `None`
+- [x] `ScanMetadata.TaskName` — stores task name string when set
+- [x] `_parse_scan_metadata` — reads `TaskName` from JSON sidecar when present
+- [x] `_parse_scan_metadata` — `TaskName` is `None` when key absent from sidecar
+- [x] `_parse_scan_metadata` — `TaskName` is NOT stored in `extra` (it is a known key)
 - [x] `_calc_scan_duration_sec` — Priority 1: `FrameAcquisitionDuration` (ms → sec)
 - [x] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` array (2+ elements)
 - [x] `_calc_scan_duration_sec` — Priority 2: `AcquisitionTime` with single element → falls through
@@ -216,6 +227,11 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `always` + existing output → 1 injected, files not pre-removed
 - [x] `error` + existing output → exit 1, 1 error, error detail in verbose output
 - [x] `error` + no existing output → 1 injected (normal path)
+
+### sidecar_metadata propagation tests
+
+- [x] `_call_split_video` passes `sidecar_metadata` with `TaskName` from `record.metadata` to `split-video` `do_main`
+- [x] `_call_split_video` passes empty `sidecar_metadata` when `TaskName` is absent from sidecar JSON
 
 ### CLI tests (Click `CliRunner`)
 

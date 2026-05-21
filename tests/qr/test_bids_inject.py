@@ -9,6 +9,7 @@ import shutil
 from datetime import datetime, time, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytest
@@ -17,12 +18,14 @@ from reprostim.qr.bids_inject import (
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
+    ScansModel,
     _calc_bids_output_stem,
     _calc_media_suffix,
     _calc_scan_duration_sec,
     _calc_scan_start_end_ts,
     _find_bids_root,
     _is_scans_file,
+    _parse_scan_metadata,
     do_main,
     dt_bids_to_reprostim,
     dt_bids_to_utc,
@@ -478,6 +481,86 @@ def test_calc_scan_duration_sec_no_metadata_returns_none():
 
 
 # ===========================================================================
+# ScanMetadata.TaskName / _load_scan_metadata
+# ===========================================================================
+
+BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+_BOLD_JSON = (
+    BIDS_FIXTURE
+    / "sub-qa"
+    / "ses-20250814"
+    / "func"
+    / "sub-qa_ses-20250814_task-rest_acq-p2_bold.json"
+)
+_SCANS_TSV = BIDS_FIXTURE / "sub-qa" / "ses-20250814" / "sub-qa_ses-20250814_scans.tsv"
+
+
+def test_scan_metadata_task_name_defaults_to_none():
+    """ScanMetadata.TaskName is None when not provided."""
+    m = ScanMetadata()
+    assert m.TaskName is None
+
+
+def test_scan_metadata_task_name_set():
+    """ScanMetadata.TaskName stores the task name string."""
+    m = ScanMetadata(TaskName="rest")
+    assert m.TaskName == "rest"
+
+
+def test_load_scan_metadata_task_name_present(tmp_path):
+    """_load_scan_metadata reads TaskName from JSON sidecar."""
+    scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    scans_tsv.write_text("filename\tacq_time\n")
+    json_sidecar = tmp_path / "func" / "sub-qa_ses-20250814_task-rest_bold.json"
+    json_sidecar.parent.mkdir()
+    json_sidecar.write_text(
+        '{"TaskName": "rest", "RepetitionTime": 2.0, "NumberOfVolumes": 5}'
+    )
+    record = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+    )
+    model = ScansModel(path=str(scans_tsv), records=[record])
+    meta = _parse_scan_metadata(model, record)
+    assert meta is not None
+    assert meta.TaskName == "rest"
+
+
+def test_load_scan_metadata_task_name_absent(tmp_path):
+    """_parse_scan_metadata sets TaskName to None when key absent from sidecar."""
+    scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    scans_tsv.write_text("filename\tacq_time\n")
+    json_sidecar = tmp_path / "func" / "sub-qa_ses-20250814_task-rest_bold.json"
+    json_sidecar.parent.mkdir()
+    json_sidecar.write_text('{"RepetitionTime": 2.0, "NumberOfVolumes": 5}')
+    record = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+    )
+    model = ScansModel(path=str(scans_tsv), records=[record])
+    meta = _parse_scan_metadata(model, record)
+    assert meta is not None
+    assert meta.TaskName is None
+
+
+def test_load_scan_metadata_task_name_not_in_extra(tmp_path):
+    """TaskName is a known key and must not appear in ScanMetadata.extra."""
+    scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    scans_tsv.write_text("filename\tacq_time\n")
+    json_sidecar = tmp_path / "func" / "sub-qa_ses-20250814_task-rest_bold.json"
+    json_sidecar.parent.mkdir()
+    json_sidecar.write_text('{"TaskName": "rest", "RepetitionTime": 2.0}')
+    record = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+    )
+    model = ScansModel(path=str(scans_tsv), records=[record])
+    meta = _parse_scan_metadata(model, record)
+    assert meta is not None
+    assert "TaskName" not in meta.extra
+
+
+# ===========================================================================
 # _calc_scan_start_end_ts
 # ===========================================================================
 
@@ -878,3 +961,66 @@ def test_overwrite_error_proceeds_when_no_output(tmp_path):
     assert ret == 0
     summary = next(line for line in output if "injected" in line)
     assert "1 injected" in summary
+
+
+# ===========================================================================
+# sidecar_metadata propagation from bids_inject → split_video
+# ===========================================================================
+
+
+def test_call_split_video_passes_task_name_in_sidecar_metadata(tmp_path):
+    """_call_split_video passes sidecar_metadata with TaskName to split-video."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    captured = {}
+
+    def _fake_split_video_main(**kwargs):
+        captured.update(kwargs)
+        return 0
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+        ret, _ = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            overwrite="skip",
+            dry_run=False,
+        )
+
+    assert ret == 0
+    assert "sidecar_metadata" in captured
+    assert captured["sidecar_metadata"].get("TaskName") == "rest"
+
+
+def test_call_split_video_empty_sidecar_metadata_when_no_task_name(tmp_path):
+    """_call_split_video passes empty sidecar_metadata when TaskName absent."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V2)
+
+    # Overwrite sidecar JSON to remove TaskName
+    sidecar_json = (
+        scans_tsv.parent
+        / "func"
+        / "sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.json"
+    )
+    sidecar_json.write_text('{"RepetitionTime": 2.0, "NumberOfVolumes": 10}')
+
+    captured = {}
+
+    def _fake_split_video_main(**kwargs):
+        captured.update(kwargs)
+        return 0
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+        ret, _ = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=r"__dup-01",
+            overwrite="skip",
+            dry_run=False,
+        )
+
+    assert ret == 0
+    assert "sidecar_metadata" in captured
+    assert captured["sidecar_metadata"] == {}

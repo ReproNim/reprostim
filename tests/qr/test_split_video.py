@@ -18,6 +18,7 @@ import pytest
 
 from reprostim.qr.split_video import (
     BufferPolicy,
+    SidecarFormat,
     SpecEntry,
     SplitData,
     SplitResult,
@@ -32,6 +33,7 @@ from reprostim.qr.split_video import (
     _parse_ts,
     _resolve_sidecar_path,
     _split_video,
+    _to_bids_model,
     _write_sidecar,
     do_main,
 )
@@ -528,6 +530,7 @@ def _make_split_result() -> SplitResult:
         audio_bit_depth="16",
         audio_channel_count="2",
         audio_codec="aac",
+        video_codec="h264",
         orig_buffer_start="17:25:00.000",
         orig_buffer_end="17:38:00.000",
         orig_buffer_offset=1500.0,
@@ -540,13 +543,13 @@ def _make_split_result() -> SplitResult:
 
 
 def test_write_sidecar_expected_fields_present_excluded_absent():
-    """All expected fields written; excluded fields absent from sidecar."""
+    """All expected raw fields written; excluded fields absent from sidecar."""
     sr = _make_split_result()
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
         tmp_path = tmp.name
 
     try:
-        _write_sidecar(tmp_path, sr)
+        _write_sidecar(tmp_path, sr, SidecarFormat.RAW)
         with open(tmp_path) as f:
             data = json.load(f)
 
@@ -560,13 +563,13 @@ def test_write_sidecar_expected_fields_present_excluded_absent():
 
 
 def test_write_sidecar_no_absolute_dates():
-    """Sidecar JSON contains no absolute date strings (times only)."""
+    """Raw sidecar JSON contains no absolute date strings (times only)."""
     sr = _make_split_result()
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
         tmp_path = tmp.name
 
     try:
-        _write_sidecar(tmp_path, sr)
+        _write_sidecar(tmp_path, sr, SidecarFormat.RAW)
         with open(tmp_path) as f:
             raw = f.read()
 
@@ -575,6 +578,238 @@ def test_write_sidecar_no_absolute_dates():
         assert not date_pattern.search(
             raw
         ), "Sidecar contains absolute date string: " + str(date_pattern.findall(raw))
+    finally:
+        os.unlink(tmp_path)
+
+
+# ===========================================================================
+# _to_bids_model
+# ===========================================================================
+
+
+def test_to_bids_model_full_mapping():
+    """All populated SplitResult fields map to correct BIDS keys."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr)
+
+    assert data["Device"] == "TestDevice"
+    assert data["DeviceSerialNumber"] == "SN-12345"
+    assert data["RecordingDuration"] == 190.0
+    assert data["VideoCodec"] == "h264"
+    assert data["VideoCodecRFC6381"] == "n/a"
+    assert data["FrameRate"] == 30.0
+    assert data["Width"] == 1920
+    assert data["Height"] == 1080
+    assert data["AudioCodec"] == "aac"
+    assert data["AudioCodecRFC6381"] == "n/a"
+    assert data["AudioSampleRate"] == 48000.0
+    assert data["AudioBitDepth"] == 16
+    assert data["AudioChannelCount"] == 2
+
+
+def test_to_bids_model_na_fields_omitted():
+    """Fields with value 'n/a' are omitted from BIDS output."""
+    sr = SplitResult(
+        duration=60.0,
+        video_frame_rate=25.0,
+        video_width="n/a",
+        video_height="n/a",
+        video_codec="n/a",
+        audio_codec="n/a",
+        audio_sample_rate="n/a",
+        audio_bit_depth="n/a",
+        audio_channel_count="n/a",
+        orig_device="n/a",
+        orig_device_serial_number="n/a",
+    )
+    data = _to_bids_model(sr)
+
+    assert "Device" not in data
+    assert "DeviceSerialNumber" not in data
+    assert "Width" not in data
+    assert "Height" not in data
+    assert "VideoCodec" not in data
+    assert "AudioCodec" not in data
+    assert "AudioSampleRate" not in data
+    assert "AudioBitDepth" not in data
+    assert "AudioChannelCount" not in data
+    assert "RecordingDuration" not in data
+    assert data["FrameRate"] == 25.0
+
+
+def test_to_bids_model_none_values_omitted():
+    """Fields with None value are omitted from BIDS output."""
+    sr = SplitResult(duration=None, video_frame_rate=None)
+    data = _to_bids_model(sr)
+
+    assert "RecordingDuration" not in data
+    assert "FrameRate" not in data
+
+
+def test_to_bids_model_numeric_types():
+    """Width/Height are int, AudioSampleRate is float, AudioChannelCount is int."""
+    sr = SplitResult(
+        video_width="1280",
+        video_height="720",
+        audio_sample_rate="44100",
+        audio_channel_count="1",
+    )
+    data = _to_bids_model(sr)
+
+    assert isinstance(data["Width"], int) and data["Width"] == 1280
+    assert isinstance(data["Height"], int) and data["Height"] == 720
+    assert (
+        isinstance(data["AudioSampleRate"], float)
+        and data["AudioSampleRate"] == 44100.0
+    )
+    assert isinstance(data["AudioChannelCount"], int) and data["AudioChannelCount"] == 1
+
+
+def test_to_bids_model_video_codec_present_when_resolution_known():
+    """VideoCodec and VideoCodecRFC6381 are included when video_codec is set."""
+    sr = SplitResult(video_width="1920", video_height="1080", video_codec="h264")
+    data = _to_bids_model(sr)
+    assert data["VideoCodec"] == "h264"
+    assert data["VideoCodecRFC6381"] == "n/a"
+
+
+def test_to_bids_model_video_codec_absent_when_na():
+    """VideoCodec is omitted when video_codec is 'n/a' (no video stream)."""
+    sr = SplitResult(video_width="n/a", video_height="n/a", video_codec="n/a")
+    data = _to_bids_model(sr)
+    assert "VideoCodec" not in data
+
+
+def test_to_bids_model_no_raw_fields():
+    """BIDS output contains no raw SplitResult field names."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr)
+    raw_keys = {
+        "duration",
+        "video_frame_rate",
+        "video_width",
+        "video_height",
+        "video_codec",
+        "audio_codec",
+        "audio_sample_rate",
+        "audio_bit_depth",
+        "audio_channel_count",
+        "orig_device",
+        "orig_device_serial_number",
+        "orig_start",
+        "orig_end",
+        "orig_buffer_start",
+    }
+    for key in raw_keys:
+        assert key not in data, f"Raw field '{key}' should not appear in BIDS output"
+
+
+def test_to_bids_model_task_name_first_field():
+    """TaskName from sidecar_metadata is output as the first field in BIDS JSON."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata={"TaskName": "rest"})
+    assert data["TaskName"] == "rest"
+    keys = list(data.keys())
+    assert keys[0] == "TaskName", f"TaskName must be the first key, got: {keys}"
+
+
+def test_to_bids_model_task_name_absent_when_not_in_metadata():
+    """TaskName is absent when sidecar_metadata does not contain it."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata={})
+    assert "TaskName" not in data
+
+
+def test_to_bids_model_task_name_absent_when_metadata_is_none():
+    """TaskName is absent when sidecar_metadata is None."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata=None)
+    assert "TaskName" not in data
+
+
+def test_to_bids_model_task_name_first_before_device():
+    """TaskName precedes Device in field order when both are present."""
+    sr = _make_split_result()
+    data = _to_bids_model(sr, sidecar_metadata={"TaskName": "faces"})
+    keys = list(data.keys())
+    assert "TaskName" in keys and "Device" in keys
+    assert keys.index("TaskName") < keys.index("Device")
+
+
+# ===========================================================================
+# _write_sidecar — format variants
+# ===========================================================================
+
+
+def test_write_sidecar_default_is_bids():
+    """Default _write_sidecar call produces BIDS field names."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+    try:
+        _write_sidecar(tmp_path, sr)
+        with open(tmp_path) as f:
+            data = json.load(f)
+        assert "RecordingDuration" in data
+        assert "FrameRate" in data
+        assert "duration" not in data
+    finally:
+        os.unlink(tmp_path)
+
+
+def test_write_sidecar_bids_format_explicit():
+    """SidecarFormat.BIDS produces BEP044/BEP047 field names."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+    try:
+        _write_sidecar(tmp_path, sr, SidecarFormat.BIDS)
+        with open(tmp_path) as f:
+            data = json.load(f)
+        assert "RecordingDuration" in data
+        assert "Width" in data
+        assert "Height" in data
+        assert "AudioCodec" in data
+        assert "AudioSampleRate" in data
+        assert "AudioChannelCount" in data
+        assert "FrameRate" in data
+    finally:
+        os.unlink(tmp_path)
+
+
+def test_write_sidecar_raw_format():
+    """SidecarFormat.RAW produces raw SplitResult field names."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+    try:
+        _write_sidecar(tmp_path, sr, SidecarFormat.RAW)
+        with open(tmp_path) as f:
+            data = json.load(f)
+        assert "duration" in data
+        assert "video_frame_rate" in data
+        assert "audio_codec" in data
+        assert "RecordingDuration" not in data
+    finally:
+        os.unlink(tmp_path)
+
+
+def test_write_sidecar_bids_with_sidecar_metadata():
+    """sidecar_metadata is threaded through to BIDS output (TaskName as first key)."""
+    sr = _make_split_result()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+    try:
+        _write_sidecar(
+            tmp_path,
+            sr,
+            SidecarFormat.BIDS,
+            sidecar_metadata={"TaskName": "memory"},
+        )
+        with open(tmp_path) as f:
+            data = json.load(f)
+        assert data["TaskName"] == "memory"
+        assert list(data.keys())[0] == "TaskName"
     finally:
         os.unlink(tmp_path)
 
@@ -895,6 +1130,46 @@ def test_cli_raw_flag_passed_to_do_main(input_video):
         assert mock_dm.call_args.kwargs["raw"] is True
 
 
+def test_cli_sidecar_format_bids_passed_to_do_main(input_video):
+    """--sidecar-format bids passes sidecar_format='bids' to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "300/180",
+                "--sidecar-format",
+                "bids",
+            ],
+        )
+        mock_dm.assert_called_once()
+        assert mock_dm.call_args.kwargs["sidecar_format"] == "bids"
+
+
+def test_cli_sidecar_format_raw_passed_to_do_main(input_video):
+    """--sidecar-format raw passes sidecar_format='raw' to do_main."""
+    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+        CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "300/180",
+                "--sidecar-format",
+                "raw",
+            ],
+        )
+        mock_dm.assert_called_once()
+        assert mock_dm.call_args.kwargs["sidecar_format"] == "raw"
+
+
 # ===========================================================================
 # _parse_audio_info
 # ===========================================================================
@@ -1081,6 +1356,20 @@ def test_do_main_value_error_from_specs_returns_5():
         )
     assert result == 5
     assert any("ERROR" in m for m in messages)
+
+
+def test_do_main_sidecar_metadata_passed_to_do_main_specs():
+    """do_main forwards sidecar_metadata to _do_main_specs."""
+    meta = {"TaskName": "nback"}
+    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
+        do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            start_time="2024-02-02T17:30:00",
+            duration="PT3M",
+            sidecar_metadata=meta,
+        )
+    assert mock_dms.call_args.kwargs.get("sidecar_metadata") == meta
 
 
 # ===========================================================================
