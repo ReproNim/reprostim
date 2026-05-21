@@ -594,7 +594,7 @@ def test_to_bids_model_full_mapping():
 
     assert data["Device"] == "TestDevice"
     assert data["DeviceSerialNumber"] == "SN-12345"
-    assert data["RecordingDuration"] == 180.0
+    assert data["RecordingDuration"] == 190.0
     assert data["VideoCodec"] == "h264"
     assert data["VideoCodecRFC6381"] == "n/a"
     assert data["FrameRate"] == 30.0
@@ -633,7 +633,7 @@ def test_to_bids_model_na_fields_omitted():
     assert "AudioSampleRate" not in data
     assert "AudioBitDepth" not in data
     assert "AudioChannelCount" not in data
-    assert data["RecordingDuration"] == 60.0
+    assert "RecordingDuration" not in data
     assert data["FrameRate"] == 25.0
 
 

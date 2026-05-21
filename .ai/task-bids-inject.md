@@ -111,6 +111,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 ### B) Sidecar JSON — BEP047:Behavior
 - [x] Write `_recording-reprostim_<suffix>.json` alongside the `.mkv`
 - [x] Include onset, duration, actual buffer values, etc
+- [x] `RecordingDuration` maps from `SplitResult.buffer_duration` (total file duration with buffers)
 - [ ] Confirm field names against BEP044/BEP047 schema
 
 ### C) QR codes file — BIDS events-like `.tsv`

@@ -73,7 +73,7 @@ Currently the only recognised key is `TaskName`; when present it is written as t
 | `sidecar_metadata["TaskName"]` | `TaskName`          | First field; omitted when not in `sidecar_metadata`        |
 | `orig_device`                | `Device`              | Capture device name; omitted when `"n/a"`                  |
 | `orig_device_serial_number`  | `DeviceSerialNumber`  | Capture device serial number; omitted when `"n/a"`         |
-| `duration`                   | `RecordingDuration`   | float seconds                                              |
+| `buffer_duration`            | `RecordingDuration`   | float seconds — total file duration including buffers before and after |
 | `video_codec`                | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
 | *(internal)*                 | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
 | `video_frame_rate`           | `FrameRate`           | float Hz                                                   |
@@ -105,7 +105,7 @@ A future enhancement can populate them via ffprobe after the split.
   "TaskName": "rest",
   "Device": "Magewell USB Capture HDMI 4K Plus",
   "DeviceSerialNumber": "D321220101234",
-  "RecordingDuration": 180.0,
+  "RecordingDuration": 190.0,
   "VideoCodec": "h264",
   "VideoCodecRFC6381": "n/a",
   "FrameRate": 30.0,

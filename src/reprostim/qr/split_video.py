@@ -129,8 +129,8 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
     if sr.orig_device_serial_number != "n/a":
         result["DeviceSerialNumber"] = sr.orig_device_serial_number
 
-    if sr.duration is not None:
-        result["RecordingDuration"] = sr.duration
+    if sr.buffer_duration is not None:
+        result["RecordingDuration"] = sr.buffer_duration
 
     if sr.video_codec != "n/a":
         result["VideoCodec"] = sr.video_codec
