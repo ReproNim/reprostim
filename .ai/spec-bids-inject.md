@@ -86,9 +86,10 @@ sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audio
 After a successful injection `bids-inject` writes back several `reprostim_*` columns to
 the same `_scans.tsv` row, recording the exact video provenance and timing offsets used.
 These columns are written **in-place** (the file is rewritten with the new columns appended
-to the right of any existing columns).  Columns are only set on rows that were successfully
-injected; rows that were skipped or errored are left unchanged (`n/a` written if the column
-is newly added to the file).
+to the right of any existing columns).  All four columns are always written for every row that `_call_split_video` is invoked for —
+`n/a` on failure or when `SplitResult` is unavailable, actual values on success.  Rows that
+were never matched to a video (skipped before `_call_split_video`) retain whatever value was
+already in the file (or `n/a` if the column is newly added).
 
 **Column name prefix — `reprostim_`:** the longer prefix is preferred over `r_` because it
 is self-documenting, unambiguous if multiple tools annotate the same scans file, and avoids
@@ -692,8 +693,12 @@ The two columns used by `bids-inject`:
 
 Other columns (`operator`, `randstr`, etc.) are ignored on read.
 
-After a successful injection, `bids-inject` appends the `reprostim_*` annotation columns
-(see Output section D above) back into the same file.
+After processing all scan records, `bids-inject` calls `_save_scans_model` to rewrite the
+`_scans.tsv` file with `reprostim_*` annotation columns appended (see Output D above).
+Write-back is skipped in `--dry-run` mode.  `_save_scans_model` derives the output fieldnames
+from the existing `ScanRecord.extra` keys (preserving column order) and then appends any
+`_REPROSTIM_COLS` not already present.  It uses `csv.DictWriter` with `extrasaction="ignore"`
+and Unix line endings (`\n`).
 
 **Filtering rules** — a scan row is processed only if both conditions are met:
 
