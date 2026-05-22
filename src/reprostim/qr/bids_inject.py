@@ -272,6 +272,25 @@ class ScanRecord(BaseModel):
         default=None,
         description="Scan duration in seconds, computed from sidecar metadata.",
     )
+    # reprostim_* annotation columns — read from _scans.tsv when present (prior run),
+    # written back after successful injection.
+    reprostim_path: Optional[str] = Field(
+        default=None,
+        description="Path to source .mkv file relative to videos.tsv location.",
+    )
+    reprostim_offset: Optional[float] = Field(
+        default=None,
+        description="Offset of the buffer-segment start into the source video, "
+        "in seconds.",
+    )
+    reprostim_buffer_before: Optional[float] = Field(
+        default=None,
+        description="Actual buffer prepended before scan onset, in seconds.",
+    )
+    reprostim_buffer_after: Optional[float] = Field(
+        default=None,
+        description="Actual buffer appended after scan end, in seconds.",
+    )
 
 
 class ScansModel(BaseModel):
@@ -289,6 +308,30 @@ class ScansModel(BaseModel):
 ####################################################################
 # Internal API
 ####################################################################
+
+
+def _parse_bids_float(value: Optional[str]) -> Optional[float]:
+    """Parse an optional TSV cell as float, returning ``None`` for ``'n/a'`` or absent.
+
+    :param value: Raw cell string from a TSV row, or ``None`` when the column
+        was not present in the file.
+    :type value: Optional[str]
+    :returns: Parsed float, or ``None``.
+    :rtype: Optional[float]
+    """
+    return float(value) if value and value != "n/a" else None
+
+
+def _parse_bids_str(value: Optional[str]) -> Optional[str]:
+    """Return a TSV cell string as-is, or ``None`` for ``'n/a'`` or absent.
+
+    :param value: Raw cell string from a TSV row, or ``None`` when the column
+        was not present in the file.
+    :type value: Optional[str]
+    :returns: The string value, or ``None``.
+    :rtype: Optional[str]
+    """
+    return value if value and value != "n/a" else None
 
 
 def _is_scans_file(path: str) -> bool:
@@ -386,6 +429,14 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
+    _reprostim_keys = {
+        "reprostim_path",
+        "reprostim_offset",
+        "reprostim_buffer_before",
+        "reprostim_buffer_after",
+    }
+    _known = {"filename", "acq_time"} | _reprostim_keys
+
     records: List[ScanRecord] = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -394,11 +445,15 @@ def _parse_scans_model(path: str) -> ScansModel:
                 ScanRecord(
                     filename=row["filename"],
                     acq_time=row["acq_time"],
-                    extra={
-                        k: v
-                        for k, v in row.items()
-                        if k not in ("filename", "acq_time")
-                    },
+                    extra={k: v for k, v in row.items() if k not in _known},
+                    reprostim_path=_parse_bids_str(row.get("reprostim_path")),
+                    reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
+                    reprostim_buffer_before=_parse_bids_float(
+                        row.get("reprostim_buffer_before")
+                    ),
+                    reprostim_buffer_after=_parse_bids_float(
+                        row.get("reprostim_buffer_after")
+                    ),
                 )
             )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
