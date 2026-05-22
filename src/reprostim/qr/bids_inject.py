@@ -310,6 +310,15 @@ class ScansModel(BaseModel):
 ####################################################################
 
 
+# Ordered list of reprostim_* annotation columns read from and written to _scans.tsv.
+_REPROSTIM_COLS = [
+    "reprostim_path",
+    "reprostim_offset",
+    "reprostim_buffer_before",
+    "reprostim_buffer_after",
+]
+
+
 def _parse_bids_float(value: Optional[str]) -> Optional[float]:
     """Parse an optional TSV cell as float, returning ``None`` for ``'n/a'`` or absent.
 
@@ -332,6 +341,16 @@ def _parse_bids_str(value: Optional[str]) -> Optional[str]:
     :rtype: Optional[str]
     """
     return value if value and value != "n/a" else None
+
+
+def _format_bids_str(value) -> str:
+    """Serialise a field value to a TSV cell string, using ``'n/a'`` for ``None``.
+
+    :param value: Value to serialise; any type accepted by ``str()``.
+    :returns: String representation, or ``'n/a'`` when *value* is ``None``.
+    :rtype: str
+    """
+    return "n/a" if value is None else str(value)
 
 
 def _is_scans_file(path: str) -> bool:
@@ -429,13 +448,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
-    _reprostim_keys = {
-        "reprostim_path",
-        "reprostim_offset",
-        "reprostim_buffer_before",
-        "reprostim_buffer_after",
-    }
-    _known = {"filename", "acq_time"} | _reprostim_keys
+    _known = {"filename", "acq_time"} | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
     with open(path, newline="", encoding="utf-8") as f:
@@ -458,6 +471,54 @@ def _parse_scans_model(path: str) -> ScansModel:
             )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
     return ScansModel(path=path, records=records)
+
+
+def _save_scans_model(model: ScansModel) -> None:
+    """Write :class:`ScansModel` records back to the ``*_scans.tsv`` file.
+
+    Derives column order from the already-parsed model data: ``filename`` and
+    ``acq_time`` first, then any extra columns (in their original order from
+    :attr:`ScanRecord.extra`), then ``reprostim_*`` annotation columns from
+    :data:`_REPROSTIM_COLS` appended on the right.  ``None`` field values are
+    serialised as ``'n/a'`` via :func:`_format_bids_str`.
+
+    :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
+        writable.
+    :type model: ScansModel
+    """
+    # Derive extra column names from the first record (order preserved by dict).
+    extra_cols = list(model.records[0].extra.keys()) if model.records else []
+    fieldnames = (
+        ["filename", "acq_time"]
+        + extra_cols
+        + [c for c in _REPROSTIM_COLS if c not in extra_cols]
+    )
+
+    rows = []
+    for record in model.records:
+        row = {
+            "filename": record.filename,
+            "acq_time": record.acq_time,
+            **record.extra,
+            "reprostim_path": _format_bids_str(record.reprostim_path),
+            "reprostim_offset": _format_bids_str(record.reprostim_offset),
+            "reprostim_buffer_before": _format_bids_str(record.reprostim_buffer_before),
+            "reprostim_buffer_after": _format_bids_str(record.reprostim_buffer_after),
+        }
+        rows.append(row)
+
+    with open(model.path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames,
+            delimiter="\t",
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.debug(f"Saved {len(rows)} scan records to: {model.path}")
 
 
 def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
