@@ -4,6 +4,7 @@
 
 """Tests for the Datetime / Timezone public API in reprostim.qr.bids_inject."""
 
+import csv
 import re
 import shutil
 from datetime import datetime, time, timezone
@@ -46,6 +47,7 @@ from reprostim.qr.bids_inject import (
     dt_utc_to_bids,
     dt_utc_to_reprostim,
 )
+from reprostim.qr.split_video import SplitResult
 
 # ---------------------------------------------------------------------------
 # Shared fixtures / helpers
@@ -1251,10 +1253,8 @@ def test_save_scans_model_reprostim_cols_order(tmp_path):
     model = _make_scans_model(tmp_path)
     _save_scans_model(model)
 
-    import csv as _csv
-
     with open(model.path, newline="", encoding="utf-8") as f:
-        fieldnames = list(_csv.DictReader(f, delimiter="\t").fieldnames or [])
+        fieldnames = list(csv.DictReader(f, delimiter="\t").fieldnames or [])
 
     reprostim_positions = [fieldnames.index(c) for c in _REPROSTIM_COLS]
     assert reprostim_positions == sorted(
@@ -1283,10 +1283,163 @@ def test_save_scans_model_idempotent(tmp_path):
     model2.records[0].reprostim_path = "video1.mkv"
     _save_scans_model(model2)
 
-    import csv as _csv
-
     with open(model.path, newline="", encoding="utf-8") as f:
-        fieldnames = list(_csv.DictReader(f, delimiter="\t").fieldnames or [])
+        fieldnames = list(csv.DictReader(f, delimiter="\t").fieldnames or [])
 
     for col in _REPROSTIM_COLS:
         assert fieldnames.count(col) == 1, f"Column '{col}' duplicated after two saves"
+
+
+# ===========================================================================
+# _scans.tsv annotation write-back (integration)
+# ===========================================================================
+
+
+def _fake_split_result(*, buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7):
+    """Build a SplitResult with known field values for testing."""
+    return SplitResult(
+        success=True,
+        buffer_before=buffer_before,
+        buffer_after=buffer_after,
+        orig_buffer_offset=orig_buffer_offset,
+    )
+
+
+def _tsv_rows(path: Path) -> dict:
+    """Read TSV into {filename: row_dict}."""
+    with open(path, newline="", encoding="utf-8") as f:
+        return {r["filename"]: r for r in csv.DictReader(f, delimiter="\t")}
+
+
+def test_scans_tsv_successful_injection_writes_reprostim_cols(tmp_path):
+    """Successful injection → reprostim_* columns written with correct values.
+
+    Also verifies reprostim_path is stored relative to the videos.tsv directory
+    and that non-injected rows receive n/a.
+    """
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)  # va.path == "video1.mkv"
+
+    sr = _fake_split_result(
+        buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7
+    )
+
+    def _fake_split(**kwargs):
+        return 0, [sr]
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    rows = _tsv_rows(scans_tsv)
+    matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
+    assert matched["reprostim_path"] == "video1.mkv"
+    assert float(matched["reprostim_offset"]) == pytest.approx(69.7)
+    assert float(matched["reprostim_buffer_before"]) == pytest.approx(5.0)
+    assert float(matched["reprostim_buffer_after"]) == pytest.approx(3.0)
+    # Non-injected rows get n/a.
+    anat = rows["anat/sub-qa_ses-20250814_T1w.nii.gz"]
+    for col in _REPROSTIM_COLS:
+        assert anat[col] == "n/a"
+
+
+def test_scans_tsv_failed_split_clears_stale_reprostim_cols(tmp_path):
+    """split-video failure → reprostim_* written as n/a, clearing any stale values."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    # Pre-populate reprostim_* with stale values (simulates a prior successful run).
+    model = _parse_scans_model(str(scans_tsv))
+    for rec in model.records:
+        if rec.filename.endswith("task-rest_acq-p2_bold.nii.gz"):
+            rec.reprostim_path = "old_video.mkv"
+            rec.reprostim_offset = 999.0
+            rec.reprostim_buffer_before = 20.0
+            rec.reprostim_buffer_after = 20.0
+    _save_scans_model(model)
+
+    def _fake_split(**kwargs):
+        return 1, []  # failure
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    matched = _tsv_rows(scans_tsv)[
+        "func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"
+    ]
+    for col in _REPROSTIM_COLS:
+        assert matched[col] == "n/a", f"{col} should be n/a after failed split"
+
+
+def test_scans_tsv_rerun_updates_in_place_no_duplication(tmp_path):
+    """Re-run with existing reprostim_* columns → values updated,
+    no column duplication."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    # Simulate a prior run with old values.
+    model = _parse_scans_model(str(scans_tsv))
+    for rec in model.records:
+        if rec.filename.endswith("task-rest_acq-p2_bold.nii.gz"):
+            rec.reprostim_path = "old_video.mkv"
+            rec.reprostim_offset = 100.0
+            rec.reprostim_buffer_before = 0.0
+            rec.reprostim_buffer_after = 0.0
+    _save_scans_model(model)
+
+    sr = _fake_split_result(
+        buffer_before=10.0, buffer_after=8.0, orig_buffer_offset=42.5
+    )
+
+    def _fake_split(**kwargs):
+        return 0, [sr]
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    with open(scans_tsv, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        fieldnames = list(reader.fieldnames or [])
+        rows = {r["filename"]: r for r in reader}
+
+    for col in _REPROSTIM_COLS:
+        assert fieldnames.count(col) == 1, f"Column '{col}' duplicated after re-run"
+
+    matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
+    assert float(matched["reprostim_offset"]) == pytest.approx(42.5)
+    assert float(matched["reprostim_buffer_before"]) == pytest.approx(10.0)
+    assert float(matched["reprostim_buffer_after"]) == pytest.approx(8.0)
+
+
+def test_scans_tsv_dry_run_does_not_modify_file(tmp_path):
+    """--dry-run → _scans.tsv is not modified even when a video match is found."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    original_content = scans_tsv.read_text(encoding="utf-8")
+
+    _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        dry_run=True,
+        overwrite="always",
+    )
+
+    assert scans_tsv.read_text(encoding="utf-8") == original_content

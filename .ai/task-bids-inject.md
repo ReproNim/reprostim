@@ -245,11 +245,12 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `_save_scans_model` — `reprostim_*` columns appear in `_REPROSTIM_COLS` order
 
 #### Integration tests (end-to-end via `_do_inject_scans` / `_call_split_video`)
-- [ ] Successful injection → all four `reprostim_*` columns written with correct values
-- [ ] Failed split → four columns written as `n/a` (stale values cleared)
-- [ ] Re-run (columns already present) → columns updated in-place, no duplication
-- [ ] `--dry-run` → `_scans.tsv` not modified
-- [ ] `reprostim_path` is relative to `videos.tsv` location, not absolute
+- [x] Successful injection → all four `reprostim_*` columns written with correct values
+- [x] `reprostim_path` is relative to `videos.tsv` location, not absolute
+- [x] Non-injected rows receive `n/a` for all `reprostim_*` columns
+- [x] Failed split → four columns written as `n/a` (stale values cleared)
+- [x] Re-run (columns already present) → columns updated in-place, no duplication
+- [x] `--dry-run` → `_scans.tsv` not modified
 
 ### Overwrite mode tests
 
