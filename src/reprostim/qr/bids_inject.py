@@ -892,7 +892,7 @@ def _call_split_video(
     if record.metadata and record.metadata.TaskName:
         sidecar_metadata["TaskName"] = record.metadata.TaskName
 
-    ret, _ = split_video_main(
+    ret, split_results = split_video_main(
         input_path=input_path,
         output_path=output_path,
         start_time=start_ts.isoformat(),
@@ -908,6 +908,13 @@ def _call_split_video(
         verbose=ctx.verbose,
         out_func=_capturing_out_func,
     )
+
+    # reset reprostim_ data first
+    record.reprostim_path = None
+    record.reprostim_offset = None
+    record.reprostim_buffer_before = None
+    record.reprostim_buffer_after = None
+
     if ret != 0:
         captured = "; ".join(captured_errors) if captured_errors else f"exit code {ret}"
         err_msg = f"split-video failed for {record.filename}: {captured}"
@@ -917,6 +924,12 @@ def _call_split_video(
     else:
         logger.info(f"split-video completed successfully ({record.filename})")
         ctx.summary.n_injected += 1
+        if split_results:
+            sr = split_results[0]
+            record.reprostim_path = va.path
+            record.reprostim_offset = sr.orig_buffer_offset
+            record.reprostim_buffer_before = sr.buffer_before
+            record.reprostim_buffer_after = sr.buffer_after
 
 
 def _do_inject_scans(ctx: BiContext, path: str):
@@ -1008,6 +1021,8 @@ def _do_inject_scans(ctx: BiContext, path: str):
             else:
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
                 ctx.summary.n_skipped += 1
+        if not ctx.dry_run:
+            _save_scans_model(scans)
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 
