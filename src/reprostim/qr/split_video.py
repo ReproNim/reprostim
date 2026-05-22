@@ -13,7 +13,7 @@ import os
 import subprocess
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import isodate
 from pydantic import BaseModel, Field
@@ -792,7 +792,7 @@ def _do_main_specs(
     verbose: bool = False,
     lock: bool = True,
     out_func=print,
-) -> int:
+) -> Tuple[int, List["SplitResult"]]:
     """Process multiple --spec arguments.
 
     :param specs: Tuple of spec strings
@@ -806,7 +806,7 @@ def _do_main_specs(
     :param raw: Enable raw mode
     :param verbose: Enable verbose output
     :param out_func: Output function
-    :return: Number of failures (0 = all succeeded)
+    :return: Tuple of (number of failures, list of successful SplitResult objects)
     """
     # Validate output template for multiple specs
     if len(specs) > 1 and not _has_template_tokens(output_template):
@@ -828,6 +828,7 @@ def _do_main_specs(
         )
 
     failures = 0
+    results: List[SplitResult] = []
     buf_before_sec = _parse_interval_sec(buffer_before)
     buf_after_sec = _parse_interval_sec(buffer_after)
     bp = BufferPolicy(buffer_policy.lower())
@@ -887,6 +888,8 @@ def _do_main_specs(
                 failures += 1
                 continue
 
+            results.append(sr)
+
             if verbose:
                 out_func(f"  Input path  : {sr.input_path}")
                 out_func(f"  Output path : {sr.output_path}")
@@ -913,7 +916,7 @@ def _do_main_specs(
             failures += 1
             continue
 
-    return failures
+    return failures, results
 
 
 def do_main(
@@ -934,7 +937,7 @@ def do_main(
     specs: tuple = (),
     lock: bool = True,
     out_func=print,
-) -> int:
+) -> Tuple[int, List[SplitResult]]:
     """Main entry point for split_video module.
 
     Parameters
@@ -1030,7 +1033,7 @@ def do_main(
             logger.error(
                 "Either --spec or --start with --duration/--end must be provided."
             )
-            return 1
+            return 1, []
 
     try:
         return _do_main_specs(
@@ -1052,4 +1055,4 @@ def do_main(
     except ValueError as e:
         logger.error(f"Spec validation error: {e}")
         out_func(f"ERROR: {e}")
-        return 5
+        return 5, []

@@ -891,7 +891,7 @@ def test_do_main_specs_single_spec_output_used_as_is(mock_csd, mock_sv):
     mock_csd.return_value = _make_sd()
     mock_sv.return_value = _make_sr_ms(output_path="/out/clip.mkv")
 
-    failures = _do_main_specs(
+    failures, results = _do_main_specs(
         specs=("2024-02-02T17:30:00/PT3M",),
         input_path="/fake/video.mkv",
         output_template="/out/clip.mkv",
@@ -905,6 +905,7 @@ def test_do_main_specs_single_spec_output_used_as_is(mock_csd, mock_sv):
     )
 
     assert failures == 0
+    assert len(results) == 1
     mock_sv.assert_called_once()
     # Positional arg[1] is out_path; no tokens → unchanged
     assert mock_sv.call_args[0][1] == "/out/clip.mkv"
@@ -920,7 +921,7 @@ def test_do_main_specs_multiple_specs_unique_output_files(mock_csd, mock_sv):
         _make_sr_ms("/out/clip_002.mkv"),
     ]
 
-    failures = _do_main_specs(
+    failures, results = _do_main_specs(
         specs=("2024-02-02T17:30:00/PT3M", "2024-02-02T17:40:00/PT3M"),
         input_path="/fake/video.mkv",
         output_template="/out/clip_{n}.mkv",
@@ -934,6 +935,7 @@ def test_do_main_specs_multiple_specs_unique_output_files(mock_csd, mock_sv):
     )
 
     assert failures == 0
+    assert len(results) == 2
     assert mock_sv.call_count == 2
     out_paths = [c[0][1] for c in mock_sv.call_args_list]
     assert "/out/clip_001.mkv" in out_paths
@@ -965,7 +967,7 @@ def test_do_main_specs_per_spec_failure_continues_processing(mock_csd, mock_sv):
     mock_csd.side_effect = [ValueError("simulated failure"), _make_sd(17, 40)]
     mock_sv.return_value = _make_sr_ms("/out/clip_002.mkv")
 
-    failures = _do_main_specs(
+    failures, results = _do_main_specs(
         specs=("2024-02-02T17:30:00/PT3M", "2024-02-02T17:40:00/PT3M"),
         input_path="/fake/video.mkv",
         output_template="/out/clip_{n}.mkv",
@@ -979,6 +981,7 @@ def test_do_main_specs_per_spec_failure_continues_processing(mock_csd, mock_sv):
     )
 
     assert failures == 1
+    assert len(results) == 1
     # Second spec still ran despite first failure
     mock_sv.assert_called_once()
 
@@ -1073,7 +1076,7 @@ def test_cli_neither_spec_nor_start_raises(input_video):
 
 def test_cli_lock_yes_passed_to_do_main(input_video):
     """--lock yes results in lock=True passed to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1093,7 +1096,7 @@ def test_cli_lock_yes_passed_to_do_main(input_video):
 
 def test_cli_lock_no_passed_to_do_main(input_video):
     """--lock no results in lock=False passed to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1113,7 +1116,7 @@ def test_cli_lock_no_passed_to_do_main(input_video):
 
 def test_cli_raw_flag_passed_to_do_main(input_video):
     """--raw flag results in raw=True passed to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1132,7 +1135,7 @@ def test_cli_raw_flag_passed_to_do_main(input_video):
 
 def test_cli_sidecar_format_bids_passed_to_do_main(input_video):
     """--sidecar-format bids passes sidecar_format='bids' to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1152,7 +1155,7 @@ def test_cli_sidecar_format_bids_passed_to_do_main(input_video):
 
 def test_cli_sidecar_format_raw_passed_to_do_main(input_video):
     """--sidecar-format raw passes sidecar_format='raw' to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1294,27 +1297,33 @@ def test_split_video_resolution_none_gives_na_dimensions():
 
 def test_do_main_start_duration_builds_spec():
     """do_main with start_time+duration builds a START/DURATION spec."""
-    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
-        result = do_main(
+    with patch(
+        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+    ) as mock_dms:
+        ret, results = do_main(
             input_path="/fake/video.mkv",
             output_path="/out/clip.mkv",
             start_time="2024-02-02T17:30:00",
             duration="PT3M",
         )
-    assert result == 0
+    assert ret == 0
+    assert results == []
     assert mock_dms.call_args.kwargs["specs"] == ("2024-02-02T17:30:00/PT3M",)
 
 
 def test_do_main_start_end_builds_spec():
     """do_main with start_time+end_time builds a START//END spec."""
-    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
-        result = do_main(
+    with patch(
+        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+    ) as mock_dms:
+        ret, results = do_main(
             input_path="/fake/video.mkv",
             output_path="/out/clip.mkv",
             start_time="2024-02-02T17:30:00",
             end_time="2024-02-02T17:33:00",
         )
-    assert result == 0
+    assert ret == 0
+    assert results == []
     assert mock_dms.call_args.kwargs["specs"] == (
         "2024-02-02T17:30:00//2024-02-02T17:33:00",
     )
@@ -1322,23 +1331,27 @@ def test_do_main_start_end_builds_spec():
 
 def test_do_main_specs_provided_directly():
     """do_main with specs tuple passes them straight to _do_main_specs."""
-    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
-        result = do_main(
+    with patch(
+        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+    ) as mock_dms:
+        ret, results = do_main(
             input_path="/fake/video.mkv",
             output_path="/out/clip_{n}.mkv",
             specs=("2024-02-02T17:30:00/PT3M",),
         )
-    assert result == 0
+    assert ret == 0
+    assert results == []
     assert mock_dms.call_args.kwargs["specs"] == ("2024-02-02T17:30:00/PT3M",)
 
 
 def test_do_main_neither_spec_nor_start_returns_1():
     """do_main with no spec and no start_time returns exit code 1."""
-    result = do_main(
+    ret, results = do_main(
         input_path="/fake/video.mkv",
         output_path="/out/clip.mkv",
     )
-    assert result == 1
+    assert ret == 1
+    assert results == []
 
 
 def test_do_main_value_error_from_specs_returns_5():
@@ -1348,20 +1361,23 @@ def test_do_main_value_error_from_specs_returns_5():
         "reprostim.qr.split_video._do_main_specs",
         side_effect=ValueError("bad template"),
     ):
-        result = do_main(
+        ret, results = do_main(
             input_path="/fake/video.mkv",
             output_path="/out/clip.mkv",
             specs=("2024-02-02T17:30:00/PT3M",),
             out_func=messages.append,
         )
-    assert result == 5
+    assert ret == 5
+    assert results == []
     assert any("ERROR" in m for m in messages)
 
 
 def test_do_main_sidecar_metadata_passed_to_do_main_specs():
     """do_main forwards sidecar_metadata to _do_main_specs."""
     meta = {"TaskName": "nback"}
-    with patch("reprostim.qr.split_video._do_main_specs", return_value=0) as mock_dms:
+    with patch(
+        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+    ) as mock_dms:
         do_main(
             input_path="/fake/video.mkv",
             output_path="/out/clip.mkv",
@@ -1385,7 +1401,7 @@ def test_do_main_specs_sd_success_false_counts_as_failure(mock_csd, mock_sv):
     sd.success = False
     mock_csd.return_value = sd
 
-    failures = _do_main_specs(
+    failures, results = _do_main_specs(
         specs=("2024-02-02T17:30:00/PT3M",),
         input_path="/fake/video.mkv",
         output_template="/out/clip.mkv",
@@ -1399,6 +1415,7 @@ def test_do_main_specs_sd_success_false_counts_as_failure(mock_csd, mock_sv):
     )
 
     assert failures == 1
+    assert results == []
     mock_sv.assert_not_called()
 
 
@@ -1411,7 +1428,7 @@ def test_do_main_specs_split_video_failure_counts(mock_csd, mock_sv):
     sr.success = False
     mock_sv.return_value = sr
 
-    failures = _do_main_specs(
+    failures, results = _do_main_specs(
         specs=("2024-02-02T17:30:00/PT3M",),
         input_path="/fake/video.mkv",
         output_template="/out/clip.mkv",
@@ -1425,6 +1442,7 @@ def test_do_main_specs_split_video_failure_counts(mock_csd, mock_sv):
     )
 
     assert failures == 1
+    assert results == []
 
 
 @patch("reprostim.qr.split_video._split_video")
@@ -1514,7 +1532,7 @@ def test_cli_start_without_duration_or_end_raises(input_video):
 
 def test_cli_sidecar_json_auto_passed_to_do_main(input_video):
     """--sidecar-json auto passes sidecar_json='auto' to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1534,7 +1552,7 @@ def test_cli_sidecar_json_auto_passed_to_do_main(input_video):
 
 def test_cli_sidecar_json_explicit_path_passed_to_do_main(input_video):
     """Explicit --sidecar-json path is forwarded unchanged to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0) as mock_dm:
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1554,7 +1572,7 @@ def test_cli_sidecar_json_explicit_path_passed_to_do_main(input_video):
 
 def test_cli_verbose_emits_completed_message(input_video):
     """--verbose causes the 'completed' elapsed-time line to be echoed."""
-    with patch("reprostim.qr.split_video.do_main", return_value=0):
+    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])):
         result = CliRunner().invoke(
             split_video,
             [

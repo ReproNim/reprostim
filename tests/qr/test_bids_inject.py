@@ -983,7 +983,7 @@ def test_call_split_video_passes_task_name_in_sidecar_metadata(tmp_path):
 
     def _fake_split_video_main(**kwargs):
         captured.update(kwargs)
-        return 0
+        return 0, []
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         ret, _ = _run(
@@ -1016,7 +1016,7 @@ def test_call_split_video_empty_sidecar_metadata_when_no_task_name(tmp_path):
 
     def _fake_split_video_main(**kwargs):
         captured.update(kwargs)
-        return 0
+        return 0, []
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         ret, _ = _run(

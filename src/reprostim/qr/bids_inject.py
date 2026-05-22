@@ -892,7 +892,7 @@ def _call_split_video(
     if record.metadata and record.metadata.TaskName:
         sidecar_metadata["TaskName"] = record.metadata.TaskName
 
-    ret = split_video_main(
+    ret, _ = split_video_main(
         input_path=input_path,
         output_path=output_path,
         start_time=start_ts.isoformat(),
