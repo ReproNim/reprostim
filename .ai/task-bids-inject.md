@@ -119,6 +119,15 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [ ] Finalise suffix name (`_qrcodes` / `_codes` / `_qr` / `_qrinfo`)
 - [ ] Columns: `onset`, `duration`, plus QR-derived fields
 
+### D) _scans.tsv annotation — `reprostim_*` columns
+- [ ] Add `ScansModel` / `ScanRecord` fields for the four annotation columns
+- [ ] Write-back `reprostim_buffer_before`, `reprostim_buffer_after`, `reprostim_path`, `reprostim_offset` to `_scans.tsv` after successful injection
+- [ ] Rows that are skipped or error → write `n/a` for all four columns (when column is newly added to file)
+- [ ] Preserve all existing columns; append new ones to the right
+- [ ] Handle re-runs: update existing `reprostim_*` columns in-place (don't duplicate)
+- [ ] Skip write-back in `--dry-run` mode
+- [ ] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
+
 ---
 
 ## QR Modes
@@ -218,6 +227,14 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [ ] `--lock no` → `FileLock` not acquired (mock / spy on `_get_tsv_records`)
 - [ ] `--reprostim-timezone` / `--bids-timezone` → passed into `BiContext` correctly
 - [ ] Mixed timezone scenario: Eastern ReproStim + UTC BIDS → times align after conversion
+
+### _scans.tsv annotation tests
+
+- [ ] Successful injection → all four `reprostim_*` columns written with correct values
+- [ ] Skipped scan → four columns written as `n/a`
+- [ ] Re-run (columns already present) → columns updated in-place, no duplication
+- [ ] `--dry-run` → `_scans.tsv` not modified
+- [ ] `reprostim_path` is relative to `videos.tsv` location, not absolute
 
 ### Overwrite mode tests
 
