@@ -54,7 +54,7 @@ JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JS
 
 # NB: move in future to audio package or tool?
 class AudioInfo(BaseModel):
-    """Audio information extracted from the video file."""
+    """Audio stream information extracted from the video file with ffprobe."""
 
     bits_per_sample: Optional[int] = None  # Bits per sample
     channels: Optional[int] = None  # Number of audio channels
@@ -66,6 +66,24 @@ class AudioInfo(BaseModel):
     sample_rate: Optional[int] = None  # Sample rate in Hz
     start_time: Optional[float] = None  # Start time of the audio stream in seconds
     tag_str: Optional[str] = None  # Codec tag string (e.g., "[0][0][0][0]")
+
+
+class VideoInfo(BaseModel):
+    """Video stream information extracted from the video file with ffprobe."""
+
+    bit_depth: Optional[int] = None  # Bit depth per channel, 8, 10, 12, 16 etc.
+    codec: Optional[str] = None  # Video codec used
+    codec_long: Optional[str] = None  # Video codec detailed name
+    codec_rfc6381: Optional[str] = None  # Video codec in RFC 6381 format
+    duration_sec: Optional[float] = None  # Duration in seconds
+    fps: Optional[float] = None  # Frames per second
+    height: Optional[int] = None  # Video frame height in pixels
+    level: Optional[int] = None  # Video codec level
+    pix_fmt: Optional[str] = None  # Pixel format (e.g., "yuv420p")
+    profile: Optional[str] = None  # Video codec profile (e.g., "High")
+    start_time: Optional[float] = None  # Start time of the video stream in seconds
+    tag_str: Optional[str] = None  # Codec tag string (e.g., "[0][0][0][0]")
+    width: Optional[int] = None  # Video frame width in pixels
 
 
 class VaMode(str, Enum):
