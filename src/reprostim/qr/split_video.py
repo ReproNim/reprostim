@@ -113,7 +113,9 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
 
     :param sr: SplitResult to convert
     :param sidecar_metadata: Optional dict with extra BIDS fields to inject.
-        Currently supports ``TaskName`` (written as the first field when present).
+        Supports ``TaskName`` (written as the first field when present),
+        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``BitDepth``, and
+        ``PixelFormat``.
     :return: Dict with BIDS-compliant metadata field names
     """
     result = {}
@@ -134,7 +136,9 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
 
     if sr.video_codec != "n/a":
         result["VideoCodec"] = sr.video_codec
-        result["VideoCodecRFC6381"] = "n/a"
+        result["VideoCodecRFC6381"] = (sidecar_metadata or {}).get(
+            "VideoCodecRFC6381", "n/a"
+        )
 
     if sr.video_frame_rate is not None:
         result["FrameRate"] = sr.video_frame_rate
@@ -151,9 +155,19 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
         except (ValueError, TypeError):
             pass
 
+    if sidecar_metadata:
+        bit_depth = sidecar_metadata.get("BitDepth")
+        if bit_depth is not None:
+            result["BitDepth"] = int(bit_depth)
+        pix_fmt = sidecar_metadata.get("PixelFormat")
+        if pix_fmt:
+            result["PixelFormat"] = pix_fmt
+
     if sr.audio_codec != "n/a":
         result["AudioCodec"] = sr.audio_codec
-        result["AudioCodecRFC6381"] = "n/a"
+        result["AudioCodecRFC6381"] = (sidecar_metadata or {}).get(
+            "AudioCodecRFC6381", "n/a"
+        )
 
     if sr.audio_sample_rate != "n/a":
         try:

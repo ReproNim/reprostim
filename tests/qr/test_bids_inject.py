@@ -48,6 +48,7 @@ from reprostim.qr.bids_inject import (
     dt_utc_to_reprostim,
 )
 from reprostim.qr.split_video import SplitResult
+from reprostim.qr.video_audit import AudioInfo, VideoInfo
 
 # ---------------------------------------------------------------------------
 # Shared fixtures / helpers
@@ -1032,6 +1033,106 @@ def test_call_split_video_empty_sidecar_metadata_when_no_task_name(tmp_path):
     assert ret == 0
     assert "sidecar_metadata" in captured
     assert captured["sidecar_metadata"] == {}
+
+
+def test_call_split_video_passes_rfc6381_in_sidecar_metadata(tmp_path):
+    """_call_split_video adds VideoCodecRFC6381 and AudioCodecRFC6381
+    to sidecar_metadata."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    captured = {}
+
+    def _fake_split_video_main(**kwargs):
+        captured.update(kwargs)
+        return 0, []
+
+    fake_ai = AudioInfo(codec="aac", codec_rfc6381="mp4a.40.2")
+    fake_vi = VideoInfo(codec="h264", codec_rfc6381="avc1.640028")
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+        with patch(
+            "reprostim.qr.bids_inject.get_audio_video_info_ffprobe",
+            return_value=(fake_ai, fake_vi),
+        ):
+            ret, _ = _run(
+                [str(scans_tsv)],
+                videos_tsv,
+                match=_MATCH_TASK_REST,
+                overwrite="skip",
+                dry_run=False,
+            )
+
+    assert ret == 0
+    assert "sidecar_metadata" in captured
+    assert captured["sidecar_metadata"].get("VideoCodecRFC6381") == "avc1.640028"
+    assert captured["sidecar_metadata"].get("AudioCodecRFC6381") == "mp4a.40.2"
+
+
+def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
+    tmp_path,
+):
+    """_call_split_video adds BitDepth and PixelFormat to sidecar_metadata
+    via ffprobe."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    captured = {}
+
+    def _fake_split_video_main(**kwargs):
+        captured.update(kwargs)
+        return 0, []
+
+    fake_ai = AudioInfo()
+    fake_vi = VideoInfo(codec="h264", bit_depth=10, pix_fmt="yuv420p10le")
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+        with patch(
+            "reprostim.qr.bids_inject.get_audio_video_info_ffprobe",
+            return_value=(fake_ai, fake_vi),
+        ):
+            ret, _ = _run(
+                [str(scans_tsv)],
+                videos_tsv,
+                match=_MATCH_TASK_REST,
+                overwrite="skip",
+                dry_run=False,
+            )
+
+    assert ret == 0
+    assert "sidecar_metadata" in captured
+    assert captured["sidecar_metadata"].get("BitDepth") == 10
+    assert captured["sidecar_metadata"].get("PixelFormat") == "yuv420p10le"
+
+
+def test_call_split_video_rfc6381_ffprobe_error_continues(tmp_path):
+    """ffprobe failure logs an error but injection still proceeds."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    captured = {}
+
+    def _fake_split_video_main(**kwargs):
+        captured.update(kwargs)
+        return 0, []
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+        with patch(
+            "reprostim.qr.bids_inject.get_audio_video_info_ffprobe",
+            side_effect=RuntimeError("ffprobe not found"),
+        ):
+            ret, _ = _run(
+                [str(scans_tsv)],
+                videos_tsv,
+                match=_MATCH_TASK_REST,
+                overwrite="skip",
+                dry_run=False,
+            )
+
+    assert ret == 0
+    assert "sidecar_metadata" in captured
+    assert "VideoCodecRFC6381" not in captured["sidecar_metadata"]
+    assert "AudioCodecRFC6381" not in captured["sidecar_metadata"]
 
 
 # ===========================================================================

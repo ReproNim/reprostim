@@ -22,7 +22,7 @@ import traceback
 from datetime import datetime
 from enum import Enum
 from time import time
-from typing import Dict, Generator, List, Optional, Set
+from typing import Dict, Generator, List, Optional, Set, Tuple
 
 from filelock import FileLock, Timeout
 from pydantic import BaseModel
@@ -54,13 +54,36 @@ JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JS
 
 # NB: move in future to audio package or tool?
 class AudioInfo(BaseModel):
-    """Audio information extracted from the video file."""
+    """Audio stream information extracted from the video file with ffprobe."""
 
     bits_per_sample: Optional[int] = None  # Bits per sample
     channels: Optional[int] = None  # Number of audio channels
     codec: Optional[str] = None  # Audio codec used
+    codec_long: Optional[str] = None  # Audio codec detailed name
+    codec_rfc6381: Optional[str] = None  # Audio codec in RFC 6381 format
     duration_sec: Optional[float] = None  # Duration in seconds
+    profile: Optional[str] = None  # Audio codec profile (e.g., "LC")
     sample_rate: Optional[int] = None  # Sample rate in Hz
+    start_time: Optional[float] = None  # Start time of the audio stream in seconds
+    tag_str: Optional[str] = None  # Codec tag string (e.g., "[0][0][0][0]")
+
+
+class VideoInfo(BaseModel):
+    """Video stream information extracted from the video file with ffprobe."""
+
+    bit_depth: Optional[int] = None  # Bit depth per channel, 8, 10, 12, 16 etc.
+    codec: Optional[str] = None  # Video codec used
+    codec_long: Optional[str] = None  # Video codec detailed name
+    codec_rfc6381: Optional[str] = None  # Video codec in RFC 6381 format
+    duration_sec: Optional[float] = None  # Duration in seconds
+    fps: Optional[float] = None  # Frames per second
+    height: Optional[int] = None  # Video frame height in pixels
+    level: Optional[int] = None  # Video codec level
+    pix_fmt: Optional[str] = None  # Pixel format (e.g., "yuv420p")
+    profile: Optional[str] = None  # Video codec profile (e.g., "High")
+    start_time: Optional[float] = None  # Start time of the video stream in seconds
+    tag_str: Optional[str] = None  # Codec tag string (e.g., "[0][0][0][0]")
+    width: Optional[int] = None  # Video frame width in pixels
 
 
 class VaMode(str, Enum):
@@ -395,19 +418,84 @@ def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     )
 
 
-# NB: move in future to audio package or tool?
-def get_audio_info_ffprobe(path: str) -> AudioInfo:
-    """Extract audio information from the video file using ffprobe.
+def audio_codec_to_rfc6381(codec: str, profile: Optional[str]) -> Optional[str]:
+    """Return the RFC 6381 codec string for an audio stream.
 
-    :param path: Path to the video file(.mkv, .mp4, .avi)
+    :param codec: Short codec name as reported by ffprobe (e.g. ``"aac"``).
+    :type codec: str
+
+    :param profile: Codec profile string (e.g. ``"LC"``), or ``None``.
+    :type profile: Optional[str]
+
+    :return: RFC 6381 string (e.g. ``"mp4a.40.2"``), or ``None`` when the
+             codec is not recognized.
+    :rtype: Optional[str]
+    """
+    if codec == "aac":
+        aot = {"LC": 2, "HE-AAC": 5, "HE-AACv2": 29, "LD": 23, "ELD": 39}.get(
+            profile, 2
+        )
+        return f"mp4a.40.{aot}"
+    if codec in ("mp3", "mp2"):
+        return "mp4a.69"
+    if codec == "opus":
+        return "opus"
+    return None
+
+
+def video_codec_to_rfc6381(
+    codec: str, profile: Optional[str], level: Optional[int]
+) -> Optional[str]:
+    """Return the RFC 6381 codec string for a video stream.
+
+    :param codec: Short codec name as reported by ffprobe (e.g. ``"h264"``).
+    :type codec: str
+
+    :param profile: Codec profile string (e.g. ``"High"``), or ``None``.
+    :type profile: Optional[str]
+
+    :param level: Codec level integer as reported by ffprobe (e.g. ``42``),
+                  or ``None``.
+    :type level: Optional[int]
+
+    :return: RFC 6381 string (e.g. ``"avc1.64002A"``), or ``None`` when the
+             codec is not recognised.
+    :rtype: Optional[str]
+    """
+    if codec == "h264":
+        profile_idc = {
+            "Baseline": 0x42,
+            "Main": 0x4D,
+            "High": 0x64,
+            "High 10": 0x6E,
+            "High 4:2:2": 0x7A,
+            "High 4:4:4 Predictive": 0xF4,
+        }.get(profile, 0x42)
+        level_idc = level if level is not None else 0
+        return f"avc1.{profile_idc:02X}00{level_idc:02X}"
+    return None
+
+
+# NB: move in future to audio package or tool?
+def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
+    """Extract audio and video stream information from the video file using ffprobe.
+
+    Issues a single ffprobe call that reads all streams, then splits results
+    into an :class:`AudioInfo` (first audio stream) and a :class:`VideoInfo`
+    (first video stream).
+
+    :param path: Path to the video file (.mkv, .mp4, .avi)
     :type path: str
 
-    :return: AudioInfo object with extracted audio information
-    :rtype: AudioInfo
+    :return: Tuple of (AudioInfo, VideoInfo) with extracted stream information.
+             Fields are ``None`` when the corresponding stream is absent or a
+             value cannot be parsed.
+    :rtype: Tuple[AudioInfo, VideoInfo]
     """
 
-    logger.debug(f"get_audio_info: {path}")
+    logger.debug(f"get_audio_video_info_ffprobe: {path}")
     ai: AudioInfo = AudioInfo()
+    vi: VideoInfo = VideoInfo()
 
     try:
         cmd = [
@@ -417,8 +505,6 @@ def get_audio_info_ffprobe(path: str) -> AudioInfo:
             "-print_format",
             "json",  # JSON output
             "-show_streams",  # streams
-            "-select_streams",
-            "a",  # filter all audio streams
             path,
         ]
         # cmd = ["ffprobe", "-h"]
@@ -430,35 +516,72 @@ def get_audio_info_ffprobe(path: str) -> AudioInfo:
 
         streams = o.get("streams", [])
         audio_streams = [s for s in streams if s.get("codec_type") == "audio"]
+        video_streams = [s for s in streams if s.get("codec_type") == "video"]
 
         if audio_streams:
-            stream = audio_streams[
-                0
-            ]  # take first audio stream (or iterate if multiple)
-
-            bps = stream.get("bits_per_sample")
+            s = audio_streams[0]
+            bps = s.get("bits_per_sample")
             if bps is not None and bps != 0:
                 ai.bits_per_sample = bps
-            ai.channels = stream.get("channels")
-            ai.codec = stream.get("codec_name")
-            ai.sample_rate = (
-                int(stream["sample_rate"]) if "sample_rate" in stream else None
-            )
+            ai.channels = s.get("channels")
+            ai.codec = s.get("codec_name")
+            ai.codec_long = s.get("codec_long_name")
+            ai.profile = s.get("profile")
+            ai.sample_rate = int(s["sample_rate"]) if "sample_rate" in s else None
+            ai.start_time = float(s["start_time"]) if "start_time" in s else None
+            ai.tag_str = s.get("codec_tag_string")
+            ai.codec_rfc6381 = audio_codec_to_rfc6381(ai.codec or "", ai.profile)
+            if "tags" in s and "DURATION" in s["tags"]:
+                h, m, sec = s["tags"]["DURATION"].split(":")
+                ai.duration_sec = int(h) * 3600 + int(m) * 60 + float(sec)
+            elif "duration" in s:
+                ai.duration_sec = float(s["duration"])
 
-            # duration is usually in tags, but sometimes in stream
-            if "tags" in stream and "DURATION" in stream["tags"]:
-                # Example: "00:00:17.150000000"
-                h, m, s = stream["tags"]["DURATION"].split(":")
-                ai.duration_sec = int(h) * 3600 + int(m) * 60 + float(s)
-            elif "duration" in stream:
-                ai.duration_sec = float(stream["duration"])
+        if video_streams:
+            s = video_streams[0]
+            vi.codec = s.get("codec_name")
+            vi.codec_long = s.get("codec_long_name")
+            vi.profile = s.get("profile")
+            vi.level = s.get("level")
+            vi.width = s.get("width")
+            vi.height = s.get("height")
+            vi.pix_fmt = s.get("pix_fmt")
+            vi.start_time = float(s["start_time"]) if "start_time" in s else None
+            vi.tag_str = s.get("codec_tag_string")
+            bprs = s.get("bits_per_raw_sample")
+            if bprs is not None:
+                try:
+                    v = int(bprs)
+                    if v != 0:
+                        vi.bit_depth = v
+                except (ValueError, TypeError):
+                    pass
+            for fps_key in ("avg_frame_rate", "r_frame_rate"):
+                fps_str = s.get(fps_key)
+                if fps_str and fps_str != "0/0":
+                    try:
+                        num, den = fps_str.split("/")
+                        den_int = int(den)
+                        if den_int != 0:
+                            vi.fps = float(int(num)) / den_int
+                            break
+                    except (ValueError, ZeroDivisionError):
+                        pass
+            vi.codec_rfc6381 = video_codec_to_rfc6381(
+                vi.codec or "", vi.profile, vi.level
+            )
+            if "tags" in s and "DURATION" in s["tags"]:
+                h, m, sec = s["tags"]["DURATION"].split(":")
+                vi.duration_sec = int(h) * 3600 + int(m) * 60 + float(sec)
+            elif "duration" in s:
+                vi.duration_sec = float(s["duration"])
 
     except FileNotFoundError:
         logger.error("ffprobe is not installed or not in PATH")
     except subprocess.CalledProcessError as e:
         logger.error(f"ffprobe error: {e} {e.stdout} {e.stderr}")
 
-    return ai
+    return ai, vi
 
 
 def _save_tsv(records: List[VaRecord], path_out: str):
@@ -798,8 +921,9 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
                     )
                     vr.video_fps_recorded = f"{round(ps.video_frame_rate, 1)}"
 
-            # try to get audio info
-            ai: AudioInfo = get_audio_info_ffprobe(path)
+            # try to get audio and video info
+            ai: AudioInfo
+            ai, _ = get_audio_video_info_ffprobe(path)
             if ai is not None:
                 logger.debug(f"ai: {ai}")
                 if ai.sample_rate is not None:
