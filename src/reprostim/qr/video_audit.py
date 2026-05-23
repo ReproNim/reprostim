@@ -59,8 +59,13 @@ class AudioInfo(BaseModel):
     bits_per_sample: Optional[int] = None  # Bits per sample
     channels: Optional[int] = None  # Number of audio channels
     codec: Optional[str] = None  # Audio codec used
+    codec_long: Optional[str] = None  # Audio codec detailed name
+    codec_rfc6381: Optional[str] = None  # Audio codec in RFC 6381 format
     duration_sec: Optional[float] = None  # Duration in seconds
+    profile: Optional[str] = None  # Audio codec profile (e.g., "LC")
     sample_rate: Optional[int] = None  # Sample rate in Hz
+    start_time: Optional[float] = None  # Start time of the audio stream in seconds
+    tag_str: Optional[str] = None  # Codec tag string (e.g., "[0][0][0][0]")
 
 
 class VaMode(str, Enum):
