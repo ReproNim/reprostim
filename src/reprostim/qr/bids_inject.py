@@ -23,7 +23,10 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
-from reprostim.qr.video_audit import find_video_audit_by_timerange
+from reprostim.qr.video_audit import (
+    find_video_audit_by_timerange,
+    get_audio_video_info_ffprobe,
+)
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -891,6 +894,18 @@ def _call_split_video(
     sidecar_metadata: dict = {}
     if record.metadata and record.metadata.TaskName:
         sidecar_metadata["TaskName"] = record.metadata.TaskName
+
+    # TODO: in the future, read VideoCodecRFC6381 / AudioCodecRFC6381 from
+    #       dedicated columns in videos.tsv populated by video-audit, avoiding
+    #       the extra ffprobe call here.
+    try:
+        ai, vi = get_audio_video_info_ffprobe(input_path)
+        if vi.codec_rfc6381:
+            sidecar_metadata["VideoCodecRFC6381"] = vi.codec_rfc6381
+        if ai.codec_rfc6381:
+            sidecar_metadata["AudioCodecRFC6381"] = ai.codec_rfc6381
+    except Exception as e:
+        logger.error(f"Failed to get codec RFC6381 info for {input_path}: {e}")
 
     ret, split_results = split_video_main(
         input_path=input_path,

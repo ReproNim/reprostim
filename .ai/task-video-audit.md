@@ -82,6 +82,11 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `VaContext` — Pydantic model carrying all processing options
 - [x] `VaMode` — enum of operation modes
 - [x] `VaSource` — enum of audit sources
+- [x] `AudioInfo` — Pydantic model for audio stream info (codec, codec_long, codec_rfc6381, profile, sample_rate, channels, bits_per_sample, duration_sec, start_time, tag_str)
+- [x] `VideoInfo` — Pydantic model for video stream info (codec, codec_long, codec_rfc6381, profile, level, width, height, pix_fmt, bit_depth, fps, duration_sec, start_time, tag_str)
+- [x] `audio_codec_to_rfc6381` — RFC 6381 string for audio codec
+- [x] `video_codec_to_rfc6381` — RFC 6381 string for video codec
+- [x] `get_audio_video_info_ffprobe` — single ffprobe call returning `Tuple[AudioInfo, VideoInfo]`
 - [x] `do_audit_file` — audit a single video file (INTERNAL)
 - [x] `do_audit_dir` — audit all videos in a directory
 - [x] `do_audit_internal` — entry point for INTERNAL source
@@ -128,12 +133,27 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] `ffprobe` available (subprocess mock) → `True`
 - [x] `ffprobe` not found (`FileNotFoundError` mock) → `False`
 
-#### `get_audio_info_ffprobe`
-- [x] Success with DURATION tag → codec/sample_rate/channels/bits_per_sample/duration set
+#### `audio_codec_to_rfc6381`
+- [x] AAC LC → `"mp4a.40.2"`
+- [x] AAC HE-AAC → `"mp4a.40.5"`
+- [x] AAC unknown/None profile → defaults to `"mp4a.40.2"`
+- [x] MP3 → `"mp4a.69"`
+- [x] Opus → `"opus"`
+- [x] Unknown codec → `None`
+
+#### `video_codec_to_rfc6381`
+- [x] H.264 High@L4.2 → `"avc1.64002A"`
+- [x] H.264 Baseline@L3.0 → `"avc1.42001E"`
+- [x] H.264 None level → `"avc1.4D0000"`
+- [x] Unknown codec → `None`
+
+#### `get_audio_video_info_ffprobe` (replaces `get_audio_info_ffprobe`)
+- [x] Success — audio fields: codec/codec_long/profile/sample_rate/channels/start_time/tag_str/codec_rfc6381/duration set
+- [x] Success — video fields: codec/codec_long/profile/level/width/height/pix_fmt/bit_depth/fps/codec_rfc6381/duration/start_time/tag_str set
 - [x] Duration read from stream `duration` field (no DURATION tag)
-- [x] No audio streams → all fields `None`
-- [x] `FileNotFoundError` → returns empty `AudioInfo`
-- [x] `CalledProcessError` → returns empty `AudioInfo`
+- [x] No audio streams → AudioInfo all `None`, VideoInfo populated
+- [x] `FileNotFoundError` → returns empty AudioInfo and VideoInfo
+- [x] `CalledProcessError` → returns empty AudioInfo and VideoInfo
 
 #### `_compare_rec_ts`
 - [x] Both `n/a` → `0`

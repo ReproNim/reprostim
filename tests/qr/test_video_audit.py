@@ -11,9 +11,12 @@ Covers: --nosignal-opts, --qr-opts, --config and their default behaviour.
 import csv
 import json
 import os
+import pathlib
 import subprocess
 from datetime import datetime
 from unittest.mock import MagicMock, patch
+
+_DATA_DIR = pathlib.Path(__file__).parent.parent / "data" / "video_audit"
 
 import click.testing
 import pytest
@@ -25,6 +28,7 @@ from reprostim.qr.video_audit import (
     VaMode,
     VaRecord,
     VaSource,
+    VideoInfo,
     _build_dated_path,
     _compare_rec_ts,
     _get_tsv_records,
@@ -35,6 +39,7 @@ from reprostim.qr.video_audit import (
     _parse_rec_datetime,
     _save_tsv,
     _tsv_cache,
+    audio_codec_to_rfc6381,
     check_coherent,
     check_ffprobe,
     do_audit,
@@ -48,12 +53,13 @@ from reprostim.qr.video_audit import (
     format_date,
     format_duration,
     format_time,
-    get_audio_info_ffprobe,
+    get_audio_video_info_ffprobe,
     get_file_video_audit,
     iter_metadata_json,
     run_ext_all,
     run_ext_nosignal,
     run_ext_qr,
+    video_codec_to_rfc6381,
 )
 
 runner = click.testing.CliRunner()
@@ -821,11 +827,13 @@ def test_do_audit_file_happy_path(tmp_path):
         bits_per_sample=16,
         duration_sec=60.0,
     )
+    mock_vi2 = MagicMock(spec=VideoInfo)
     sb = {"frameRate": "30.0", "cx": 1920, "cy": 1080}
     with patch("reprostim.qr.video_audit.find_metadata_json", return_value=sb), patch(
         "reprostim.qr.video_audit.do_info_file", return_value=(mock_vi, mock_vti)
     ), patch("reprostim.qr.video_audit.do_parse", return_value=iter([mock_ps])), patch(
-        "reprostim.qr.video_audit.get_audio_info_ffprobe", return_value=mock_ai
+        "reprostim.qr.video_audit.get_audio_video_info_ffprobe",
+        return_value=(mock_ai, mock_vi2),
     ):
         records = list(do_audit_file(_ctx(), str(mkv)))
     assert len(records) == 1
@@ -1032,38 +1040,98 @@ def test_iter_metadata_json_invalid_json(tmp_path):
 
 
 # ===========================================================================
-# get_audio_info_ffprobe
+# audio_codec_to_rfc6381 / video_codec_to_rfc6381
 # ===========================================================================
 
 
-def test_get_audio_info_ffprobe_success():
+def test_audio_codec_to_rfc6381_aac_lc():
+    assert audio_codec_to_rfc6381("aac", "LC") == "mp4a.40.2"
 
-    ffprobe_output = json.dumps(
-        {
-            "streams": [
-                {
-                    "codec_type": "audio",
-                    "codec_name": "pcm_s16le",
-                    "sample_rate": "44100",
-                    "channels": 2,
-                    "bits_per_sample": 16,
-                    "tags": {"DURATION": "00:01:00.000000000"},
-                }
-            ]
-        }
+
+def test_audio_codec_to_rfc6381_aac_he():
+    assert audio_codec_to_rfc6381("aac", "HE-AAC") == "mp4a.40.5"
+
+
+def test_audio_codec_to_rfc6381_aac_unknown_profile():
+    assert audio_codec_to_rfc6381("aac", None) == "mp4a.40.2"
+
+
+def test_audio_codec_to_rfc6381_mp3():
+    assert audio_codec_to_rfc6381("mp3", None) == "mp4a.69"
+
+
+def test_audio_codec_to_rfc6381_opus():
+    assert audio_codec_to_rfc6381("opus", None) == "opus"
+
+
+def test_audio_codec_to_rfc6381_unknown():
+    assert audio_codec_to_rfc6381("pcm_s16le", None) is None
+
+
+def test_video_codec_to_rfc6381_h264_high():
+    assert video_codec_to_rfc6381("h264", "High", 42) == "avc1.640002A".replace(
+        "0002A", "002A"
     )
-    mock_result = MagicMock(stdout=ffprobe_output, returncode=0)
+    assert video_codec_to_rfc6381("h264", "High", 42) == "avc1.64002A"
+
+
+def test_video_codec_to_rfc6381_h264_baseline():
+    assert video_codec_to_rfc6381("h264", "Baseline", 30) == "avc1.42001E"
+
+
+def test_video_codec_to_rfc6381_h264_no_level():
+    result = video_codec_to_rfc6381("h264", "Main", None)
+    assert result == "avc1.4D0000"
+
+
+def test_video_codec_to_rfc6381_unknown():
+    assert video_codec_to_rfc6381("vp9", None, None) is None
+
+
+# ===========================================================================
+# get_audio_video_info_ffprobe
+# ===========================================================================
+
+_FULL_FFPROBE_OUTPUT = (_DATA_DIR / "ffprobe_h264_aac.json").read_text()
+
+
+def test_get_audio_video_info_ffprobe_audio_fields():
+    mock_result = MagicMock(stdout=_FULL_FFPROBE_OUTPUT, returncode=0)
     with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
-        ai = get_audio_info_ffprobe("/fake/test.mkv")
-    assert ai.codec == "pcm_s16le"
-    assert ai.sample_rate == 44100
+        ai, vi = get_audio_video_info_ffprobe("/fake/test.mkv")
+    assert ai.codec == "aac"
+    assert ai.codec_long == "AAC (Advanced Audio Coding)"
+    assert ai.profile == "LC"
+    assert ai.sample_rate == 48000
     assert ai.channels == 2
-    assert ai.bits_per_sample == 16
-    assert abs(ai.duration_sec - 60.0) < 0.01
+    assert ai.bits_per_sample is None  # 0 is treated as absent
+    assert ai.codec_rfc6381 == "mp4a.40.2"
+    assert abs(ai.duration_sec - (2 * 3600 + 50 * 60 + 16.420)) < 0.01
+    assert ai.start_time == 0.0
+    assert ai.tag_str == "[0][0][0][0]"
 
 
-def test_get_audio_info_ffprobe_duration_from_stream():
-    ffprobe_output = json.dumps(
+def test_get_audio_video_info_ffprobe_video_fields():
+    mock_result = MagicMock(stdout=_FULL_FFPROBE_OUTPUT, returncode=0)
+    with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
+        ai, vi = get_audio_video_info_ffprobe("/fake/test.mkv")
+    assert vi.codec == "h264"
+    assert vi.codec_long == "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"
+    assert vi.profile == "High"
+    assert vi.level == 42
+    assert vi.width == 1920
+    assert vi.height == 1080
+    assert vi.pix_fmt == "yuv420p"
+    assert vi.bit_depth == 8
+    assert abs(vi.fps - 60.0) < 0.01
+    assert vi.codec_rfc6381 == "avc1.64002A"
+    assert abs(vi.duration_sec - (2 * 3600 + 50 * 60 + 16.438)) < 0.01
+    assert vi.start_time == pytest.approx(0.021)
+    assert vi.tag_str == "[0][0][0][0]"
+
+
+def test_get_audio_video_info_ffprobe_duration_from_stream_field():
+    output = json.dumps(
         {
             "streams": [
                 {
@@ -1076,33 +1144,51 @@ def test_get_audio_info_ffprobe_duration_from_stream():
             ]
         }
     )
-    mock_result = MagicMock(stdout=ffprobe_output, returncode=0)
+    mock_result = MagicMock(stdout=output, returncode=0)
     with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
-        ai = get_audio_info_ffprobe("/fake/test.mkv")
+        ai, vi = get_audio_video_info_ffprobe("/fake/test.mkv")
     assert abs(ai.duration_sec - 30.5) < 0.01
+    assert vi.codec is None
 
 
-def test_get_audio_info_ffprobe_no_audio_streams():
-    ffprobe_output = json.dumps({"streams": [{"codec_type": "video"}]})
-    mock_result = MagicMock(stdout=ffprobe_output, returncode=0)
+def test_get_audio_video_info_ffprobe_no_audio_streams():
+    output = json.dumps(
+        {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "profile": "High",
+                    "level": 40,
+                    "width": 1280,
+                    "height": 720,
+                    "avg_frame_rate": "30/1",
+                }
+            ]
+        }
+    )
+    mock_result = MagicMock(stdout=output, returncode=0)
     with patch("reprostim.qr.video_audit.subprocess.run", return_value=mock_result):
-        ai = get_audio_info_ffprobe("/fake/test.mkv")
+        ai, vi = get_audio_video_info_ffprobe("/fake/test.mkv")
     assert ai.codec is None
+    assert vi.codec == "h264"
 
 
-def test_get_audio_info_ffprobe_not_found():
+def test_get_audio_video_info_ffprobe_not_found():
     with patch(
         "reprostim.qr.video_audit.subprocess.run", side_effect=FileNotFoundError
     ):
-        ai = get_audio_info_ffprobe("/fake/test.mkv")
+        ai, vi = get_audio_video_info_ffprobe("/fake/test.mkv")
     assert ai.codec is None
+    assert vi.codec is None
 
 
-def test_get_audio_info_ffprobe_called_process_error():
+def test_get_audio_video_info_ffprobe_called_process_error():
     err = subprocess.CalledProcessError(1, "ffprobe", output="", stderr="error")
     with patch("reprostim.qr.video_audit.subprocess.run", side_effect=err):
-        ai = get_audio_info_ffprobe("/fake/test.mkv")
+        ai, vi = get_audio_video_info_ffprobe("/fake/test.mkv")
     assert ai.codec is None
+    assert vi.codec is None
 
 
 # ===========================================================================

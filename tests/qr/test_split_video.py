@@ -680,6 +680,28 @@ def test_to_bids_model_video_codec_absent_when_na():
     assert "VideoCodec" not in data
 
 
+def test_to_bids_model_rfc6381_from_sidecar_metadata():
+    """VideoCodecRFC6381 and AudioCodecRFC6381 are taken from sidecar_metadata."""
+    sr = SplitResult(video_codec="h264", audio_codec="aac")
+    data = _to_bids_model(
+        sr,
+        sidecar_metadata={
+            "VideoCodecRFC6381": "avc1.640028",
+            "AudioCodecRFC6381": "mp4a.40.2",
+        },
+    )
+    assert data["VideoCodecRFC6381"] == "avc1.640028"
+    assert data["AudioCodecRFC6381"] == "mp4a.40.2"
+
+
+def test_to_bids_model_rfc6381_defaults_to_na_without_sidecar_metadata():
+    """VideoCodecRFC6381 and AudioCodecRFC6381 default to 'n/a' when absent."""
+    sr = SplitResult(video_codec="h264", audio_codec="aac")
+    data = _to_bids_model(sr)
+    assert data["VideoCodecRFC6381"] == "n/a"
+    assert data["AudioCodecRFC6381"] == "n/a"
+
+
 def test_to_bids_model_no_raw_fields():
     """BIDS output contains no raw SplitResult field names."""
     sr = _make_split_result()
