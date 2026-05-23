@@ -217,7 +217,7 @@ def split_video(
     # Record start time
     start_time_sec = time.time()
 
-    res = do_main(
+    res, _ = do_main(
         input_path=input_path,
         output_path=output,
         start_time=start,

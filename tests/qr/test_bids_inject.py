@@ -4,6 +4,7 @@
 
 """Tests for the Datetime / Timezone public API in reprostim.qr.bids_inject."""
 
+import csv
 import re
 import shutil
 from datetime import datetime, time, timezone
@@ -15,6 +16,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import pytest
 
 from reprostim.qr.bids_inject import (
+    _REPROSTIM_COLS,
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
@@ -24,8 +26,13 @@ from reprostim.qr.bids_inject import (
     _calc_scan_duration_sec,
     _calc_scan_start_end_ts,
     _find_bids_root,
+    _format_bids_str,
     _is_scans_file,
+    _parse_bids_float,
+    _parse_bids_str,
     _parse_scan_metadata,
+    _parse_scans_model,
+    _save_scans_model,
     do_main,
     dt_bids_to_reprostim,
     dt_bids_to_utc,
@@ -40,6 +47,7 @@ from reprostim.qr.bids_inject import (
     dt_utc_to_bids,
     dt_utc_to_reprostim,
 )
+from reprostim.qr.split_video import SplitResult
 
 # ---------------------------------------------------------------------------
 # Shared fixtures / helpers
@@ -977,7 +985,7 @@ def test_call_split_video_passes_task_name_in_sidecar_metadata(tmp_path):
 
     def _fake_split_video_main(**kwargs):
         captured.update(kwargs)
-        return 0
+        return 0, []
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         ret, _ = _run(
@@ -1010,7 +1018,7 @@ def test_call_split_video_empty_sidecar_metadata_when_no_task_name(tmp_path):
 
     def _fake_split_video_main(**kwargs):
         captured.update(kwargs)
-        return 0
+        return 0, []
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         ret, _ = _run(
@@ -1024,3 +1032,414 @@ def test_call_split_video_empty_sidecar_metadata_when_no_task_name(tmp_path):
     assert ret == 0
     assert "sidecar_metadata" in captured
     assert captured["sidecar_metadata"] == {}
+
+
+# ===========================================================================
+# _parse_bids_float
+# ===========================================================================
+
+
+def test_parse_bids_float_valid():
+    assert _parse_bids_float("10.5") == 10.5
+
+
+def test_parse_bids_float_integer_string():
+    assert _parse_bids_float("5") == 5.0
+
+
+def test_parse_bids_float_na_returns_none():
+    assert _parse_bids_float("n/a") is None
+
+
+def test_parse_bids_float_none_returns_none():
+    assert _parse_bids_float(None) is None
+
+
+def test_parse_bids_float_empty_string_returns_none():
+    assert _parse_bids_float("") is None
+
+
+# ===========================================================================
+# _parse_bids_str
+# ===========================================================================
+
+
+def test_parse_bids_str_valid():
+    assert _parse_bids_str("video1.mkv") == "video1.mkv"
+
+
+def test_parse_bids_str_na_returns_none():
+    assert _parse_bids_str("n/a") is None
+
+
+def test_parse_bids_str_none_returns_none():
+    assert _parse_bids_str(None) is None
+
+
+def test_parse_bids_str_empty_string_returns_none():
+    assert _parse_bids_str("") is None
+
+
+# ===========================================================================
+# _format_bids_str
+# ===========================================================================
+
+
+def test_format_bids_str_none_returns_na():
+    assert _format_bids_str(None) == "n/a"
+
+
+def test_format_bids_str_float():
+    assert _format_bids_str(10.5) == "10.5"
+
+
+def test_format_bids_str_string_passthrough():
+    assert _format_bids_str("video1.mkv") == "video1.mkv"
+
+
+def test_format_bids_str_zero():
+    assert _format_bids_str(0.0) == "0.0"
+
+
+# ===========================================================================
+# _parse_scans_model — reprostim_* columns
+# ===========================================================================
+
+
+def _write_scans_tsv(path: Path, rows: list[str], header: str) -> None:
+    path.write_text("\n".join([header] + rows) + "\n", encoding="utf-8")
+
+
+def test_parse_scans_model_reprostim_cols_absent(tmp_path):
+    """reprostim_* fields default to None when columns are not in the TSV."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        ["func/bold.nii.gz\t2025-08-14T15:06:09.742500\tn/a\tabc123"],
+        "filename\tacq_time\toperator\trandstr",
+    )
+    model = _parse_scans_model(str(tsv))
+    r = model.records[0]
+    assert r.reprostim_path is None
+    assert r.reprostim_offset is None
+    assert r.reprostim_buffer_before is None
+    assert r.reprostim_buffer_after is None
+
+
+def test_parse_scans_model_reprostim_cols_present(tmp_path):
+    """reprostim_* fields are parsed correctly when columns exist in the TSV."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        [
+            "func/bold.nii.gz\t2025-08-14T15:06:09.742500\tn/a\tabc123"
+            "\tvideo1.mkv\t560.3\t10.0\t10.0"
+        ],
+        "filename\tacq_time\toperator\trandstr"
+        "\treprostim_path\treprostim_offset\treprostim_buffer_before\t"
+        "reprostim_buffer_after",
+    )
+    model = _parse_scans_model(str(tsv))
+    r = model.records[0]
+    assert r.reprostim_path == "video1.mkv"
+    assert r.reprostim_offset == 560.3
+    assert r.reprostim_buffer_before == 10.0
+    assert r.reprostim_buffer_after == 10.0
+
+
+def test_parse_scans_model_reprostim_cols_na(tmp_path):
+    """reprostim_* fields become None when TSV cells contain 'n/a'."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        [
+            "func/bold.nii.gz\t2025-08-14T15:06:09.742500\tn/a\tabc123"
+            "\tn/a\tn/a\tn/a\tn/a"
+        ],
+        "filename\tacq_time\toperator\trandstr"
+        "\treprostim_path\treprostim_offset\treprostim_buffer_before\t"
+        "reprostim_buffer_after",
+    )
+    model = _parse_scans_model(str(tsv))
+    r = model.records[0]
+    assert r.reprostim_path is None
+    assert r.reprostim_offset is None
+    assert r.reprostim_buffer_before is None
+    assert r.reprostim_buffer_after is None
+
+
+def test_parse_scans_model_reprostim_cols_not_in_extra(tmp_path):
+    """reprostim_* columns are excluded from ScanRecord.extra."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        [
+            "func/bold.nii.gz\t2025-08-14T15:06:09.742500\tn/a\tabc123"
+            "\tvideo1.mkv\t560.3\t10.0\t10.0"
+        ],
+        "filename\tacq_time\toperator\trandstr"
+        "\treprostim_path\treprostim_offset\treprostim_buffer_before\t"
+        "reprostim_buffer_after",
+    )
+    model = _parse_scans_model(str(tsv))
+    for col in _REPROSTIM_COLS:
+        assert col not in model.records[0].extra
+
+
+# ===========================================================================
+# _save_scans_model
+# ===========================================================================
+
+
+def _make_scans_model(tmp_path: Path, extra_header="", extra_values="") -> ScansModel:
+    """Write a minimal _scans.tsv and parse it into a ScansModel."""
+    header = "filename\tacq_time\toperator" + extra_header
+    row = "func/bold.nii.gz\t2025-08-14T15:06:09.742500\tn/a" + extra_values
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(tsv, [row], header)
+    return _parse_scans_model(str(tsv))
+
+
+def test_save_scans_model_appends_reprostim_cols(tmp_path):
+    """reprostim_* columns are appended to the right of existing columns."""
+    model = _make_scans_model(tmp_path)
+    model.records[0].reprostim_path = "video1.mkv"
+    model.records[0].reprostim_offset = 560.3
+    model.records[0].reprostim_buffer_before = 10.0
+    model.records[0].reprostim_buffer_after = 10.0
+
+    _save_scans_model(model)
+
+    saved = _parse_scans_model(model.path)
+    r = saved.records[0]
+    assert r.reprostim_path == "video1.mkv"
+    assert r.reprostim_offset == 560.3
+    assert r.reprostim_buffer_before == 10.0
+    assert r.reprostim_buffer_after == 10.0
+
+
+def test_save_scans_model_none_written_as_na(tmp_path):
+    """None reprostim_* fields are written as 'n/a' and round-trip back to None."""
+    model = _make_scans_model(tmp_path)
+    # Leave all reprostim_* fields as None (default).
+    _save_scans_model(model)
+
+    content = Path(model.path).read_text(encoding="utf-8")
+    for col in _REPROSTIM_COLS:
+        assert col in content
+
+    saved = _parse_scans_model(model.path)
+    r = saved.records[0]
+    assert r.reprostim_path is None
+    assert r.reprostim_offset is None
+    assert r.reprostim_buffer_before is None
+    assert r.reprostim_buffer_after is None
+
+
+def test_save_scans_model_preserves_existing_columns(tmp_path):
+    """Existing columns (operator, randstr) are preserved after save."""
+    model = _make_scans_model(
+        tmp_path, extra_header="\trandstr", extra_values="\tabc123"
+    )
+    _save_scans_model(model)
+
+    saved = _parse_scans_model(model.path)
+    assert saved.records[0].extra.get("operator") == "n/a"
+    assert saved.records[0].extra.get("randstr") == "abc123"
+
+
+def test_save_scans_model_reprostim_cols_order(tmp_path):
+    """reprostim_* columns appear in _REPROSTIM_COLS order after existing columns."""
+    model = _make_scans_model(tmp_path)
+    _save_scans_model(model)
+
+    with open(model.path, newline="", encoding="utf-8") as f:
+        fieldnames = list(csv.DictReader(f, delimiter="\t").fieldnames or [])
+
+    reprostim_positions = [fieldnames.index(c) for c in _REPROSTIM_COLS]
+    assert reprostim_positions == sorted(
+        reprostim_positions
+    ), "reprostim_* columns are not in the expected order"
+    # All reprostim_* cols appear after all non-reprostim cols.
+    non_reprostim = [i for i, f in enumerate(fieldnames) if f not in _REPROSTIM_COLS]
+    assert max(non_reprostim) < min(reprostim_positions)
+
+
+def test_save_scans_model_unix_line_endings(tmp_path):
+    """Saved file uses Unix line endings (LF only, no CR)."""
+    model = _make_scans_model(tmp_path)
+    _save_scans_model(model)
+    raw = Path(model.path).read_bytes()
+    assert b"\r" not in raw
+
+
+def test_save_scans_model_idempotent(tmp_path):
+    """Saving twice does not duplicate reprostim_* columns."""
+    model = _make_scans_model(tmp_path)
+    model.records[0].reprostim_path = "video1.mkv"
+    _save_scans_model(model)
+
+    model2 = _parse_scans_model(model.path)
+    model2.records[0].reprostim_path = "video1.mkv"
+    _save_scans_model(model2)
+
+    with open(model.path, newline="", encoding="utf-8") as f:
+        fieldnames = list(csv.DictReader(f, delimiter="\t").fieldnames or [])
+
+    for col in _REPROSTIM_COLS:
+        assert fieldnames.count(col) == 1, f"Column '{col}' duplicated after two saves"
+
+
+# ===========================================================================
+# _scans.tsv annotation write-back (integration)
+# ===========================================================================
+
+
+def _fake_split_result(*, buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7):
+    """Build a SplitResult with known field values for testing."""
+    return SplitResult(
+        success=True,
+        buffer_before=buffer_before,
+        buffer_after=buffer_after,
+        orig_buffer_offset=orig_buffer_offset,
+    )
+
+
+def _tsv_rows(path: Path) -> dict:
+    """Read TSV into {filename: row_dict}."""
+    with open(path, newline="", encoding="utf-8") as f:
+        return {r["filename"]: r for r in csv.DictReader(f, delimiter="\t")}
+
+
+def test_scans_tsv_successful_injection_writes_reprostim_cols(tmp_path):
+    """Successful injection → reprostim_* columns written with correct values.
+
+    Also verifies reprostim_path is stored relative to the videos.tsv directory
+    and that non-injected rows receive n/a.
+    """
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)  # va.path == "video1.mkv"
+
+    sr = _fake_split_result(
+        buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7
+    )
+
+    def _fake_split(**kwargs):
+        return 0, [sr]
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    rows = _tsv_rows(scans_tsv)
+    matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
+    assert matched["reprostim_path"] == "video1.mkv"
+    assert float(matched["reprostim_offset"]) == pytest.approx(69.7)
+    assert float(matched["reprostim_buffer_before"]) == pytest.approx(5.0)
+    assert float(matched["reprostim_buffer_after"]) == pytest.approx(3.0)
+    # Non-injected rows get n/a.
+    anat = rows["anat/sub-qa_ses-20250814_T1w.nii.gz"]
+    for col in _REPROSTIM_COLS:
+        assert anat[col] == "n/a"
+
+
+def test_scans_tsv_failed_split_clears_stale_reprostim_cols(tmp_path):
+    """split-video failure → reprostim_* written as n/a, clearing any stale values."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    # Pre-populate reprostim_* with stale values (simulates a prior successful run).
+    model = _parse_scans_model(str(scans_tsv))
+    for rec in model.records:
+        if rec.filename.endswith("task-rest_acq-p2_bold.nii.gz"):
+            rec.reprostim_path = "old_video.mkv"
+            rec.reprostim_offset = 999.0
+            rec.reprostim_buffer_before = 20.0
+            rec.reprostim_buffer_after = 20.0
+    _save_scans_model(model)
+
+    def _fake_split(**kwargs):
+        return 1, []  # failure
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    matched = _tsv_rows(scans_tsv)[
+        "func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"
+    ]
+    for col in _REPROSTIM_COLS:
+        assert matched[col] == "n/a", f"{col} should be n/a after failed split"
+
+
+def test_scans_tsv_rerun_updates_in_place_no_duplication(tmp_path):
+    """Re-run with existing reprostim_* columns → values updated,
+    no column duplication."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    # Simulate a prior run with old values.
+    model = _parse_scans_model(str(scans_tsv))
+    for rec in model.records:
+        if rec.filename.endswith("task-rest_acq-p2_bold.nii.gz"):
+            rec.reprostim_path = "old_video.mkv"
+            rec.reprostim_offset = 100.0
+            rec.reprostim_buffer_before = 0.0
+            rec.reprostim_buffer_after = 0.0
+    _save_scans_model(model)
+
+    sr = _fake_split_result(
+        buffer_before=10.0, buffer_after=8.0, orig_buffer_offset=42.5
+    )
+
+    def _fake_split(**kwargs):
+        return 0, [sr]
+
+    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    with open(scans_tsv, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        fieldnames = list(reader.fieldnames or [])
+        rows = {r["filename"]: r for r in reader}
+
+    for col in _REPROSTIM_COLS:
+        assert fieldnames.count(col) == 1, f"Column '{col}' duplicated after re-run"
+
+    matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
+    assert float(matched["reprostim_offset"]) == pytest.approx(42.5)
+    assert float(matched["reprostim_buffer_before"]) == pytest.approx(10.0)
+    assert float(matched["reprostim_buffer_after"]) == pytest.approx(8.0)
+
+
+def test_scans_tsv_dry_run_does_not_modify_file(tmp_path):
+    """--dry-run → _scans.tsv is not modified even when a video match is found."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    original_content = scans_tsv.read_text(encoding="utf-8")
+
+    _run(
+        [str(scans_tsv)],
+        videos_tsv,
+        match=_MATCH_TASK_REST,
+        dry_run=True,
+        overwrite="always",
+    )
+
+    assert scans_tsv.read_text(encoding="utf-8") == original_content

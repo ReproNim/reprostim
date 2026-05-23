@@ -272,6 +272,25 @@ class ScanRecord(BaseModel):
         default=None,
         description="Scan duration in seconds, computed from sidecar metadata.",
     )
+    # reprostim_* annotation columns — read from _scans.tsv when present (prior run),
+    # written back after successful injection.
+    reprostim_path: Optional[str] = Field(
+        default=None,
+        description="Path to source .mkv file relative to videos.tsv location.",
+    )
+    reprostim_offset: Optional[float] = Field(
+        default=None,
+        description="Offset of the buffer-segment start into the source video, "
+        "in seconds.",
+    )
+    reprostim_buffer_before: Optional[float] = Field(
+        default=None,
+        description="Actual buffer prepended before scan onset, in seconds.",
+    )
+    reprostim_buffer_after: Optional[float] = Field(
+        default=None,
+        description="Actual buffer appended after scan end, in seconds.",
+    )
 
 
 class ScansModel(BaseModel):
@@ -289,6 +308,49 @@ class ScansModel(BaseModel):
 ####################################################################
 # Internal API
 ####################################################################
+
+
+# Ordered list of reprostim_* annotation columns read from and written to _scans.tsv.
+_REPROSTIM_COLS = [
+    "reprostim_path",
+    "reprostim_offset",
+    "reprostim_buffer_before",
+    "reprostim_buffer_after",
+]
+
+
+def _parse_bids_float(value: Optional[str]) -> Optional[float]:
+    """Parse an optional TSV cell as float, returning ``None`` for ``'n/a'`` or absent.
+
+    :param value: Raw cell string from a TSV row, or ``None`` when the column
+        was not present in the file.
+    :type value: Optional[str]
+    :returns: Parsed float, or ``None``.
+    :rtype: Optional[float]
+    """
+    return float(value) if value and value != "n/a" else None
+
+
+def _parse_bids_str(value: Optional[str]) -> Optional[str]:
+    """Return a TSV cell string as-is, or ``None`` for ``'n/a'`` or absent.
+
+    :param value: Raw cell string from a TSV row, or ``None`` when the column
+        was not present in the file.
+    :type value: Optional[str]
+    :returns: The string value, or ``None``.
+    :rtype: Optional[str]
+    """
+    return value if value and value != "n/a" else None
+
+
+def _format_bids_str(value) -> str:
+    """Serialise a field value to a TSV cell string, using ``'n/a'`` for ``None``.
+
+    :param value: Value to serialise; any type accepted by ``str()``.
+    :returns: String representation, or ``'n/a'`` when *value* is ``None``.
+    :rtype: str
+    """
+    return "n/a" if value is None else str(value)
 
 
 def _is_scans_file(path: str) -> bool:
@@ -386,6 +448,8 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
+    _known = {"filename", "acq_time"} | set(_REPROSTIM_COLS)
+
     records: List[ScanRecord] = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -394,15 +458,67 @@ def _parse_scans_model(path: str) -> ScansModel:
                 ScanRecord(
                     filename=row["filename"],
                     acq_time=row["acq_time"],
-                    extra={
-                        k: v
-                        for k, v in row.items()
-                        if k not in ("filename", "acq_time")
-                    },
+                    extra={k: v for k, v in row.items() if k not in _known},
+                    reprostim_path=_parse_bids_str(row.get("reprostim_path")),
+                    reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
+                    reprostim_buffer_before=_parse_bids_float(
+                        row.get("reprostim_buffer_before")
+                    ),
+                    reprostim_buffer_after=_parse_bids_float(
+                        row.get("reprostim_buffer_after")
+                    ),
                 )
             )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
     return ScansModel(path=path, records=records)
+
+
+def _save_scans_model(model: ScansModel) -> None:
+    """Write :class:`ScansModel` records back to the ``*_scans.tsv`` file.
+
+    Derives column order from the already-parsed model data: ``filename`` and
+    ``acq_time`` first, then any extra columns (in their original order from
+    :attr:`ScanRecord.extra`), then ``reprostim_*`` annotation columns from
+    :data:`_REPROSTIM_COLS` appended on the right.  ``None`` field values are
+    serialised as ``'n/a'`` via :func:`_format_bids_str`.
+
+    :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
+        writable.
+    :type model: ScansModel
+    """
+    # Derive extra column names from the first record (order preserved by dict).
+    extra_cols = list(model.records[0].extra.keys()) if model.records else []
+    fieldnames = (
+        ["filename", "acq_time"]
+        + extra_cols
+        + [c for c in _REPROSTIM_COLS if c not in extra_cols]
+    )
+
+    rows = []
+    for record in model.records:
+        row = {
+            "filename": record.filename,
+            "acq_time": record.acq_time,
+            **record.extra,
+            "reprostim_path": _format_bids_str(record.reprostim_path),
+            "reprostim_offset": _format_bids_str(record.reprostim_offset),
+            "reprostim_buffer_before": _format_bids_str(record.reprostim_buffer_before),
+            "reprostim_buffer_after": _format_bids_str(record.reprostim_buffer_after),
+        }
+        rows.append(row)
+
+    with open(model.path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames,
+            delimiter="\t",
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.debug(f"Saved {len(rows)} scan records to: {model.path}")
 
 
 def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
@@ -776,7 +892,7 @@ def _call_split_video(
     if record.metadata and record.metadata.TaskName:
         sidecar_metadata["TaskName"] = record.metadata.TaskName
 
-    ret = split_video_main(
+    ret, split_results = split_video_main(
         input_path=input_path,
         output_path=output_path,
         start_time=start_ts.isoformat(),
@@ -792,6 +908,13 @@ def _call_split_video(
         verbose=ctx.verbose,
         out_func=_capturing_out_func,
     )
+
+    # reset reprostim_ data first
+    record.reprostim_path = None
+    record.reprostim_offset = None
+    record.reprostim_buffer_before = None
+    record.reprostim_buffer_after = None
+
     if ret != 0:
         captured = "; ".join(captured_errors) if captured_errors else f"exit code {ret}"
         err_msg = f"split-video failed for {record.filename}: {captured}"
@@ -801,6 +924,12 @@ def _call_split_video(
     else:
         logger.info(f"split-video completed successfully ({record.filename})")
         ctx.summary.n_injected += 1
+        if split_results:
+            sr = split_results[0]
+            record.reprostim_path = va.path
+            record.reprostim_offset = sr.orig_buffer_offset
+            record.reprostim_buffer_before = sr.buffer_before
+            record.reprostim_buffer_after = sr.buffer_after
 
 
 def _do_inject_scans(ctx: BiContext, path: str):
@@ -892,6 +1021,8 @@ def _do_inject_scans(ctx: BiContext, path: str):
             else:
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
                 ctx.summary.n_skipped += 1
+        if not ctx.dry_run:
+            _save_scans_model(scans)
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 

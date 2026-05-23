@@ -81,6 +81,41 @@ Example:
 sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.json
 ```
 
+### D) _scans.tsv annotation — reprostim columns
+
+After a successful injection `bids-inject` writes back several `reprostim_*` columns to
+the same `_scans.tsv` row, recording the exact video provenance and timing offsets used.
+These columns are written **in-place** (the file is rewritten with the new columns appended
+to the right of any existing columns).  All four columns are always written for every row that `_call_split_video` is invoked for —
+`n/a` on failure or when `SplitResult` is unavailable, actual values on success.  Rows that
+were never matched to a video (skipped before `_call_split_video`) retain whatever value was
+already in the file (or `n/a` if the column is newly added).
+
+**Column name prefix — `reprostim_`:** the longer prefix is preferred over `r_` because it
+is self-documenting, unambiguous if multiple tools annotate the same scans file, and avoids
+namespace collisions.
+
+| Column                     | Source in `SplitResult`   | Description                                                                                   |
+|----------------------------|---------------------------|-----------------------------------------------------------------------------------------------|
+| `reprostim_buffer_before`  | `buffer_before`           | Actual buffer prepended before scan onset, in seconds.                                        |
+| `reprostim_buffer_after`   | `buffer_after`            | Actual buffer appended after scan end, in seconds.                                            |
+| `reprostim_path`           | `input_path` (relative)   | Path to the source `.mkv` file, relative to the `videos.tsv` location.                       |
+| `reprostim_offset`         | `orig_buffer_offset`      | Offset of the buffer-segment start into the source video, in seconds (`buf_seg.offset_sec`).  |
+
+**Example extended `_scans.tsv`:**
+```
+filename                                                              acq_time                    operator  randstr   reprostim_buffer_before  reprostim_buffer_after  reprostim_path                              reprostim_offset
+func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz                       2025-08-14T15:19:53.397500  n/a       6b371aad  10.0                     10.0                    2025.08.14.15.10.00.000_....mkv             560.3
+func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T15:06:09.742500  n/a       77b0dbb6  n/a                      n/a                     n/a                                         n/a
+```
+
+> **Future (QR-based improvement):** When QR codes are embedded in the source video and
+> have already been parsed (stored in `videos.tsv` or alongside the video as JSONL), the
+> injection offset and buffer boundaries can be refined using QR timestamps rather than
+> relying solely on NTP-based `acq_time`.  Recording `reprostim_offset` in `_scans.tsv`
+> makes it possible to resume or validate a subsequent `bids-qr-sync` pass without
+> re-scanning the source video from scratch.
+
 ### C) QR codes file — BIDS _events-like .tsv
 
 If QR codes were parsed from the video (`--qr` mode is not `none`), the decoded QR records
@@ -656,7 +691,14 @@ The two columns used by `bids-inject`:
 | `filename`   | Relative path to the NIfTI file within the subject/session directory. Used to derive the output `.mkv` basename and locate the corresponding DICOM JSON sidecar for duration computation. |
 | `acq_time`   | ISO 8601 datetime of scan acquisition start. Combined with `--time-offset`, this is matched against the `start_time`/`end_time` range in `videos.tsv` to find the covering video file.    |
 
-Other columns (`operator`, `randstr`, etc.) are ignored.
+Other columns (`operator`, `randstr`, etc.) are ignored on read.
+
+After processing all scan records, `bids-inject` calls `_save_scans_model` to rewrite the
+`_scans.tsv` file with `reprostim_*` annotation columns appended (see Output D above).
+Write-back is skipped in `--dry-run` mode.  `_save_scans_model` derives the output fieldnames
+from the existing `ScanRecord.extra` keys (preserving column order) and then appends any
+`_REPROSTIM_COLS` not already present.  It uses `csv.DictWriter` with `extrasaction="ignore"`
+and Unix line endings (`\n`).
 
 **Filtering rules** — a scan row is processed only if both conditions are met:
 
@@ -737,3 +779,4 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 11. **Parallel processing**: The natural parallelism granularity is one `_scans.tsv` per worker (scans within a session stay sequential). When multiple sessions run concurrently, shared output data (summary counters, QR JSONL cache, any merged report files) will need lock protection. To be designed when a `--jobs` option is introduced.
 12. **con/duct**: ideally -- should have also used duct
 13. ~~**Error processing**: Add an option on what to do about "problematic" cases.~~ → partially resolved as `-w / --overwrite [skip|force|always|error]` for existing output handling.
+14. **QR-assisted injection resume**: When QR codes are already parsed and stored alongside the source video, `reprostim_offset` written to `_scans.tsv` (output D) enables a future `bids-qr-sync` pass to refine timing without re-scanning the video. Design the handoff protocol between `bids-inject` and `bids-qr-sync`.

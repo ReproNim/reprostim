@@ -119,6 +119,15 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [ ] Finalise suffix name (`_qrcodes` / `_codes` / `_qr` / `_qrinfo`)
 - [ ] Columns: `onset`, `duration`, plus QR-derived fields
 
+### D) _scans.tsv annotation — `reprostim_*` columns
+- [x] Add `ScansModel` / `ScanRecord` fields for the four annotation columns
+- [x] Write-back `reprostim_buffer_before`, `reprostim_buffer_after`, `reprostim_path`, `reprostim_offset` to `_scans.tsv` after successful injection
+- [x] Rows that are skipped or error → write `n/a` for all four columns (when column is newly added to file)
+- [x] Preserve all existing columns; append new ones to the right
+- [x] Handle re-runs: update existing `reprostim_*` columns in-place (don't duplicate)
+- [x] Skip write-back in `--dry-run` mode
+- [x] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
+
 ---
 
 ## QR Modes
@@ -218,6 +227,30 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [ ] `--lock no` → `FileLock` not acquired (mock / spy on `_get_tsv_records`)
 - [ ] `--reprostim-timezone` / `--bids-timezone` → passed into `BiContext` correctly
 - [ ] Mixed timezone scenario: Eastern ReproStim + UTC BIDS → times align after conversion
+
+### _scans.tsv annotation tests
+
+#### Unit tests (helpers + parse/save APIs)
+- [x] `_parse_bids_float` — valid float string, integer string, `n/a`, `None`, empty string
+- [x] `_parse_bids_str` — valid string, `n/a`, `None`, empty string
+- [x] `_format_bids_str` — `None` → `"n/a"`, float, string passthrough, zero
+- [x] `_REPROSTIM_COLS` — constant exported and used in both parse and save
+- [x] `_parse_scans_model` — `reprostim_*` columns absent → fields default to `None`
+- [x] `_parse_scans_model` — `reprostim_*` columns present → fields populated correctly
+- [x] `_parse_scans_model` — `n/a` values → fields parse to `None`
+- [x] `_parse_scans_model` — `reprostim_*` columns NOT stored in `extra`
+- [x] `_save_scans_model` — appends `reprostim_*` columns after existing columns
+- [x] `_save_scans_model` — `None` values written as `"n/a"`
+- [x] `_save_scans_model` — existing extra columns preserved
+- [x] `_save_scans_model` — `reprostim_*` columns appear in `_REPROSTIM_COLS` order
+
+#### Integration tests (end-to-end via `_do_inject_scans` / `_call_split_video`)
+- [x] Successful injection → all four `reprostim_*` columns written with correct values
+- [x] `reprostim_path` is relative to `videos.tsv` location, not absolute
+- [x] Non-injected rows receive `n/a` for all `reprostim_*` columns
+- [x] Failed split → four columns written as `n/a` (stale values cleared)
+- [x] Re-run (columns already present) → columns updated in-place, no duplication
+- [x] `--dry-run` → `_scans.tsv` not modified
 
 ### Overwrite mode tests
 
