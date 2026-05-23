@@ -895,17 +895,20 @@ def _call_split_video(
     if record.metadata and record.metadata.TaskName:
         sidecar_metadata["TaskName"] = record.metadata.TaskName
 
-    # TODO: in the future, read VideoCodecRFC6381 / AudioCodecRFC6381 from
-    #       dedicated columns in videos.tsv populated by video-audit, avoiding
-    #       the extra ffprobe call here.
+    # TODO: in the future, read these fields from dedicated columns in videos.tsv
+    #       populated by video-audit, avoiding the extra ffprobe call here.
     try:
         ai, vi = get_audio_video_info_ffprobe(input_path)
         if vi.codec_rfc6381:
             sidecar_metadata["VideoCodecRFC6381"] = vi.codec_rfc6381
         if ai.codec_rfc6381:
             sidecar_metadata["AudioCodecRFC6381"] = ai.codec_rfc6381
+        if vi.bit_depth is not None:
+            sidecar_metadata["BitDepth"] = vi.bit_depth
+        if vi.pix_fmt:
+            sidecar_metadata["PixelFormat"] = vi.pix_fmt
     except Exception as e:
-        logger.error(f"Failed to get codec RFC6381 info for {input_path}: {e}")
+        logger.error(f"Failed to get video info for {input_path}: {e}")
 
     ret, split_results = split_video_main(
         input_path=input_path,

@@ -80,6 +80,8 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Delegate to `split-video` Python API (`do_main`)
 - [x] Build `sidecar_metadata` dict from `record.metadata.TaskName` and pass to `do_main`
 - [x] Populate `VideoCodecRFC6381` / `AudioCodecRFC6381` in `sidecar_metadata` via `get_audio_video_info_ffprobe` (TODO: future — read from `videos.tsv` columns instead)
+- [x] Populate `BitDepth` / `PixelFormat` in `sidecar_metadata` from `VideoInfo.bit_depth` / `VideoInfo.pix_fmt`
+- [x] ffprobe errors logged and injection continues (RFC6381 / BitDepth / PixelFormat silently omitted)
 
 ### Dry-run mode
 - [x] Skip `split-video` call and file writes when `--dry-run`
@@ -216,8 +218,12 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `_call_split_video` passes `sidecar_metadata` with `TaskName` to `split-video`
 - [x] `_call_split_video` passes empty `sidecar_metadata` when `TaskName` absent
 - [x] `_call_split_video` adds `VideoCodecRFC6381` / `AudioCodecRFC6381` to `sidecar_metadata` via ffprobe
+- [x] `_call_split_video` adds `BitDepth` / `PixelFormat` to `sidecar_metadata` via ffprobe
+- [x] ffprobe failure logs error and injection continues; RFC6381/BitDepth/PixelFormat silently omitted
 - [x] `_to_bids_model` uses `VideoCodecRFC6381` / `AudioCodecRFC6381` from `sidecar_metadata` when provided
 - [x] `_to_bids_model` defaults `VideoCodecRFC6381` / `AudioCodecRFC6381` to `"n/a"` when absent
+- [x] `_to_bids_model` writes `BitDepth` (int) / `PixelFormat` (str) from `sidecar_metadata` when present
+- [x] `_to_bids_model` omits `BitDepth` / `PixelFormat` when absent from `sidecar_metadata`
 
 ### Integration tests (with synthetic BIDS fixture)
 

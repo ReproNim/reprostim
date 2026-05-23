@@ -702,6 +702,26 @@ def test_to_bids_model_rfc6381_defaults_to_na_without_sidecar_metadata():
     assert data["AudioCodecRFC6381"] == "n/a"
 
 
+def test_to_bids_model_bit_depth_and_pixel_format_from_sidecar_metadata():
+    """BitDepth and PixelFormat are written when present in sidecar_metadata."""
+    sr = SplitResult(video_codec="h264")
+    data = _to_bids_model(
+        sr,
+        sidecar_metadata={"BitDepth": 10, "PixelFormat": "yuv420p"},
+    )
+    assert data["BitDepth"] == 10
+    assert isinstance(data["BitDepth"], int)
+    assert data["PixelFormat"] == "yuv420p"
+
+
+def test_to_bids_model_bit_depth_and_pixel_format_absent_when_not_in_sidecar():
+    """BitDepth and PixelFormat are omitted when absent from sidecar_metadata."""
+    sr = SplitResult(video_codec="h264")
+    data = _to_bids_model(sr)
+    assert "BitDepth" not in data
+    assert "PixelFormat" not in data
+
+
 def test_to_bids_model_no_raw_fields():
     """BIDS output contains no raw SplitResult field names."""
     sr = _make_split_result()
