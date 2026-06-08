@@ -41,9 +41,10 @@ cd "$thisdir" || exit
 SERIES_COUNT=2
 SERIES_INTERVAL_SEC=5
 EVENTS_IN_SERIES_COUNT=5
-EVENTS_INTERVAL_SEC=1.5
+EVENTS_INTERVAL_SEC=3.0
 EVENTS_STARTUP_DELAY_SEC=20
-VIDEO_DURATION_SEC=45
+QR_DURATION_SEC=1.0
+VIDEO_DURATION_SEC=65
 
 
 FFMPEG_AUDIO_ARGS=()
@@ -53,9 +54,9 @@ if [[ "$MODE" == "xvfb" ]]; then
   # store the tmp_dir in GITHUB_ENV for later use
   echo "tmp_dir=$tmp_dir" >> "$GITHUB_ENV"
 
-  export FRAME_WIDTH=1920
-  export FRAME_HEIGHT=1080
-  export FRAME_RATE=60
+  export FRAME_WIDTH=1024
+  export FRAME_HEIGHT=768
+  export FRAME_RATE=5
   export RECORDING_FRAME_RATE=30
   export FRAME_BPP=24
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display.txt"
@@ -78,7 +79,7 @@ if [[ "$MODE" == "xvfb" ]]; then
   echo "Wait for pulseaudio to start"
   sleep 5
 
-  export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event -a psychopy_sounddevice -d \$(cat $tmp_dir/reprostim_last_display.txt)"
+  export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event -r ${QR_DURATION_SEC} -a psychopy_sounddevice -d \$(cat $tmp_dir/reprostim_last_display.txt)"
 
   echo "Run Xvfb in background with REPROSTIM_CMD"
   xvfb-run -a -n $DISPLAY_START -s "$XVFB_OPTS" bash -c "echo \$DISPLAY > ${DISPLAY_PATH}; $REPROSTIM_CMD"&
@@ -107,7 +108,7 @@ else
   export FRAME_HEIGHT=${resolution#*x}
   export FRAME_RATE="${refresh_rate%%[^0-9.]*}"
   export FRAME_BPP=24
-  export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event --mute -d \${DISPLAY_ID}"
+  export REPROSTIM_CMD="./run_reprostim_container.sh timesync-stimuli -m event -r ${QR_DURATION_SEC} --mute -d \${DISPLAY_ID}"
 
 fi
 
@@ -124,7 +125,6 @@ END_TS="$(date -d "+$VIDEO_DURATION_SEC seconds" '+%Y.%m.%d-%H.%M.%S').000"
 export REPROSTIM_SCREENSHOT_PATH="$tmp_dir/reprostim_audiovideo_${START_TS}--${END_TS}.mkv"
 echo "ffmpeg -video_size \"${FRAME_WIDTH}x${FRAME_HEIGHT}\" -framerate \"${RECORDING_FRAME_RATE:-$FRAME_RATE}\" -f x11grab -i \"$DISPLAY_ID\" ${FFMPEG_AUDIO_ARGS[*]} -t \"$VIDEO_DURATION_SEC\" -c:v libx264 -preset ultrafast -pix_fmt yuv420p \"$REPROSTIM_SCREENSHOT_PATH\""
 ffmpeg -video_size "${FRAME_WIDTH}x${FRAME_HEIGHT}" -framerate "${RECORDING_FRAME_RATE:-$FRAME_RATE}" -f x11grab -i "$DISPLAY_ID" "${FFMPEG_AUDIO_ARGS[@]}" -t "$VIDEO_DURATION_SEC" -c:v libx264 -preset ultrafast -pix_fmt yuv420p "$REPROSTIM_SCREENSHOT_PATH"
-sleep $VIDEO_DURATION_SEC
 sleep 3
 ls -l "$tmp_dir"/reprostim_*
 
@@ -167,14 +167,13 @@ if [[ -f "$REPROSTIM_SCREENSHOT_PATH" ]]; then
     echo "Series #0: $count_series_0 records"
     echo "Series #1: $count_series_1 records"
 
-    # TODO: temporary check — require > 0 instead of exact 5
-    if [[ "$count_series_0" -gt 0 && "$count_series_1" -gt 0 ]]; then
+    if [[ "$count_series_0" -eq 5 && "$count_series_1" -eq 5 ]]; then
         echo "[+]  Valid: $count_series_0 records in series 0, $count_series_1 records in series 1"
         # exit 0
     else
         echo "[-] Invalid:"
-        [[ "$count_series_0" -le 0 ]] && echo "  -> Series 0 has $count_series_0 records (expected > 0)"
-        [[ "$count_series_1" -le 0 ]] && echo "  -> Series 1 has $count_series_1 records (expected > 0)"
+        [[ "$count_series_0" -ne 5 ]] && echo "  -> Series 0 has $count_series_0 records (expected 5)"
+        [[ "$count_series_1" -ne 5 ]] && echo "  -> Series 1 has $count_series_1 records (expected 5)"
         exit 1
     fi
   else
