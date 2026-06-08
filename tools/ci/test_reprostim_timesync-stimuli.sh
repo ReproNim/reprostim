@@ -41,9 +41,9 @@ cd "$thisdir" || exit
 SERIES_COUNT=2
 SERIES_INTERVAL_SEC=5
 EVENTS_IN_SERIES_COUNT=5
-EVENTS_INTERVAL_SEC=1.5
+EVENTS_INTERVAL_SEC=2.0
 EVENTS_STARTUP_DELAY_SEC=20
-VIDEO_DURATION_SEC=45
+VIDEO_DURATION_SEC=50
 
 
 FFMPEG_AUDIO_ARGS=()
@@ -53,9 +53,9 @@ if [[ "$MODE" == "xvfb" ]]; then
   # store the tmp_dir in GITHUB_ENV for later use
   echo "tmp_dir=$tmp_dir" >> "$GITHUB_ENV"
 
-  export FRAME_WIDTH=1920
-  export FRAME_HEIGHT=1080
-  export FRAME_RATE=60
+  export FRAME_WIDTH=1024
+  export FRAME_HEIGHT=768
+  export FRAME_RATE=30
   export RECORDING_FRAME_RATE=30
   export FRAME_BPP=24
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display.txt"
