@@ -1,3 +1,19 @@
+# 0.7.33 (Mon Jun 08 2026)
+
+#### 🐛 Bug Fix
+
+- Fix CI-CD timesync-stimuli test [#255](https://github.com/ReproNim/reprostim/pull/255) ([@vmdocua](https://github.com/vmdocua))
+- Add `RFC 6381` codec info `BitDepth` and `PixelFormat` to `video-audit`, `bids-inject`, and `split-video` [#254](https://github.com/ReproNim/reprostim/pull/254) ([@vmdocua](https://github.com/vmdocua))
+- Add `reprostim_` columns in _scans.tsv for `bids-inject` command [#252](https://github.com/ReproNim/reprostim/pull/252) ([@vmdocua](https://github.com/vmdocua))
+- Keep `bids-inject` sidecar JSON format in sync with BIDS BEP044/BEP047 WiP spec [#251](https://github.com/ReproNim/reprostim/pull/251) ([@vmdocua](https://github.com/vmdocua))
+- Correct Zenodo metadata (grant ID and CITATION.cff) [#250](https://github.com/ReproNim/reprostim/pull/250) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.32 (Fri May 15 2026)
 
 #### 🐛 Bug Fix
