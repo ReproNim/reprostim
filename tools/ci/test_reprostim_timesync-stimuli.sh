@@ -56,8 +56,8 @@ if [[ "$MODE" == "xvfb" ]]; then
 
   export FRAME_WIDTH=1024
   export FRAME_HEIGHT=768
-  export FRAME_RATE=30
-  export RECORDING_FRAME_RATE=60
+  export FRAME_RATE=5
+  export RECORDING_FRAME_RATE=30
   export FRAME_BPP=24
   export DISPLAY_PATH="$tmp_dir/reprostim_last_display.txt"
   export XVFB_OPTS="-screen 0 ${FRAME_WIDTH}x${FRAME_HEIGHT}x${FRAME_BPP} -ac +extension GLX +render -noreset"
