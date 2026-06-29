@@ -28,7 +28,7 @@ reprostim video-audit [OPTIONS] [PATHS]...
 
 | Argument  | Description                                                                     |
 |-----------|---------------------------------------------------------------------------------|
-| `PATHS`   | One or more paths to video files (`.mkv`, `.mp4`, `.avi`) or directories. Required. |
+| `PATHS`   | One or more paths to video files (`.mkv`, `.mp4`, `.avi`) or directories. Required. For `rerun-for-na` and `reset-to-na` modes, paths are used as filters against existing TSV records and need not exist on disk. |
 
 ### Options
 
@@ -157,7 +157,7 @@ Tab-separated file. One row per video file, columns defined by `VaRecord`:
 | `audio_dur` | Audio stream duration (seconds) |
 | `duration` | Best-available duration (seconds) |
 | `duration_h` | Human-readable duration (`HH:MM:SS.mmm`) |
-| `no_signal_frames` | No-signal percentage from `detect-noscreen`, or `n/a` |
+| `no_signal_frames` | No-signal percentage from `detect-noscreen`, `n/a` if not yet processed, or `-3` if video file not found on disk |
 | `qr_records_number` | QR record count from `qr-parse`, or `n/a` |
 | `file_log_coherent` | Whether video/audio metadata is internally consistent |
 | `no_signal_updated_on` | Timestamp of last nosignal update |
@@ -166,9 +166,15 @@ Tab-separated file. One row per video file, columns defined by `VaRecord`:
 
 Sentinel values for `qr_records_number`:
 - `n/a` — not yet processed
+- `-3` — video file not found on disk (set by both `nosignal` and `qr` sources)
 - `-2` — ffmpeg conversion started but qr-parse not yet invoked
 - `-1` — qr-parse completed but no `ParseSummary` record found in output
 - `≥ 0` — actual QR record count
+
+Sentinel values for `no_signal_frames`:
+- `n/a` — not yet processed
+- `-3` — video file not found on disk
+- `≥ 0.0` — percentage of no-signal frames from `detect-noscreen`
 
 ---
 

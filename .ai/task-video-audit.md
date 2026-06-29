@@ -59,6 +59,14 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] Pass `qr_opts` to qr-parse via `VaContext`
 - [x] Accept `--qr-opts` override from CLI (shlex-parsed)
 
+### Non-existing video handling (issue #253)
+- [x] CLI `PATHS` argument accepts non-existent paths (removed `exists=True`)
+- [x] CLI handler: for `rerun-for-na`/`reset-to-na`, non-existent paths emit warning instead of error
+- [x] `do_main`: for `rerun-for-na`/`reset-to-na`, non-existent paths emit warning and continue instead of returning 1
+- [x] `do_ext`: non-existent paths added to filter sets by extension heuristic (`.mkv`/`.mp4`/`.avi` → `path_files`, otherwise → `path_dirs`)
+- [x] `run_ext_nosignal`: video file not on disk → set `no_signal_frames = "-3"`, update timestamp, increment counter
+- [x] `run_ext_qr`: video file not on disk → set `qr_records_number = "-3"`, update timestamp, increment counter
+
 ### Operation modes (`VaMode`)
 - [x] `full` — regenerate all records from scratch
 - [x] `incremental` — process only new files, merge into existing TSV
@@ -246,6 +254,8 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] `run_ext_nosignal` — `rerun-for-na` + non-`n/a` → skipped
 - [x] `run_ext_nosignal` — `max_counter` reached → returns `vr` unchanged
 - [x] `run_ext_nosignal` — `path_mask` no-match → returns `vr` unchanged
+- [x] `run_ext_nosignal` — video file not on disk → `no_signal_frames = "-3"`, timestamp updated
+- [x] `run_ext_nosignal` — video file not on disk in `rerun-for-na` → sentinel `-3` breaks retry loop
 - [x] `run_ext_nosignal` — subprocess success with `nosignal_rate` → percentage stored
 - [x] `run_ext_nosignal` — subprocess success without `nosignal_rate` key → `"0.0"`
 - [x] `run_ext_nosignal` — `CalledProcessError` → `no_signal_frames` unchanged
@@ -255,6 +265,8 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] `run_ext_qr` — `rerun-for-na` + non-`n/a` → skipped
 - [x] `run_ext_qr` — `max_counter` reached → returns `vr` unchanged
 - [x] `run_ext_qr` — `path_mask` no-match → returns `vr` unchanged
+- [x] `run_ext_qr` — video file not on disk → `qr_records_number = "-3"`, timestamp updated
+- [x] `run_ext_qr` — video file not on disk in `rerun-for-na` → sentinel `-3` breaks retry loop
 - [x] `run_ext_qr` — subprocess success with `ParseSummary` → `qr_count` stored
 - [x] `run_ext_qr` — ffmpeg `CalledProcessError` → `qr_records_number` = `"-2"`
 - [x] `run_ext_qr` — no `ParseSummary` in output → `qr_records_number` = `"-1"`
@@ -267,12 +279,17 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] Record path matches explicit file → processed
 - [x] Record path starts with directory → processed
 - [x] Record not matching filter → yielded unchanged
+- [x] Non-existent `.mkv` path → added to `path_files` filter (matches record by string)
+- [x] Non-existent non-video path → added to `path_dirs` filter (matches record by prefix)
 
 #### `do_main`
 - [x] Invalid path → returns `1`
 - [x] Incremental mode, no existing TSV → creates new TSV, returns `0`
 - [x] Incremental mode, existing TSV → loads existing, merges, saves
 - [x] `rerun-for-na` mode → calls `do_ext` on existing records
+- [x] `rerun-for-na` mode + non-existent path → warns and returns `0` (not `1`)
+- [x] `reset-to-na` mode + non-existent path → warns and returns `0` (not `1`)
+- [x] `incremental` mode + non-existent path → returns `1` (unchanged behavior)
 - [x] `nosignal_opts` / `qr_opts` strings shlex-parsed into `VaContext`
 - [x] `ffprobe` missing → prints error message, still returns `0`
 - [x] `verbose=True` → records printed as JSON via `out_func`
@@ -304,6 +321,8 @@ Test file location: `tests/qr/test_video_audit.py`
 |---|---|---|
 | `qr/video_audit.py` — overall | ≥ 80% | 93% |
 | `cli/cmd_video_audit.py` | ≥ 80% | 94% |
+
+_Updated for issue #253: 12 new tests added (164 total), covering non-existing video handling for all 3 audit sources and CLI layer._
 
 ---
 

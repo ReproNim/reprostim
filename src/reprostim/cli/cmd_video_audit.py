@@ -37,7 +37,7 @@ def _apply_config(ctx, config: dict, param_name: str, current_val):
 @click.argument(
     "paths",
     nargs=-1,  # accept 1 or more arguments
-    type=click.Path(exists=True, dir_okay=True, file_okay=True),
+    type=click.Path(exists=False, dir_okay=True, file_okay=True),
 )
 @click.option(
     "-m",
@@ -217,10 +217,16 @@ def video_audit(
 
     for path in paths:
         if not os.path.exists(path):
-            logger.error(f"Path does not exist: {path}")
-            return 1
+            if mode in ("rerun-for-na", "reset-to-na"):
+                logger.warning(
+                    f"Path does not exist: {path}"
+                    f" (used as filter for existing TSV records)"
+                )
+            else:
+                logger.error(f"Path does not exist: {path}")
+                ctx.exit(1)
 
-    do_main(
+    rv = do_main(
         list(paths),
         output,
         recursive,
@@ -233,4 +239,5 @@ def video_audit(
         nosignal_opts=nosignal_opts,
         qr_opts=qr_opts,
     )
-    return 0
+    if rv:
+        ctx.exit(rv)

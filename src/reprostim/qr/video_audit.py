@@ -1087,6 +1087,17 @@ def run_ext_nosignal(ctx: VaContext, vr: VaRecord) -> VaRecord:
             logger.debug("Skipping nosignal source as per context (not n/a)")
             return vr
 
+    # check video file exists on disk before running external tool
+    if not os.path.exists(vr.path):
+        logger.warning(
+            f"Video file not found on disk, " f"setting no_signal_frames=-3: {vr.path}"
+        )
+        vr.no_signal_frames = "-3"
+        _set_updated(ctx, vr, field="no_signal_updated_on")
+        ctx.c_nosignal += 1
+        logger.debug(f"c_nosignal -> {ctx.c_nosignal}")
+        return vr
+
     # make sure data and logs dirs exist
     os.makedirs(ctx.nosignal_data_dir, exist_ok=True)
     os.makedirs(ctx.nosignal_log_dir, exist_ok=True)
@@ -1204,6 +1215,17 @@ def run_ext_qr(ctx: VaContext, vr: VaRecord) -> VaRecord:
         if vr.qr_records_number != "n/a":
             logger.debug("Skipping qr source as per context (not n/a)")
             return vr
+
+    # check video file exists on disk before running external tool
+    if not os.path.exists(vr.path):
+        logger.warning(
+            f"Video file not found on disk, " f"setting qr_records_number=-3: {vr.path}"
+        )
+        vr.qr_records_number = "-3"
+        _set_updated(ctx, vr, field="qr_updated_on")
+        ctx.c_qr += 1
+        logger.debug(f"c_qr -> {ctx.c_qr}")
+        return vr
 
     # make sure data and logs dirs exist
     os.makedirs(ctx.qr_data_dir, exist_ok=True)
@@ -1378,7 +1400,20 @@ def do_ext(
             elif os.path.isdir(path):
                 path_dirs.add(_normalize_path(path))
         else:
-            logger.error(f"Path does not exist: {path}")
+            # Path not on disk — classify by extension so record paths can
+            # still be matched by string comparison (e.g. rerun-for-na on a
+            # video that was deleted or moved after being added to videos.tsv)
+            p = _normalize_path(path)
+            if path.lower().endswith((".mkv", ".mp4", ".avi")):
+                logger.warning(
+                    f"Video file not found on disk, used as path filter: {path}"
+                )
+                path_files.add(p)
+            else:
+                logger.warning(
+                    f"Directory not found on disk, used as path filter: {path}"
+                )
+                path_dirs.add(p)
 
     for rec in recs:
         # filter by paths when specified
@@ -1640,8 +1675,14 @@ def do_main(
     # double validate each path is valid and exists
     for path in paths:
         if not os.path.exists(path):
-            logger.error(f"Path does not exist: {path}")
-            return 1
+            if mode in {VaMode.RERUN_FOR_NA, VaMode.RESET_TO_NA}:
+                logger.warning(
+                    f"Path does not exist: {path}"
+                    f" (used as filter for existing TSV records)"
+                )
+            else:
+                logger.error(f"Path does not exist: {path}")
+                return 1
 
     if not check_ffprobe():
         out_func(

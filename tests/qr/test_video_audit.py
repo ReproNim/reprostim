@@ -135,7 +135,7 @@ def test_help_renders():
 def test_nosignal_opts_forwarded(tmp_mkv):
     """-n / --nosignal-opts value is forwarded to do_main as nosignal_opts kwarg."""
     opts = "--number-of-checks 200 --threshold 0.9"
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-n", opts, tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["nosignal_opts"] == opts
@@ -145,7 +145,7 @@ def test_nosignal_opts_short_form_forwarded(tmp_mkv):
     """Short form -n is accepted and forwards the value identically
     to --nosignal-opts."""
     opts = "--number-of-checks 50"
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["--nosignal-opts", opts, tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["nosignal_opts"] == opts
@@ -154,7 +154,7 @@ def test_nosignal_opts_short_form_forwarded(tmp_mkv):
 def test_nosignal_opts_default_is_none(tmp_mkv):
     """Omitting --nosignal-opts passes nosignal_opts=None so VaContext uses
     built-in defaults."""
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke([tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["nosignal_opts"] is None
@@ -168,7 +168,7 @@ def test_nosignal_opts_default_is_none(tmp_mkv):
 def test_qr_opts_forwarded(tmp_mkv):
     """-q / --qr-opts value is forwarded to do_main as qr_opts kwarg."""
     opts = "--skip 2 --std-threshold 15"
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-q", opts, tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["qr_opts"] == opts
@@ -177,7 +177,7 @@ def test_qr_opts_forwarded(tmp_mkv):
 def test_qr_opts_short_form_forwarded(tmp_mkv):
     """Short form -q is accepted and forwards the value identically to --qr-opts."""
     opts = "--skip 4"
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["--qr-opts", opts, tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["qr_opts"] == opts
@@ -185,7 +185,7 @@ def test_qr_opts_short_form_forwarded(tmp_mkv):
 
 def test_qr_opts_default_is_none(tmp_mkv):
     """Omitting --qr-opts passes qr_opts=None so no extra options are forwarded."""
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke([tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["qr_opts"] is None
@@ -200,7 +200,7 @@ def test_config_nosignal_opts(tmp_path, tmp_mkv):
     """nosignal-opts from config file is forwarded to do_main as nosignal_opts."""
     cfg = tmp_path / "config.yaml"
     cfg.write_text("nosignal-opts: '--number-of-checks 300 --threshold 0.8'\n")
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), tmp_mkv])
     assert result.exit_code == 0
     assert (
@@ -213,7 +213,7 @@ def test_config_qr_opts(tmp_path, tmp_mkv):
     """qr-opts from config file is forwarded to do_main as qr_opts."""
     cfg = tmp_path / "config.yaml"
     cfg.write_text("qr-opts: '--skip 3 --std-threshold 20'\n")
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["qr_opts"] == "--skip 3 --std-threshold 20"
@@ -224,7 +224,7 @@ def test_config_cli_overrides_nosignal_opts(tmp_path, tmp_mkv):
     cfg = tmp_path / "config.yaml"
     cfg.write_text("nosignal-opts: '--number-of-checks 300'\n")
     cli_opts = "--number-of-checks 999"
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), "-n", cli_opts, tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["nosignal_opts"] == cli_opts
@@ -235,7 +235,7 @@ def test_config_cli_overrides_qr_opts(tmp_path, tmp_mkv):
     cfg = tmp_path / "config.yaml"
     cfg.write_text("qr-opts: '--skip 3'\n")
     cli_opts = "--skip 99"
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), "-q", cli_opts, tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.kwargs["qr_opts"] == cli_opts
@@ -245,7 +245,7 @@ def test_config_other_keys(tmp_path, tmp_mkv):
     """mode, recursive, and max-files from config are passed correctly to do_main."""
     cfg = tmp_path / "config.yaml"
     cfg.write_text("mode: full\nrecursive: true\nmax-files: 5\n")
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), tmp_mkv])
     assert result.exit_code == 0
     args = mock_do_main.call_args.args
@@ -258,7 +258,7 @@ def test_config_audit_src_list(tmp_path, tmp_mkv):
     """audit-src list in config is converted to a set of VaSource values."""
     cfg = tmp_path / "config.yaml"
     cfg.write_text("audit-src:\n  - internal\n  - qr\n")
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), tmp_mkv])
     assert result.exit_code == 0
     va_src = mock_do_main.call_args.args[4]
@@ -274,7 +274,7 @@ def test_config_audit_src_scalar_string(tmp_path, tmp_mkv):
     """Config audit-src as a scalar string is wrapped into a single-element tuple."""
     cfg = tmp_path / "config.yaml"
     cfg.write_text("audit-src: qr\n")
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["-c", str(cfg), tmp_mkv])
     assert result.exit_code == 0
     va_src = mock_do_main.call_args.args[4]
@@ -283,7 +283,7 @@ def test_config_audit_src_scalar_string(tmp_path, tmp_mkv):
 
 def test_mode_full_passed_to_do_main(tmp_mkv):
     """--mode full passes VaMode.FULL as the mode positional arg to do_main."""
-    with patch("reprostim.qr.video_audit.do_main") as mock_do_main:
+    with patch("reprostim.qr.video_audit.do_main", return_value=0) as mock_do_main:
         result = _invoke(["--mode", "full", tmp_mkv])
     assert result.exit_code == 0
     assert mock_do_main.call_args.args[3] == VaMode.FULL
@@ -1731,3 +1731,143 @@ def test_do_main_incremental_merges_existing(tmp_path):
     assert rc == 0
     names = {r.name for r in _load_tsv(tsv)}
     assert "old.mkv" in names and "new.mkv" in names
+
+
+# ===========================================================================
+# Issue #253 — non-existing video handling
+# ===========================================================================
+
+
+def test_run_ext_nosignal_file_not_found():
+    """Non-existent video file → no_signal_frames set to '-3'
+    (file-not-found sentinel)."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", no_signal_frames="n/a")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "-3"
+    assert result.no_signal_updated_on != "n/a"
+    assert ctx.c_nosignal == 1
+
+
+def test_run_ext_nosignal_file_not_found_incremental():
+    """Non-existent video file in incremental mode → no_signal_frames set to '-3'."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", no_signal_frames="n/a")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, mode=VaMode.INCREMENTAL)
+    result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "-3"
+    assert ctx.c_nosignal == 1
+
+
+def test_run_ext_qr_file_not_found():
+    """Non-existent video file → qr_records_number set to '-3'
+    (file-not-found sentinel)."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", qr_records_number="n/a")
+    ctx = _ctx(source={VaSource.QR}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-3"
+    assert result.qr_updated_on != "n/a"
+    assert ctx.c_qr == 1
+
+
+def test_run_ext_qr_file_not_found_incremental():
+    """Non-existent video file in incremental mode → qr_records_number set to '-3'."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", qr_records_number="n/a")
+    ctx = _ctx(source={VaSource.QR}, mode=VaMode.INCREMENTAL)
+    result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-3"
+    assert ctx.c_qr == 1
+
+
+def test_run_ext_nosignal_rerun_for_na_already_set_skips():
+    """rerun-for-na skips records where no_signal_frames is already non-n/a ('-3')."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", no_signal_frames="-3")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "-3"
+    assert ctx.c_nosignal == 0
+
+
+def test_run_ext_qr_rerun_for_na_already_set_skips():
+    """rerun-for-na skips records where qr_records_number is already non-n/a ('-3')."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", qr_records_number="-3")
+    ctx = _ctx(source={VaSource.QR}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-3"
+    assert ctx.c_qr == 0
+
+
+def test_do_ext_filter_by_nonexistent_video_file():
+    """Non-existent .mkv path still matches records in the TSV by string comparison."""
+    ghost_path = "/data/Videos/2025/08/ghost.mkv"
+    vr = _rec(name="ghost.mkv", path=ghost_path)
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], [ghost_path]))
+    mock_ext.assert_called_once()
+
+
+def test_do_ext_filter_by_nonexistent_directory():
+    """Non-existent directory path is used as a prefix filter for record paths."""
+    ghost_dir = "/data/Videos/2025/08"
+    vr = _rec(name="ghost.mkv", path=f"{ghost_dir}/ghost.mkv")
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], [ghost_dir]))
+    mock_ext.assert_called_once()
+
+
+def test_do_main_rerun_for_na_nonexistent_path(tmp_path):
+    """do_main with non-existent video path in rerun-for-na mode returns 0 (not 1)."""
+    tsv = str(tmp_path / "videos.tsv")
+    ghost_path = "/nonexistent/ghost.mkv"
+    _save_tsv([_rec(name="ghost.mkv", path=ghost_path, qr_records_number="n/a")], tsv)
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=True
+    ):
+        rc = do_main(
+            [ghost_path],
+            tsv,
+            mode=VaMode.RERUN_FOR_NA,
+            va_src={VaSource.QR},
+        )
+    assert rc == 0
+
+
+def test_do_main_reset_to_na_nonexistent_path(tmp_path):
+    """do_main with non-existent video path in reset-to-na mode returns 0 (not 1)."""
+    tsv = str(tmp_path / "videos.tsv")
+    ghost_path = "/nonexistent/ghost.mkv"
+    _save_tsv([_rec(name="ghost.mkv", path=ghost_path, qr_records_number="5")], tsv)
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=True
+    ):
+        rc = do_main(
+            [ghost_path],
+            tsv,
+            mode=VaMode.RESET_TO_NA,
+            va_src={VaSource.QR},
+        )
+    assert rc == 0
+
+
+def test_do_main_incremental_nonexistent_path_returns_one(tmp_path):
+    """do_main with non-existent path in incremental mode still returns 1."""
+    tsv = str(tmp_path / "videos.tsv")
+    with patch.dict(os.environ, _ENV):
+        rc = do_main(["/nonexistent/path"], tsv, mode=VaMode.INCREMENTAL)
+    assert rc == 1
+
+
+def test_cli_rerun_for_na_nonexistent_path(tmp_path):
+    """CLI: non-existent video path with --mode rerun-for-na must not
+    raise Click error."""
+    tsv = str(tmp_path / "videos.tsv")
+    ghost_path = "/nonexistent/ghost.mkv"
+    _save_tsv([_rec(name="ghost.mkv", path=ghost_path)], tsv)
+    with patch("reprostim.qr.video_audit.do_main", return_value=0):
+        result = runner.invoke(
+            video_audit,
+            ["-m", "rerun-for-na", "-o", tsv, ghost_path],
+            catch_exceptions=False,
+        )
+    assert result.exit_code == 0
