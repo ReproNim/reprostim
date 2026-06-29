@@ -1731,3 +1731,143 @@ def test_do_main_incremental_merges_existing(tmp_path):
     assert rc == 0
     names = {r.name for r in _load_tsv(tsv)}
     assert "old.mkv" in names and "new.mkv" in names
+
+
+# ===========================================================================
+# Issue #253 — non-existing video handling
+# ===========================================================================
+
+
+def test_run_ext_nosignal_file_not_found():
+    """Non-existent video file → no_signal_frames set to '-3'
+    (file-not-found sentinel)."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", no_signal_frames="n/a")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "-3"
+    assert result.no_signal_updated_on != "n/a"
+    assert ctx.c_nosignal == 1
+
+
+def test_run_ext_nosignal_file_not_found_incremental():
+    """Non-existent video file in incremental mode → no_signal_frames set to '-3'."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", no_signal_frames="n/a")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, mode=VaMode.INCREMENTAL)
+    result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "-3"
+    assert ctx.c_nosignal == 1
+
+
+def test_run_ext_qr_file_not_found():
+    """Non-existent video file → qr_records_number set to '-3'
+    (file-not-found sentinel)."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", qr_records_number="n/a")
+    ctx = _ctx(source={VaSource.QR}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-3"
+    assert result.qr_updated_on != "n/a"
+    assert ctx.c_qr == 1
+
+
+def test_run_ext_qr_file_not_found_incremental():
+    """Non-existent video file in incremental mode → qr_records_number set to '-3'."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", qr_records_number="n/a")
+    ctx = _ctx(source={VaSource.QR}, mode=VaMode.INCREMENTAL)
+    result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-3"
+    assert ctx.c_qr == 1
+
+
+def test_run_ext_nosignal_rerun_for_na_already_set_skips():
+    """rerun-for-na skips records where no_signal_frames is already non-n/a ('-3')."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", no_signal_frames="-3")
+    ctx = _ctx(source={VaSource.NOSIGNAL}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_nosignal(ctx, vr)
+    assert result.no_signal_frames == "-3"
+    assert ctx.c_nosignal == 0
+
+
+def test_run_ext_qr_rerun_for_na_already_set_skips():
+    """rerun-for-na skips records where qr_records_number is already non-n/a ('-3')."""
+    vr = _rec(name="ghost.mkv", path="/nonexistent/ghost.mkv", qr_records_number="-3")
+    ctx = _ctx(source={VaSource.QR}, mode=VaMode.RERUN_FOR_NA)
+    result = run_ext_qr(ctx, vr)
+    assert result.qr_records_number == "-3"
+    assert ctx.c_qr == 0
+
+
+def test_do_ext_filter_by_nonexistent_video_file():
+    """Non-existent .mkv path still matches records in the TSV by string comparison."""
+    ghost_path = "/data/Videos/2025/08/ghost.mkv"
+    vr = _rec(name="ghost.mkv", path=ghost_path)
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], [ghost_path]))
+    mock_ext.assert_called_once()
+
+
+def test_do_ext_filter_by_nonexistent_directory():
+    """Non-existent directory path is used as a prefix filter for record paths."""
+    ghost_dir = "/data/Videos/2025/08"
+    vr = _rec(name="ghost.mkv", path=f"{ghost_dir}/ghost.mkv")
+    ctx = _ctx(source={VaSource.INTERNAL})
+    with patch("reprostim.qr.video_audit.run_ext_all", return_value=vr) as mock_ext:
+        list(do_ext(ctx, [vr], [ghost_dir]))
+    mock_ext.assert_called_once()
+
+
+def test_do_main_rerun_for_na_nonexistent_path(tmp_path):
+    """do_main with non-existent video path in rerun-for-na mode returns 0 (not 1)."""
+    tsv = str(tmp_path / "videos.tsv")
+    ghost_path = "/nonexistent/ghost.mkv"
+    _save_tsv([_rec(name="ghost.mkv", path=ghost_path, qr_records_number="n/a")], tsv)
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=True
+    ):
+        rc = do_main(
+            [ghost_path],
+            tsv,
+            mode=VaMode.RERUN_FOR_NA,
+            va_src={VaSource.QR},
+        )
+    assert rc == 0
+
+
+def test_do_main_reset_to_na_nonexistent_path(tmp_path):
+    """do_main with non-existent video path in reset-to-na mode returns 0 (not 1)."""
+    tsv = str(tmp_path / "videos.tsv")
+    ghost_path = "/nonexistent/ghost.mkv"
+    _save_tsv([_rec(name="ghost.mkv", path=ghost_path, qr_records_number="5")], tsv)
+    with patch.dict(os.environ, _ENV), patch(
+        "reprostim.qr.video_audit.check_ffprobe", return_value=True
+    ):
+        rc = do_main(
+            [ghost_path],
+            tsv,
+            mode=VaMode.RESET_TO_NA,
+            va_src={VaSource.QR},
+        )
+    assert rc == 0
+
+
+def test_do_main_incremental_nonexistent_path_returns_one(tmp_path):
+    """do_main with non-existent path in incremental mode still returns 1."""
+    tsv = str(tmp_path / "videos.tsv")
+    with patch.dict(os.environ, _ENV):
+        rc = do_main(["/nonexistent/path"], tsv, mode=VaMode.INCREMENTAL)
+    assert rc == 1
+
+
+def test_cli_rerun_for_na_nonexistent_path(tmp_path):
+    """CLI: non-existent video path with --mode rerun-for-na must not
+    raise Click error."""
+    tsv = str(tmp_path / "videos.tsv")
+    ghost_path = "/nonexistent/ghost.mkv"
+    _save_tsv([_rec(name="ghost.mkv", path=ghost_path)], tsv)
+    with patch("reprostim.qr.video_audit.do_main", return_value=0):
+        result = runner.invoke(
+            video_audit,
+            ["-m", "rerun-for-na", "-o", tsv, ghost_path],
+            catch_exceptions=False,
+        )
+    assert result.exit_code == 0
