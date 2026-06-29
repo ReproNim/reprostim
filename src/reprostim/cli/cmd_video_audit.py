@@ -224,9 +224,9 @@ def video_audit(
                 )
             else:
                 logger.error(f"Path does not exist: {path}")
-                return 1
+                ctx.exit(1)
 
-    do_main(
+    rv = do_main(
         list(paths),
         output,
         recursive,
@@ -239,4 +239,5 @@ def video_audit(
         nosignal_opts=nosignal_opts,
         qr_opts=qr_opts,
     )
-    return 0
+    if rv:
+        ctx.exit(rv)
