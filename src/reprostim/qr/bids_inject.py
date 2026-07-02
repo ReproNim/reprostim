@@ -34,6 +34,21 @@ from reprostim.qr.video_audit import (
 logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
+# Try to import datalad-fuse, but don't require it
+try:
+    from datalad_fuse.fsspec import FsspecAdapter
+
+    DATALAD_FUSE_AVAILABLE = True
+except ImportError:
+    DATALAD_FUSE_AVAILABLE = False
+    FsspecAdapter = None
+
+logger.debug(
+    "datalad-fuse available: FsspecAdapter enabled for annexed file I/O"
+    if DATALAD_FUSE_AVAILABLE
+    else "datalad-fuse not available: using plain file I/O"
+)
+
 
 ####################################################################
 # Enumerations
@@ -381,18 +396,22 @@ def _open_dataset_file(path: str, encoding: str = "utf-8", newline=None):
     """
     f = None
     raw = None
-    try:
-        from datalad_fuse import FsspecAdapter
-
-        adapter = FsspecAdapter(os.path.dirname(path), caching=False)
-        raw = adapter.open(path)
-        f = io.TextIOWrapper(raw, encoding=encoding, newline=newline)
-    except Exception:
-        if raw is not None:
-            try:
-                raw.close()
-            except Exception:
-                pass
+    if DATALAD_FUSE_AVAILABLE:
+        try:
+            adapter = FsspecAdapter(os.path.dirname(path), caching=False)
+            raw = adapter.open(path)
+            f = io.TextIOWrapper(raw, encoding=encoding, newline=newline)
+            logger.debug(f"Opened via FsspecAdapter: {path}")
+        except Exception as e:
+            logger.debug(
+                f"FsspecAdapter failed ({e}); falling back to plain open: {path}"
+            )
+            if raw is not None:
+                try:
+                    raw.close()
+                except Exception:
+                    pass
+            raw = None
 
     if f is None:
         with open(path, encoding=encoding, newline=newline) as f:
