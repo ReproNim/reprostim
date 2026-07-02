@@ -10,7 +10,9 @@ dataset.
 See .ai/spec-bids-inject.md for the full specification.
 """
 
+import contextlib
 import csv
+import io
 import json
 import logging
 import os
@@ -356,6 +358,42 @@ def _format_bids_str(value) -> str:
     return "n/a" if value is None else str(value)
 
 
+@contextlib.contextmanager
+def _open_dataset_file(path: str, encoding: str = "utf-8", newline=None):
+    """Open a BIDS text file for reading, routing through FsspecAdapter when available.
+
+    When :mod:`datalad_fuse` is installed the file is opened via
+    ``FsspecAdapter`` so that git-annex–managed files (e.g. ``_scans.tsv``
+    sidecars, JSON sidecars) can be read without a local fetch.  Falls back to
+    a plain :func:`open` call when the package is not present.
+
+    The adapter is read-only; callers that need to *write* a file (e.g.
+    :func:`_save_scans_model`) use a plain :func:`open` call directly.
+
+    :param path: Path to the file to open.
+    :type path: str
+    :param encoding: Text encoding, forwarded to :class:`io.TextIOWrapper` or
+        :func:`open`.
+    :type encoding: str
+    :param newline: Newline handling forwarded to :class:`io.TextIOWrapper` or
+        :func:`open`.  Pass ``""`` when the caller handles line endings itself
+        (e.g. :mod:`csv`).
+    """
+    try:
+        from datalad_fuse import FsspecAdapter
+
+        adapter = FsspecAdapter(os.path.dirname(path), caching=False)
+        raw = adapter.open(path)
+        f = io.TextIOWrapper(raw, encoding=encoding, newline=newline)
+        try:
+            yield f
+        finally:
+            f.close()
+    except ImportError:
+        with open(path, encoding=encoding, newline=newline) as f:
+            yield f
+
+
 def _is_scans_file(path: str) -> bool:
     """Check if the given path points to a BIDS ``*_scans.tsv`` file.
 
@@ -410,7 +448,7 @@ def _parse_scan_metadata(
         logger.warning(f"JSON sidecar not found: {json_path}")
         return None
 
-    with open(json_path, encoding="utf-8") as f:
+    with _open_dataset_file(json_path) as f:
         data = json.load(f)
 
     # Per-volume AcquisitionTime array lives under time.samples, not at the
@@ -454,7 +492,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     _known = {"filename", "acq_time"} | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
-    with open(path, newline="", encoding="utf-8") as f:
+    with _open_dataset_file(path, newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
             records.append(
