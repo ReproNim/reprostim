@@ -379,19 +379,29 @@ def _open_dataset_file(path: str, encoding: str = "utf-8", newline=None):
         :func:`open`.  Pass ``""`` when the caller handles line endings itself
         (e.g. :mod:`csv`).
     """
+    f = None
+    raw = None
     try:
         from datalad_fuse import FsspecAdapter
 
         adapter = FsspecAdapter(os.path.dirname(path), caching=False)
         raw = adapter.open(path)
         f = io.TextIOWrapper(raw, encoding=encoding, newline=newline)
+    except Exception:
+        if raw is not None:
+            try:
+                raw.close()
+            except Exception:
+                pass
+
+    if f is None:
+        with open(path, encoding=encoding, newline=newline) as f:
+            yield f
+    else:
         try:
             yield f
         finally:
             f.close()
-    except ImportError:
-        with open(path, encoding=encoding, newline=newline) as f:
-            yield f
 
 
 def _is_scans_file(path: str) -> bool:
