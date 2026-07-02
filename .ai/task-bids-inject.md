@@ -43,6 +43,8 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 ### _scans.tsv integration
 - [x] Parse `_scans.tsv` (`filename` + `acq_time` columns)
 - [x] Apply `--match` regex to filter scan records
+- [x] `_open_dataset_file` — read-only context manager that routes through `datalad_fuse.FsspecAdapter` when available; falls back to plain `open()` on `ImportError` or any adapter failure; used by `_parse_scans_model` and `_parse_scan_metadata`
+- [x] `DATALAD_FUSE_AVAILABLE` — module-level bool set at import time; logged via `logger.debug`
 - [ ] Filter: skip non-functional scans (those not starting with `func/`)
 - [ ] Filter: skip single-volume acquisitions (4th NIfTI dimension < 2)
 
@@ -212,6 +214,14 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 - [x] `_find_bids_root` — fallback: parent of first `sub-` path component
 - [x] `_is_scans_file` — `*_scans.tsv` existing file → `True`
 - [x] `_is_scans_file` — directory or non-matching name → `False`
+- [x] `DATALAD_FUSE_AVAILABLE` — is a `bool` set at module import time
+- [x] `_open_dataset_file` — plain fallback reads content correctly
+- [x] `_open_dataset_file` — adapter path reads content via mocked `FsspecAdapter`
+- [x] `_open_dataset_file` — `FsspecAdapter()` setup failure falls back to plain `open()`
+- [x] `_open_dataset_file` — `adapter.open()` failure falls back to plain `open()`
+- [x] `_open_dataset_file` — caller exception propagates (not swallowed) on plain path
+- [x] `_open_dataset_file` — caller exception propagates (not swallowed) on adapter path
+- [x] `_open_dataset_file` — `newline=""` forwarded correctly (CR+LF not translated)
 
 ### sidecar_metadata propagation
 

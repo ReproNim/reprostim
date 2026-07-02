@@ -735,6 +735,54 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 
 ---
 
+## Annexed-file Access (datalad-fuse)
+
+When a BIDS dataset is managed by DataLad/git-annex, text sidecar files
+(`*_scans.tsv`, `*_bold.json`, etc.) may be annexed rather than stored as
+plain git-tracked content.  `bids-inject` supports reading these files
+without a local fetch via the optional `datalad-fuse` package.
+
+### `DATALAD_FUSE_AVAILABLE` (module-level bool)
+
+Set once at import time:
+
+```python
+try:
+    from datalad_fuse.fsspec import FsspecAdapter
+    DATALAD_FUSE_AVAILABLE = True
+except ImportError:
+    DATALAD_FUSE_AVAILABLE = False
+    FsspecAdapter = None
+```
+
+A `logger.debug` message is emitted immediately to indicate availability.
+
+### `_open_dataset_file(path, encoding, newline)` (context manager)
+
+A read-only context manager used wherever `bids-inject` opens a text file
+for reading (`_parse_scans_model` for the TSV, `_parse_scan_metadata` for the
+JSON sidecar).
+
+**Behaviour:**
+
+1. If `DATALAD_FUSE_AVAILABLE` is `True`, attempt to open via `FsspecAdapter`.
+   On success, wrap the raw binary stream in `io.TextIOWrapper` and yield it.
+2. If `FsspecAdapter` setup or `adapter.open()` raises **any** exception
+   (including non-DataLad datasets, missing annex remotes, etc.), close the
+   raw stream if it was opened, log a debug message, and fall through to step 3.
+3. Open the file with plain `open(path, encoding=encoding, newline=newline)`.
+
+**Why separate setup from yield:**
+Catching exceptions *around* the `yield` would swallow caller exceptions and
+risk double-yielding.  Setup errors are caught before the `yield`; once the
+file object is yielded, any exception from the caller's `with`-block propagates
+normally.
+
+**Write path is unaffected:** `_save_scans_model` uses plain `open()` directly
+since `_scans.tsv` is a git-tracked plain-text file, not annexed.
+
+---
+
 ## Dependencies / Related Components
 
 | Component       | Relationship                                               |
@@ -742,6 +790,7 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 | `split-video`   | Called by `bids-inject` to do actual video slicing         |
 | `video-audit`   | Produces `videos.tsv` consumed by `bids-inject`            |
 | `qr-parse`      | Invoked by `bids-inject` when `--qr parse` mode is used    |
+| `datalad-fuse`  | Optional; enables reading annexed sidecar files remotely (issue #229) |
 | Issue #13       | Clock synchronization / offset tracking (`--time-offset`)  |
 | Issue #83       | Metadata JSON logging spec (sidecar schema)                |
 | Issue #109      | DICOM `AcquisitionTime` jitter documentation               |
