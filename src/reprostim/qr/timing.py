@@ -665,15 +665,27 @@ _tmap_svc: TMapService = None
 def get_tmap_svc() -> TMapService:
     """Return the module-level :class:`TMapService` singleton.
 
-    Loads ``repronim_tmap.jsonl`` from the same directory as this module on
-    first call; subsequent calls return the cached instance.
+    Loads the tmap JSONL file on first call and caches the result.
+    When :data:`TMAP_FILENAME` is an absolute path it is used directly.
+    For a plain filename the lookup order is: current working directory
+    first, then the directory containing this module.
+    Tests may monkeypatch :data:`TMAP_FILENAME` to a fixture absolute path.
 
     :returns: Initialised :class:`TMapService` instance.
     :rtype: TMapService
     """
     global _tmap_svc
     if not _tmap_svc:
-        path_tmap: str = str(Path(__file__).with_name(TMAP_FILENAME))
+        p = Path(TMAP_FILENAME)
+        if p.is_absolute():
+            path_tmap: str = str(p)
+        else:
+            cwd_candidate = Path.cwd() / TMAP_FILENAME
+            path_tmap: str = str(
+                cwd_candidate
+                if cwd_candidate.exists()
+                else Path(__file__).with_name(TMAP_FILENAME)
+            )
         logger.info(f"Loading tmap  : {path_tmap}")
         _tmap_svc = TMapService(path_or_marks=path_tmap)
         logger.info(f"              : {_tmap_svc.to_label()}")
