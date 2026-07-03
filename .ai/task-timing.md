@@ -42,27 +42,28 @@ Tracks implementation and documentation progress against [spec-timing.md](spec-t
 ## Module-level Singleton
 
 - [x] `_tmap_svc` — module-level variable initialised to `None`
-- [x] `get_tmap_svc()` — lazy loader; reads bundled `repronim_tmap.jsonl` on first call; caches in `_tmap_svc`
+- [x] `TMAP_FILENAME` — module-level constant `"repronim_tmap.jsonl"` (file name of the bundled tmap)
+- [x] `get_tmap_svc()` — lazy loader; reads bundled `TMAP_FILENAME` on first call; caches in `_tmap_svc`
 
 ---
 
 ## Documentation
 
-- [ ] Module docstring (currently `"TBD"`)
-- [ ] `Clock` class docstring
-- [ ] `TPeriodData` class docstring
-- [ ] `TMapRecord` class docstring
-- [ ] `TMapService` class docstring
-- [ ] Docstrings for all standalone functions (`parse_jsonl_gen`, `str_isotime`, `get_tmap_offset`, `get_tmap_isotime`, `get_tmap_deviation`, `get_tmap_key`)
-- [ ] Docstrings for all `TMapService` methods
-- [ ] `get_tmap_svc` function docstring
+- [x] Module docstring
+- [x] `Clock` class docstring
+- [x] `TPeriodData` class docstring
+- [x] `TMapRecord` class docstring
+- [x] `TMapService` class docstring
+- [x] Docstrings for all standalone functions (`parse_jsonl_gen`, `str_isotime`, `get_tmap_offset`, `get_tmap_isotime`, `get_tmap_deviation`, `get_tmap_key`)
+- [x] Docstrings for all `TMapService` methods
+- [x] `get_tmap_svc` function docstring
 
 ---
 
 ## Bug Fixes
 
-- [ ] `calc_periods`: remove `valid=True` kwarg passed to `TPeriodData()` — field does not exist in the model (silently ignored by Pydantic)
-- [ ] `get_tmap_svc()`: replace recursive `get_tmap_svc().to_label()` log call with `_tmap_svc.to_label()`
+- [x] `calc_periods`: removed `valid=True` kwarg from `TPeriodData()` — field does not exist in the model
+- [x] `get_tmap_svc()`: replaced recursive `get_tmap_svc().to_label()` log call with `_tmap_svc.to_label()`
 - [ ] `force_offset` / `get_offset` API mismatch: `force_offset` takes `clock: str` but `get_offset` looks up by `clock.value` — document or unify
 
 ---

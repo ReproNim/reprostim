@@ -421,7 +421,6 @@ class TMapService:
         Called automatically by :meth:`load` after sorting.
         """
         ap: TPeriodData = TPeriodData(
-            valid=True,
             duration=0.0,
             deviation=1.0,
             dicoms_duration=0.0,
