@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stderr))
 logger.debug(f"name={__name__}")
 
+# Default tmap JSONL filename bundled alongside this module.
+TMAP_FILENAME: str = "repronim_tmap.jsonl"
+
 
 def parse_jsonl_gen(path: str) -> Generator[dict, None, None]:
     """Yield each object from a JSON Lines file as a :class:`dict`.
@@ -671,8 +674,8 @@ def get_tmap_svc() -> TMapService:
     """
     global _tmap_svc
     if not _tmap_svc:
-        path_tmap: str = str(Path(__file__).with_name("repronim_tmap.jsonl"))
+        path_tmap: str = str(Path(__file__).with_name(TMAP_FILENAME))
         logger.info(f"Loading tmap  : {path_tmap}")
         _tmap_svc = TMapService(path_or_marks=path_tmap)
-        logger.info(f"              : {get_tmap_svc().to_label()}")
+        logger.info(f"              : {_tmap_svc.to_label()}")
     return _tmap_svc
