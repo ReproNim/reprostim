@@ -3,7 +3,12 @@
 # SPDX-License-Identifier: MIT
 
 """
-TBD
+ReproNim timing-map (tmap) subsystem. Provides tools to load, index,
+and query timing-map (tmap) records that anchor various device clocks
+(swimlines) to a single NTP reference (isotime). It implements models
+for tmap marks and inter-mark statistics, an enum of supported clock
+domains, and a service class for conversions between clock domains
+using recorded synchronization marks.
 """
 
 import logging
@@ -23,12 +28,27 @@ logger.debug(f"name={__name__}")
 
 
 def parse_jsonl_gen(path: str) -> Generator[dict, None, None]:
+    """Yield each object from a JSON Lines file as a :class:`dict`.
+
+    :param path: Path to the ``.jsonl`` file to read.
+    :type path: str
+    :returns: Generator yielding one parsed dict per line.
+    :rtype: Generator[dict, None, None]
+    """
     with jsonlines.open(path) as reader:
         for obj in reader:
             yield obj
 
 
-def str_isotime(v: datetime) -> str:
+def str_isotime(v: datetime) -> Optional[str]:
+    """Format a :class:`datetime` as an ISO 8601 string with microseconds.
+
+    :param v: Datetime to format, or any falsy value (e.g. ``None``).
+    :type v: datetime
+    :returns: Formatted string ``YYYY-MM-DDTHH:MM:SS.ffffff``, or ``None``
+        when *v* is falsy.
+    :rtype: Optional[str]
+    """
     if not v:
         return None
     return v.strftime("%Y-%m-%dT%H:%M:%S.%f")
@@ -36,6 +56,15 @@ def str_isotime(v: datetime) -> str:
 
 # define ReproNim clocks
 class Clock(str, Enum):
+    """Enumeration of all ReproNim device clocks.
+
+    Each value is a string key used to identify the clock domain in tmap
+    records and conversion calls.  ``ISOTIME`` is the NTP reference clock;
+    all other clocks are expressed as offsets relative to it.
+    ``QRINFO`` and ``REPROSTIM_VIDEO`` currently share the same underlying
+    field (``reprostim_video_*``) in :class:`TMapRecord`.
+    """
+
     ISOTIME = "isotime"  # Reference NTP clock
     BIRCH = "birch"  # Birch clock
     DICOMS = "dicoms"  # DICOMs clock
@@ -48,9 +77,14 @@ class Clock(str, Enum):
 
 # Define period data model
 class TPeriodData(BaseModel):
-    key: Optional[str] = Field(
-        None, description="Unique tmap key " "for back reference"
-    )
+    """Inter-mark period statistics computed by calibration jobs.
+
+    Each instance covers the gap between two consecutive :class:`TMapRecord`
+    marks.  The ``avg_period`` attribute on :class:`TMapService` holds a
+    weighted average over all valid periods in the session.
+    """
+
+    key: Optional[str] = Field(None, description="Unique tmap key for back reference")
     duration: Optional[float] = Field(
         0.0, description="Reference period duration in seconds"
     )
@@ -72,6 +106,14 @@ class TPeriodData(BaseModel):
 
 # Define abstract timing map model
 class TMapRecord(BaseModel):
+    """A single timing-map mark anchoring all device clocks to NTP isotime.
+
+    Each record represents one synchronization event captured by
+    calibrartion jobs.  Per-device fields follow the pattern
+    ``<device>_isotime``, ``<device>_offset``, ``<device>_duration``, and
+    ``<device>_deviation``; absent devices are ``None`` / ``0.0``.
+    """
+
     isotime: Optional[datetime] = Field(
         None, description="Reference time bound to NTP in isotime format"
     )
@@ -85,7 +127,7 @@ class TMapRecord(BaseModel):
     )
     mark_id: Optional[str] = Field(
         None,
-        description="Unique mark identifier across session only, " "e.g. mark_000025",
+        description="Unique mark identifier across session only, e.g. mark_000025",
     )
     mark_name: Optional[str] = Field(
         None, description="Optional name or description of the mark"
@@ -163,7 +205,7 @@ class TMapRecord(BaseModel):
     )
     reprostim_video_isotime: Optional[datetime] = Field(
         None,
-        description="Corresponding ReproStim video clock time in " "isotime format",
+        description="Corresponding ReproStim video clock time in isotime format",
     )
     reprostim_video_offset: Optional[float] = Field(
         0.0, description="ReproStim video offset in seconds from isotime"
@@ -180,6 +222,16 @@ class TMapRecord(BaseModel):
 
 # find tmap offset by clock
 def get_tmap_offset(clock: Clock, tmap: TMapRecord) -> float:
+    """Return the clock offset (seconds from isotime) stored in a tmap record.
+
+    :param clock: Clock whose offset to retrieve.
+    :type clock: Clock
+    :param tmap: Tmap record to read from.
+    :type tmap: TMapRecord
+    :returns: Offset in seconds; ``0.0`` for :attr:`Clock.ISOTIME`.
+    :rtype: float
+    :raises ValueError: If *clock* is not a recognized :class:`Clock` member.
+    """
     if clock == Clock.ISOTIME:
         return 0.0
     if clock == Clock.BIRCH:
@@ -200,6 +252,16 @@ def get_tmap_offset(clock: Clock, tmap: TMapRecord) -> float:
 
 # find tmap isotime by clock
 def get_tmap_isotime(clock: Clock, tmap: TMapRecord) -> datetime:
+    """Return the isotime for the given clock stored in a tmap record.
+
+    :param clock: Clock whose isotime to retrieve.
+    :type clock: Clock
+    :param tmap: Tmap record to read from.
+    :type tmap: TMapRecord
+    :returns: Datetime value for the requested clock domain.
+    :rtype: datetime
+    :raises ValueError: If *clock* is not a recognized :class:`Clock` member.
+    """
     if clock == Clock.ISOTIME:
         return tmap.isotime
     if clock == Clock.BIRCH:
@@ -220,6 +282,19 @@ def get_tmap_isotime(clock: Clock, tmap: TMapRecord) -> datetime:
 
 # find tmap deviation by clock
 def get_tmap_deviation(clock: Clock, tmap: TMapRecord) -> float:
+    """Return the deviation ratio for the given clock stored in a tmap record.
+
+    A value of ``1.0`` means the clock runs at the same rate as the NTP
+    reference.
+
+    :param clock: Clock whose deviation to retrieve.
+    :type clock: Clock
+    :param tmap: Tmap record to read from.
+    :type tmap: TMapRecord
+    :returns: Deviation ratio; ``1.0`` for :attr:`Clock.ISOTIME`.
+    :rtype: float
+    :raises ValueError: If *clock* is not a recognized :class:`Clock` member.
+    """
     if clock == Clock.ISOTIME:
         return 1.0
     if clock == Clock.BIRCH:
@@ -240,12 +315,39 @@ def get_tmap_deviation(clock: Clock, tmap: TMapRecord) -> float:
 
 # get tmap unique key
 def get_tmap_key(tmap: TMapRecord) -> str:
+    """Return the unique string key for a tmap record.
+
+    The key is ``"<session_id>|<mark_id>"`` and is used as a dict key in
+    :attr:`TMapService.periods`.
+
+    :param tmap: Tmap record to derive the key from.
+    :type tmap: TMapRecord
+    :returns: Composite key string.
+    :rtype: str
+    """
     return f"{tmap.session_id}|{tmap.mark_id}"
 
 
 # Define ReproNim timing map service
 class TMapService:
+    """Service that loads, indexes, and queries a ReproNim timing map.
+
+    On construction (or via :meth:`load`) the service ingests a JSONL tmap
+    file or a pre-parsed list of record dicts, sorts marks by isotime, and
+    calls :meth:`calc_periods` to build per-interval statistics.  The primary
+    public entry point is :meth:`convert`, which translates a datetime from
+    one :class:`Clock` domain to another using the nearest preceding mark as
+    the calibration anchor.
+    """
+
     def __init__(self, path_or_marks: str | List = None):
+        """Initialise the service, optionally loading marks immediately.
+
+        :param path_or_marks: Path to a ``.jsonl`` tmap file, or a list of
+            dicts (each representing one :class:`TMapRecord`).  When ``None``
+            the service starts empty; call :meth:`load` later.
+        :type path_or_marks: str or list or None
+        """
         self.marks = []
         self.periods = {}
         self.avg_period = TPeriodData()
@@ -257,6 +359,25 @@ class TMapService:
     def adjust_offset(
         self, offset: float, clock: Clock, dt: datetime, tmap: TMapRecord
     ) -> float:
+        """Apply a drift correction to *offset* for the DICOMS clock.
+
+        For clocks other than :attr:`Clock.DICOMS`, or when a forced offset
+        is active, the original *offset* is returned unchanged.  Otherwise
+        the correction is computed from the period deviation between *tmap*
+        and *dt*:  ``correction = d * deviation - d`` where *d* is the
+        elapsed seconds since ``tmap.isotime``.
+
+        :param offset: Raw clock offset in seconds from the tmap anchor.
+        :type offset: float
+        :param clock: Clock domain of the offset being adjusted.
+        :type clock: Clock
+        :param dt: Datetime being converted (used to compute elapsed time).
+        :type dt: datetime
+        :param tmap: Anchor tmap record for this conversion.
+        :type tmap: TMapRecord
+        :returns: Adjusted offset in seconds.
+        :rtype: float
+        """
         # limit to DICOMs clock only atm
         if clock != Clock.DICOMS:
             return offset
@@ -285,6 +406,17 @@ class TMapService:
     # calculate inter-series periods based on sequential
     # and sorted marks data
     def calc_periods(self):
+        """Compute inter-mark period statistics from the sorted marks list.
+
+        Iterates consecutive mark pairs, computing ``duration``,
+        ``dicoms_duration``, and ``dicoms_deviation`` for each interval.
+        Periods where the observed DICOMS offset deviates by more than 30 s
+        from the expected value are flagged as invalid (likely clock
+        correction events).  Valid periods contribute to a weighted average
+        stored in :attr:`avg_period`.
+
+        Called automatically by :meth:`load` after sorting.
+        """
         ap: TPeriodData = TPeriodData(
             valid=True,
             duration=0.0,
@@ -344,6 +476,26 @@ class TMapService:
     def convert(
         self, from_clock: Clock, to_clock: Clock, from_dt: datetime
     ) -> datetime:
+        """Convert a datetime from one ReproNim clock domain to another.
+
+        Finds the nearest preceding tmap mark for *from_dt*, computes the
+        net offset between *from_clock* and *to_clock* (with drift
+        correction applied for DICOMS), and returns the shifted datetime.
+
+        When no tmap data is available or no preceding mark exists, the
+        original *from_dt* is returned with a warning logged.
+
+        :param from_clock: Source clock domain.
+        :type from_clock: Clock
+        :param to_clock: Target clock domain.
+        :type to_clock: Clock
+        :param from_dt: Datetime in the *from_clock* domain to convert.
+        :type from_dt: datetime
+        :returns: Converted datetime in the *to_clock* domain, or ``None``
+            when *from_dt* is falsy, or *from_dt* unchanged when no anchor
+            mark is found.
+        :rtype: datetime
+        """
         # bypass conversion if clocks are the same
         if from_clock == to_clock:
             return from_dt
@@ -372,6 +524,11 @@ class TMapService:
     # for debug purposes report tmap table, calculated periods and
     # global average periods if any
     def dump_periods(self):
+        """Log all marks, their associated periods, and the average period.
+
+        Emits one ``INFO`` line per mark and per period (as JSON), followed
+        by the weighted average period.  Intended for debugging.
+        """
         for i, m in enumerate(self.marks):
             p: TPeriodData = self.get_period(m)
             logger.info(f"[{i:03}] mark   : {m.model_dump_json()}")
@@ -381,6 +538,19 @@ class TMapService:
     # find tmap record by datetime and clock in sorted
     # list of marks
     def find_tmap(self, clock: Clock, dt: datetime) -> TMapRecord:
+        """Find the last mark whose clock time is ≤ *dt*.
+
+        Performs a linear scan over the sorted :attr:`marks` list using the
+        appropriate ``*_isotime`` field for *clock*.  Returns the first mark
+        when there is only one, or ``None`` when the list is empty.
+
+        :param clock: Clock domain to compare against *dt*.
+        :type clock: Clock
+        :param dt: Datetime to look up.
+        :type dt: datetime
+        :returns: Best-matching :class:`TMapRecord`, or ``None``.
+        :rtype: TMapRecord
+        """
         if not self.marks or len(self.marks) == 0:
             return None
         if len(self.marks) == 1:
@@ -398,6 +568,17 @@ class TMapService:
 
     # force offset for certain clock
     def force_offset(self, clock: str, offset: float):
+        """Pin or clear a manual offset override for *clock*.
+
+        When *offset* is not ``None`` the value overrides the tmap-derived
+        offset for every subsequent :meth:`get_offset` call on this clock.
+        Passing ``None`` removes a previously set override.
+
+        :param clock: Clock key string (e.g. ``"dicoms"``).
+        :type clock: str
+        :param offset: Fixed offset in seconds, or ``None`` to clear.
+        :type offset: float or None
+        """
         if offset is None:
             if clock in self._force_offset:
                 del self._force_offset[clock]
@@ -407,6 +588,18 @@ class TMapService:
 
     # override clock offset if any
     def get_offset(self, clock: Clock, tmap: TMapRecord) -> float:
+        """Return the effective offset for *clock*, respecting forced overrides.
+
+        If a forced offset was set via :meth:`force_offset`, that value is
+        returned; otherwise delegates to :func:`get_tmap_offset`.
+
+        :param clock: Clock domain.
+        :type clock: Clock
+        :param tmap: Tmap record to read from when no override is active.
+        :type tmap: TMapRecord
+        :returns: Effective offset in seconds.
+        :rtype: float
+        """
         if self._force_offset.get(clock.value) is not None:
             logger.debug(
                 "overriding offset for %s: %f", clock, self._force_offset[clock.value]
@@ -415,12 +608,29 @@ class TMapService:
         return get_tmap_offset(clock, tmap)
 
     # get period by tmap/mark
-    def get_period(self, tmap: TMapRecord) -> TPeriodData:
+    def get_period(self, tmap: TMapRecord) -> Optional[TPeriodData]:
+        """Return the :class:`TPeriodData` for the interval starting at *tmap*.
+
+        :param tmap: Tmap record whose key to look up.
+        :type tmap: TMapRecord
+        :returns: Period data if the key is present, ``None`` otherwise.
+        :rtype: Optional[TPeriodData]
+        """
         key: str = get_tmap_key(tmap)
         return self.periods.get(key)
 
     # load marks from file
     def load(self, path_or_marks: str | List):
+        """Load tmap marks from a JSONL file path or a list of dicts.
+
+        Appends parsed :class:`TMapRecord` objects to :attr:`marks`, sorts
+        the full list by :attr:`~TMapRecord.isotime`, and recomputes periods
+        via :meth:`calc_periods`.
+
+        :param path_or_marks: JSONL file path, or list of dicts each
+            representing one :class:`TMapRecord`.
+        :type path_or_marks: str or list
+        """
         if isinstance(path_or_marks, str):
             for obj in parse_jsonl_gen(path_or_marks):
                 self.marks.append(TMapRecord(**obj))
@@ -433,6 +643,12 @@ class TMapService:
         self.calc_periods()
 
     def to_label(self) -> str:
+        """Return a compact human-readable summary of the loaded marks.
+
+        :returns: String of the form ``"TMap marks count N : [0]=<isotime>, …"``
+            or ``"TMap is empty"`` when no marks are loaded.
+        :rtype: str
+        """
         # dump number of marks and each mark in format [N]=isotime
         if len(self.marks) == 0:
             return "TMap is empty"
@@ -445,6 +661,14 @@ _tmap_svc: TMapService = None
 
 
 def get_tmap_svc() -> TMapService:
+    """Return the module-level :class:`TMapService` singleton.
+
+    Loads ``repronim_tmap.jsonl`` from the same directory as this module on
+    first call; subsequent calls return the cached instance.
+
+    :returns: Initialised :class:`TMapService` instance.
+    :rtype: TMapService
+    """
     global _tmap_svc
     if not _tmap_svc:
         path_tmap: str = str(Path(__file__).with_name("repronim_tmap.jsonl"))
