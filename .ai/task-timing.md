@@ -70,29 +70,61 @@ Tracks implementation and documentation progress against [spec-timing.md](spec-t
 
 ## Tests
 
-Test file location: `tests/qr/test_timing.py` (to be created).
+Test file: `tests/qr/test_timing.py` — 82 tests, 100% line+branch coverage.
+Fixture: `tests/data/timing/repronim_tmap.jsonl` (13 real records).
+`get_tmap_svc` tests monkeypatch `TMAP_FILENAME` to the fixture absolute path.
 
-- [ ] `Clock` enum — all 7 members accessible by value
-- [ ] `str_isotime` — known `datetime` → expected ISO string
-- [ ] `str_isotime` — falsy input (`None`) → `None`
-- [ ] `get_tmap_key` — returns `"session_id|mark_id"` for a known record
-- [ ] `get_tmap_offset` — each `Clock` value returns the correct `TMapRecord` field
-- [ ] `get_tmap_offset` — `Clock.QRINFO` and `Clock.REPROSTIM_VIDEO` return the same value
-- [ ] `get_tmap_isotime` — each `Clock` value returns the correct `TMapRecord` field
-- [ ] `get_tmap_deviation` — `Clock.ISOTIME` → `1.0`; other clocks return model field
-- [ ] `TMapService.__init__` — empty init: `marks == []`, `periods == {}`, no error
-- [ ] `TMapService.load` from list of dicts — marks sorted ascending by `isotime`
-- [ ] `TMapService.find_tmap` — correct mark returned for a datetime between two marks
-- [ ] `TMapService.find_tmap` — datetime before first mark returns first mark
-- [ ] `TMapService.find_tmap` — empty service returns `None`
-- [ ] `TMapService.convert` — same-clock: returns `from_dt` unchanged
-- [ ] `TMapService.convert` — falsy `from_dt`: returns `None`
-- [ ] `TMapService.convert` — known two-mark dataset with known DICOMs offset → correct shifted result
-- [ ] `TMapService.force_offset` — set: `get_offset` returns override value
-- [ ] `TMapService.force_offset` — clear (`None`): `get_offset` returns tmap field value
-- [ ] `TMapService.calc_periods` — two-mark case: `dicoms_deviation` and `dicoms_valid` computed correctly
-- [ ] `TMapService.to_label` — empty service → `"TMap is empty"`
-- [ ] `TMapService.to_label` — one mark → string contains isotime
+- [x] `Clock` enum — all 7 members accessible by value; members are strings
+- [x] `str_isotime` — known `datetime` → expected ISO string
+- [x] `str_isotime` — falsy input (`None`, `0`) → `None`
+- [x] `parse_jsonl_gen` — yields dicts; correct count (13); all records have `isotime`
+- [x] `get_tmap_key` — returns `"session_id|mark_id"`; handles `None` fields
+- [x] `get_tmap_offset` — each `Clock` value returns the correct `TMapRecord` field
+- [x] `get_tmap_offset` — `Clock.QRINFO` and `Clock.REPROSTIM_VIDEO` return the same value
+- [x] `get_tmap_offset` — unknown clock string raises `ValueError`
+- [x] `get_tmap_isotime` — each `Clock` value returns the correct `TMapRecord` field
+- [x] `get_tmap_isotime` — unknown clock string raises `ValueError`
+- [x] `get_tmap_deviation` — `Clock.ISOTIME` → `1.0`; other clocks return model field
+- [x] `get_tmap_deviation` — unknown clock string raises `ValueError`
+- [x] `TPeriodData` — defaults correct; explicit values stored correctly
+- [x] `TMapService.__init__` — empty: `marks == []`, `periods == {}`, no error
+- [x] `TMapService.__init__` — with list and with file path both load marks
+- [x] `TMapService.load` — sorted ascending by `isotime`; successive calls append; file path variant
+- [x] `TMapService.find_tmap` — dt between marks returns correct preceding mark
+- [x] `TMapService.find_tmap` — dt before first mark returns first mark
+- [x] `TMapService.find_tmap` — empty service returns `None`
+- [x] `TMapService.find_tmap` — single mark always returned; dt after last returns last mark
+- [x] `TMapService.find_tmap` — uses clock-specific `*_isotime` field (BIRCH vs REPROSTIM_VIDEO)
+- [x] `TMapService.calc_periods` — two valid marks: `dicoms_deviation=1.0`, `dicoms_valid=True`
+- [x] `TMapService.calc_periods` — drift case: `dicoms_deviation ≈ 1.001`
+- [x] `TMapService.calc_periods` — NTP-jump case (>30 s): `dicoms_valid=False`
+- [x] `TMapService.calc_periods` — single mark: no periods computed
+- [x] `TMapService.calc_periods` — zero-duration marks: deviation assignment skipped (branch)
+- [x] `TMapService.calc_periods` — `avg_period.duration` populated from valid periods
+- [x] `TMapService.get_period` — found; last mark returns `None`; unknown key returns `None`
+- [x] `TMapService.force_offset` — set: `get_offset` returns override value
+- [x] `TMapService.force_offset` — clear (`None`): `get_offset` returns tmap field value
+- [x] `TMapService.force_offset` — clearing non-existent override is a no-op (branch)
+- [x] `TMapService.get_offset` — without override delegates to `get_tmap_offset`
+- [x] `TMapService.adjust_offset` — non-DICOMS clocks return offset unchanged
+- [x] `TMapService.adjust_offset` — DICOMS with forced offset returns offset unchanged
+- [x] `TMapService.adjust_offset` — DICOMS with d=0: zero correction
+- [x] `TMapService.adjust_offset` — DICOMS uses period `dicoms_deviation` for correction
+- [x] `TMapService.adjust_offset` — last mark (no period) falls back to `avg_period`
+- [x] `TMapService.adjust_offset` — invalid period (`dicoms_valid=False`) falls back to `avg_period`
+- [x] `TMapService.convert` — same-clock: returns `from_dt` unchanged
+- [x] `TMapService.convert` — falsy `from_dt`: returns `None`
+- [x] `TMapService.convert` — empty marks: returns `from_dt` unchanged (with warning)
+- [x] `TMapService.convert` — ISOTIME→DICOMS shift verified numerically
+- [x] `TMapService.convert` — DICOMS→ISOTIME inverse verified numerically
+- [x] `TMapService.convert` — forced offset respected in conversion
+- [x] `TMapService.dump_periods` — runs without exception (empty and populated)
+- [x] `TMapService.to_label` — empty service → `"TMap is empty"`
+- [x] `TMapService.to_label` — one mark: count and isotime in output
+- [x] `TMapService.to_label` — multiple marks: correct count, all isotimes listed
+- [x] `get_tmap_svc` — returns loaded `TMapService` (fixture via monkeypatched `TMAP_FILENAME`)
+- [x] `get_tmap_svc` — singleton: repeated calls return the same instance
+- [x] `get_tmap_svc` — pre-cached instance returned without reloading
 
 ---
 
