@@ -10,7 +10,9 @@ dataset.
 See .ai/spec-bids-inject.md for the full specification.
 """
 
+import contextlib
 import csv
+import io
 import json
 import logging
 import os
@@ -31,6 +33,21 @@ from reprostim.qr.video_audit import (
 # initialize the logger
 logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
+
+# Try to import datalad-fuse, but don't require it
+try:
+    from datalad_fuse.fsspec import FsspecAdapter
+
+    DATALAD_FUSE_AVAILABLE = True
+except ImportError:
+    DATALAD_FUSE_AVAILABLE = False
+    FsspecAdapter = None
+
+logger.debug(
+    "datalad-fuse available: FsspecAdapter enabled for annexed file I/O"
+    if DATALAD_FUSE_AVAILABLE
+    else "datalad-fuse not available: using plain file I/O"
+)
 
 
 ####################################################################
@@ -356,6 +373,56 @@ def _format_bids_str(value) -> str:
     return "n/a" if value is None else str(value)
 
 
+@contextlib.contextmanager
+def _open_dataset_file(path: str, encoding: str = "utf-8", newline=None):
+    """Open a BIDS text file for reading, routing through FsspecAdapter when available.
+
+    When :mod:`datalad_fuse` is installed the file is opened via
+    ``FsspecAdapter`` so that git-annex–managed files (e.g. ``_scans.tsv``
+    sidecars, JSON sidecars) can be read without a local fetch.  Falls back to
+    a plain :func:`open` call when the package is not present.
+
+    The adapter is read-only; callers that need to *write* a file (e.g.
+    :func:`_save_scans_model`) use a plain :func:`open` call directly.
+
+    :param path: Path to the file to open.
+    :type path: str
+    :param encoding: Text encoding, forwarded to :class:`io.TextIOWrapper` or
+        :func:`open`.
+    :type encoding: str
+    :param newline: Newline handling forwarded to :class:`io.TextIOWrapper` or
+        :func:`open`.  Pass ``""`` when the caller handles line endings itself
+        (e.g. :mod:`csv`).
+    """
+    f = None
+    raw = None
+    if DATALAD_FUSE_AVAILABLE:
+        try:
+            adapter = FsspecAdapter(os.path.dirname(path), caching=False)
+            raw = adapter.open(path)
+            f = io.TextIOWrapper(raw, encoding=encoding, newline=newline)
+            logger.debug(f"Opened via FsspecAdapter: {path}")
+        except Exception as e:
+            logger.debug(
+                f"FsspecAdapter failed ({e}); falling back to plain open: {path}"
+            )
+            if raw is not None:
+                try:
+                    raw.close()
+                except Exception:
+                    pass
+            raw = None
+
+    if f is None:
+        with open(path, encoding=encoding, newline=newline) as f:
+            yield f
+    else:
+        try:
+            yield f
+        finally:
+            f.close()
+
+
 def _is_scans_file(path: str) -> bool:
     """Check if the given path points to a BIDS ``*_scans.tsv`` file.
 
@@ -410,7 +477,7 @@ def _parse_scan_metadata(
         logger.warning(f"JSON sidecar not found: {json_path}")
         return None
 
-    with open(json_path, encoding="utf-8") as f:
+    with _open_dataset_file(json_path) as f:
         data = json.load(f)
 
     # Per-volume AcquisitionTime array lives under time.samples, not at the
@@ -454,7 +521,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     _known = {"filename", "acq_time"} | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
-    with open(path, newline="", encoding="utf-8") as f:
+    with _open_dataset_file(path, newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
             records.append(

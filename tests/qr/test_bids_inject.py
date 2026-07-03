@@ -5,18 +5,20 @@
 """Tests for the Datetime / Timezone public API in reprostim.qr.bids_inject."""
 
 import csv
+import io
 import re
 import shutil
 from datetime import datetime, time, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytest
 
 from reprostim.qr.bids_inject import (
     _REPROSTIM_COLS,
+    DATALAD_FUSE_AVAILABLE,
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
@@ -28,6 +30,7 @@ from reprostim.qr.bids_inject import (
     _find_bids_root,
     _format_bids_str,
     _is_scans_file,
+    _open_dataset_file,
     _parse_bids_float,
     _parse_bids_str,
     _parse_scan_metadata,
@@ -487,6 +490,118 @@ def test_calc_scan_duration_sec_priority3_tr_times_volumes():
 def test_calc_scan_duration_sec_no_metadata_returns_none():
     r = ScanRecord(filename="func/test_bold.nii.gz", acq_time="2025-01-15T12:00:00")
     assert _calc_scan_duration_sec(r) is None
+
+
+# ===========================================================================
+# DATALAD_FUSE_AVAILABLE / _open_dataset_file
+# ===========================================================================
+
+
+def test_datalad_fuse_available_is_bool():
+    """DATALAD_FUSE_AVAILABLE must be a plain bool set at import time."""
+    assert isinstance(DATALAD_FUSE_AVAILABLE, bool)
+
+
+def test_open_dataset_file_plain_fallback_reads_content(tmp_path):
+    """With DATALAD_FUSE_AVAILABLE=False, file is read via plain open."""
+    f = tmp_path / "test.tsv"
+    f.write_text("col1\tcol2\nval1\tval2\n", encoding="utf-8")
+
+    with patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", False):
+        with _open_dataset_file(str(f)) as fh:
+            content = fh.read()
+
+    assert content == "col1\tcol2\nval1\tval2\n"
+
+
+def test_open_dataset_file_adapter_reads_content(tmp_path):
+    """When FsspecAdapter is available and succeeds, content is read via it."""
+    raw = b"col1\tcol2\nval1\tval2\n"
+    mock_adapter = MagicMock()
+    mock_adapter.open.return_value = io.BytesIO(raw)
+
+    with (
+        patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
+        patch("reprostim.qr.bids_inject.FsspecAdapter", return_value=mock_adapter),
+    ):
+        with _open_dataset_file(str(tmp_path / "dummy.tsv")) as fh:
+            content = fh.read()
+
+    assert content == "col1\tcol2\nval1\tval2\n"
+    mock_adapter.open.assert_called_once()
+
+
+def test_open_dataset_file_adapter_setup_failure_falls_back(tmp_path):
+    """FsspecAdapter() raising (non-DataLad dataset) falls back to plain open."""
+    f = tmp_path / "test.tsv"
+    f.write_text("fallback\n", encoding="utf-8")
+
+    with (
+        patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
+        patch(
+            "reprostim.qr.bids_inject.FsspecAdapter",
+            side_effect=RuntimeError("not a DataLad dataset"),
+        ),
+    ):
+        with _open_dataset_file(str(f)) as fh:
+            content = fh.read()
+
+    assert content == "fallback\n"
+
+
+def test_open_dataset_file_adapter_open_failure_falls_back(tmp_path):
+    """adapter.open() raising (annex object absent) falls back to plain open."""
+    f = tmp_path / "test.tsv"
+    f.write_text("ok\n", encoding="utf-8")
+
+    mock_adapter = MagicMock()
+    mock_adapter.open.side_effect = FileNotFoundError("annex object not present")
+
+    with (
+        patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
+        patch("reprostim.qr.bids_inject.FsspecAdapter", return_value=mock_adapter),
+    ):
+        with _open_dataset_file(str(f)) as fh:
+            content = fh.read()
+
+    assert content == "ok\n"
+
+
+def test_open_dataset_file_caller_exception_propagates(tmp_path):
+    """Exceptions raised inside the with-block propagate; they are not swallowed."""
+    f = tmp_path / "test.tsv"
+    f.write_text("data\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="boom"):
+        with patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", False):
+            with _open_dataset_file(str(f)):
+                raise ValueError("boom")
+
+
+def test_open_dataset_file_caller_exception_propagates_adapter_path(tmp_path):
+    """Caller exceptions propagate even when the adapter path was used."""
+    mock_adapter = MagicMock()
+    mock_adapter.open.return_value = io.BytesIO(b"data\n")
+
+    with pytest.raises(ValueError, match="boom"):
+        with (
+            patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
+            patch("reprostim.qr.bids_inject.FsspecAdapter", return_value=mock_adapter),
+        ):
+            with _open_dataset_file(str(tmp_path / "dummy.tsv")):
+                raise ValueError("boom")
+
+
+def test_open_dataset_file_newline_forwarded(tmp_path):
+    """newline='' is forwarded so CR+LF is not translated (required by csv)."""
+    f = tmp_path / "test.tsv"
+    f.write_bytes(b"col1\tcol2\r\nval1\tval2\r\n")
+
+    with patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", False):
+        with _open_dataset_file(str(f), newline="") as fh:
+            content = fh.read()
+
+    assert "\r\n" in content
 
 
 # ===========================================================================
