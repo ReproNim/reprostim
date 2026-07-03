@@ -17,4 +17,5 @@ API Reference
    qr.qr_parse
    qr.split_video
    qr.timesync_stimuli
+   qr.timing
    qr.video_audit
