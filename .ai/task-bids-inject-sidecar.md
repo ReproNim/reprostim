@@ -12,7 +12,7 @@ this writing. All items start unchecked.
 - [ ] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
 - [ ] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup
 - [ ] `-m / --mode [replace|update]` — default `update`
-- [ ] `--add META=VALUE` — repeatable, manual field override/addition
+- [ ] `-a / --add META=VALUE` — repeatable, manual field override/addition
 - [ ] `--existing-different [error|overwrite]` — default `error`
 - [ ] `-v / --verbose`
 - [ ] `-d / --dry-run` *(added for consistency with sibling commands; confirm before implementing — see spec Open Questions #6)*
