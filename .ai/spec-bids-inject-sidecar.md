@@ -75,7 +75,7 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 
 | Option                                       | Type    | Default   | Description                                                                                                                                                                                     |
 |-----------------------------------------------|---------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-f / --videos-file PATH`                     | Path    | none      | Optional path to a `videos.tsv` (produced by `video-audit`). When given, cached fields (`audio_sr`, `video_res_detected`, codec info) are looked up for each `FILE` by resolved path and reused instead of re-running `ffprobe`. Falls back to `ffprobe` for any file not found in the TSV, or for fields the TSV doesn't carry. |
+| `-f / --videos PATH`                     | Path    | none      | Optional path to a `videos.tsv` (produced by `video-audit`). When given, cached fields (`audio_sr`, `video_res_detected`, codec info) are looked up for each `FILE` by resolved path and reused instead of re-running `ffprobe`. Falls back to `ffprobe` for any file not found in the TSV, or for fields the TSV doesn't carry. |
 | `--json-mode [replace\|update]`               | Choice  | `update`  | `replace` overwrites the entire sidecar `.json` with only the freshly extracted/`--add`ed fields. `update` merges freshly extracted/`--add`ed fields into the existing sidecar (if any), preserving other existing keys untouched. See [JSON Sidecar Write Behavior](#json-sidecar-write-behavior). |
 | `--add META=VALUE`                            | String, repeatable | none | Manually specify (or override) a metadata field, e.g. `--add DeviceSerialNumber=ABC12345 --add RecordingDuration=3600`. If `META` is a known BIDS media-file field (see [BIDS Media-File Metadata Fields](#bids-media-file-metadata-fields)), `VALUE` is cast to that field's declared type. Unknown fields are stored verbatim as strings. Repeatable — pass once per field. |
 | `--existing-different [error\|overwrite]`     | Choice  | `error`   | Policy when a field about to be written already exists in the sidecar with a **different, non-`n/a`** value. `error`: abort processing that file and report the conflict. `overwrite`: log a warning and proceed with the new value. See [Conflict Resolution](#conflict-resolution). |
@@ -97,7 +97,7 @@ reprostim bids-inject-sidecar sub-01_task-rest_recording-reprostim_audiovideo.mk
 reprostim bids-inject-sidecar sub-01/ses-01/func/*_recording-reprostim_*.mkv
 
 # Reuse cached video-audit metadata instead of re-running ffprobe
-reprostim bids-inject-sidecar --videos-file sourcedata/reprostim-reproiner/videos.tsv \
+reprostim bids-inject-sidecar --videos sourcedata/reprostim-reproiner/videos.tsv \
   sub-01/ses-01/func/sub-01_ses-01_recording-reprostim_audiovideo.mkv
 
 # Manually add/override fields not derivable from ffprobe
@@ -163,11 +163,11 @@ a plain string (no casting attempted).
 
 For each input `FILE`, technical metadata is obtained in this priority order:
 
-1. **`--videos-file` cache lookup** (if `-f/--videos-file` given): resolve `FILE`'s path the same
+1. **`--videos` cache lookup** (if `-f/--videos` given): resolve `FILE`'s path the same
    way `bids-inject` resolves video paths relative to `videos.tsv`'s location, and look for a
    matching `VaRecord` row. If found, map its `audio_sr`, `video_res_detected`, and any recorded
    codec columns into the BIDS field table above.
-2. **`ffprobe` extraction** (fallback, or when `--videos-file` is omitted): call
+2. **`ffprobe` extraction** (fallback, or when `--videos` is omitted): call
    `get_audio_video_info_ffprobe(path)` (reused from `src/reprostim/qr/video_audit.py`) to obtain
    `AudioInfo` / `VideoInfo`, then map their fields into the BIDS field table above. Any field the
    cache lookup didn't supply is filled from here.
@@ -244,7 +244,7 @@ For each `--add META=VALUE`:
    Metadata Fields table; error out early (before touching any file) on a casting failure
    in a --add value, since it applies identically to every file in the batch.
 
-2. If --videos-file given: load videos.tsv once (cached), build a path → VaRecord index
+2. If --videos given: load videos.tsv once (cached), build a path → VaRecord index
    (paths resolved relative to videos.tsv location, matching bids-inject's convention).
 
 3. For each FILE in FILE1 [FILE2 ...]:
@@ -309,7 +309,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 | Component                       | Relationship                                                                 |
 |----------------------------------|-------------------------------------------------------------------------------|
 | `get_audio_video_info_ffprobe`   | Reused from `src/reprostim/qr/video_audit.py` for ffprobe-based extraction.  |
-| `videos.tsv` / `video-audit`     | Optional metadata cache source via `--videos-file`, avoiding redundant `ffprobe` calls. |
+| `videos.tsv` / `video-audit`     | Optional metadata cache source via `--videos`, avoiding redundant `ffprobe` calls. |
 | `bids-inject`                    | Prospective consumer — see [Relationship](#relationship-to-bids-inject--split-video). |
 | `split-video`                    | Prospective consumer of the same writer logic for `--sidecar-json`.          |
 | [bids-utils](https://github.com/bids-standard/bids-utils/) | Candidate library for format-preserving JSON updates (future work, out of scope now). |
@@ -324,7 +324,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 |--------------------------------------------------------------|-----------------------------------------------------------------------------|
 | Input `FILE` does not exist                                 | Error and skip that file; continue with the rest of the batch.             |
 | `ffprobe` not installed / fails                              | Error logged (per existing `get_audio_video_info_ffprobe` behavior); fields it would have supplied are simply omitted, not fatal to the whole file unless no fields at all could be determined and no `--add` compensates. |
-| `--videos-file` given but path not found in `videos.tsv`     | Fall back to `ffprobe` extraction for that file; not an error.             |
+| `--videos` given but path not found in `videos.tsv`     | Fall back to `ffprobe` extraction for that file; not an error.             |
 | Malformed `--add META=VALUE` (missing `=`)                    | Fatal error before any file is processed (applies to whole invocation).    |
 | `--add` value fails type casting for a known BIDS field       | Fatal error before any file is processed.                                  |
 | Existing sidecar JSON is not valid JSON (`update` mode)        | Error and skip that file; do not attempt a partial merge.                  |
@@ -347,7 +347,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 4. **Field naming reconciliation** — `Width`/`Height`/`PixelFormat`/`BitDepth` (current
    `split_video.py`) vs `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` (current
    BEP044 draft used by this spec). Needs a single decision applied everywhere.
-5. **`--videos-file` path-matching precision** — exact resolved-path match vs. the time-range
+5. **`--videos` path-matching precision** — exact resolved-path match vs. the time-range
    matching `bids-inject` uses (`find_video_audit_by_timerange`); a plain path match is proposed
    here since `bids-inject-sidecar` operates on files directly rather than matching against scan
    timing windows.

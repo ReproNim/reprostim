@@ -10,7 +10,7 @@ this writing. All items start unchecked.
 ## CLI Options
 
 - [ ] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
-- [ ] `-f / --videos-file PATH` — optional `videos.tsv` for cached-field lookup
+- [ ] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup
 - [ ] `--json-mode [replace|update]` — default `update`
 - [ ] `--add META=VALUE` — repeatable, manual field override/addition
 - [ ] `--existing-different [error|overwrite]` — default `error`
@@ -33,7 +33,7 @@ this writing. All items start unchecked.
 - [ ] Error out (before processing any file) on a casting failure
 - [ ] Unknown `META` keys stored verbatim as strings, no casting attempted
 
-### `--videos-file` cache lookup
+### `--videos` cache lookup
 - [ ] Load `videos.tsv` once, build path → `VaRecord` index (paths resolved relative to `videos.tsv` location)
 - [ ] Match `FILE` against the index by resolved path
 - [ ] Map matched `VaRecord` columns (`audio_sr`, `video_res_detected`, codec columns) into BIDS fields
@@ -80,7 +80,7 @@ this writing. All items start unchecked.
 
 - [ ] Input `FILE` does not exist → error, skip file, continue batch
 - [ ] `ffprobe` not installed/fails → logged error, affected fields omitted, file not necessarily fatal
-- [ ] `--videos-file` path not found in `videos.tsv` → fall back to `ffprobe`, not an error
+- [ ] `--videos` path not found in `videos.tsv` → fall back to `ffprobe`, not an error
 - [ ] Malformed `--add` (missing `=`) → fatal error before any file processed
 - [ ] `--add` casting failure for known BIDS field → fatal error before any file processed
 - [ ] Sidecar directory not writable → error, skip file
@@ -115,10 +115,10 @@ Proposed test file location: `tests/qr/test_bids_inject_sidecar.py` (mirrors
 - [ ] Malformed input (no `=`) → raises before any file processed
 - [ ] Casting failure (e.g. non-numeric value for integer field) → raises before any file processed
 
-### `--videos-file` cache lookup
+### `--videos` cache lookup
 - [ ] File found in `videos.tsv` index → cached fields used, `ffprobe` not called for those fields
 - [ ] File not found in index → falls back to `ffprobe`
-- [ ] No `--videos-file` given → always uses `ffprobe`
+- [ ] No `--videos` given → always uses `ffprobe`
 
 ### Conflict resolution
 - [ ] Field absent → written without conflict
@@ -165,5 +165,5 @@ Proposed test file location: `tests/qr/test_bids_inject_sidecar.py` (mirrors
 - [ ] **Image file support** — `_image` suffix, `Image*` fields already reused from video; needs still-image decode path (issue #259, explicitly deferred)
 - [ ] **Format-preserving JSON updates** — evaluate/contribute to [bids-utils](https://github.com/bids-standard/bids-utils/) (issue #259, explicitly deferred)
 - [ ] **`bids-inject`/`split-video` delegation** — have `split_video.py::_write_sidecar` optionally call into `bids-inject-sidecar`'s writer once merge semantics are proven
-- [ ] **`--videos-file` matching precision** — confirm plain resolved-path match is sufficient vs. time-range matching
+- [ ] **`--videos` matching precision** — confirm plain resolved-path match is sufficient vs. time-range matching
 - [ ] **Unknown-field casting** — whether to attempt numeric auto-detection for `--add` fields outside the known BIDS table
