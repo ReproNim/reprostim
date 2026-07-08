@@ -76,7 +76,7 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 | Option                                       | Type    | Default   | Description                                                                                                                                                                                     |
 |-----------------------------------------------|---------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-f / --videos PATH`                     | Path    | none      | Optional path to a `videos.tsv` (produced by `video-audit`). When given, cached fields (`audio_sr`, `video_res_detected`, codec info) are looked up for each `FILE` by resolved path and reused instead of re-running `ffprobe`. Falls back to `ffprobe` for any file not found in the TSV, or for fields the TSV doesn't carry. |
-| `--json-mode [replace\|update]`               | Choice  | `update`  | `replace` overwrites the entire sidecar `.json` with only the freshly extracted/`--add`ed fields. `update` merges freshly extracted/`--add`ed fields into the existing sidecar (if any), preserving other existing keys untouched. See [JSON Sidecar Write Behavior](#json-sidecar-write-behavior). |
+| `-m / --mode [replace\|update]`               | Choice  | `update`  | `replace` overwrites the entire sidecar `.json` with only the freshly extracted/`--add`ed fields. `update` merges freshly extracted/`--add`ed fields into the existing sidecar (if any), preserving other existing keys untouched. See [JSON Sidecar Write Behavior](#json-sidecar-write-behavior). |
 | `--add META=VALUE`                            | String, repeatable | none | Manually specify (or override) a metadata field, e.g. `--add DeviceSerialNumber=ABC12345 --add RecordingDuration=3600`. If `META` is a known BIDS media-file field (see [BIDS Media-File Metadata Fields](#bids-media-file-metadata-fields)), `VALUE` is cast to that field's declared type. Unknown fields are stored verbatim as strings. Repeatable — pass once per field. |
 | `--existing-different [error\|overwrite]`     | Choice  | `error`   | Policy when a field about to be written already exists in the sidecar with a **different, non-`n/a`** value. `error`: abort processing that file and report the conflict. `overwrite`: log a warning and proceed with the new value. See [Conflict Resolution](#conflict-resolution). |
 | `-v / --verbose`                              | Flag    | `False`   | Increase verbosity (per-field extraction/merge/conflict detail).                                                                                                                                |
@@ -107,7 +107,7 @@ reprostim bids-inject-sidecar \
   sub-01_task-rest_recording-reprostim_audiovideo.mkv
 
 # Replace the sidecar entirely instead of merging
-reprostim bids-inject-sidecar --json-mode replace sub-01_task-rest_recording-reprostim_video.mkv
+reprostim bids-inject-sidecar --mode replace sub-01_task-rest_recording-reprostim_video.mkv
 
 # Allow overwriting a differing existing value (logs a warning per field)
 reprostim bids-inject-sidecar --existing-different overwrite \
@@ -194,7 +194,7 @@ sub-01_task-rest_recording-reprostim_audiovideo.mkv
   → sub-01_task-rest_recording-reprostim_audiovideo.json
 ```
 
-### `--json-mode`
+### `--mode`
 
 | Mode      | Behaviour                                                                                                                                                     |
 |-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|

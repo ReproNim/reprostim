@@ -11,7 +11,7 @@ this writing. All items start unchecked.
 
 - [ ] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
 - [ ] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup
-- [ ] `--json-mode [replace|update]` — default `update`
+- [ ] `-m / --mode [replace|update]` — default `update`
 - [ ] `--add META=VALUE` — repeatable, manual field override/addition
 - [ ] `--existing-different [error|overwrite]` — default `error`
 - [ ] `-v / --verbose`
@@ -50,7 +50,7 @@ this writing. All items start unchecked.
 ### Sidecar path resolution
 - [ ] Derive sidecar path: input file extension replaced with `.json`
 
-### `--json-mode` write behavior
+### `--mode` write behavior
 - [ ] `update` (default) — load existing sidecar if present, merge new fields, preserve untouched existing keys
 - [ ] `update` — no existing sidecar → treat as `{}`, write fresh
 - [ ] `replace` — discard existing sidecar content entirely, write only this run's fields
@@ -130,7 +130,7 @@ Proposed test file location: `tests/qr/test_bids_inject_sidecar.py` (mirrors
 - [ ] Existing real value + new `"n/a"`, `overwrite` → warning logged, sidecar updated to `"n/a"`
 - [ ] Conflict via `--add` value behaves identically to conflict via extracted value
 
-### `--json-mode`
+### `--mode`
 - [ ] `update` + no existing sidecar → sidecar created with extracted/added fields only
 - [ ] `update` + existing sidecar → untouched keys preserved, touched keys merged/conflict-checked
 - [ ] `update` + malformed existing JSON → file errors, no partial write
@@ -144,7 +144,7 @@ Proposed test file location: `tests/qr/test_bids_inject_sidecar.py` (mirrors
 ### CLI tests (Click `CliRunner`)
 - [ ] `--help` renders without error
 - [ ] Missing `FILE` argument → non-zero exit with error message
-- [ ] Unknown `--json-mode` value → Click error (invalid choice)
+- [ ] Unknown `--mode` value → Click error (invalid choice)
 - [ ] Unknown `--existing-different` value → Click error (invalid choice)
 - [ ] Multiple `--add` options accumulate correctly
 - [ ] One file erroring in a multi-file batch does not prevent other files from being processed
