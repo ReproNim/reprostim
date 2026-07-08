@@ -24,8 +24,9 @@ this writing. All items start unchecked.
 ### Shared BIDS field mapping (prerequisite refactor)
 - [ ] Create `src/reprostim/qr/bids_media.py` with the BIDS Media-File Metadata Fields table (name → type)
 - [ ] Factor `AudioInfo`/`VideoInfo` → BIDS-dict mapping out of `split_video.py::_to_bids_model` into `bids_media.py`
-- [ ] Decide and apply `Width/Height/PixelFormat/BitDepth` vs `ImageWidth/ImageHeight/ImagePixelFormat/ImageBitDepth` naming (spec Open Questions #4)
-- [ ] `split_video.py::_to_bids_model` updated to use the shared mapping (no behavior change to existing `split-video`/`bids-inject` output beyond the naming decision above)
+- [x] Decided (initial implementation): use unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` to match current `split_video.py` output (spec Open Questions #4)
+- [ ] `split_video.py::_to_bids_model` updated to use the shared mapping (no behavior change to existing `split-video`/`bids-inject` output)
+- [ ] *(future, not this issue)* Rename to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 — coordinated pass updating spec/task/code/tests for `split-video` (where this mapping is defined) together with this tool
 
 ### `--add` parsing and casting
 - [ ] Parse `--add META=VALUE` into a dict; error on malformed input (missing `=`)
@@ -42,7 +43,7 @@ this writing. All items start unchecked.
 ### `ffprobe` extraction
 - [ ] Reuse `get_audio_video_info_ffprobe` from `src/reprostim/qr/video_audit.py`
 - [ ] Map `AudioInfo` fields → BIDS audio fields (`AudioCodec`, `AudioSampleRate`, `AudioChannelCount`, `AudioBitDepth`, `AudioCodecRFC6381`)
-- [ ] Map `VideoInfo` fields → BIDS video fields (`VideoCodec`, `VideoFrameRate`, `VideoCodecRFC6381`, `ImageWidth`, `ImageHeight`, `ImagePixelFormat`, `ImageBitDepth`)
+- [ ] Map `VideoInfo` fields → BIDS video fields (`VideoCodec`, `VideoFrameRate`, `VideoCodecRFC6381`, `Width`, `Height`, `PixelFormat`, `BitDepth` — unprefixed for now, see Open Questions / Future Work)
 - [ ] `RecordingDuration` derived from stream duration
 - [ ] Omit (not `"n/a"`) fields that cannot be determined
 - [ ] `ffprobe` failure logged, does not abort the whole file unless no fields at all are available
