@@ -12,6 +12,7 @@ API Reference
    audio.audiocodes
    capture.nosignal
    qr.bids_inject
+   qr.bids_inject_sidecar
    qr.disp_mon
    qr.psychopy
    qr.qr_parse
