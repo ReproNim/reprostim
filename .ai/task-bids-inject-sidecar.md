@@ -13,7 +13,7 @@ this writing. All items start unchecked.
 - [ ] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup
 - [ ] `-m / --mode [replace|update]` — default `update`
 - [ ] `-a / --add META=VALUE` — repeatable, manual field override/addition
-- [ ] `--existing-different [error|overwrite]` — default `error`
+- [ ] `-e / --existing-different [error|overwrite]` — default `error`
 - [ ] `-v / --verbose`
 - [ ] `-d / --dry-run` *(added for consistency with sibling commands; confirm before implementing — see spec Open Questions #6)*
 
