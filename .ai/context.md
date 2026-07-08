@@ -40,6 +40,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
   - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
   - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
+  - `cmd_bids_inject_sidecar.py` - *(planned, not yet implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
@@ -50,6 +51,8 @@ Main Python package with CLI tools and analysis utilities.
   - `video_audit.py` - Comprehensive video analysis with multiple audit sources (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
   - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
   - `bids_inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
+  - `bids_inject_sidecar.py` - *(planned, not yet implemented)* Standalone BIDS media-file sidecar extraction/write engine (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md))
+  - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [spec-timing.md](.ai/spec-timing.md), [task-timing.md](.ai/task-timing.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction
