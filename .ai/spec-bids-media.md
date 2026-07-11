@@ -192,8 +192,8 @@ reject an unrecognized `AudioInfo.codec`/`VideoInfo.codec` value just because it
 `BidsMediaInfo(BaseModel)` (implemented) is a **pure data class** — a pydantic `BaseModel`
 matching the `VaRecord`/`BiSummary` convention used elsewhere in `qr/` — holding the BIDS
 media type/format info derived *from a file path*. It intentionally has **no parsing logic of
-its own** (no `from_path`/constructor-time inference): populating it from an actual path is left
-to a separate module-level function, not yet implemented (see Open Questions).
+its own** (no `from_path`/constructor-time inference): populating it from an actual path is done
+by the separate module-level function `parse_bids_media_info` (implemented, see below).
 
 ```python
 class BidsMediaInfo(BaseModel):
@@ -218,15 +218,66 @@ class BidsMediaInfo(BaseModel):
   drift out of sync with `errors`.
 
 `BidsMediaInfoError(BaseModel)` is a small structured-error model (not a plain string), so each
-recorded problem carries a machine-readable `code: BidsMediaInfoErrorCode` alongside its
+recorded problem carries a machine-readable `code: BidsMediaErrorCode` alongside its
 human-readable `message: str`:
 
-| `BidsMediaInfoErrorCode` member | Value                 | Meaning                                                                 |
+| `BidsMediaErrorCode` member | Value                 | Meaning                                                                 |
 |-----------------------------------|------------------------|---------------------------------------------------------------------------|
 | `INVALID_PATH`                    | `invalid_path`         | The given path is malformed or has no filename/extension.                |
 | `UNKNOWN_EXTENSION`                | `unknown_extension`    | The file extension is not a recognized `AudioFormat`/`VideoFormat`/`ImageFormat`. |
 | `UNKNOWN_MEDIA_TYPE`               | `unknown_media_type`   | The BIDS media type could not be determined from the path.               |
-| `MEDIA_TYPE_MISMATCH`              | `media_type_mismatch`  | The extension is inconsistent with the detected/declared media type (e.g. an audio-only extension on a `_video` file). |
+| `MEDIA_TYPE_MISMATCH`              | `media_type_mismatch`  | The extension is inconsistent with the detected/declared media type (e.g. an audio-only extension on a `_video` file). Not currently produced — see Open Questions. |
+
+---
+
+## `parse_bids_media_info` (path-parsing function)
+
+`parse_bids_media_info(path: str) -> BidsMediaInfo` (implemented) determines a `BidsMediaInfo`
+from a file path **by name only** — no filesystem access, no `ffprobe`. Resolution order:
+
+1. **Filename has no extension at all** (no `.` in the base name) → single `INVALID_PATH` error;
+   `media_type`/`format` stay `None`. Nothing further is attempted.
+2. **Extension → `format`**: the extension (lowercased) is looked up against `AudioFormat` /
+   `VideoFormat` / `ImageFormat` independently of step 3. Unrecognized → `UNKNOWN_EXTENSION`
+   error; `format` stays `None`. This lookup is unconditional — it runs and can error regardless
+   of whether step 3 succeeds, so a path can carry both an `UNKNOWN_EXTENSION` *and* an
+   `UNKNOWN_MEDIA_TYPE` error at once.
+3. **Trailing `_<token>` → `media_type`** (the "entity token" for type): the filename stem's last
+   `_`-delimited segment is matched case-insensitively against `BidsMediaType` values
+   (`audio`/`video`/`image`/`audiovideo`). Example: `..._recording-reprostim_video.mkv` →
+   `video` → `BidsMediaType.VIDEO`.
+   - **Match** → `media_type` set directly, no error.
+   - **No match** (missing entirely, or an unrelated token like a hand-picked filename with no
+     BIDS suffix) → `UNKNOWN_MEDIA_TYPE` error recorded, **and** `media_type` falls back to a
+     guess from the `format` resolved in step 2 (`AudioFormat` → `AUDIO`, `ImageFormat` →
+     `IMAGE`, `VideoFormat` → `VIDEO`). If step 2 also failed to resolve a format, `media_type`
+     stays `None`.
+
+**Video-container ambiguity**: a `VideoFormat` extension (`.mp4`/`.mkv`/`.avi`/`.webm`) cannot by
+itself distinguish `VIDEO` from `AUDIOVIDEO` — only the filename suffix (or actual stream
+inspection) can. The extension-fallback in step 3 therefore always guesses `VIDEO` (the more
+conservative option — it doesn't assert an unconfirmed audio stream) rather than `AUDIOVIDEO`.
+This means an `AUDIOVIDEO` file whose filename happens to lack a valid `_audiovideo` suffix will
+be misclassified as `VIDEO` by the fallback (with an `UNKNOWN_MEDIA_TYPE` error attached, so the
+caller can tell the type is a guess, not a confirmed read).
+
+**`MEDIA_TYPE_MISMATCH` is not produced by this function** — e.g. a filename ending in
+`_video.wav` currently resolves `media_type=VIDEO` (from the suffix) and `format=WAV` with no
+error, even though a WAV file can't actually be BIDS `_video`. Detecting that inconsistency was
+explicitly out of scope for this pass (see Open Questions).
+
+Example resolutions:
+
+| Path                                                          | `media_type` | `format` | `errors`                              |
+|-----------------------------------------------------------------|---------------|-----------|-----------------------------------------|
+| `sub-01_task-rest_recording-reprostim_video.mkv`                | `VIDEO`       | `MKV`     | *(none)*                                 |
+| `sub-01_task-rest_recording-reprostim_audiovideo.mp4`           | `AUDIOVIDEO`  | `MP4`     | *(none)*                                 |
+| `sub-01_task-rest_myrecording.mkv` *(no valid suffix)*          | `VIDEO`*      | `MKV`     | `UNKNOWN_MEDIA_TYPE`                     |
+| `sub-01_task-rest_myrecording.wav` *(no valid suffix)*          | `AUDIO`       | `WAV`     | `UNKNOWN_MEDIA_TYPE`                     |
+| `sub-01_task-rest_myrecording.xyz` *(no valid suffix, bad ext)* | `None`        | `None`    | `UNKNOWN_EXTENSION`, `UNKNOWN_MEDIA_TYPE`|
+| `novalidname` *(no extension)*                                  | `None`        | `None`    | `INVALID_PATH`                           |
+
+\* guessed via the video-container-ambiguity fallback above, not confirmed.
 
 ---
 
@@ -251,11 +302,18 @@ human-readable `message: str`:
 - [ ] Factor `split_video.py::_to_bids_model` to use this module once mapping helpers exist.
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see note above) — decide
       whether `bids_inject.py` should adopt `BidsMediaType` instead of its own enum.
-- [x] `BidsMediaInfo` / `BidsMediaInfoError` / `BidsMediaInfoErrorCode` implemented as pure data
+- [x] `BidsMediaInfo` / `BidsMediaInfoError` / `BidsMediaErrorCode` implemented as pure data
       classes (see above); no parsing logic included by design.
-- [ ] Implement the path-parsing module function that populates a `BidsMediaInfo` from an actual
-      file path (extension lookup, BIDS-suffix lookup, mismatch detection) — proposed name/
-      signature TBD, e.g. `parse_bids_media_info(path: str) -> BidsMediaInfo`.
-- [ ] Decide whether `MEDIA_TYPE_MISMATCH` detection requires parsing the BIDS filename suffix
-      (`_audio`/`_video`/`_audiovideo`, and an as-yet-undefined image suffix) in addition to the
-      extension, and whether that reuses/extends `bids_inject.py::MediaSuffix`.
+- [x] `parse_bids_media_info(path: str) -> BidsMediaInfo` implemented (filename-suffix +
+      extension-fallback resolution; see above). Does **not** access the filesystem or `ffprobe`.
+- [ ] `MEDIA_TYPE_MISMATCH` is defined but never produced by `parse_bids_media_info` — decide
+      whether/how to detect it (e.g. suffix says `video` but extension is an audio-only format)
+      and whether that reuses/extends `bids_inject.py::MediaSuffix`.
+- [ ] Video-container ambiguity: `parse_bids_media_info`'s extension-only fallback always guesses
+      `VIDEO` over `AUDIOVIDEO` for `.mp4`/`.mkv`/`.avi`/`.webm` when the filename suffix is
+      missing/invalid — confirm this default is acceptable, or consider leaving `media_type=None`
+      in the ambiguous case instead of guessing.
+- [ ] Filename-suffix matching in `parse_bids_media_info` is case-insensitive and only inspects
+      the single trailing `_<token>` — confirm this is sufficient vs. reusing/extending
+      `bids_inject.py::MediaSuffix`'s parsing (which is underscore-prefixed and video/audio/
+      audiovideo only, no `image`).

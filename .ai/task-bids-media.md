@@ -27,14 +27,19 @@ Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
       `FLAC` / `PCM_S16LE`; value = FFmpeg codec name, `rfc6381` attribute = representative RFC
       6381 string (`None` for `PCM_S16LE`), `category: BidsMediaType` (`AUDIO`/`VIDEO`);
       `for_category(category)` classmethod. Non-exhaustive by design — not used for validation.
-- [x] `BidsMediaInfoErrorCode(str, Enum)` — `INVALID_PATH` / `UNKNOWN_EXTENSION` /
+- [x] `BidsMediaErrorCode(str, Enum)` — `INVALID_PATH` / `UNKNOWN_EXTENSION` /
       `UNKNOWN_MEDIA_TYPE` / `MEDIA_TYPE_MISMATCH`
-- [x] `BidsMediaInfoError(BaseModel)` — `code: BidsMediaInfoErrorCode`, `message: str`
+- [x] `BidsMediaInfoError(BaseModel)` — `code: BidsMediaErrorCode`, `message: str`
 - [x] `BidsMediaInfo(BaseModel)` — pure data holder: `path`, `media_type`, `format`
       (`Union[AudioFormat, VideoFormat, ImageFormat]`), `errors: List[BidsMediaInfoError]`,
       computed `valid` property (`not errors`); intentionally has no `from_path`/parsing logic
-- [ ] Path-parsing module function (e.g. `parse_bids_media_info(path) -> BidsMediaInfo`) — not
-      yet implemented; separate from `BidsMediaInfo` itself by design
+- [x] `parse_bids_media_info(path: str) -> BidsMediaInfo` — filename-only parsing (no filesystem
+      access): resolves `media_type` from the trailing `_<token>` suffix, falls back to guessing
+      from the extension (`UNKNOWN_MEDIA_TYPE` error) when the suffix is missing/invalid;
+      resolves `format` from the extension independently (`UNKNOWN_EXTENSION` error if
+      unrecognized); `INVALID_PATH` error when there's no extension at all
+- [ ] `MEDIA_TYPE_MISMATCH` detection (suffix vs. extension inconsistency) — not implemented;
+      `parse_bids_media_info` never produces this error code yet
 - [ ] `AudioInfo` -> BIDS-dict mapping helper
 - [ ] `VideoInfo` -> BIDS-dict mapping helper
 - [ ] Factor `split_video.py::_to_bids_model` to use this module (no behavior change) — note this
@@ -76,6 +81,23 @@ Proposed test file location: `tests/qr/test_bids_media.py`.
 - [ ] `BidsMediaInfo.format` — accepts a value from any of `AudioFormat`/`VideoFormat`/
       `ImageFormat` (`Union` typing)
 - [ ] `BidsMediaInfo` / `BidsMediaInfoError` — round-trip via `model_dump()`/`model_validate()`
+- [ ] `parse_bids_media_info` — valid `_video`/`_audio`/`_image`/`_audiovideo` suffix + matching
+      extension → correct `media_type`/`format`, no errors
+- [ ] `parse_bids_media_info` — suffix token is case-insensitive (e.g. `_VIDEO.MP4`)
+- [ ] `parse_bids_media_info` — no valid suffix, recognized audio extension → `media_type=AUDIO`
+      guessed from extension, `UNKNOWN_MEDIA_TYPE` error present
+- [ ] `parse_bids_media_info` — no valid suffix, recognized image extension → `media_type=IMAGE`
+      guessed, `UNKNOWN_MEDIA_TYPE` error present
+- [ ] `parse_bids_media_info` — no valid suffix, recognized video-container extension →
+      `media_type=VIDEO` guessed (not `AUDIOVIDEO`), `UNKNOWN_MEDIA_TYPE` error present
+- [ ] `parse_bids_media_info` — no valid suffix, unrecognized extension → `media_type=None`,
+      `format=None`, both `UNKNOWN_MEDIA_TYPE` and `UNKNOWN_EXTENSION` errors present
+- [ ] `parse_bids_media_info` — valid suffix, unrecognized extension → `media_type` set from
+      suffix, `format=None`, only `UNKNOWN_EXTENSION` error present
+- [ ] `parse_bids_media_info` — path with no extension/dot at all → single `INVALID_PATH` error,
+      `media_type=None`, `format=None`
+- [ ] `parse_bids_media_info` — empty string path → `INVALID_PATH` error
+- [ ] `parse_bids_media_info` — accepts a full path (with directories), not just a bare filename
 
 ---
 
@@ -87,5 +109,10 @@ Proposed test file location: `tests/qr/test_bids_media.py`.
 - [ ] `BidsMediaType` vs. `bids_inject.py::MediaSuffix` reconciliation
 - [ ] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`/`spec-bids-inject-sidecar.md`'s
       unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` reconciliation
-- [ ] Path-parsing function to populate `BidsMediaInfo` (name/signature, extension lookup vs.
-      BIDS-suffix lookup, `MEDIA_TYPE_MISMATCH` detection rules) — see spec Open Questions
+- [ ] `MEDIA_TYPE_MISMATCH` detection — `parse_bids_media_info` never produces it yet; decide
+      whether/how (see spec Open Questions)
+- [ ] `parse_bids_media_info`'s video-container ambiguity default (`VIDEO` over `AUDIOVIDEO`
+      when the suffix can't disambiguate) — confirm acceptable, or prefer `None` instead of a
+      guess (see spec Open Questions)
+- [ ] `parse_bids_media_info`'s suffix-parsing vs. `bids_inject.py::MediaSuffix` — confirm no
+      reuse/extension is warranted (see spec Open Questions)
