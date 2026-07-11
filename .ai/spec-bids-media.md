@@ -8,9 +8,9 @@ media-file metadata API helpers: the canonical field-name/type table and
 ([bids-standard/bids-specification PR
 #2367](https://bids-specification--2367.org.readthedocs.build/en/2367/appendices/media-files.html)).
 
-**Status: stub.** Only `BidsMediaType` (the media-suffix enum, see below) is implemented so far;
-the field table and mapping helpers are still TBD. This document is a placeholder to be fleshed
-out further once that remaining scope is decided.
+**Status: stub.** Only the enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`;
+see below) are implemented so far; the field table and mapping helpers are still TBD. This
+document is a placeholder to be fleshed out further once that remaining scope is decided.
 
 Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
@@ -67,9 +67,49 @@ BEP044/media-files proposal:
 
 ---
 
+## Format Enums
+
+Three additional enums (implemented) identify concrete file formats by extension — **value is
+the bare extension, no leading dot** (e.g. `"wav"`, not `".wav"`) — per the BEP044 appendix's
+format tables:
+
+`AudioFormat(str, Enum)`:
+
+| Member | Value  | Description                                                                          |
+|--------|--------|-----------------------------------------------------------------------------------------|
+| `WAV`  | `wav`  | A Waveform Audio File Format audio file, typically containing uncompressed PCM audio.  |
+| `FLAC` | `flac` | A FLAC lossless audio file.                                                              |
+| `MP3`  | `mp3`  | An MP3 audio file.                                                                        |
+| `AAC`  | `aac`  | An Advanced Audio Coding audio file.                                                     |
+| `OGG`  | `ogg`  | An Ogg audio file, typically containing Vorbis-encoded audio.                            |
+
+`VideoFormat(str, Enum)` (video *container* formats):
+
+| Member | Value  | Description                                                                          |
+|--------|--------|-----------------------------------------------------------------------------------------|
+| `MP4`  | `mp4`  | An MPEG-4 Part 14 media container file.                                                 |
+| `AVI`  | `avi`  | An Audio Video Interleave media container file.                                         |
+| `MKV`  | `mkv`  | A Matroska media container file.                                                        |
+| `WEBM` | `webm` | A WebM media container file, typically containing VP8/VP9 video and Vorbis/Opus audio.  |
+
+`ImageFormat(str, Enum)`:
+
+| Member | Value  | Description                                                                          |
+|--------|--------|-----------------------------------------------------------------------------------------|
+| `JPG`  | `jpg`  | A JPEG image file.                                                                        |
+| `PNG`  | `png`  | A Portable Network Graphics file.                                                        |
+| `SVG`  | `svg`  | A Scalable Vector Graphics image file.                                                   |
+| `WEBP` | `webp` | A WebP image file.                                                                        |
+| `TIF`  | `tif`  | A Tag Image File Format file.                                                            |
+| `TIFF` | `tiff` | A Tag Image File Format image file. The `.tiff` extension is the long form of `.tif`.   |
+
+---
+
 ## Open Questions / TODOs
 
 - [x] `BidsMediaType` enum implemented (media-suffix names/descriptions per BEP044 appendix).
+- [x] `AudioFormat` / `VideoFormat` / `ImageFormat` enums implemented (extension-keyed format
+      names/descriptions per BEP044 appendix format tables).
 - [ ] Confirm final scope/API surface for the remaining field-table/mapping helpers (functions
       vs. constants vs. a small class).
 - [ ] Decide field-naming convention (unprefixed `Width`/`Height`/... vs. BEP044's

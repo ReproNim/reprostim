@@ -34,3 +34,58 @@ class BidsMediaType(str, Enum):
     """A video data file containing one or more video streams
     but no audio. Common containers include MP4, MKV, AVI, and
     WebM."""
+
+
+class AudioFormat(str, Enum):
+    """Audio file format, identified by its file extension
+    (without the leading dot), per the BEP044/media-files
+    proposal (bids-standard/bids-specification PR #2367)."""
+
+    WAV = "wav"
+    """A Waveform Audio File Format audio file, typically
+    containing uncompressed PCM audio."""
+    FLAC = "flac"
+    """A FLAC lossless audio file."""
+    MP3 = "mp3"
+    """An MP3 audio file."""
+    AAC = "aac"
+    """An Advanced Audio Coding audio file."""
+    OGG = "ogg"
+    """An Ogg audio file, typically containing Vorbis-encoded
+    audio."""
+
+
+class VideoFormat(str, Enum):
+    """Video container format, identified by its file extension
+    (without the leading dot), per the BEP044/media-files
+    proposal (bids-standard/bids-specification PR #2367)."""
+
+    MP4 = "mp4"
+    """An MPEG-4 Part 14 media container file."""
+    AVI = "avi"
+    """An Audio Video Interleave media container file."""
+    MKV = "mkv"
+    """A Matroska media container file."""
+    WEBM = "webm"
+    """A WebM media container file, typically containing VP8/VP9
+    video and Vorbis/Opus audio."""
+
+
+class ImageFormat(str, Enum):
+    """Image file format, identified by its file extension
+    (without the leading dot), per the BEP044/media-files
+    proposal (bids-standard/bids-specification PR #2367)."""
+
+    JPG = "jpg"
+    """A JPEG image file."""
+    PNG = "png"
+    """A Portable Network Graphics file."""
+    SVG = "svg"
+    """A Scalable Vector Graphics image file."""
+    WEBP = "webp"
+    """A WebP image file."""
+    TIF = "tif"
+    """A Tag Image File Format file."""
+    TIFF = "tiff"
+    """A Tag Image File Format image file. The .tiff extension is
+    the long form of .tif."""

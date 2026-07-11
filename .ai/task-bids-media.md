@@ -2,8 +2,9 @@
 
 Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
 
-**Status: stub.** Only `BidsMediaType` is implemented in `src/reprostim/qr/bids_media.py` so far;
-the field table and mapping helpers below are still unchecked.
+**Status: stub.** Only the enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`)
+are implemented in `src/reprostim/qr/bids_media.py` so far; the field table and mapping helpers
+below are still unchecked.
 
 ---
 
@@ -11,6 +12,12 @@ the field table and mapping helpers below are still unchecked.
 
 - [x] `BidsMediaType(str, Enum)` — `AUDIO` / `AUDIOVIDEO` / `IMAGE` / `VIDEO` media suffixes per
       BEP044 appendix table
+- [x] `AudioFormat(str, Enum)` — `WAV` / `FLAC` / `MP3` / `AAC` / `OGG`, values are bare
+      extensions (no leading dot) per BEP044 appendix audio-format table
+- [x] `VideoFormat(str, Enum)` — `MP4` / `AVI` / `MKV` / `WEBM`, values are bare extensions per
+      BEP044 appendix video-container-format table
+- [x] `ImageFormat(str, Enum)` — `JPG` / `PNG` / `SVG` / `WEBP` / `TIF` / `TIFF`, values are bare
+      extensions per BEP044 appendix image-format table
 - [ ] Define BIDS Media-File Metadata field table (name -> type -> applies-to)
 - [ ] `AudioInfo` -> BIDS-dict mapping helper
 - [ ] `VideoInfo` -> BIDS-dict mapping helper
@@ -30,6 +37,8 @@ the field table and mapping helpers below are still unchecked.
 Proposed test file location: `tests/qr/test_bids_media.py`.
 
 - [ ] `BidsMediaType` — all four members present with expected string values
+- [ ] `AudioFormat` / `VideoFormat` / `ImageFormat` — all members present with expected
+      (dot-less) extension string values
 - [ ] Field table covers all fields listed in spec-bids-inject-sidecar.md's BIDS Media-File
       Metadata Fields table
 - [ ] Fields absent from `AudioInfo`/`VideoInfo` are omitted from the output dict, not `"n/a"`
