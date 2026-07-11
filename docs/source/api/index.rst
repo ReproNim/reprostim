@@ -13,6 +13,7 @@ API Reference
    capture.nosignal
    qr.bids_inject
    qr.bids_inject_sidecar
+   qr.bids_media
    qr.disp_mon
    qr.psychopy
    qr.qr_parse
