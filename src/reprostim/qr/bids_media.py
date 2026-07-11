@@ -14,6 +14,7 @@ See .ai/spec-bids-media.md for the full specification.
 """
 
 from enum import Enum
+from pathlib import PurePath
 from typing import FrozenSet, List, Optional, Union
 
 from pydantic import BaseModel, Field
@@ -304,3 +305,97 @@ class BidsMediaInfo(BaseModel):
     def valid(self) -> bool:
         """True when no errors were detected."""
         return not self.errors
+
+
+#######################################################
+# Functions
+
+
+def _format_from_extension(
+    ext: str,
+) -> Optional[Union[AudioFormat, VideoFormat, ImageFormat]]:
+    """Look up a (lowercase, dot-less) file extension in
+    AudioFormat/VideoFormat/ImageFormat."""
+    for format_cls in (AudioFormat, VideoFormat, ImageFormat):
+        try:
+            return format_cls(ext)
+        except ValueError:
+            continue
+    return None
+
+
+def _media_type_from_format(
+    media_format: Optional[Union[AudioFormat, VideoFormat, ImageFormat]]
+) -> Optional[BidsMediaType]:
+    """Best-effort BidsMediaType for a format determined by extension alone.
+
+    VideoFormat is inherently ambiguous between VIDEO and AUDIOVIDEO from the
+    extension alone (a .mp4/.mkv/.avi/.webm container may or may not carry an
+    audio stream); VIDEO is used as the conservative default rather than
+    asserting an audio stream that hasn't been confirmed.
+    """
+    if isinstance(media_format, AudioFormat):
+        return BidsMediaType.AUDIO
+    if isinstance(media_format, ImageFormat):
+        return BidsMediaType.IMAGE
+    if isinstance(media_format, VideoFormat):
+        return BidsMediaType.VIDEO
+    return None
+
+
+def parse_bids_media_info(path: str) -> BidsMediaInfo:
+    """Determine a :class:`BidsMediaInfo` from a file path, by name only (no
+    filesystem access).
+
+    The BIDS media type is primarily read from the filename's trailing
+    ``_<suffix>`` token (e.g. ``..._video.mkv`` -> ``BidsMediaType.VIDEO``). If
+    that token is missing or not a valid :class:`BidsMediaType` value, a
+    ``UNKNOWN_MEDIA_TYPE`` error is recorded and the media type is instead
+    guessed from the file extension (see :func:`_media_type_from_format`). The
+    file extension is always independently resolved to a format
+    (``AudioFormat``/``VideoFormat``/``ImageFormat``); an unrecognized
+    extension is recorded as an ``UNKNOWN_EXTENSION`` error regardless of
+    whether the media type was resolved from the filename suffix.
+    """
+    name = PurePath(path).name
+    if not name or "." not in name:
+        return BidsMediaInfo(
+            path=path,
+            errors=[
+                BidsMediaInfoError(
+                    code=BidsMediaErrorCode.INVALID_PATH,
+                    message=f"path {path!r} has no filename/extension to parse",
+                )
+            ],
+        )
+
+    stem, _, ext_raw = name.rpartition(".")
+    ext = ext_raw.lower()
+    errors: List[BidsMediaInfoError] = []
+
+    media_format = _format_from_extension(ext)
+    if media_format is None:
+        errors.append(
+            BidsMediaInfoError(
+                code=BidsMediaErrorCode.UNKNOWN_EXTENSION,
+                message=f"'.{ext}' is not a recognized audio/video/image extension",
+            )
+        )
+
+    suffix_token = stem.rsplit("_", 1)[-1] if stem else ""
+    try:
+        media_type: Optional[BidsMediaType] = BidsMediaType(suffix_token.lower())
+    except ValueError:
+        known = "/".join(t.value for t in BidsMediaType)
+        errors.append(
+            BidsMediaInfoError(
+                code=BidsMediaErrorCode.UNKNOWN_MEDIA_TYPE,
+                message=f"filename has no valid BIDS media type suffix ({known}); "
+                f"found {suffix_token!r} instead, falling back to extension",
+            )
+        )
+        media_type = _media_type_from_format(media_format)
+
+    return BidsMediaInfo(
+        path=path, media_type=media_type, format=media_format, errors=errors
+    )
