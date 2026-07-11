@@ -96,7 +96,7 @@ def bids_inject_sidecar(
     replaced by ``.json``.
     """
 
-    from ..qr.bids_inject_sidecar import do_main
+    from ..bids.inject_sidecar import do_main
 
     logger.debug("bids_inject_sidecar(...)")
     logger.debug(f"Working dir        : {os.getcwd()}")

@@ -1,9 +1,9 @@
-# `bids_media.py` Task List
+# `bids/media.py` Task List
 
 Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
 
 **Status: stub.** The enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`,
-`BidsMediaProperty`, `BidsMediaCodec`) are implemented in `src/reprostim/qr/bids_media.py`; the
+`BidsMediaProperty`, `BidsMediaCodec`) are implemented in `src/reprostim/bids/media.py`; the
 `AudioInfo`/`VideoInfo` mapping helpers below are still unchecked.
 
 ---
@@ -51,13 +51,13 @@ Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
 
 ## Documentation
 
-- [x] `qr.bids_media` added to RTD API reference autosummary (`docs/source/api/index.rst`)
+- [x] `bids.media` added to RTD API reference autosummary (`docs/source/api/index.rst`)
 
 ---
 
 ## Tests and Code Coverage
 
-Proposed test file location: `tests/qr/test_bids_media.py`.
+Proposed test file location: `tests/bids/test_media.py`.
 
 - [ ] `BidsMediaType` — all four members present with expected string values
 - [ ] `AudioFormat` / `VideoFormat` / `ImageFormat` — all members present with expected

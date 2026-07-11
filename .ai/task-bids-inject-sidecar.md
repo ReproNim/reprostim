@@ -22,7 +22,7 @@ this writing. All items start unchecked.
 ## Core Logic
 
 ### Shared BIDS field mapping (prerequisite refactor)
-- [ ] Create `src/reprostim/qr/bids_media.py` with the BIDS Media-File Metadata Fields table (name → type)
+- [ ] Create `src/reprostim/bids/media.py` with the BIDS Media-File Metadata Fields table (name → type)
 - [ ] Factor `AudioInfo`/`VideoInfo` → BIDS-dict mapping out of `split_video.py::_to_bids_model` into `bids_media.py`
 - [x] Decided (initial implementation): use unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` to match current `split_video.py` output (spec Open Questions #4)
 - [ ] `split_video.py::_to_bids_model` updated to use the shared mapping (no behavior change to existing `split-video`/`bids-inject` output)
@@ -99,7 +99,7 @@ this writing. All items start unchecked.
 
 ## Tests and Code Coverage
 
-Proposed test file location: `tests/qr/test_bids_inject_sidecar.py` (mirrors
+Proposed test file location: `tests/bids/test_inject_sidecar.py` (mirrors
 `tests/qr/test_bids_inject.py` pattern).
 
 ### `bids_media.py` (shared mapping)
@@ -155,8 +155,8 @@ Proposed test file location: `tests/qr/test_bids_inject_sidecar.py` (mirrors
 
 | Module | Target |
 |---|---|
-| `qr/bids_media.py` | ≥ 90% |
-| `qr/bids_inject_sidecar.py` | ≥ 80% |
+| `bids/media.py` | ≥ 90% |
+| `bids/inject_sidecar.py` | ≥ 80% |
 | `cli/cmd_bids_inject_sidecar.py` | ≥ 80% |
 
 ---

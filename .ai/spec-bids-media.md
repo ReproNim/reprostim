@@ -2,16 +2,20 @@
 
 ## Overview
 
-`bids_media.py` (`src/reprostim/qr/bids_media.py`) is a proposed shared module providing BIDS
-media-file metadata API helpers: the canonical field-name/type table and
-`AudioInfo`/`VideoInfo` -> BIDS-dict mapping logic, per the BEP044/media-files proposal
-([bids-standard/bids-specification PR
+`media.py` (`src/reprostim/bids/media.py`) is a shared module providing BIDS media-file metadata
+API helpers: the canonical field-name/type table and `AudioInfo`/`VideoInfo` -> BIDS-dict mapping
+logic, per the BEP044/media-files proposal ([bids-standard/bids-specification PR
 #2367](https://bids-specification--2367.org.readthedocs.build/en/2367/appendices/media-files.html)).
 
+It lives under the `reprostim.bids` package (`src/reprostim/bids/`) alongside `inject_sidecar.py`
+— see [spec-bids-inject-sidecar.md § File / Module
+Structure](spec-bids-inject-sidecar.md#file--module-structure).
+
 **Status: stub.** The enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`,
-`BidsMediaProperty`; see below) are implemented; the `AudioInfo`/`VideoInfo` -> BIDS-dict mapping
-helpers are still TBD. This document is a placeholder to be fleshed out further once that
-remaining scope is decided.
+`BidsMediaProperty`, `BidsMediaCodec`), the data models (`BidsMediaInfo`, `BidsMediaInfoError`,
+`BidsMediaErrorCode`), and the path-parsing function (`parse_bids_media_info`) are implemented;
+the `AudioInfo`/`VideoInfo` -> BIDS-dict mapping helpers are still TBD. This document is a
+placeholder to be fleshed out further once that remaining scope is decided.
 
 Relevant to: https://github.com/ReproNim/reprostim/issues/14
 

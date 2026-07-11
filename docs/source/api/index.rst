@@ -10,10 +10,10 @@ API Reference
    :toctree: generated
 
    audio.audiocodes
+   bids.inject_sidecar
+   bids.media
    capture.nosignal
    qr.bids_inject
-   qr.bids_inject_sidecar
-   qr.bids_media
    qr.disp_mon
    qr.psychopy
    qr.qr_parse

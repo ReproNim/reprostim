@@ -278,8 +278,13 @@ For each `--add META=VALUE`:
 | File                                              | Purpose                                                                 |
 |----------------------------------------------------|--------------------------------------------------------------------------|
 | `src/reprostim/cli/cmd_bids_inject_sidecar.py`      | Click command definition (`bids-inject-sidecar`)                       |
-| `src/reprostim/qr/bids_inject_sidecar.py`           | Core logic: per-file extraction, `--add` casting, conflict resolution, JSON read/write |
-| `src/reprostim/qr/bids_media.py` *(proposed, new)*  | Shared BIDS media-field table + `AudioInfo`/`VideoInfo` → BIDS-dict mapping, factored out of `split_video.py`'s `_to_bids_model` so both `split-video`/`bids-inject` and `bids-inject-sidecar` use one source of truth for field names/types. |
+| `src/reprostim/bids/inject_sidecar.py`              | Core logic: per-file extraction, `--add` casting, conflict resolution, JSON read/write |
+| `src/reprostim/bids/media.py`                       | Shared BIDS media-field table + `AudioInfo`/`VideoInfo` → BIDS-dict mapping, factored out of `split_video.py`'s `_to_bids_model` so both `split-video`/`bids-inject` and `bids-inject-sidecar` use one source of truth for field names/types. |
+
+> Both modules live under `src/reprostim/bids/` (see [spec-bids-media.md](spec-bids-media.md)),
+> not `src/reprostim/qr/` — `bids_inject.py` (used by `bids-inject`/`split-video`) remains in
+> `qr/` for now; only `bids_inject_sidecar.py`/`bids_media.py` have moved so far, as a first,
+> scoped step of a larger planned package reorganization (not yet fully underway).
 
 Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 
