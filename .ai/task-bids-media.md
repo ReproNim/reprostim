@@ -23,6 +23,14 @@ Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
       Complete Metadata Properties Table; `for_category(category)` classmethod filters by category
 - [ ] Add declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member (needed later
       for `--add META=VALUE` casting in `bids-inject-sidecar`)
+- [x] `BidsMediaInfoErrorCode(str, Enum)` — `INVALID_PATH` / `UNKNOWN_EXTENSION` /
+      `UNKNOWN_MEDIA_TYPE` / `MEDIA_TYPE_MISMATCH`
+- [x] `BidsMediaInfoError(BaseModel)` — `code: BidsMediaInfoErrorCode`, `message: str`
+- [x] `BidsMediaInfo(BaseModel)` — pure data holder: `path`, `media_type`, `format`
+      (`Union[AudioFormat, VideoFormat, ImageFormat]`), `errors: List[BidsMediaInfoError]`,
+      computed `valid` property (`not errors`); intentionally has no `from_path`/parsing logic
+- [ ] Path-parsing module function (e.g. `parse_bids_media_info(path) -> BidsMediaInfo`) — not
+      yet implemented; separate from `BidsMediaInfo` itself by design
 - [ ] `AudioInfo` -> BIDS-dict mapping helper
 - [ ] `VideoInfo` -> BIDS-dict mapping helper
 - [ ] Factor `split_video.py::_to_bids_model` to use this module (no behavior change) — note this
@@ -52,6 +60,15 @@ Proposed test file location: `tests/qr/test_bids_media.py`.
 - [ ] `BidsMediaProperty` members are directly usable as `dict`/`json.dumps` keys (str equality)
 - [ ] Mapping helper: fields absent from `AudioInfo`/`VideoInfo` are omitted from the output
       dict, not `"n/a"`
+- [ ] `BidsMediaInfo` — default-constructed with only `path` has `media_type=None`,
+      `format=None`, `errors=[]`, `valid=True`
+- [ ] `BidsMediaInfo` — `valid` is `False` whenever `errors` is non-empty, and flips back to
+      `True` if `errors` is cleared (i.e. it's derived, never stale)
+- [ ] `BidsMediaInfo.errors` — supports accumulating more than one `BidsMediaInfoError` (distinct
+      `code`s) for a single instance
+- [ ] `BidsMediaInfo.format` — accepts a value from any of `AudioFormat`/`VideoFormat`/
+      `ImageFormat` (`Union` typing)
+- [ ] `BidsMediaInfo` / `BidsMediaInfoError` — round-trip via `model_dump()`/`model_validate()`
 
 ---
 
@@ -63,3 +80,5 @@ Proposed test file location: `tests/qr/test_bids_media.py`.
 - [ ] `BidsMediaType` vs. `bids_inject.py::MediaSuffix` reconciliation
 - [ ] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`/`spec-bids-inject-sidecar.md`'s
       unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` reconciliation
+- [ ] Path-parsing function to populate `BidsMediaInfo` (name/signature, extension lookup vs.
+      BIDS-suffix lookup, `MEDIA_TYPE_MISMATCH` detection rules) — see spec Open Questions

@@ -148,6 +148,49 @@ returns the list of properties applicable to a given `BidsMediaType`.
 
 ---
 
+## `BidsMediaInfo` (path-derived data holder)
+
+`BidsMediaInfo(BaseModel)` (implemented) is a **pure data class** — a pydantic `BaseModel`
+matching the `VaRecord`/`BiSummary` convention used elsewhere in `qr/` — holding the BIDS
+media type/format info derived *from a file path*. It intentionally has **no parsing logic of
+its own** (no `from_path`/constructor-time inference): populating it from an actual path is left
+to a separate module-level function, not yet implemented (see Open Questions).
+
+```python
+class BidsMediaInfo(BaseModel):
+    path: str
+    media_type: Optional[BidsMediaType] = None
+    format: Optional[Union[AudioFormat, VideoFormat, ImageFormat]] = None
+    errors: List[BidsMediaInfoError] = Field(default_factory=list)
+
+    @property
+    def valid(self) -> bool:
+        return not self.errors
+```
+
+- `format` is a `Union` of the three per-category format enums (not a single flattened enum),
+  since a recognized extension only ever belongs to one of `AudioFormat`/`VideoFormat`/
+  `ImageFormat`.
+- `errors: List[BidsMediaInfoError]` — a list, not a single error — since the future path-parsing
+  function may detect **multiple, independent problems** in one path (e.g. both an unrecognized
+  extension *and* a media-type/suffix mismatch) and should surface all of them, not just the
+  first.
+- `valid` is a **computed property** (`not self.errors`), not a stored field, so it can never
+  drift out of sync with `errors`.
+
+`BidsMediaInfoError(BaseModel)` is a small structured-error model (not a plain string), so each
+recorded problem carries a machine-readable `code: BidsMediaInfoErrorCode` alongside its
+human-readable `message: str`:
+
+| `BidsMediaInfoErrorCode` member | Value                 | Meaning                                                                 |
+|-----------------------------------|------------------------|---------------------------------------------------------------------------|
+| `INVALID_PATH`                    | `invalid_path`         | The given path is malformed or has no filename/extension.                |
+| `UNKNOWN_EXTENSION`                | `unknown_extension`    | The file extension is not a recognized `AudioFormat`/`VideoFormat`/`ImageFormat`. |
+| `UNKNOWN_MEDIA_TYPE`               | `unknown_media_type`   | The BIDS media type could not be determined from the path.               |
+| `MEDIA_TYPE_MISMATCH`              | `media_type_mismatch`  | The extension is inconsistent with the detected/declared media type (e.g. an audio-only extension on a `_video` file). |
+
+---
+
 ## Open Questions / TODOs
 
 - [x] `BidsMediaType` enum implemented (media-suffix names/descriptions per BEP044 appendix).
@@ -167,3 +210,11 @@ returns the list of properties applicable to a given `BidsMediaType`.
 - [ ] Factor `split_video.py::_to_bids_model` to use this module once mapping helpers exist.
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see note above) — decide
       whether `bids_inject.py` should adopt `BidsMediaType` instead of its own enum.
+- [x] `BidsMediaInfo` / `BidsMediaInfoError` / `BidsMediaInfoErrorCode` implemented as pure data
+      classes (see above); no parsing logic included by design.
+- [ ] Implement the path-parsing module function that populates a `BidsMediaInfo` from an actual
+      file path (extension lookup, BIDS-suffix lookup, mismatch detection) — proposed name/
+      signature TBD, e.g. `parse_bids_media_info(path: str) -> BidsMediaInfo`.
+- [ ] Decide whether `MEDIA_TYPE_MISMATCH` detection requires parsing the BIDS filename suffix
+      (`_audio`/`_video`/`_audiovideo`, and an as-yet-undefined image suffix) in addition to the
+      extension, and whether that reuses/extends `bids_inject.py::MediaSuffix`.

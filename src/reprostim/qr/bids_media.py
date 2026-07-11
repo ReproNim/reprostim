@@ -14,7 +14,9 @@ See .ai/spec-bids-media.md for the full specification.
 """
 
 from enum import Enum
-from typing import FrozenSet, List
+from typing import FrozenSet, List, Optional, Union
+
+from pydantic import BaseModel, Field
 
 
 class BidsMediaType(str, Enum):
@@ -194,3 +196,55 @@ class BidsMediaProperty(str, Enum):
     def for_category(cls, category: BidsMediaType) -> List["BidsMediaProperty"]:
         """Return all properties that apply to the given media category."""
         return [member for member in cls if category in member.categories]
+
+
+class BidsMediaInfoErrorCode(str, Enum):
+    """Category of problem that can be detected while determining a
+    :class:`BidsMediaInfo` from a file path. Populated by a separate
+    path-parsing module function (not part of this data class)."""
+
+    INVALID_PATH = "invalid_path"
+    """The given path is malformed or has no filename/extension."""
+    UNKNOWN_EXTENSION = "unknown_extension"
+    """The file extension is not a recognized Audio/Video/Image
+    format."""
+    UNKNOWN_MEDIA_TYPE = "unknown_media_type"
+    """The BIDS media type could not be determined from the path."""
+    MEDIA_TYPE_MISMATCH = "media_type_mismatch"
+    """The file extension is inconsistent with the detected/declared
+    media type (e.g. an audio-only extension on a ``_video`` file)."""
+
+
+class BidsMediaInfoError(BaseModel):
+    """A single problem detected while determining a
+    :class:`BidsMediaInfo` from a file path."""
+
+    code: BidsMediaInfoErrorCode = Field(description="Category of the problem.")
+    message: str = Field(description="Human-readable detail about the problem.")
+
+
+class BidsMediaInfo(BaseModel):
+    """BIDS media type/format info derived from a file path, per the
+    BEP044/media-files proposal. Pure data holder — populated by a
+    separate path-parsing module function, not a method on this
+    class."""
+
+    path: str = Field(description="Input file path this info was derived from.")
+    media_type: Optional[BidsMediaType] = Field(
+        default=None,
+        description="Detected BIDS media type (audio/video/image/audiovideo), "
+        "if determined.",
+    )
+    format: Optional[Union[AudioFormat, VideoFormat, ImageFormat]] = Field(
+        default=None,
+        description="Detected concrete file format, if recognized.",
+    )
+    errors: List[BidsMediaInfoError] = Field(
+        default_factory=list,
+        description="All problems detected while parsing the path, if any.",
+    )
+
+    @property
+    def valid(self) -> bool:
+        """True when no errors were detected."""
+        return not self.errors
