@@ -8,8 +8,9 @@ media-file metadata API helpers: the canonical field-name/type table and
 ([bids-standard/bids-specification PR
 #2367](https://bids-specification--2367.org.readthedocs.build/en/2367/appendices/media-files.html)).
 
-**Status: stub.** Nothing is implemented yet; this document is a placeholder to be fleshed out
-once scope is decided.
+**Status: stub.** Only `BidsMediaType` (the media-suffix enum, see below) is implemented so far;
+the field table and mapping helpers are still TBD. This document is a placeholder to be fleshed
+out further once that remaining scope is decided.
 
 Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
@@ -36,16 +37,44 @@ TBD. Expected to cover, at minimum:
 - The BIDS media-file field table (name, type, applies-to) from the BEP044 draft.
 - Mapping helpers from `video_audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts.
 
-Out of scope for now: image-file (`_image` suffix) fields — see [BIDS Media-File Metadata
-Fields](spec-bids-inject-sidecar.md#bids-media-file-metadata-fields) note on deferred image
-support.
+Out of scope for now: image-file (`_image` suffix) field-table entries — see [BIDS Media-File
+Metadata Fields](spec-bids-inject-sidecar.md#bids-media-file-metadata-fields) note on deferred
+image support. (The `image` *media type* itself is represented in `BidsMediaType` below, since
+the BEP044 media-suffix table defines it regardless of field-table support.)
+
+---
+
+## BIDS Media Types
+
+`BidsMediaType(str, Enum)` (implemented) enumerates the four media suffixes defined by the
+BEP044/media-files proposal:
+
+| Member       | Value        | Description                                                                                                  |
+|--------------|--------------|----------------------------------------------------------------------------------------------------------------|
+| `AUDIO`      | `audio`      | An audio data file containing one or more audio streams. Common formats include WAV (uncompressed), MP3, AAC, and Ogg Vorbis. |
+| `AUDIOVIDEO` | `audiovideo` | A media file containing both audio and video streams. Common containers include MP4, MKV, AVI, and WebM.       |
+| `IMAGE`      | `image`      | A still image data file. Common formats include JPEG, PNG, SVG, WebP, and TIFF.                                |
+| `VIDEO`      | `video`      | A video data file containing one or more video streams but no audio. Common containers include MP4, MKV, AVI, and WebM. |
+
+> **Relationship to `bids_inject.py::MediaSuffix`.** `bids_inject.py` already has a
+> `MediaSuffix(str, Enum)` with values `_video` / `_audio` / `_audiovideo` (underscore-prefixed
+> BIDS filename suffixes, e.g. `..._recording-reprostim_video.mkv`, and no `image` member).
+> `BidsMediaType` is deliberately a separate, unprefixed enum matching the BEP044 appendix
+> table's bare names and includes `image`. Reconciling/merging the two (e.g. having
+> `bids_inject.py` import `BidsMediaType` instead of keeping its own enum) is left as an open
+> question below rather than done as part of this change, to avoid an unrequested behavior change
+> to `bids-inject`.
 
 ---
 
 ## Open Questions / TODOs
 
-- [ ] Confirm final scope/API surface (functions vs. constants vs. a small class).
+- [x] `BidsMediaType` enum implemented (media-suffix names/descriptions per BEP044 appendix).
+- [ ] Confirm final scope/API surface for the remaining field-table/mapping helpers (functions
+      vs. constants vs. a small class).
 - [ ] Decide field-naming convention (unprefixed `Width`/`Height`/... vs. BEP044's
       `ImageWidth`/`ImageHeight`/... — see [spec-bids-inject-sidecar.md Open Questions
       #4](spec-bids-inject-sidecar.md#open-questions--todos)).
 - [ ] Factor `split_video.py::_to_bids_model` to use this module once implemented.
+- [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see note above) — decide
+      whether `bids_inject.py` should adopt `BidsMediaType` instead of its own enum.
