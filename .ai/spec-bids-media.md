@@ -148,6 +148,45 @@ returns the list of properties applicable to a given `BidsMediaType`.
 
 ---
 
+## Codec Reference
+
+`BidsMediaCodec(str, Enum)` (implemented) is a **common, non-exhaustive** reference table of
+codecs, per the BEP044/media-files proposal's Codec Identification section. Codec identification
+uses two complementary naming systems:
+
+- **FFmpeg codec names (RECOMMENDED)** — used for the `AudioCodec`/`VideoCodec` fields, auto-
+  extractable via `ffprobe -v quiet -print_format json -show_streams <file>`. This is
+  `BidsMediaCodec`'s enum **value**.
+- **RFC 6381 codec strings (OPTIONAL)** — used for the `AudioCodecRFC6381`/`VideoCodecRFC6381`
+  fields; more precise (profile/level) but only OPTIONAL. Carried as each member's `rfc6381`
+  attribute. RFC 6381 strings vary by profile/level — the value stored here is only a
+  *representative example*, not the only valid string for that codec.
+
+Each member also carries a `category: BidsMediaType` (`AUDIO` or `VIDEO`) identifying which
+stream kind it applies to, and `BidsMediaCodec.for_category(category)` filters by it — mirroring
+`BidsMediaProperty.for_category()`'s API.
+
+| Member       | Value (FFmpeg name) | `rfc6381`           | `category` | Notes                        |
+|--------------|----------------------|-----------------------|-------------|--------------------------------|
+| `H264`       | `h264`               | `avc1.640028`         | video       | Most widely supported            |
+| `HEVC`       | `hevc`               | `hev1.1.6.L93.B0`     | video       | High efficiency                  |
+| `VP9`        | `vp9`                | `vp09.00.10.08`       | video       | Open, royalty-free               |
+| `AV1`        | `av1`                | `av01.0.01M.08`       | video       | Next-gen open codec              |
+| `AAC`        | `aac`                | `mp4a.40.2`            | audio       | Default audio for MP4 (AAC-LC)   |
+| `MP3`        | `mp3`                | `mp4a.6B`              | audio       | Legacy lossy audio                |
+| `OPUS`       | `opus`               | `Opus`                 | audio       | Open, low-latency audio           |
+| `FLAC`       | `flac`               | `fLaC`                 | audio       | Open lossless audio               |
+| `PCM_S16LE`  | `pcm_s16le`          | `None`                 | audio       | Uncompressed (WAV); no RFC 6381 string |
+
+**Not exhaustive by design**: `AudioCodec`/`VideoCodec`/`AudioCodecRFC6381`/`VideoCodecRFC6381`
+are free-form strings per BEP044 — `ffprobe` can report codec names not in this table (e.g.
+`prores`, `vorbis`, `alac`). `BidsMediaCodec` is a convenience reference for the common cases
+listed in the BEP044 appendix, **not** a closed set used for validation; callers should not
+reject an unrecognized `AudioInfo.codec`/`VideoInfo.codec` value just because it has no
+`BidsMediaCodec` member.
+
+---
+
 ## `BidsMediaInfo` (path-derived data holder)
 
 `BidsMediaInfo(BaseModel)` (implemented) is a **pure data class** — a pydantic `BaseModel`
@@ -198,6 +237,8 @@ human-readable `message: str`:
       names/descriptions per BEP044 appendix format tables).
 - [x] `BidsMediaProperty` enum implemented (sidecar JSON property names + `categories` per
       BEP044 Complete Metadata Properties Table; see above).
+- [x] `BidsMediaCodec` enum implemented (common FFmpeg-name/RFC-6381 codec reference +
+      `category`; see [Codec Reference](#codec-reference) above). Non-exhaustive by design.
 - [ ] Add declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member, needed for
       `--add META=VALUE` casting in `bids-inject-sidecar` — not yet carried on the enum.
 - [ ] Confirm final scope/API surface for the remaining `AudioInfo`/`VideoInfo` mapping helpers

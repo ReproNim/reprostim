@@ -3,8 +3,8 @@
 Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
 
 **Status: stub.** The enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`,
-`BidsMediaProperty`) are implemented in `src/reprostim/qr/bids_media.py`; the `AudioInfo`/
-`VideoInfo` mapping helpers below are still unchecked.
+`BidsMediaProperty`, `BidsMediaCodec`) are implemented in `src/reprostim/qr/bids_media.py`; the
+`AudioInfo`/`VideoInfo` mapping helpers below are still unchecked.
 
 ---
 
@@ -23,6 +23,10 @@ Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
       Complete Metadata Properties Table; `for_category(category)` classmethod filters by category
 - [ ] Add declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member (needed later
       for `--add META=VALUE` casting in `bids-inject-sidecar`)
+- [x] `BidsMediaCodec(str, Enum)` — `H264` / `HEVC` / `VP9` / `AV1` / `AAC` / `MP3` / `OPUS` /
+      `FLAC` / `PCM_S16LE`; value = FFmpeg codec name, `rfc6381` attribute = representative RFC
+      6381 string (`None` for `PCM_S16LE`), `category: BidsMediaType` (`AUDIO`/`VIDEO`);
+      `for_category(category)` classmethod. Non-exhaustive by design — not used for validation.
 - [x] `BidsMediaInfoErrorCode(str, Enum)` — `INVALID_PATH` / `UNKNOWN_EXTENSION` /
       `UNKNOWN_MEDIA_TYPE` / `MEDIA_TYPE_MISMATCH`
 - [x] `BidsMediaInfoError(BaseModel)` — `code: BidsMediaInfoErrorCode`, `message: str`
@@ -58,6 +62,9 @@ Proposed test file location: `tests/qr/test_bids_media.py`.
 - [ ] `BidsMediaProperty.for_category()` — returns the correct property subset for each of
       `AUDIO` / `VIDEO` / `IMAGE` / `AUDIOVIDEO`
 - [ ] `BidsMediaProperty` members are directly usable as `dict`/`json.dumps` keys (str equality)
+- [ ] `BidsMediaCodec` — all 9 members present with expected FFmpeg-name string values
+- [ ] `BidsMediaCodec.rfc6381` — correct for each member, `None` for `PCM_S16LE`
+- [ ] `BidsMediaCodec.for_category()` — returns the correct codec subset for `AUDIO` and `VIDEO`
 - [ ] Mapping helper: fields absent from `AudioInfo`/`VideoInfo` are omitted from the output
       dict, not `"n/a"`
 - [ ] `BidsMediaInfo` — default-constructed with only `path` has `media_type=None`,

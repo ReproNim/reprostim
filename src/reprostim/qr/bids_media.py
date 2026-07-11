@@ -198,6 +198,55 @@ class BidsMediaProperty(str, Enum):
         return [member for member in cls if category in member.categories]
 
 
+class BidsMediaCodec(str, Enum):
+    """Common codec reference, per the BEP044/media-files proposal's
+    Codec Identification section (bids-standard/bids-specification
+    PR #2367). Each member's value is the FFmpeg codec name — the
+    RECOMMENDED value for the ``AudioCodec``/``VideoCodec`` fields,
+    auto-extractable via ``ffprobe -v quiet -print_format json
+    -show_streams <file>``. ``rfc6381`` is a representative RFC 6381
+    codec string (OPTIONAL; used for ``AudioCodecRFC6381``/
+    ``VideoCodecRFC6381`` — actual strings vary by profile/level, so
+    this is only an example value), and ``category`` is the
+    :class:`BidsMediaType` stream kind (``AUDIO`` or ``VIDEO``) the
+    codec applies to.
+
+    Not exhaustive: ``AudioCodec``/``VideoCodec`` accept any FFmpeg
+    codec name as a free string; this enum only covers the common
+    codecs listed in the BEP044 reference table."""
+
+    def __new__(cls, value: str, rfc6381: Optional[str], category: BidsMediaType):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.rfc6381 = rfc6381
+        obj.category = category
+        return obj
+
+    H264 = ("h264", "avc1.640028", BidsMediaType.VIDEO)
+    """H.264 / AVC. Most widely supported."""
+    HEVC = ("hevc", "hev1.1.6.L93.B0", BidsMediaType.VIDEO)
+    """H.265 / HEVC. High efficiency."""
+    VP9 = ("vp9", "vp09.00.10.08", BidsMediaType.VIDEO)
+    """VP9. Open, royalty-free."""
+    AV1 = ("av1", "av01.0.01M.08", BidsMediaType.VIDEO)
+    """AV1. Next-gen open codec."""
+    AAC = ("aac", "mp4a.40.2", BidsMediaType.AUDIO)
+    """AAC-LC. Default audio for MP4."""
+    MP3 = ("mp3", "mp4a.6B", BidsMediaType.AUDIO)
+    """MP3. Legacy lossy audio."""
+    OPUS = ("opus", "Opus", BidsMediaType.AUDIO)
+    """Opus. Open, low-latency audio."""
+    FLAC = ("flac", "fLaC", BidsMediaType.AUDIO)
+    """FLAC. Open lossless audio."""
+    PCM_S16LE = ("pcm_s16le", None, BidsMediaType.AUDIO)
+    """PCM 16-bit LE. Uncompressed (WAV). No RFC 6381 string."""
+
+    @classmethod
+    def for_category(cls, category: BidsMediaType) -> List["BidsMediaCodec"]:
+        """Return all codecs applicable to the given stream category (AUDIO or VIDEO)."""
+        return [member for member in cls if member.category == category]
+
+
 class BidsMediaInfoErrorCode(str, Enum):
     """Category of problem that can be detected while determining a
     :class:`BidsMediaInfo` from a file path. Populated by a separate

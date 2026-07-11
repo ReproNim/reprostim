@@ -52,6 +52,7 @@ Main Python package with CLI tools and analysis utilities.
   - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
   - `bids_inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
   - `bids_inject_sidecar.py` - *(planned, not yet implemented)* Standalone BIDS media-file sidecar extraction/write engine (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md))
+  - `bids_media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`) and data models (`BidsMediaInfo`) per BEP044/media-files; field/mapping helpers still TBD (see [spec-bids-media.md](.ai/spec-bids-media.md), [task-bids-media.md](.ai/task-bids-media.md))
   - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [spec-timing.md](.ai/spec-timing.md), [task-timing.md](.ai/task-timing.md))
 
 - **audio/** - Audio codec generation
