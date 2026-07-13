@@ -31,8 +31,11 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
 - [x] `ConflictPolicy(str, Enum)` — `ERROR`/`OVERWRITE`, backs `--existing-different`
 - [x] `BisContext` carries them as `mode: OverwriteMode` and `conflict_policy: ConflictPolicy`
       fields, defaulting to `UPDATE`/`ERROR`
-- [x] `do_main` converts the CLI's plain `mode`/`existing_different` strings into these enums
-      when constructing `BisContext`
+- [x] `BisContext` also carries `videos_tsv: Optional[str]`, `dry_run: bool`, `verbose: bool`,
+      `out_func: Optional[Callable]` — mirrors `bids/inject.py::BiContext`'s field naming/style
+- [x] `do_main` converts the CLI's plain `mode`/`existing_different` strings into these enums,
+      and passes `videos`/`dry_run`/`verbose`/`out_func` straight through, when constructing
+      `BisContext`
 - [ ] CLI options (`-m/--mode`, `-e/--existing-different`) still just plain `click.Choice` strings
       passed through to `do_main` — not yet themselves enum-typed at the Click layer (matches the
       `bids/inject.py` convention of converting str → enum only at the core-logic boundary)

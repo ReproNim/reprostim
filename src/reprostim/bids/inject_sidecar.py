@@ -52,6 +52,25 @@ class BisContext(BaseModel):
         default=ConflictPolicy.ERROR,
         description="Policy for a field with a differing existing value.",
     )
+    videos_tsv: Optional[str] = Field(
+        default=None,
+        description="Optional path to videos.tsv used to look up cached "
+        "fields instead of re-running ffprobe.",
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="When True, compute but do not write any sidecar.",
+    )
+    verbose: bool = Field(
+        default=False,
+        description="When True, emit verbose per-field extraction/merge/conflict "
+        "output.",
+    )
+    out_func: Optional[Callable] = Field(
+        default=None,
+        description="Callable used for user-facing output (e.g. click.echo). "
+        "When None, output is suppressed.",
+    )
 
 
 def _do_sidecar(ctx: BisContext, path: str):
@@ -112,6 +131,10 @@ def do_main(
     ctx: BisContext = BisContext(
         mode=OverwriteMode(mode),
         conflict_policy=ConflictPolicy(existing_different),
+        videos_tsv=videos,
+        dry_run=dry_run,
+        verbose=verbose,
+        out_func=out_func,
     )
     _do_sidecar_all(ctx, files)
 

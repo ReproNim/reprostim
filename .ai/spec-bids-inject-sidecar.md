@@ -94,7 +94,9 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 > overwrite policy for `bids-inject`, values `SKIP`/`FORCE`/`ALWAYS`/`ERROR`). The two classes are
 > intentionally same-named but distinct, disambiguated by module (`reprostim.bids.inject.OverwriteMode`
 > vs. `reprostim.bids.inject_sidecar.OverwriteMode`). `BisContext` carries them as `mode` and
-> `conflict_policy` fields.
+> `conflict_policy` fields, alongside `videos_tsv`, `dry_run`, `verbose`, and `out_func` (all
+> populated directly from `do_main`'s corresponding parameters — same field names/style as
+> `bids/inject.py::BiContext`).
 
 ### Example invocations
 
