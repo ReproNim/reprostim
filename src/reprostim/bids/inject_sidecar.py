@@ -8,11 +8,33 @@ audio/video files and write or update their ``.json`` sidecars.
 """
 
 import logging
+import os
 from typing import Callable, List, Optional
+
+from pydantic import BaseModel
 
 # initialize the logger
 logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
+
+
+class BisContext(BaseModel):
+    """Context for bids-inject-sidecar processing of scan records."""
+
+
+def _do_sidecar(ctx: BisContext, path: str):
+    """"""
+    logger.debug(f"TODO: {path}")
+
+
+def _do_sidecar_all(ctx: BisContext, files: List[str]):
+    # iterate over paths and depending on whether it's a file or directory,
+    # process accordingly
+    for path in files:
+        if os.path.isfile(path):
+            _do_sidecar(ctx, path)
+        else:
+            logger.warning(f"Skipping invalid path: {path}")
 
 
 def do_main(
@@ -54,4 +76,8 @@ def do_main(
     :return: Exit code (0 on success, non-zero on error).
     :rtype: int
     """
-    pass
+
+    ctx: BisContext = BisContext()
+    _do_sidecar_all(ctx, files)
+
+    return 0
