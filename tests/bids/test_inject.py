@@ -1167,7 +1167,7 @@ def test_call_split_video_passes_rfc6381_in_sidecar_metadata(tmp_path):
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         with patch(
-            "reprostim.bids.inject.get_audio_video_info_ffprobe",
+            "reprostim.bids.properties.get_audio_video_info_ffprobe",
             return_value=(fake_ai, fake_vi),
         ):
             ret, _ = _run(
@@ -1187,8 +1187,8 @@ def test_call_split_video_passes_rfc6381_in_sidecar_metadata(tmp_path):
 def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
     tmp_path,
 ):
-    """_call_split_video adds BitDepth and PixelFormat to sidecar_metadata
-    via ffprobe."""
+    """_call_split_video adds ImageBitDepth and ImagePixelFormat to
+    sidecar_metadata via ffprobe."""
     scans_tsv = _copy_bids_fixture(tmp_path)
     videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
 
@@ -1203,7 +1203,7 @@ def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         with patch(
-            "reprostim.bids.inject.get_audio_video_info_ffprobe",
+            "reprostim.bids.properties.get_audio_video_info_ffprobe",
             return_value=(fake_ai, fake_vi),
         ):
             ret, _ = _run(
@@ -1216,8 +1216,8 @@ def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
 
     assert ret == 0
     assert "sidecar_metadata" in captured
-    assert captured["sidecar_metadata"].get("BitDepth") == 10
-    assert captured["sidecar_metadata"].get("PixelFormat") == "yuv420p10le"
+    assert captured["sidecar_metadata"].get("ImageBitDepth") == 10
+    assert captured["sidecar_metadata"].get("ImagePixelFormat") == "yuv420p10le"
 
 
 def test_call_split_video_rfc6381_ffprobe_error_continues(tmp_path):
@@ -1233,7 +1233,7 @@ def test_call_split_video_rfc6381_ffprobe_error_continues(tmp_path):
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         with patch(
-            "reprostim.bids.inject.get_audio_video_info_ffprobe",
+            "reprostim.bids.properties.get_audio_video_info_ffprobe",
             side_effect=RuntimeError("ffprobe not found"),
         ):
             ret, _ = _run(

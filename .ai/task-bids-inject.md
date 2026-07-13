@@ -81,9 +81,15 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Media suffix determination (`_video` / `_audio` / `_audiovideo`) from `videos.tsv`
 - [x] Delegate to `split-video` Python API (`do_main`)
 - [x] Build `sidecar_metadata` dict from `record.metadata.TaskName` and pass to `do_main`
-- [x] Populate `VideoCodecRFC6381` / `AudioCodecRFC6381` in `sidecar_metadata` via `get_audio_video_info_ffprobe` (TODO: future — read from `videos.tsv` columns instead)
-- [x] Populate `BitDepth` / `PixelFormat` in `sidecar_metadata` from `VideoInfo.bit_depth` / `VideoInfo.pix_fmt`
-- [x] ffprobe errors logged and injection continues (RFC6381 / BitDepth / PixelFormat silently omitted)
+- [x] Populate `sidecar_metadata` via `bids/properties.py::bids_properties_from_ffprobe(input_path,
+      props=sidecar_metadata)` (replaced the earlier direct `get_audio_video_info_ffprobe` call +
+      manual field selection; see [task-bids-properties.md](task-bids-properties.md)) — adds
+      `VideoCodecRFC6381` / `AudioCodecRFC6381` / `ImageBitDepth` / `ImagePixelFormat` (now
+      `Image*`-prefixed, per [spec-bids-media.md](spec-bids-media.md)) plus other mappable
+      properties (`AudioCodec`, `AudioSampleRate`, `RecordingDuration`, etc.) that
+      `_to_bids_model` doesn't currently read from `sidecar_metadata` (harmlessly unused for now)
+      (TODO: future — read from `videos.tsv` columns instead of re-running `ffprobe`)
+- [x] ffprobe errors logged and injection continues (fields simply absent from `sidecar_metadata`)
 
 ### Dry-run mode
 - [x] Skip `split-video` call and file writes when `--dry-run`
@@ -227,13 +233,21 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 
 - [x] `_call_split_video` passes `sidecar_metadata` with `TaskName` to `split-video`
 - [x] `_call_split_video` passes empty `sidecar_metadata` when `TaskName` absent
-- [x] `_call_split_video` adds `VideoCodecRFC6381` / `AudioCodecRFC6381` to `sidecar_metadata` via ffprobe
-- [x] `_call_split_video` adds `BitDepth` / `PixelFormat` to `sidecar_metadata` via ffprobe
-- [x] ffprobe failure logs error and injection continues; RFC6381/BitDepth/PixelFormat silently omitted
+- [x] `_call_split_video` adds `VideoCodecRFC6381` / `AudioCodecRFC6381` to `sidecar_metadata` via
+      `bids_properties_from_ffprobe` *(was: direct `get_audio_video_info_ffprobe` call)*
+- [x] `_call_split_video` adds `ImageBitDepth` / `ImagePixelFormat` to `sidecar_metadata` via
+      `bids_properties_from_ffprobe` *(was: unprefixed `BitDepth` / `PixelFormat`)*
+- [x] ffprobe failure logs error and injection continues; fields simply absent from
+      `sidecar_metadata`
 - [x] `_to_bids_model` uses `VideoCodecRFC6381` / `AudioCodecRFC6381` from `sidecar_metadata` when provided
 - [x] `_to_bids_model` defaults `VideoCodecRFC6381` / `AudioCodecRFC6381` to `"n/a"` when absent
-- [x] `_to_bids_model` writes `BitDepth` (int) / `PixelFormat` (str) from `sidecar_metadata` when present
-- [x] `_to_bids_model` omits `BitDepth` / `PixelFormat` when absent from `sidecar_metadata`
+- [x] `_to_bids_model` writes `ImageBitDepth` (int) / `ImagePixelFormat` (str) from
+      `sidecar_metadata` when present *(was: unprefixed `BitDepth` / `PixelFormat`)*
+- [x] `_to_bids_model` omits `ImageBitDepth` / `ImagePixelFormat` when absent from
+      `sidecar_metadata`
+- [ ] `Width`/`Height` remain unprefixed in `_to_bids_model` output — **not** renamed to
+      `ImageWidth`/`ImageHeight` in this pass (they come from `sr.video_width`/`sr.video_height`,
+      a different code path than `sidecar_metadata`); see spec Open Questions
 
 ### Integration tests (with synthetic BIDS fixture)
 

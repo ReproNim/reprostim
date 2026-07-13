@@ -14,9 +14,12 @@ It is meant to become the **single place** `bids-inject-sidecar`, `bids-inject`,
 [spec-bids-inject-sidecar.md § Relationship to `bids-inject` /
 `split-video`](spec-bids-inject-sidecar.md#relationship-to-bids-inject--split-video).
 
-**Status: two APIs implemented.** `bids_properties_from_audio_video_info` and
-`bids_properties_from_ffprobe` are done; the `VaRecord`-based entry point and a
-cache-aware/path-orchestrating wrapper covering both sources are future work (see Open
+**Status: two APIs implemented and one consumer wired up.** `bids_properties_from_audio_video_info`
+and `bids_properties_from_ffprobe` are done; `bids/inject.py::_call_split_video` now calls
+`bids_properties_from_ffprobe` (replacing its own direct `get_audio_video_info_ffprobe` call +
+manual field selection) to populate `sidecar_metadata`. `bids-inject-sidecar` (`_do_sidecar`) and
+`split_video.py::_to_bids_model` have **not** been wired up yet. The `VaRecord`-based entry point
+and a cache-aware/path-orchestrating wrapper covering both sources are future work (see Open
 Questions).
 
 ---
@@ -38,7 +41,10 @@ that home.
 `properties.py` depends on `bids/media.py` (for `BidsMediaProperty`) and on
 `reprostim.qr.video_audit` (for `AudioInfo`/`VideoInfo`, and in future `VaRecord`) — not the
 reverse. `bids/inject_sidecar.py`/`bids/inject.py` are expected to depend on `properties.py`
-rather than reaching into `qr.video_audit` directly.
+rather than reaching into `qr.video_audit` directly. **`bids/inject.py` does this already**
+(`_call_split_video` imports `bids_properties_from_ffprobe`, not `get_audio_video_info_ffprobe`);
+`bids/inject_sidecar.py` still imports `parse_bids_media_info` from `bids/media.py` only, not
+`properties.py`.
 
 > `AudioInfo`/`VideoInfo`/`VaRecord` currently live in `reprostim/qr/video_audit.py`, not yet
 > moved to a `reprostim.media` package (see the broader package-reorganization discussion this
@@ -154,9 +160,14 @@ rather than raising.
 - [ ] `RecordingDuration` precedence when both `audio.duration_sec` and `video.duration_sec` are
       present but differ (currently: video wins unconditionally) — confirm this is the right
       default, or whether a mismatch should itself be surfaced somehow.
+- [x] Wire `bids_properties_from_ffprobe` into `bids/inject.py::_call_split_video` (replacing its
+      own direct `get_audio_video_info_ffprobe` call + manual field selection).
 - [ ] Wire `bids_properties_from_ffprobe` into `bids/inject_sidecar.py::_do_sidecar`
       (currently `_do_sidecar` only calls `parse_bids_media_info`, not this module at all).
 - [ ] Factor `split_video.py::_to_bids_model` to use `properties.py` once the `VaRecord`/path
       orchestration entry points exist (no behavior change to existing `split-video`/`bids-inject`
       output) — see [spec-bids-inject-sidecar.md Open Questions
-      #3](spec-bids-inject-sidecar.md#open-questions--todos).
+      #3](spec-bids-inject-sidecar.md#open-questions--todos). Note `_to_bids_model` has already
+      been hand-updated to use `ImagePixelFormat`/`ImageBitDepth` (matching what
+      `bids_properties_from_ffprobe` produces) even though it doesn't call into `properties.py`
+      yet — the two are naming-compatible but not yet code-sharing.

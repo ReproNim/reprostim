@@ -114,8 +114,8 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
     :param sr: SplitResult to convert
     :param sidecar_metadata: Optional dict with extra BIDS fields to inject.
         Supports ``TaskName`` (written as the first field when present),
-        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``BitDepth``, and
-        ``PixelFormat``.
+        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``ImageBitDepth``, and
+        ``ImagePixelFormat``.
     :return: Dict with BIDS-compliant metadata field names
     """
     result = {}
@@ -156,12 +156,12 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
             pass
 
     if sidecar_metadata:
-        bit_depth = sidecar_metadata.get("BitDepth")
+        bit_depth = sidecar_metadata.get("ImageBitDepth")
         if bit_depth is not None:
-            result["BitDepth"] = int(bit_depth)
-        pix_fmt = sidecar_metadata.get("PixelFormat")
+            result["ImageBitDepth"] = int(bit_depth)
+        pix_fmt = sidecar_metadata.get("ImagePixelFormat")
         if pix_fmt:
-            result["PixelFormat"] = pix_fmt
+            result["ImagePixelFormat"] = pix_fmt
 
     if sr.audio_codec != "n/a":
         result["AudioCodec"] = sr.audio_codec

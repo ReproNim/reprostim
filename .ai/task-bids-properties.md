@@ -43,9 +43,18 @@ Tracks implementation progress against [spec-bids-properties.md](spec-bids-prope
 - [ ] `get_bids_properties(path: str, va_record: Optional[VaRecord] = None) -> Dict[str, Any]` —
       not implemented (single orchestrating entry point over `bids_properties_from_va_record`
       and `bids_properties_from_ffprobe`)
+- [x] Wire into `bids/inject.py::_call_split_video` — replaced its own direct
+      `get_audio_video_info_ffprobe` call + manual `VideoCodecRFC6381`/`AudioCodecRFC6381`/
+      `BitDepth`/`PixelFormat` selection with `bids_properties_from_ffprobe(input_path,
+      props=sidecar_metadata)`; `sidecar_metadata` now also carries the other mappable
+      properties (`AudioCodec`, `RecordingDuration`, etc.) that `_to_bids_model` doesn't
+      currently read, harmlessly unused
 - [ ] Wire into `bids/inject_sidecar.py::_do_sidecar` (currently calls `parse_bids_media_info`
       only, not this module)
-- [ ] Factor `split_video.py::_to_bids_model` to use this module (no behavior change)
+- [ ] Factor `split_video.py::_to_bids_model` to use this module (no behavior change) — note
+      `_to_bids_model` was hand-updated to the `Image*`-prefixed key names
+      (`ImagePixelFormat`/`ImageBitDepth`) this module already used, so the two are
+      naming-compatible now even though not yet code-sharing
 
 ---
 

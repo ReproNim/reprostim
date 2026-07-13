@@ -703,23 +703,25 @@ def test_to_bids_model_rfc6381_defaults_to_na_without_sidecar_metadata():
 
 
 def test_to_bids_model_bit_depth_and_pixel_format_from_sidecar_metadata():
-    """BitDepth and PixelFormat are written when present in sidecar_metadata."""
+    """ImageBitDepth and ImagePixelFormat are written when present in
+    sidecar_metadata."""
     sr = SplitResult(video_codec="h264")
     data = _to_bids_model(
         sr,
-        sidecar_metadata={"BitDepth": 10, "PixelFormat": "yuv420p"},
+        sidecar_metadata={"ImageBitDepth": 10, "ImagePixelFormat": "yuv420p"},
     )
-    assert data["BitDepth"] == 10
-    assert isinstance(data["BitDepth"], int)
-    assert data["PixelFormat"] == "yuv420p"
+    assert data["ImageBitDepth"] == 10
+    assert isinstance(data["ImageBitDepth"], int)
+    assert data["ImagePixelFormat"] == "yuv420p"
 
 
 def test_to_bids_model_bit_depth_and_pixel_format_absent_when_not_in_sidecar():
-    """BitDepth and PixelFormat are omitted when absent from sidecar_metadata."""
+    """ImageBitDepth and ImagePixelFormat are omitted when absent from
+    sidecar_metadata."""
     sr = SplitResult(video_codec="h264")
     data = _to_bids_model(sr)
-    assert "BitDepth" not in data
-    assert "PixelFormat" not in data
+    assert "ImageBitDepth" not in data
+    assert "ImagePixelFormat" not in data
 
 
 def test_to_bids_model_no_raw_fields():
