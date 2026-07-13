@@ -5,8 +5,8 @@
 `properties.py` (`src/reprostim/bids/properties.py`) extracts BIDS media-file sidecar properties
 (the `BidsMediaProperty` keys defined in [spec-bids-media.md](spec-bids-media.md)) from various
 sources — currently `ffprobe`-derived `AudioInfo`/`VideoInfo` (via
-`bids_properties_from_audio_video_info`), and in future cached `VaRecord` rows (`videos.tsv`) and
-file paths.
+`bids_properties_from_audio_video_info`, or directly from a file path via
+`bids_properties_from_ffprobe`), and in future cached `VaRecord` rows (`videos.tsv`).
 
 It is meant to become the **single place** `bids-inject-sidecar`, `bids-inject`, and
 `split-video` all produce BIDS sidecar properties from, instead of each reimplementing the
@@ -14,8 +14,10 @@ It is meant to become the **single place** `bids-inject-sidecar`, `bids-inject`,
 [spec-bids-inject-sidecar.md § Relationship to `bids-inject` /
 `split-video`](spec-bids-inject-sidecar.md#relationship-to-bids-inject--split-video).
 
-**Status: first API implemented.** `bids_properties_from_audio_video_info` is done; the
-`VaRecord`-based and path-orchestrating entry points are future work (see Open Questions).
+**Status: two APIs implemented.** `bids_properties_from_audio_video_info` and
+`bids_properties_from_ffprobe` are done; the `VaRecord`-based entry point and a
+cache-aware/path-orchestrating wrapper covering both sources are future work (see Open
+Questions).
 
 ---
 
@@ -49,7 +51,9 @@ rather than reaching into `qr.video_audit` directly.
 
 ```python
 def bids_properties_from_audio_video_info(
-    audio: Optional[AudioInfo], video: Optional[VideoInfo]
+    audio: Optional[AudioInfo],
+    video: Optional[VideoInfo],
+    props: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]: ...
 ```
 
@@ -58,6 +62,23 @@ Maps `ffprobe`-derived `AudioInfo`/`VideoInfo` (from
 the exact BIDS sidecar JSON key (`BidsMediaProperty.value`, e.g. `"AudioCodec"`) — not by the
 enum member itself, so the result can be merged/serialized directly without an extra
 `.value` step at every call site.
+
+### Shared `props` accumulation
+
+Every `bids_properties_from_*` function in this module accepts an optional `props:
+Optional[Dict[str, Any]] = None`. When omitted (the default), a fresh dict is created and
+returned, matching the original no-argument behavior. When a dict is passed in, it is populated
+**in place** (mutated) and returned as-is (`result is props`) — letting a caller accumulate
+properties from several sources into one shared dict, e.g. the eventual `get_bids_properties`
+orchestrator calling both `bids_properties_from_va_record(record, props=shared)` and
+`bids_properties_from_ffprobe(path, props=shared)`.
+
+**Priority between composed sources is controlled by call order, not by `props` itself**:
+`_set_prop` overwrites a key unconditionally whenever the new value isn't `None` — plain
+`dict.update()` semantics, last call wins. There is no separate "don't overwrite existing keys"
+mode; if `--videos`-cache values should take priority over freshly-probed `ffprobe` values (per
+[spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md)'s extraction priority order), the
+caller achieves that by calling the higher-priority source's function *second*.
 
 ### Field mapping
 
@@ -94,6 +115,29 @@ below can reuse it.
 
 ---
 
+## `bids_properties_from_ffprobe` (implemented)
+
+```python
+def bids_properties_from_ffprobe(
+    path: str, props: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]: ...
+```
+
+Convenience wrapper: calls `reprostim.qr.video_audit.get_audio_video_info_ffprobe(path)` to get
+`(AudioInfo, VideoInfo)`, then passes them (plus `props`, unchanged) straight through to
+`bids_properties_from_audio_video_info` — see [Shared `props`
+accumulation](#shared-props-accumulation) above.
+This is the direct-from-`ffprobe` counterpart to the still-TBD `bids_properties_from_va_record`
+(cache-based) below — together they'll back a single orchestrating entry point once the latter
+exists.
+
+`get_audio_video_info_ffprobe` never returns `None` for either stream — it returns a
+default-constructed (all-`None`-fields) `AudioInfo`/`VideoInfo` when a stream is absent or
+`ffprobe` fails — so `bids_properties_from_ffprobe` on a nonexistent/unreadable path returns `{}`
+rather than raising.
+
+---
+
 ## Open Questions / TODOs
 
 - [ ] `bids_properties_from_va_record(record: VaRecord) -> Dict[str, Any]` — map a cached
@@ -101,16 +145,16 @@ below can reuse it.
       dict, for the `--videos` cache-lookup path `bids-inject-sidecar`'s spec describes.
 - [ ] `get_bids_properties(path: str, va_record: Optional[VaRecord] = None) -> Dict[str, Any]` —
       single orchestrating entry point: resolve `va_record` → `bids_properties_from_va_record`,
-      else run `ffprobe` → `bids_properties_from_audio_video_info`. This is what
-      `bids-inject-sidecar`'s `_do_sidecar` should eventually call instead of invoking
-      `parse_bids_media_info`/`ffprobe` itself.
+      else `bids_properties_from_ffprobe(path)`. This is what `bids-inject-sidecar`'s
+      `_do_sidecar` should eventually call instead of invoking `parse_bids_media_info`/`ffprobe`
+      itself.
 - [ ] `VIDEO_FRAME_COUNT` has no direct `ffprobe`-derived source in `VideoInfo` — decide whether
       to add a frame-count field to `VideoInfo`/`get_audio_video_info_ffprobe` upstream, or
       approximate it (`fps × duration_sec`) rather than leave it unset (currently: left unset).
 - [ ] `RecordingDuration` precedence when both `audio.duration_sec` and `video.duration_sec` are
       present but differ (currently: video wins unconditionally) — confirm this is the right
       default, or whether a mismatch should itself be surfaced somehow.
-- [ ] Wire `bids_properties_from_audio_video_info` into `bids/inject_sidecar.py::_do_sidecar`
+- [ ] Wire `bids_properties_from_ffprobe` into `bids/inject_sidecar.py::_do_sidecar`
       (currently `_do_sidecar` only calls `parse_bids_media_info`, not this module at all).
 - [ ] Factor `split_video.py::_to_bids_model` to use `properties.py` once the `VaRecord`/path
       orchestration entry points exist (no behavior change to existing `split-video`/`bids-inject`

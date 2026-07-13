@@ -16,7 +16,7 @@ See .ai/spec-bids-properties.md for the full specification.
 from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
-from reprostim.qr.video_audit import AudioInfo, VideoInfo
+from reprostim.qr.video_audit import AudioInfo, VideoInfo, get_audio_video_info_ffprobe
 
 
 def _set_prop(props: Dict[str, Any], key: BidsMediaProperty, value: Any) -> None:
@@ -31,7 +31,9 @@ def _set_prop(props: Dict[str, Any], key: BidsMediaProperty, value: Any) -> None
 
 
 def bids_properties_from_audio_video_info(
-    audio: Optional[AudioInfo], video: Optional[VideoInfo]
+    audio: Optional[AudioInfo],
+    video: Optional[VideoInfo],
+    props: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Map ffprobe-derived stream info to BIDS media-file properties.
 
@@ -46,11 +48,20 @@ def bids_properties_from_audio_video_info(
     :param video: Video stream info from ``get_audio_video_info_ffprobe``,
         or ``None`` if the file has no video stream.
     :type video: Optional[VideoInfo]
-    :return: BIDS sidecar JSON key -> value mapping; only properties that
-        could be determined are present.
+    :param props: Optional dict to populate/merge into instead of creating a
+        fresh one — lets a caller accumulate properties from several
+        ``bids_properties_from_*`` calls into one shared dict. Existing keys
+        are overwritten by non-``None`` values from this call (like
+        ``dict.update()``); when composing multiple sources, priority is
+        controlled by call order, not by this parameter.
+    :type props: Optional[Dict[str, Any]]
+    :return: *props* (or a new dict if *props* was ``None``), with mappable
+        properties set; only properties that could be determined are
+        present.
     :rtype: Dict[str, Any]
     """
-    props: Dict[str, Any] = {}
+    if props is None:
+        props = {}
 
     # RecordingDuration: prefer video's duration (the primary stream for
     # video/audiovideo files) over audio's when both are present.
@@ -79,3 +90,25 @@ def bids_properties_from_audio_video_info(
         # approximating via fps * duration_sec. See spec Open Questions.
 
     return props
+
+
+def bids_properties_from_ffprobe(
+    path: str, props: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Run ``ffprobe`` on *path* and map the result to BIDS media-file
+    properties.
+
+    Convenience wrapper combining ``get_audio_video_info_ffprobe`` and
+    :func:`bids_properties_from_audio_video_info`.
+
+    :param path: Path to the audio/video file.
+    :type path: str
+    :param props: Optional dict to populate/merge into instead of creating a
+        fresh one; see :func:`bids_properties_from_audio_video_info`.
+    :type props: Optional[Dict[str, Any]]
+    :return: *props* (or a new dict if *props* was ``None``); see
+        :func:`bids_properties_from_audio_video_info`.
+    :rtype: Dict[str, Any]
+    """
+    audio, video = get_audio_video_info_ffprobe(path)
+    return bids_properties_from_audio_video_info(audio, video, props=props)
