@@ -729,9 +729,12 @@ Columns used by `bids-inject`:
 | File                                     | Purpose                                                     |
 |------------------------------------------|-------------------------------------------------------------|
 | `src/reprostim/cli/cmd_bids_inject.py`   | Click command definition (`bids-inject`)                    |
-| `src/reprostim/qr/bids_inject.py`        | Core logic: TSV loading, duration resolution, orchestration |
+| `src/reprostim/bids/inject.py`           | Core logic: TSV loading, duration resolution, orchestration |
 
-Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
+Registered in `src/reprostim/cli/entrypoint.py` alongside other commands. `inject.py` lives under
+`src/reprostim/bids/` alongside `inject_sidecar.py`/`media.py` (see
+[spec-bids-media.md](spec-bids-media.md)) — moved there from `qr/` as part of the ongoing package
+reorganization.
 
 ---
 

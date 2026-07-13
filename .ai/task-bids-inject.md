@@ -159,7 +159,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 
 ## Tests and Code Coverage
 
-Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_audiocodes.py` pattern).
+Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audiocodes.py` pattern).
 
 ### Datetime / Timezone API (`dt_` functions)
 
@@ -305,15 +305,16 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/bids_inject.py` — `dt_` API functions | 100% | **100%** ✓ |
-| `qr/bids_inject.py` — internal helpers | ≥ 90% | 0% (pending) |
-| `qr/bids_inject.py` — overall | ≥ 80% | 34% (pending) |
+| `bids/inject.py` — `dt_` API functions | 100% | **100%** ✓ |
+| `bids/inject.py` — internal helpers | ≥ 90% | 0% (pending) |
+| `bids/inject.py` — overall | ≥ 80% | 34% (pending) |
 | `cli/cmd_bids_inject.py` | ≥ 80% | 0% (pending) |
 
 ### Test infrastructure
 
-- [x] Create `tests/qr/` package (`__init__.py`)
-- [x] Create `tests/qr/test_bids_inject.py`
+- [x] Create `tests/bids/` package (`__init__.py`) *(originally `tests/qr/`, moved along with
+      `bids_inject.py` → `bids/inject.py`)*
+- [x] Create `tests/bids/test_inject.py` *(originally `tests/qr/test_bids_inject.py`)*
 - [x] Create synthetic BIDS fixture under `tests/data/bids_inject/`
   - [x] `dataset_description.json`
   - [x] `sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv` (2–3 rows)

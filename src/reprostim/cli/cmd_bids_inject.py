@@ -197,7 +197,7 @@ def bids_inject(
     - a dataset/subject root directory (searched recursively with --recursive)
     """
 
-    from ..qr.bids_inject import do_main, dt_tz_label
+    from ..bids.inject import do_main, dt_tz_label
 
     logger.debug("bids_inject(...)")
     logger.debug(f"Working dir    : {os.getcwd()}")
