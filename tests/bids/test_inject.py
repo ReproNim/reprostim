@@ -608,7 +608,7 @@ def test_open_dataset_file_newline_forwarded(tmp_path):
 # ScanMetadata.TaskName / _load_scan_metadata
 # ===========================================================================
 
-BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids"
 _BOLD_JSON = (
     BIDS_FIXTURE
     / "sub-qa"
@@ -766,8 +766,8 @@ def test_find_bids_root_fallback_sub_component(tmp_path):
 # Integration tests (synthetic BIDS fixture)
 # ===========================================================================
 
-# Path to the static BIDS fixture committed under tests/data/bids_inject/
-_BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+# Path to the static BIDS fixture committed under tests/data/bids/
+_BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids"
 _SCANS_TSV = str(
     _BIDS_FIXTURE / "sub-qa" / "ses-20250814" / "sub-qa_ses-20250814_scans.tsv"
 )

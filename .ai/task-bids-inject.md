@@ -238,7 +238,8 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 ### Integration tests (with synthetic BIDS fixture)
 
 > Requires a small synthetic BIDS dataset fixture (a few `_scans.tsv` files, stub JSON
-> sidecars, and a stub `videos.tsv`) committed under `tests/data/bids_inject/`.
+> sidecars, and a stub `videos.tsv`) committed under `tests/data/bids/` *(originally
+> `tests/data/bids_inject/`, renamed for reuse across other `reprostim.bids` module tests)*.
 
 - [ ] Single `_scans.tsv` + matching video → `split-video` called with correct args (mocked)
 - [x] Dry-run: `split-video` not called; planned actions logged
@@ -315,7 +316,7 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] Create `tests/bids/` package (`__init__.py`) *(originally `tests/qr/`, moved along with
       `bids_inject.py` → `bids/inject.py`)*
 - [x] Create `tests/bids/test_inject.py` *(originally `tests/qr/test_bids_inject.py`)*
-- [x] Create synthetic BIDS fixture under `tests/data/bids_inject/`
+- [x] Create synthetic BIDS fixture under `tests/data/bids/` *(originally `tests/data/bids_inject/`)*
   - [x] `dataset_description.json`
   - [x] `sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv` (2–3 rows)
   - [x] Stub JSON sidecars for each scan row
