@@ -2,8 +2,10 @@
 
 Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md).
 
-Nothing in this list is implemented yet — the command does not exist in `src/reprostim/` as of
-this writing. All items start unchecked.
+Most of this list is not implemented yet. A CLI stub exists (`cli/cmd_bids_inject_sidecar.py`),
+and `bids/inject_sidecar.py` has the `OverwriteMode`/`ConflictPolicy` enums and `BisContext`
+wired (see Core Logic below), but the actual per-file extraction/write logic (`_do_sidecar`) is
+still a `TODO`. Unless noted otherwise, items below remain unchecked.
 
 ---
 
@@ -20,6 +22,20 @@ this writing. All items start unchecked.
 ---
 
 ## Core Logic
+
+### Enum types / context (implemented)
+- [x] `OverwriteMode(str, Enum)` — `REPLACE`/`UPDATE`, backs `--mode`. Defined in
+      `bids/inject_sidecar.py`, scoped to this command only — distinct from `bids/inject.py`'s
+      own, differently-scoped `OverwriteMode` (same name, different module, different meaning;
+      see spec note)
+- [x] `ConflictPolicy(str, Enum)` — `ERROR`/`OVERWRITE`, backs `--existing-different`
+- [x] `BisContext` carries them as `mode: OverwriteMode` and `conflict_policy: ConflictPolicy`
+      fields, defaulting to `UPDATE`/`ERROR`
+- [x] `do_main` converts the CLI's plain `mode`/`existing_different` strings into these enums
+      when constructing `BisContext`
+- [ ] CLI options (`-m/--mode`, `-e/--existing-different`) still just plain `click.Choice` strings
+      passed through to `do_main` — not yet themselves enum-typed at the Click layer (matches the
+      `bids/inject.py` convention of converting str → enum only at the core-logic boundary)
 
 ### Shared BIDS field mapping (prerequisite refactor)
 - [ ] Create `src/reprostim/bids/media.py` with the BIDS Media-File Metadata Fields table (name → type)

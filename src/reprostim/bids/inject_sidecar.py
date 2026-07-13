@@ -9,17 +9,49 @@ audio/video files and write or update their ``.json`` sidecars.
 
 import logging
 import os
+from enum import Enum
 from typing import Callable, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # initialize the logger
 logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
+class OverwriteMode(str, Enum):
+    """Sidecar JSON write mode for bids-inject-sidecar's ``--mode`` option."""
+
+    REPLACE = "replace"
+    """Overwrite the entire sidecar with only the freshly extracted/added
+    fields."""
+    UPDATE = "update"
+    """Merge freshly extracted/added fields into the existing sidecar,
+    preserving other existing keys untouched."""
+
+
+class ConflictPolicy(str, Enum):
+    """Policy for bids-inject-sidecar's ``--existing-different`` option: how
+    to handle a field that already exists in the sidecar with a different,
+    non-``n/a`` value."""
+
+    ERROR = "error"
+    """Abort processing that file and report the conflict."""
+    OVERWRITE = "overwrite"
+    """Log a warning and proceed with the new value."""
+
+
 class BisContext(BaseModel):
     """Context for bids-inject-sidecar processing of scan records."""
+
+    mode: OverwriteMode = Field(
+        default=OverwriteMode.UPDATE,
+        description="Sidecar JSON write mode.",
+    )
+    conflict_policy: ConflictPolicy = Field(
+        default=ConflictPolicy.ERROR,
+        description="Policy for a field with a differing existing value.",
+    )
 
 
 def _do_sidecar(ctx: BisContext, path: str):
@@ -77,7 +109,10 @@ def do_main(
     :rtype: int
     """
 
-    ctx: BisContext = BisContext()
+    ctx: BisContext = BisContext(
+        mode=OverwriteMode(mode),
+        conflict_policy=ConflictPolicy(existing_different),
+    )
     _do_sidecar_all(ctx, files)
 
     return 0

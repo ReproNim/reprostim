@@ -87,6 +87,15 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 > [spec-video-audit.md](spec-video-audit.md)). They are not present in the original issue body
 > and can be dropped if deemed unnecessary during implementation review.
 
+> **Enum types (implemented):** `--mode` is backed by `OverwriteMode(str, Enum)`
+> (`REPLACE`/`UPDATE`) and `--existing-different` by `ConflictPolicy(str, Enum)`
+> (`ERROR`/`OVERWRITE`), both defined in `inject_sidecar.py` itself — scoped to this command only,
+> not shared with `bids/inject.py`'s own (differently-scoped) `OverwriteMode` enum (existing-file
+> overwrite policy for `bids-inject`, values `SKIP`/`FORCE`/`ALWAYS`/`ERROR`). The two classes are
+> intentionally same-named but distinct, disambiguated by module (`reprostim.bids.inject.OverwriteMode`
+> vs. `reprostim.bids.inject_sidecar.OverwriteMode`). `BisContext` carries them as `mode` and
+> `conflict_policy` fields.
+
 ### Example invocations
 
 ```shell
