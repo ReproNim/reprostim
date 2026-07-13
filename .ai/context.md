@@ -55,8 +55,9 @@ Main Python package with CLI tools and analysis utilities.
 - **bids/** - BIDS dataset injection and media-file metadata/sidecar helpers (split out of `qr/`
   as an ongoing package reorganization)
   - `inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
-  - `inject_sidecar.py` - *(planned, not yet implemented)* Standalone BIDS media-file sidecar extraction/write engine (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
-  - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files; `AudioInfo`/`VideoInfo` mapping helpers still TBD (see [spec-bids-media.md](.ai/spec-bids-media.md), [task-bids-media.md](.ai/task-bids-media.md))
+  - `inject_sidecar.py` - *(core `_do_sidecar` extraction/write logic still `TODO`)* Standalone BIDS media-file sidecar extraction/write engine; `OverwriteMode`/`ConflictPolicy` enums, `BisContext`, and `--add` parsing (`_parse_ext_props`, JSON-aware) are implemented (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
+  - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files (see [spec-bids-media.md](.ai/spec-bids-media.md), [task-bids-media.md](.ai/task-bids-media.md))
+  - `properties.py` - `AudioInfo`/`VideoInfo` → BIDS-dict mapping (`bids_properties_from_audio_video_info`); `VaRecord`-based and path-orchestrating entry points still TBD, not yet wired into `inject_sidecar.py` (see [spec-bids-properties.md](.ai/spec-bids-properties.md), [task-bids-properties.md](.ai/task-bids-properties.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction

@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: 2020-2026 ReproNim Team <info@repronim.org>
+#
+# SPDX-License-Identifier: MIT
+
+"""
+Extraction of BIDS media-file properties (sidecar-JSON-key-keyed values)
+from ffprobe results, and in future from cached VaRecord (videos.tsv) rows
+and file paths. Meant to become the single place bids-inject-sidecar,
+bids-inject, and split-video produce BIDS sidecar properties from, instead
+of each reimplementing the AudioInfo/VideoInfo/VaRecord -> BIDS-dict
+mapping independently.
+
+See .ai/spec-bids-properties.md for the full specification.
+"""
+
+from typing import Any, Dict, Optional
+
+from reprostim.bids.media import BidsMediaProperty
+from reprostim.qr.video_audit import AudioInfo, VideoInfo
+
+
+def _set_prop(props: Dict[str, Any], key: BidsMediaProperty, value: Any) -> None:
+    """Set ``props[key.value] = value``, skipping ``None`` values.
+
+    Shared by the ``bids_properties_from_*`` functions in this module so a
+    field that could not be determined is omitted from the result rather
+    than written as ``"n/a"`` or ``None`` (BEP044 sidecar convention).
+    """
+    if value is not None:
+        props[key.value] = value
+
+
+def bids_properties_from_audio_video_info(
+    audio: Optional[AudioInfo], video: Optional[VideoInfo]
+) -> Dict[str, Any]:
+    """Map ffprobe-derived stream info to BIDS media-file properties.
+
+    Fields that cannot be determined (no matching stream, field absent from
+    ffprobe output) are simply omitted from the result rather than written
+    as ``"n/a"`` or ``None``, matching the BEP044 sidecar convention (see
+    spec-bids-media.md).
+
+    :param audio: Audio stream info from ``get_audio_video_info_ffprobe``,
+        or ``None`` if the file has no audio stream.
+    :type audio: Optional[AudioInfo]
+    :param video: Video stream info from ``get_audio_video_info_ffprobe``,
+        or ``None`` if the file has no video stream.
+    :type video: Optional[VideoInfo]
+    :return: BIDS sidecar JSON key -> value mapping; only properties that
+        could be determined are present.
+    :rtype: Dict[str, Any]
+    """
+    props: Dict[str, Any] = {}
+
+    # RecordingDuration: prefer video's duration (the primary stream for
+    # video/audiovideo files) over audio's when both are present.
+    if video is not None and video.duration_sec is not None:
+        _set_prop(props, BidsMediaProperty.RECORDING_DURATION, video.duration_sec)
+    elif audio is not None:
+        _set_prop(props, BidsMediaProperty.RECORDING_DURATION, audio.duration_sec)
+
+    if audio is not None:
+        _set_prop(props, BidsMediaProperty.AUDIO_CODEC, audio.codec)
+        _set_prop(props, BidsMediaProperty.AUDIO_SAMPLE_RATE, audio.sample_rate)
+        _set_prop(props, BidsMediaProperty.AUDIO_CHANNEL_COUNT, audio.channels)
+        _set_prop(props, BidsMediaProperty.AUDIO_BIT_DEPTH, audio.bits_per_sample)
+        _set_prop(props, BidsMediaProperty.AUDIO_CODEC_RFC6381, audio.codec_rfc6381)
+
+    if video is not None:
+        _set_prop(props, BidsMediaProperty.VIDEO_CODEC, video.codec)
+        _set_prop(props, BidsMediaProperty.VIDEO_FRAME_RATE, video.fps)
+        _set_prop(props, BidsMediaProperty.VIDEO_CODEC_RFC6381, video.codec_rfc6381)
+        _set_prop(props, BidsMediaProperty.IMAGE_WIDTH, video.width)
+        _set_prop(props, BidsMediaProperty.IMAGE_HEIGHT, video.height)
+        _set_prop(props, BidsMediaProperty.IMAGE_PIXEL_FORMAT, video.pix_fmt)
+        _set_prop(props, BidsMediaProperty.IMAGE_BIT_DEPTH, video.bit_depth)
+        # VIDEO_FRAME_COUNT has no direct ffprobe-derived source in
+        # VideoInfo (no frame-count field); left unset rather than
+        # approximating via fps * duration_sec. See spec Open Questions.
+
+    return props

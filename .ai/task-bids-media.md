@@ -3,8 +3,9 @@
 Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
 
 **Status: stub.** The enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`,
-`BidsMediaProperty`, `BidsMediaCodec`) are implemented in `src/reprostim/bids/media.py`; the
-`AudioInfo`/`VideoInfo` mapping helpers below are still unchecked.
+`BidsMediaProperty`, `BidsMediaCodec`) are implemented in `src/reprostim/bids/media.py`. The
+`AudioInfo`/`VideoInfo` mapping helpers moved to a separate module — see
+[task-bids-properties.md](task-bids-properties.md) — and are tracked there, not below.
 
 ---
 
@@ -40,11 +41,12 @@ Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
       unrecognized); `INVALID_PATH` error when there's no extension at all
 - [ ] `MEDIA_TYPE_MISMATCH` detection (suffix vs. extension inconsistency) — not implemented;
       `parse_bids_media_info` never produces this error code yet
-- [ ] `AudioInfo` -> BIDS-dict mapping helper
-- [ ] `VideoInfo` -> BIDS-dict mapping helper
-- [ ] Factor `split_video.py::_to_bids_model` to use this module (no behavior change) — note this
-      will need to reconcile `_to_bids_model`'s unprefixed `Width`/`Height`/`PixelFormat`/
-      `BitDepth` output with `BidsMediaProperty`'s `Image*`-prefixed names first
+- [x] `AudioInfo`/`VideoInfo` -> BIDS-dict mapping helper — implemented as
+      `bids_properties_from_audio_video_info` in `bids/properties.py`, not here; see
+      [task-bids-properties.md](task-bids-properties.md)
+- [ ] Factor `split_video.py::_to_bids_model` to use `bids/properties.py` (no behavior change) —
+      note this will need to reconcile `_to_bids_model`'s unprefixed `Width`/`Height`/
+      `PixelFormat`/`BitDepth` output with `BidsMediaProperty`'s `Image*`-prefixed names first
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see spec note)
 
 ---
@@ -103,8 +105,8 @@ Proposed test file location: `tests/bids/test_media.py`.
 
 ## Open Questions / Future Work
 
-- [ ] Scope / API surface for remaining `AudioInfo`/`VideoInfo` mapping helpers — see spec Open
-      Questions
+- [ ] `AudioInfo`/`VideoInfo` mapping helper follow-ups now tracked in
+      [task-bids-properties.md](task-bids-properties.md), not here
 - [ ] Declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member
 - [ ] `BidsMediaType` vs. `bids_inject.py::MediaSuffix` reconciliation
 - [ ] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`/`spec-bids-inject-sidecar.md`'s

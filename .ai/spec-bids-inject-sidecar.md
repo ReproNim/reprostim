@@ -311,13 +311,13 @@ range — see [Open Questions / TODOs](#open-questions--todos).
 | File                                              | Purpose                                                                 |
 |----------------------------------------------------|--------------------------------------------------------------------------|
 | `src/reprostim/cli/cmd_bids_inject_sidecar.py`      | Click command definition (`bids-inject-sidecar`)                       |
-| `src/reprostim/bids/inject_sidecar.py`              | Core logic: per-file extraction, `--add` casting, conflict resolution, JSON read/write |
-| `src/reprostim/bids/media.py`                       | Shared BIDS media-field table + `AudioInfo`/`VideoInfo` → BIDS-dict mapping, factored out of `split_video.py`'s `_to_bids_model` so both `split-video`/`bids-inject` and `bids-inject-sidecar` use one source of truth for field names/types. |
+| `src/reprostim/bids/inject_sidecar.py`              | Core logic: per-file extraction, `--add` parsing, conflict resolution, JSON read/write |
+| `src/reprostim/bids/media.py`                       | Shared BIDS media-field taxonomy: `BidsMediaType`/`BidsMediaProperty`/format/codec enums, `BidsMediaInfo`, `parse_bids_media_info` (see [spec-bids-media.md](spec-bids-media.md)) |
+| `src/reprostim/bids/properties.py`                  | `AudioInfo`/`VideoInfo` (and in future `VaRecord`) → BIDS-dict mapping, factored out so both `split-video`/`bids-inject` and `bids-inject-sidecar` can share one source of truth (see [spec-bids-properties.md](spec-bids-properties.md)) — not yet wired into `_do_sidecar` |
 
-> Both modules live under `src/reprostim/bids/` (see [spec-bids-media.md](spec-bids-media.md)),
-> not `src/reprostim/qr/` — `bids_inject.py` (used by `bids-inject`/`split-video`) remains in
-> `qr/` for now; only `bids_inject_sidecar.py`/`bids_media.py` have moved so far, as a first,
-> scoped step of a larger planned package reorganization (not yet fully underway).
+> All three modules live under `src/reprostim/bids/`, along with `inject.py` (`bids-inject`'s own
+> core logic) — the package reorganization that started with `inject_sidecar.py`/`media.py`
+> continued with `inject.py` and now `properties.py`.
 
 Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 

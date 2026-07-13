@@ -41,7 +41,9 @@ for where this module was first proposed.
       `BidsMediaProperty`, see below.
 - [ ] Declared value types (`integer`/`number`/`string`) per property — not yet carried on
       `BidsMediaProperty`; see Open Questions.
-- [ ] Mapping helpers from `video_audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts — TBD.
+- [x] Mapping helpers from `video_audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts — live
+      in a separate module, `bids/properties.py`, not here (see
+      [spec-bids-properties.md](spec-bids-properties.md)), to keep this module spec-close.
 
 ---
 
@@ -296,8 +298,10 @@ Example resolutions:
       `category`; see [Codec Reference](#codec-reference) above). Non-exhaustive by design.
 - [ ] Add declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member, needed for
       `--add META=VALUE` casting in `bids-inject-sidecar` — not yet carried on the enum.
-- [ ] Confirm final scope/API surface for the remaining `AudioInfo`/`VideoInfo` mapping helpers
-      (functions vs. constants vs. a small class).
+- [x] Scope/API surface for the `AudioInfo`/`VideoInfo` mapping helpers decided: a separate
+      module, `bids/properties.py` (not `media.py` itself, to keep this module spec-close) — see
+      [spec-bids-properties.md](spec-bids-properties.md). `bids_properties_from_audio_video_info`
+      implemented there; `VaRecord`-based and path-orchestrating entry points still TBD.
 - [x] Field-naming convention for `BidsMediaProperty` decided: `Image*`-prefixed, matching the
       live BEP044 draft (see note above). Still needs reconciling with
       `spec-bids-inject-sidecar.md`'s unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` and

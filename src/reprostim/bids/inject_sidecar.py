@@ -15,6 +15,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from reprostim.bids.media import BidsMediaInfo, parse_bids_media_info
+
 # initialize the logger
 logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
@@ -130,7 +132,14 @@ def _parse_ext_props(add_meta: List[str]) -> Dict[str, Any]:
 
 def _do_sidecar(ctx: BisContext, path: str):
     """"""
-    logger.debug(f"TODO: {path}")
+    logger.debug(f"_do_sidecar(path={path}")
+
+    # TODO: check file exists and when not report error and processing error
+
+    bmi: BidsMediaInfo = parse_bids_media_info(path)
+    logger.debug(f"bmi: {bmi}")
+    # TODO: make something with errors, and when !bmi.valid
+    # break processing and report processing error
 
 
 def _do_sidecar_all(ctx: BisContext, files: List[str]):
@@ -187,6 +196,7 @@ def do_main(
 
     try:
         ext_props = _parse_ext_props(add_meta)
+        logger.debug(f"ext_props={ext_props}")
     except ValueError as e:
         logger.error(str(e))
         if out_func:
