@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from reprostim.bids.media import BidsMediaInfo, parse_bids_media_info
+from reprostim.bids.properties import bids_properties_from_ffprobe
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -140,6 +141,8 @@ def _do_sidecar(ctx: BisContext, path: str):
     logger.debug(f"bmi: {bmi}")
     # TODO: make something with errors, and when !bmi.valid
     # break processing and report processing error
+    props: dict = bids_properties_from_ffprobe(path)
+    logger.debug(f"bids_props_ffrobe: {props}")
 
 
 def _do_sidecar_all(ctx: BisContext, files: List[str]):
