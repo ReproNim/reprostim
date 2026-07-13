@@ -7,10 +7,11 @@ Core logic for bids-inject-sidecar: extract BIDS media-file metadata from
 audio/video files and write or update their ``.json`` sidecars.
 """
 
+import json
 import logging
 import os
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -71,6 +72,60 @@ class BisContext(BaseModel):
         description="Callable used for user-facing output (e.g. click.echo). "
         "When None, output is suppressed.",
     )
+    ext_props: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Extra BIDS sidecar properties parsed from --add "
+        "META=VALUE (or bare JSON object) values; see _parse_ext_props.",
+    )
+
+
+def _parse_ext_props(add_meta: List[str]) -> Dict[str, Any]:
+    """Parse ``--add`` values into a dict of extra BIDS sidecar properties.
+
+    Each entry in *add_meta* is one of:
+
+    - A bare JSON object string, e.g. ``'{"AudioCodec": "aac",
+      "AudioSampleRate": 48000}'``.
+      Its top-level keys are treated as property names and merged directly into
+      the result (a later entry's keys win over an earlier one's on conflict).
+    - A ``META=VALUE`` pair, e.g. ``'AudioCodec=aac'``. If ``VALUE`` itself parses
+      as JSON (e.g. ``'ExtraInfo={"key": "val"}'``), the parsed JSON value
+      (dict/list/number/bool/null) is used as the property value; otherwise
+      ``VALUE`` is stored verbatim as a string.
+
+    :param add_meta: Raw values from repeated ``--add`` options.
+    :type add_meta: List[str]
+    :return: Property name -> value mapping.
+    :rtype: Dict[str, Any]
+    :raises ValueError: If an entry is neither a JSON object nor a
+        ``META=VALUE`` pair with a non-empty ``META``.
+    """
+    props: Dict[str, Any] = {}
+    for entry in add_meta:
+        try:
+            parsed = json.loads(entry)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            props.update(parsed)
+            continue
+
+        if "=" not in entry:
+            raise ValueError(
+                f"Invalid --add value {entry!r}: expected META=VALUE or a JSON object"
+            )
+        meta, _, value_str = entry.partition("=")
+        meta = meta.strip()
+        if not meta:
+            raise ValueError(f"Invalid --add value {entry!r}: empty META name")
+
+        try:
+            value: Any = json.loads(value_str)
+        except json.JSONDecodeError:
+            value = value_str
+        props[meta] = value
+
+    return props
 
 
 def _do_sidecar(ctx: BisContext, path: str):
@@ -113,7 +168,9 @@ def do_main(
     :type videos: Optional[str]
     :param mode: Sidecar write mode, ``"replace"`` or ``"update"``.
     :type mode: str
-    :param add_meta: Raw ``META=VALUE`` strings from repeated ``--add`` options.
+    :param add_meta: Raw values from repeated ``--add`` options — each either a
+        ``META=VALUE`` pair or a bare JSON object string. See
+        :func:`_parse_ext_props`.
     :type add_meta: List[str]
     :param existing_different: Conflict policy when a field already exists in
         the sidecar with a different value, ``"error"`` or ``"overwrite"``.
@@ -128,6 +185,14 @@ def do_main(
     :rtype: int
     """
 
+    try:
+        ext_props = _parse_ext_props(add_meta)
+    except ValueError as e:
+        logger.error(str(e))
+        if out_func:
+            out_func(f"Error: {e}")
+        return 1
+
     ctx: BisContext = BisContext(
         mode=OverwriteMode(mode),
         conflict_policy=ConflictPolicy(existing_different),
@@ -135,6 +200,7 @@ def do_main(
         dry_run=dry_run,
         verbose=verbose,
         out_func=out_func,
+        ext_props=ext_props,
     )
     _do_sidecar_all(ctx, files)
 

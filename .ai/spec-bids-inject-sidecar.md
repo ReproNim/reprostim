@@ -77,7 +77,7 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 |-----------------------------------------------|---------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-f / --videos PATH`                     | Path    | none      | Optional path to a `videos.tsv` (produced by `video-audit`). When given, cached fields (`audio_sr`, `video_res_detected`, codec info) are looked up for each `FILE` by resolved path and reused instead of re-running `ffprobe`. Falls back to `ffprobe` for any file not found in the TSV, or for fields the TSV doesn't carry. |
 | `-m / --mode [replace\|update]`               | Choice  | `update`  | `replace` overwrites the entire sidecar `.json` with only the freshly extracted/`--add`ed fields. `update` merges freshly extracted/`--add`ed fields into the existing sidecar (if any), preserving other existing keys untouched. See [JSON Sidecar Write Behavior](#json-sidecar-write-behavior). |
-| `-a / --add META=VALUE`                       | String, repeatable | none | Manually specify (or override) a metadata field, e.g. `--add DeviceSerialNumber=ABC12345 --add RecordingDuration=3600`. If `META` is a known BIDS media-file field (see [BIDS Media-File Metadata Fields](#bids-media-file-metadata-fields)), `VALUE` is cast to that field's declared type. Unknown fields are stored verbatim as strings. Repeatable — pass once per field. |
+| `-a / --add META=VALUE`                       | String, repeatable | none | Manually specify (or override) a metadata field, e.g. `--add DeviceSerialNumber=ABC12345 --add RecordingDuration=3600`, or supply several at once as a bare JSON object, e.g. `--add '{"AudioCodec": "aac", "AudioSampleRate": 48000}'`. `VALUE` is parsed as JSON when possible (so numbers/bools/`null`/objects come through typed), else stored as a plain string. See [`--add` Value Parsing](#--add-value-parsing-implemented-_parse_ext_props). Repeatable — entries merge in order, later keys win on conflict. |
 | `-e / --existing-different [error\|overwrite]` | Choice  | `error`   | Policy when a field about to be written already exists in the sidecar with a **different, non-`n/a`** value. `error`: abort processing that file and report the conflict. `overwrite`: log a warning and proceed with the new value. See [Conflict Resolution](#conflict-resolution). |
 | `-v / --verbose`                              | Flag    | `False`   | Increase verbosity (per-field extraction/merge/conflict detail).                                                                                                                                |
 | `-d / --dry-run`                              | Flag    | `False`   | *(Added for consistency with `bids-inject`/`video-audit`; not explicitly requested in issue #259.)* Compute and print the field set that would be written per file, without writing any sidecar. |
@@ -237,27 +237,49 @@ On `error`, the file is skipped (counted as an error) and processing continues w
 
 ---
 
-## `--add` Value Casting
+## `--add` Value Parsing (implemented: `_parse_ext_props`)
 
-For each `--add META=VALUE`:
+`inject_sidecar.py::_parse_ext_props(add_meta: List[str]) -> Dict[str, Any]` parses every
+`--add` entry into `BisContext.ext_props`. Each entry is one of two forms:
 
-1. If `META` matches a name in the [BIDS Media-File Metadata Fields](#bids-media-file-metadata-fields)
-   table, cast `VALUE` to the declared type:
-   - `integer` → `int(VALUE)`
-   - `number` → `float(VALUE)`
-   - `string` → used as-is
-   - Casting failure (e.g. `--add AudioChannelCount=stereo`) → error, file skipped, reported like
-     any other per-file error.
-2. Otherwise, `META` is stored verbatim as a string — no attempt to guess int/float.
+1. **A bare JSON object string** — e.g. `--add '{"AudioCodec": "aac", "AudioSampleRate": 48000}'`.
+   Detected by attempting `json.loads(entry)` first; if it parses to a JSON *object*, its
+   top-level keys are treated as `META` names and merged directly into the result (a later
+   `--add` entry's keys win over an earlier one's on conflict — plain `dict.update()` semantics,
+   applied in the order `--add` was repeated). This lets one `--add` supply several properties at
+   once, and takes priority over form 2 below even if the JSON content happens to contain a
+   literal `=` character.
+2. **A `META=VALUE` pair** — e.g. `--add AudioCodec=aac`. Split on the *first* `=`. `META` is
+   stripped of surrounding whitespace and must be non-empty. `VALUE` is then itself speculatively
+   parsed as JSON (`json.loads(VALUE)`):
+   - Parses successfully → the parsed JSON value (dict, list, number, bool, or `null`) is stored.
+     This means a numeric-looking `VALUE` like `--add RecordingDuration=3600` is stored as the
+     Python `int` `3600`, not the string `"3600"`, with **no need to consult the BIDS field
+     table** — the type comes from JSON syntax, not from `META` being a recognized field name.
+   - Not valid JSON → `VALUE` is stored verbatim as a plain string (e.g. `--add
+     AudioCodec=aac` → `"aac"`, since `aac` alone isn't valid JSON).
+
+**Errors** (raised as `ValueError` by `_parse_ext_props`, caught in `do_main` before any file is
+processed — matches [Error Handling](#error-handling)'s "fatal before any file" requirement for
+malformed `--add` input):
+- An entry with no `=` that also isn't a JSON object → `"expected META=VALUE or a JSON object"`.
+- An entry whose `META` (before `=`) is empty/whitespace-only → `"empty META name"`.
+
+**Not yet implemented**: casting `VALUE` to a field's *declared* type from the [BIDS Media-File
+Metadata Fields](#bids-media-file-metadata-fields) table (e.g. forcing `AudioChannelCount` to
+`integer` and erroring on `--add AudioChannelCount=stereo`). The JSON-based parsing above covers
+the common case (numbers/bools/nulls/objects come through typed, plain text stays a string)
+without needing that table, but it can't validate/enforce a *specific* field's declared type or
+range — see [Open Questions / TODOs](#open-questions--todos).
 
 ---
 
 ## Algorithm / Data Flow
 
 ```
-1. Parse --add META=VALUE pairs into a dict, casting known fields per BIDS Media-File
-   Metadata Fields table; error out early (before touching any file) on a casting failure
-   in a --add value, since it applies identically to every file in the batch.
+1. Parse --add entries into ext_props via _parse_ext_props (JSON-object or META=VALUE, VALUE
+   itself JSON-parsed when possible); error out early (before touching any file) on a
+   malformed entry, since it applies identically to every file in the batch.
 
 2. If --videos given: load videos.tsv once (cached), build a path → VaRecord index
    (paths resolved relative to videos.tsv location, matching bids-inject's convention).
@@ -345,8 +367,9 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 | Input `FILE` does not exist                                 | Error and skip that file; continue with the rest of the batch.             |
 | `ffprobe` not installed / fails                              | Error logged (per existing `get_audio_video_info_ffprobe` behavior); fields it would have supplied are simply omitted, not fatal to the whole file unless no fields at all could be determined and no `--add` compensates. |
 | `--videos` given but path not found in `videos.tsv`     | Fall back to `ffprobe` extraction for that file; not an error.             |
-| Malformed `--add META=VALUE` (missing `=`)                    | Fatal error before any file is processed (applies to whole invocation).    |
-| `--add` value fails type casting for a known BIDS field       | Fatal error before any file is processed.                                  |
+| Malformed `--add` entry (no `=`, and not a JSON object) *(implemented)* | Fatal `ValueError` from `_parse_ext_props`, caught in `do_main`; applies to whole invocation, before any file is processed. |
+| `--add` entry's `META` (before `=`) is empty/whitespace *(implemented)* | Same as above — fatal before any file is processed.                        |
+| `--add` value fails declared-type casting for a known BIDS field *(not yet implemented — see [`--add` Value Parsing](#--add-value-parsing-implemented-_parse_ext_props))* | Would be fatal error before any file is processed, once implemented. |
 | Existing sidecar JSON is not valid JSON (`update` mode)        | Error and skip that file; do not attempt a partial merge.                  |
 | Field conflict, `--existing-different error` (default)         | Error and skip that file; report the conflicting field, old and new values.|
 | Field conflict, `--existing-different overwrite`                | Warn and proceed; value is overwritten.                                    |
@@ -377,6 +400,15 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    timing windows.
 6. **`--dry-run` / `-v` options** — added for consistency with sibling commands; confirm desired
    before implementation, since they are not in the original issue text.
-7. **Casting failures for unknown-but-numeric-looking `--add` fields** — currently no casting is
-   attempted for fields outside the BIDS table; revisit if users expect e.g. `--add
-   CustomCount=5` to become an int.
+7. **Casting failures for unknown-but-numeric-looking `--add` fields** — **resolved differently
+   than originally anticipated**: `_parse_ext_props` (implemented) JSON-parses every `VALUE`
+   regardless of whether `META` is a known BIDS field, so `--add CustomCount=5` already becomes
+   the int `5` — no BIDS-table lookup needed for this case.
+8. **Declared-type validation for known BIDS fields** — `_parse_ext_props`'s JSON-based parsing
+   does *not* validate against a field's declared type from the [BIDS Media-File Metadata
+   Fields](#bids-media-file-metadata-fields) table. E.g. `--add AudioChannelCount=stereo` is
+   accepted and stored as the plain string `"stereo"` (not valid JSON, so no error), even though
+   `AudioChannelCount` is declared `integer`. Whether/how to add that validation layer on top of
+   `ext_props` — and whether it belongs in `_parse_ext_props` itself or a later stage once
+   `BidsMediaProperty` carries declared types (see [spec-bids-media.md Open
+   Questions](spec-bids-media.md#open-questions--todos)) — is open.

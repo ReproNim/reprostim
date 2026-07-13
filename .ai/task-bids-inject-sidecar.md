@@ -33,8 +33,11 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
       fields, defaulting to `UPDATE`/`ERROR`
 - [x] `BisContext` also carries `videos_tsv: Optional[str]`, `dry_run: bool`, `verbose: bool`,
       `out_func: Optional[Callable]` — mirrors `bids/inject.py::BiContext`'s field naming/style
+- [x] `BisContext.ext_props: Dict[str, Any]` — parsed `--add` result, see `--add` parsing section
+      below
 - [x] `do_main` converts the CLI's plain `mode`/`existing_different` strings into these enums,
-      and passes `videos`/`dry_run`/`verbose`/`out_func` straight through, when constructing
+      parses `add_meta` via `_parse_ext_props` (fatal-before-processing on error), and passes
+      `videos`/`dry_run`/`verbose`/`out_func`/`ext_props` straight through, when constructing
       `BisContext`
 - [ ] CLI options (`-m/--mode`, `-e/--existing-different`) still just plain `click.Choice` strings
       passed through to `do_main` — not yet themselves enum-typed at the Click layer (matches the
@@ -47,11 +50,22 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
 - [ ] `split_video.py::_to_bids_model` updated to use the shared mapping (no behavior change to existing `split-video`/`bids-inject` output)
 - [ ] *(future, not this issue)* Rename to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 — coordinated pass updating spec/task/code/tests for `split-video` (where this mapping is defined) together with this tool
 
-### `--add` parsing and casting
-- [ ] Parse `--add META=VALUE` into a dict; error on malformed input (missing `=`)
-- [ ] Cast to declared type for known BIDS fields (`int`, `float`, passthrough `str`)
-- [ ] Error out (before processing any file) on a casting failure
-- [ ] Unknown `META` keys stored verbatim as strings, no casting attempted
+### `--add` parsing (implemented: `_parse_ext_props`)
+- [x] Parse `--add META=VALUE` into a dict; error (`ValueError`) on malformed input (no `=` and
+      not a JSON object)
+- [x] Error (`ValueError`) on an empty/whitespace-only `META` name
+- [x] Bare JSON object `--add` entry (e.g. `--add '{"AudioCodec": "aac"}'`) merges its top-level
+      keys directly into the result, taking priority over `META=VALUE` splitting
+- [x] `VALUE` speculatively JSON-parsed — numbers/bools/`null`/objects/arrays come through typed;
+      falls back to a plain string when not valid JSON
+- [x] Multiple `--add` entries merge in order, later keys win on conflict (`dict.update()`)
+- [x] `do_main` catches `_parse_ext_props`'s `ValueError`, reports via `out_func`/`logger.error`,
+      returns `1` before any file is processed
+- [x] `BisContext.ext_props: Dict[str, Any]` holds the parsed result, populated in `do_main`
+- [ ] Cast to declared type for known BIDS fields (`int`, `float`, passthrough `str`) — **not
+      implemented**; JSON-based parsing above already handles the common numeric/bool/null case
+      without a field-type table, but does not validate/enforce a *specific* known field's
+      declared type (see spec Open Questions #8)
 
 ### `--videos` cache lookup
 - [ ] Load `videos.tsv` once, build path → `VaRecord` index (paths resolved relative to `videos.tsv` location)
@@ -127,13 +141,18 @@ Proposed test file location: `tests/bids/test_inject_sidecar.py` (mirrors
 - [ ] `VideoInfo` → BIDS-dict mapping — all fields populated when present
 - [ ] Fields absent from `AudioInfo`/`VideoInfo` are omitted from the output dict, not `"n/a"`
 
-### `--add` parsing and casting
-- [ ] Valid `META=VALUE` for known integer field → cast to `int`
-- [ ] Valid `META=VALUE` for known number field → cast to `float`
-- [ ] Valid `META=VALUE` for known string field → used as-is
-- [ ] Unknown `META` → stored as string, no casting
-- [ ] Malformed input (no `=`) → raises before any file processed
-- [ ] Casting failure (e.g. non-numeric value for integer field) → raises before any file processed
+### `--add` parsing (`_parse_ext_props`) — no automated test file yet, manually verified in dev
+- [ ] `META=VALUE` with a JSON-parseable `VALUE` (e.g. `RecordingDuration=3600`) → int/float/bool/
+      null/dict/list per JSON, not a string
+- [ ] `META=VALUE` with a non-JSON `VALUE` (e.g. `AudioCodec=aac`) → stored as a plain string
+- [ ] Bare JSON object entry (e.g. `'{"AudioCodec": "aac", "AudioSampleRate": 48000}'`) → all
+      top-level keys merged into the result
+- [ ] Bare JSON object entry takes priority even when its content contains a literal `=`
+- [ ] Multiple entries with a conflicting key (via plain `META=VALUE`, bulk JSON, or both) → last
+      one wins
+- [ ] Malformed input (no `=`, not a JSON object) → raises `ValueError` before any file processed
+- [ ] Empty/whitespace-only `META` (e.g. `'=novalue'`) → raises `ValueError`
+- [ ] `do_main` with a malformed `--add` → returns `1`, reports via `out_func`, no file touched
 
 ### `--videos` cache lookup
 - [ ] File found in `videos.tsv` index → cached fields used, `ffprobe` not called for those fields
