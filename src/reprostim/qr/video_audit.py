@@ -77,6 +77,7 @@ class VideoInfo(BaseModel):
     codec_rfc6381: Optional[str] = None  # Video codec in RFC 6381 format
     duration_sec: Optional[float] = None  # Duration in seconds
     fps: Optional[float] = None  # Frames per second
+    frame_count: Optional[int] = None  # Frames count
     height: Optional[int] = None  # Video frame height in pixels
     level: Optional[int] = None  # Video codec level
     pix_fmt: Optional[str] = None  # Pixel format (e.g., "yuv420p")
@@ -477,7 +478,9 @@ def video_codec_to_rfc6381(
 
 
 # NB: move in future to audio package or tool?
-def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
+def get_audio_video_info_ffprobe(
+    path: str, count_frames: bool = False
+) -> Tuple[AudioInfo, VideoInfo]:
     """Extract audio and video stream information from the video file using ffprobe.
 
     Issues a single ffprobe call that reads all streams, then splits results
@@ -486,6 +489,14 @@ def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
 
     :param path: Path to the video file (.mkv, .mp4, .avi)
     :type path: str
+    :param count_frames: When ``True``, pass ``-count_frames`` to ``ffprobe``
+        so it decodes the whole stream to report an exact ``nb_read_frames``
+        count (populates ``VideoInfo.frame_count`` precisely, but is
+        significantly slower — a full decode pass instead of just reading
+        container metadata). When ``False`` (default), ``frame_count`` falls
+        back to the container's ``nb_frames`` field, or an
+        ``fps * duration_sec`` estimate, if available.
+    :type count_frames: bool
 
     :return: Tuple of (AudioInfo, VideoInfo) with extracted stream information.
              Fields are ``None`` when the corresponding stream is absent or a
@@ -504,6 +515,10 @@ def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
             "quiet",  # suppress logs
             "-print_format",
             "json",  # JSON output
+        ]
+        if count_frames:
+            cmd.append("-count_frames")
+        cmd += [
             "-show_streams",  # streams
             path,
         ]
@@ -575,6 +590,27 @@ def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
                 vi.duration_sec = int(h) * 3600 + int(m) * 60 + float(sec)
             elif "duration" in s:
                 vi.duration_sec = float(s["duration"])
+
+            # nb_read_frames (from -count_frames, actual decoded count) is
+            # preferred over nb_frames (container metadata, sometimes
+            # missing/unreliable, e.g. "N/A") when both are present.
+            for frame_count_key in ("nb_read_frames", "nb_frames"):
+                try:
+                    vi.frame_count = int(s[frame_count_key])
+                    break
+                except (KeyError, ValueError, TypeError):
+                    continue
+            if (
+                vi.frame_count is None
+                and vi.duration_sec is not None
+                and vi.fps is not None
+            ):
+                # Exclude the stream's start offset within the container, if
+                # any, for a more accurate estimate.
+                dur_sec = vi.duration_sec
+                if vi.start_time is not None and 0 < vi.start_time < dur_sec:
+                    dur_sec -= vi.start_time
+                vi.frame_count = round(dur_sec * vi.fps)
 
     except FileNotFoundError:
         logger.error("ffprobe is not installed or not in PATH")
