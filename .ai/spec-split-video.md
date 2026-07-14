@@ -61,29 +61,47 @@ to the sidecar file.
 def _to_bids_model(sr: SplitResult, sidecar_metadata: dict | None = None) -> dict
 ```
 
-The optional `sidecar_metadata` dict allows callers to inject extra BIDS fields.
-Currently the only recognised key is `TaskName`; when present it is written as the
-**first** field in the output dict (before `Device`/`DeviceSerialNumber`).
-`bids_inject` populates this from `ScanMetadata.TaskName` at call time.
+The optional `sidecar_metadata` dict allows callers to inject extra BIDS fields:
+`TaskName` (written as the **first** field in the output dict, before `Device`/
+`DeviceSerialNumber`, when present), `VideoCodecRFC6381`, `AudioCodecRFC6381`,
+`ImageBitDepth`, `ImagePixelFormat`, and `VideoFrameCount`. `bids_inject.py::_call_split_video`
+populates all of these — `TaskName` from `ScanMetadata.TaskName`, and the rest from
+`bids/properties.py::bids_properties_from_ffprobe(input_path, props=sidecar_metadata)` (a single
+`ffprobe` call whose result also carries other properties `_to_bids_model` doesn't currently
+read, e.g. `AudioCodec`/`RecordingDuration` — those come from `SplitResult` fields instead, see
+table below; the ffprobe-derived duplicates are harmlessly unused).
+
+**BIDS field name constants:** every dict key below that has a
+[`BidsMediaProperty`](spec-bids-media.md) member (`RecordingDuration`, `VideoCodec`,
+`VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
+`ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`, `AudioSampleRate`,
+`AudioBitDepth`, `AudioChannelCount`) is written via `BidsMediaProperty.*.value`
+(`from reprostim.bids.media import BidsMediaProperty`), not a raw string literal — this is now
+every field in the table below except the three ReproStim/non-BEP044 extras (`TaskName`/
+`Device`/`DeviceSerialNumber`, which have no `BidsMediaProperty` member since they're outside
+BEP044's media-file property table; see [spec-bids-media.md](spec-bids-media.md)).
 
 **`_to_bids_model` field mapping (in output order):**
 
-| Source                       | BIDS field            | Notes                                                      |
-|------------------------------|-----------------------|------------------------------------------------------------|
-| `sidecar_metadata["TaskName"]` | `TaskName`          | First field; omitted when not in `sidecar_metadata`        |
-| `orig_device`                | `Device`              | Capture device name; omitted when `"n/a"`                  |
-| `orig_device_serial_number`  | `DeviceSerialNumber`  | Capture device serial number; omitted when `"n/a"`         |
-| `buffer_duration`            | `RecordingDuration`   | float seconds — total file duration including buffers before and after |
-| `video_codec`                | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
-| *(internal)*                 | `VideoCodecRFC6381`   | Always `"n/a"` when `VideoCodec` present; placeholder until ffprobe integration |
-| `video_frame_rate`           | `FrameRate`           | float Hz                                                   |
-| `video_width`                | `Width`               | int pixels (parsed from string)                            |
-| `video_height`               | `Height`              | int pixels (parsed from string)                            |
-| `audio_codec`                | `AudioCodec`          | FFmpeg codec name string                                   |
-| *(internal)*                 | `AudioCodecRFC6381`   | Always `"n/a"` when `AudioCodec` present; placeholder until ffprobe integration |
-| `audio_sample_rate`          | `AudioSampleRate`     | float Hz (parsed from string)                              |
-| `audio_bit_depth`            | `AudioBitDepth`       | int bits (parsed from string, e.g. `"16"` → `16`)         |
-| `audio_channel_count`        | `AudioChannelCount`   | int (parsed from string)                                   |
+| Source                                          | BIDS field            | Notes                                                      |
+|--------------------------------------------------|-----------------------|--------------------------------------------------------------|
+| `sidecar_metadata["TaskName"]`                    | `TaskName`          | First field; omitted when not in `sidecar_metadata`; no `BidsMediaProperty` member (ReproStim/non-BEP044 extra) |
+| `orig_device`                                    | `Device`              | Capture device name; omitted when `"n/a"`; no `BidsMediaProperty` member |
+| `orig_device_serial_number`                      | `DeviceSerialNumber`  | Capture device serial number; omitted when `"n/a"`; no `BidsMediaProperty` member |
+| `buffer_duration`                                | `RecordingDuration`   | float seconds — total file duration including buffers before and after |
+| `video_codec`                                    | `VideoCodec`          | FFmpeg codec name; set to `"h264"` when resolution present |
+| `sidecar_metadata["VideoCodecRFC6381"]`           | `VideoCodecRFC6381`   | Defaults to `"n/a"` when `VideoCodec` present but not in `sidecar_metadata` |
+| `video_frame_rate`                               | `VideoFrameRate`      | float Hz                                                    |
+| `video_width`                                    | `ImageWidth`          | int pixels (parsed from string)                             |
+| `video_height`                                   | `ImageHeight`         | int pixels (parsed from string)                             |
+| `sidecar_metadata["ImageBitDepth"]`               | `ImageBitDepth`       | int; omitted when absent from `sidecar_metadata`            |
+| `sidecar_metadata["ImagePixelFormat"]`            | `ImagePixelFormat`    | str; omitted when absent from `sidecar_metadata`             |
+| `sidecar_metadata["VideoFrameCount"]`             | `VideoFrameCount`     | int; omitted when absent from `sidecar_metadata`             |
+| `audio_codec`                                    | `AudioCodec`          | FFmpeg codec name string                                   |
+| `sidecar_metadata["AudioCodecRFC6381"]`           | `AudioCodecRFC6381`   | Defaults to `"n/a"` when `AudioCodec` present but not in `sidecar_metadata` |
+| `audio_sample_rate`                              | `AudioSampleRate`     | float Hz (parsed from string)                              |
+| `audio_bit_depth`                                | `AudioBitDepth`       | int bits (parsed from string, e.g. `"16"` → `16`)         |
+| `audio_channel_count`                            | `AudioChannelCount`   | int (parsed from string)                                   |
 
 Fields with value `"n/a"` or `None` are omitted from the BIDS output.
 

@@ -245,9 +245,20 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       `sidecar_metadata` when present *(was: unprefixed `BitDepth` / `PixelFormat`)*
 - [x] `_to_bids_model` omits `ImageBitDepth` / `ImagePixelFormat` when absent from
       `sidecar_metadata`
-- [ ] `Width`/`Height` remain unprefixed in `_to_bids_model` output — **not** renamed to
-      `ImageWidth`/`ImageHeight` in this pass (they come from `sr.video_width`/`sr.video_height`,
-      a different code path than `sidecar_metadata`); see spec Open Questions
+- [x] `_to_bids_model` writes `VideoFrameCount` (int) from `sidecar_metadata` when present, omits
+      when absent — new field, populated via `video.frame_count` (see
+      [task-bids-properties.md](task-bids-properties.md))
+- [x] `_to_bids_model`'s BIDS-field-name dict keys (`RecordingDuration`, `VideoCodec`,
+      `VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
+      `ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`,
+      `AudioSampleRate`, `AudioBitDepth`, `AudioChannelCount`) now reference
+      `BidsMediaProperty.*.value` constants from `bids/media.py` instead of raw string literals.
+      Only `TaskName`/`Device`/`DeviceSerialNumber` remain raw strings (ReproStim/non-BEP044
+      extras — no `BidsMediaProperty` member exists for them).
+- [x] `Width`/`Height` renamed to `ImageWidth`/`ImageHeight` in `_to_bids_model` output (from
+      `sr.video_width`/`sr.video_height`), and `FrameRate` renamed to `VideoFrameRate` (from
+      `sr.video_frame_rate`) — field-naming reconciliation now fully resolved, see spec
+      Open Questions #4
 
 ### Integration tests (with synthetic BIDS fixture)
 

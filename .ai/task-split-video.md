@@ -146,19 +146,40 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_to_bids_model` — full mapping: all populated fields produce correct BIDS keys
 - [x] `_to_bids_model` — `n/a` string fields omitted from output
 - [x] `_to_bids_model` — `None` optional fields omitted from output
-- [x] `_to_bids_model` — numeric fields parsed correctly (`Width`/`Height` as int, `AudioSampleRate` as float, `AudioBitDepth` as int, `AudioChannelCount` as int)
+- [x] `_to_bids_model` — numeric fields parsed correctly (`ImageWidth`/`ImageHeight` as int, `AudioSampleRate` as float, `AudioBitDepth` as int, `AudioChannelCount` as int)
 - [x] `_to_bids_model` — `Device` / `DeviceSerialNumber` from `orig_device` / `orig_device_serial_number` (at start of output)
 - [x] `_to_bids_model` — `AudioBitDepth` after `AudioSampleRate`
 - [x] `_to_bids_model` — `VideoCodec` present when `video_codec="h264"` (resolution known)
 - [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
-- [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` emitted alongside `VideoCodec` as placeholder (no `SplitResult` field; resolved internally)
-- [x] `_to_bids_model` — `AudioCodecRFC6381: "n/a"` emitted alongside `AudioCodec` as placeholder (no `SplitResult` field; resolved internally)
+- [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` default alongside `VideoCodec` when not
+      supplied via `sidecar_metadata`
+- [x] `_to_bids_model` — `AudioCodecRFC6381: "n/a"` default alongside `AudioCodec` when not
+      supplied via `sidecar_metadata`
 - [x] `_to_bids_model` — `TaskName` first field when `sidecar_metadata["TaskName"]` set
 - [x] `_to_bids_model` — `TaskName` absent when `sidecar_metadata` is `None` or empty
 - [x] `_to_bids_model` — `TaskName` precedes `Device` in field order
 - [x] `_write_sidecar` — `sidecar_metadata` threaded through to BIDS output (`TaskName` as first key)
 - [x] `do_main` — `sidecar_metadata` forwarded to `_do_main_specs`
-- [ ] `_to_bids_model` — populate `VideoCodecRFC6381` / `AudioCodecRFC6381` from ffprobe output (future work)
+- [x] `_to_bids_model` — populate `VideoCodecRFC6381` / `AudioCodecRFC6381` from ffprobe output —
+      done via `bids_inject.py::_call_split_video` calling
+      `bids/properties.py::bids_properties_from_ffprobe` and passing the result as
+      `sidecar_metadata`, not inside `_to_bids_model`/`split_video.py` itself
+- [x] `_to_bids_model` — `ImageBitDepth` (int) / `ImagePixelFormat` (str) written from
+      `sidecar_metadata` when present, omitted when absent (`test_to_bids_model_bit_depth_and_pixel_format_from_sidecar_metadata`,
+      `test_to_bids_model_bit_depth_and_pixel_format_absent_when_not_in_sidecar`)
+- [x] `_to_bids_model` — `VideoFrameCount` (int) written from `sidecar_metadata` when present,
+      omitted when absent (`test_to_bids_model_video_frame_count_from_sidecar_metadata`,
+      `test_to_bids_model_video_frame_count_absent_when_not_in_sidecar`)
+- [x] `_to_bids_model`'s BIDS-field-name dict keys reference `BidsMediaProperty.*.value`
+      constants from `bids/media.py` instead of raw string literals, for every key that has a
+      matching member — now all of them except `TaskName`/`Device`/`DeviceSerialNumber`
+      (ReproStim/non-BEP044 extras with no `BidsMediaProperty` member)
+- [x] `_to_bids_model` — `Width`/`Height`/`FrameRate` renamed to `ImageWidth`/`ImageHeight`/
+      `VideoFrameRate` (from `sr.video_width`/`video_height`/`video_frame_rate`), completing the
+      field-naming reconciliation with BEP044 (tests updated:
+      `test_to_bids_model_full_mapping`, `test_to_bids_model_na_fields_omitted`,
+      `test_to_bids_model_none_values_omitted`, `test_to_bids_model_numeric_types`, and the
+      `_write_sidecar`/BIDS-format integration tests)
 
 ### Multi-spec mode
 

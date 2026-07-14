@@ -18,6 +18,7 @@ from typing import List, Optional, Tuple
 import isodate
 from pydantic import BaseModel, Field
 
+from reprostim.bids.media import BidsMediaProperty
 from reprostim.qr.video_audit import VaRecord, find_metadata_json, get_file_video_audit
 
 # initialize the logger
@@ -114,8 +115,10 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
     :param sr: SplitResult to convert
     :param sidecar_metadata: Optional dict with extra BIDS fields to inject.
         Supports ``TaskName`` (written as the first field when present),
-        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``ImageBitDepth``, and
-        ``ImagePixelFormat``.
+        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``ImageBitDepth``,
+        ``ImagePixelFormat``, and ``VideoFrameCount`` (see
+        :class:`reprostim.bids.media.BidsMediaProperty` for the field-name
+        constants backing these keys).
     :return: Dict with BIDS-compliant metadata field names
     """
     result = {}
@@ -132,58 +135,68 @@ def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> d
         result["DeviceSerialNumber"] = sr.orig_device_serial_number
 
     if sr.buffer_duration is not None:
-        result["RecordingDuration"] = sr.buffer_duration
+        result[BidsMediaProperty.RECORDING_DURATION.value] = sr.buffer_duration
 
     if sr.video_codec != "n/a":
-        result["VideoCodec"] = sr.video_codec
-        result["VideoCodecRFC6381"] = (sidecar_metadata or {}).get(
-            "VideoCodecRFC6381", "n/a"
-        )
+        result[BidsMediaProperty.VIDEO_CODEC.value] = sr.video_codec
+        result[BidsMediaProperty.VIDEO_CODEC_RFC6381.value] = (
+            sidecar_metadata or {}
+        ).get(BidsMediaProperty.VIDEO_CODEC_RFC6381.value, "n/a")
 
     if sr.video_frame_rate is not None:
-        result["FrameRate"] = sr.video_frame_rate
+        result[BidsMediaProperty.VIDEO_FRAME_RATE.value] = sr.video_frame_rate
 
     if sr.video_width != "n/a":
         try:
-            result["Width"] = int(sr.video_width)
+            result[BidsMediaProperty.IMAGE_WIDTH.value] = int(sr.video_width)
         except (ValueError, TypeError):
             pass
 
     if sr.video_height != "n/a":
         try:
-            result["Height"] = int(sr.video_height)
+            result[BidsMediaProperty.IMAGE_HEIGHT.value] = int(sr.video_height)
         except (ValueError, TypeError):
             pass
 
     if sidecar_metadata:
-        bit_depth = sidecar_metadata.get("ImageBitDepth")
+        bit_depth = sidecar_metadata.get(BidsMediaProperty.IMAGE_BIT_DEPTH.value)
         if bit_depth is not None:
-            result["ImageBitDepth"] = int(bit_depth)
-        pix_fmt = sidecar_metadata.get("ImagePixelFormat")
+            result[BidsMediaProperty.IMAGE_BIT_DEPTH.value] = int(bit_depth)
+        pix_fmt = sidecar_metadata.get(BidsMediaProperty.IMAGE_PIXEL_FORMAT.value)
         if pix_fmt:
-            result["ImagePixelFormat"] = pix_fmt
+            result[BidsMediaProperty.IMAGE_PIXEL_FORMAT.value] = pix_fmt
+        frame_count = sidecar_metadata.get(BidsMediaProperty.VIDEO_FRAME_COUNT.value)
+        if frame_count is not None:
+            try:
+                result[BidsMediaProperty.VIDEO_FRAME_COUNT.value] = int(frame_count)
+            except (ValueError, TypeError):
+                pass
 
     if sr.audio_codec != "n/a":
-        result["AudioCodec"] = sr.audio_codec
-        result["AudioCodecRFC6381"] = (sidecar_metadata or {}).get(
-            "AudioCodecRFC6381", "n/a"
-        )
+        result[BidsMediaProperty.AUDIO_CODEC.value] = sr.audio_codec
+        result[BidsMediaProperty.AUDIO_CODEC_RFC6381.value] = (
+            sidecar_metadata or {}
+        ).get(BidsMediaProperty.AUDIO_CODEC_RFC6381.value, "n/a")
 
     if sr.audio_sample_rate != "n/a":
         try:
-            result["AudioSampleRate"] = float(sr.audio_sample_rate)
+            result[BidsMediaProperty.AUDIO_SAMPLE_RATE.value] = float(
+                sr.audio_sample_rate
+            )
         except (ValueError, TypeError):
             pass
 
     if sr.audio_bit_depth != "n/a":
         try:
-            result["AudioBitDepth"] = int(sr.audio_bit_depth)
+            result[BidsMediaProperty.AUDIO_BIT_DEPTH.value] = int(sr.audio_bit_depth)
         except (ValueError, TypeError):
             pass
 
     if sr.audio_channel_count != "n/a":
         try:
-            result["AudioChannelCount"] = int(sr.audio_channel_count)
+            result[BidsMediaProperty.AUDIO_CHANNEL_COUNT.value] = int(
+                sr.audio_channel_count
+            )
         except (ValueError, TypeError):
             pass
 

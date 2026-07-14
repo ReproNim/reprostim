@@ -44,11 +44,20 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
       `bids/inject.py` convention of converting str → enum only at the core-logic boundary)
 
 ### Shared BIDS field mapping (prerequisite refactor)
-- [ ] Create `src/reprostim/bids/media.py` with the BIDS Media-File Metadata Fields table (name → type)
-- [ ] Factor `AudioInfo`/`VideoInfo` → BIDS-dict mapping out of `split_video.py::_to_bids_model` into `bids_media.py`
-- [x] Decided (initial implementation): use unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` to match current `split_video.py` output (spec Open Questions #4)
-- [ ] `split_video.py::_to_bids_model` updated to use the shared mapping (no behavior change to existing `split-video`/`bids-inject` output)
-- [ ] *(future, not this issue)* Rename to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 — coordinated pass updating spec/task/code/tests for `split-video` (where this mapping is defined) together with this tool
+- [x] Create `src/reprostim/bids/media.py` with the BIDS Media-File Metadata Fields table (name → type)
+- [x] Factor `AudioInfo`/`VideoInfo` → BIDS-dict mapping out — done as a separate module,
+      `bids/properties.py` (`bids_properties_from_audio_video_info`), not inside `bids/media.py`
+      itself; see [task-bids-properties.md](task-bids-properties.md)
+- [x] **Superseded**: field names are `Image*`-prefixed BEP044 names throughout, not the
+      unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` this item originally decided on as an
+      interim measure — see next item.
+- [ ] `split_video.py::_to_bids_model` updated to use the shared `bids/properties.py` mapping
+      *code* (it already writes the same `Image*`-prefixed field *names* by hand, via
+      `BidsMediaProperty.*.value` — this item is about sharing the mapping logic, not renaming)
+- [x] Renamed to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 —
+      done in `split_video.py::_to_bids_model`, coordinated with `bids/inject.py::_call_split_video`
+      adopting `bids_properties_from_ffprobe`; not yet propagated to `bids-inject-sidecar` itself
+      since `_do_sidecar` isn't implemented yet
 
 ### `--add` parsing (implemented: `_parse_ext_props`)
 - [x] Parse `--add META=VALUE` into a dict; error (`ValueError`) on malformed input (no `=` and
@@ -74,9 +83,14 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
 - [ ] Fall back to `ffprobe` extraction for any file not found in the index, or for fields the TSV doesn't carry
 
 ### `ffprobe` extraction
-- [ ] Reuse `get_audio_video_info_ffprobe` from `src/reprostim/qr/video_audit.py`
+- [ ] Reuse `bids/properties.py::bids_properties_from_ffprobe` (wraps
+      `get_audio_video_info_ffprobe` from `src/reprostim/qr/video_audit.py`) — this already
+      implements the `AudioInfo`/`VideoInfo` → BIDS field mapping below, so `_do_sidecar` should
+      call it directly rather than reimplementing; see [task-bids-properties.md Open
+      Questions](task-bids-properties.md#open-questions--future-work) for the "wire into
+      `_do_sidecar`" item
 - [ ] Map `AudioInfo` fields → BIDS audio fields (`AudioCodec`, `AudioSampleRate`, `AudioChannelCount`, `AudioBitDepth`, `AudioCodecRFC6381`)
-- [ ] Map `VideoInfo` fields → BIDS video fields (`VideoCodec`, `VideoFrameRate`, `VideoCodecRFC6381`, `Width`, `Height`, `PixelFormat`, `BitDepth` — unprefixed for now, see Open Questions / Future Work)
+- [ ] Map `VideoInfo` fields → BIDS video fields (`VideoCodec`, `VideoFrameRate`, `VideoCodecRFC6381`, `ImageWidth`, `ImageHeight`, `ImagePixelFormat`, `ImageBitDepth`, `VideoFrameCount` — `Image*`-prefixed per BEP044, already the naming `bids_properties_from_ffprobe` produces)
 - [ ] `RecordingDuration` derived from stream duration
 - [ ] Omit (not `"n/a"`) fields that cannot be determined
 - [ ] `ffprobe` failure logged, does not abort the whole file unless no fields at all are available

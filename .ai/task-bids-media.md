@@ -45,8 +45,9 @@ Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
       `bids_properties_from_audio_video_info` in `bids/properties.py`, not here; see
       [task-bids-properties.md](task-bids-properties.md)
 - [ ] Factor `split_video.py::_to_bids_model` to use `bids/properties.py` (no behavior change) —
-      note this will need to reconcile `_to_bids_model`'s unprefixed `Width`/`Height`/
-      `PixelFormat`/`BitDepth` output with `BidsMediaProperty`'s `Image*`-prefixed names first
+      naming is already reconciled (`_to_bids_model` writes `ImageWidth`/`ImageHeight`/
+      `ImagePixelFormat`/`ImageBitDepth` via `BidsMediaProperty.*.value`); this item is now just
+      about sharing the mapping code, not field names
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see spec note)
 
 ---
@@ -109,8 +110,8 @@ Proposed test file location: `tests/bids/test_media.py`.
       [task-bids-properties.md](task-bids-properties.md), not here
 - [ ] Declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member
 - [ ] `BidsMediaType` vs. `bids_inject.py::MediaSuffix` reconciliation
-- [ ] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`/`spec-bids-inject-sidecar.md`'s
-      unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` reconciliation
+- [x] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`'s output — resolved,
+      `_to_bids_model` now writes `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth`
 - [ ] `MEDIA_TYPE_MISMATCH` detection — `parse_bids_media_info` never produces it yet; decide
       whether/how (see spec Open Questions)
 - [ ] `parse_bids_media_info`'s video-container ambiguity default (`VIDEO` over `AUDIOVIDEO`

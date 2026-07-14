@@ -303,11 +303,11 @@ Example resolutions:
       [spec-bids-properties.md](spec-bids-properties.md). `bids_properties_from_audio_video_info`
       implemented there; `VaRecord`-based and path-orchestrating entry points still TBD.
 - [x] Field-naming convention for `BidsMediaProperty` decided: `Image*`-prefixed, matching the
-      live BEP044 draft (see note above). **Partially reconciled** with
-      `split_video.py::_to_bids_model`'s output: `PixelFormat`/`BitDepth` there were renamed to
-      `ImagePixelFormat`/`ImageBitDepth` to match; `Width`/`Height` remain unprefixed (different
-      code path — see [spec-bids-inject-sidecar.md Open
-      Questions #4](spec-bids-inject-sidecar.md#open-questions--todos)).
+      live BEP044 draft (see note above). **Fully reconciled** with `split_video.py::_to_bids_model`'s
+      output: `PixelFormat`/`BitDepth`/`Width`/`Height` there were all renamed to
+      `ImagePixelFormat`/`ImageBitDepth`/`ImageWidth`/`ImageHeight` to match (see
+      [spec-bids-inject-sidecar.md Open Questions
+      #4](spec-bids-inject-sidecar.md#open-questions--todos)).
 - [ ] Factor `split_video.py::_to_bids_model` to use `bids_properties_from_*` directly (it
       currently has its own independent field mapping, only coordinated on `Image*` key names by
       hand) — see [spec-bids-properties.md](spec-bids-properties.md).

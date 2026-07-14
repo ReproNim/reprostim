@@ -597,9 +597,9 @@ def test_to_bids_model_full_mapping():
     assert data["RecordingDuration"] == 190.0
     assert data["VideoCodec"] == "h264"
     assert data["VideoCodecRFC6381"] == "n/a"
-    assert data["FrameRate"] == 30.0
-    assert data["Width"] == 1920
-    assert data["Height"] == 1080
+    assert data["VideoFrameRate"] == 30.0
+    assert data["ImageWidth"] == 1920
+    assert data["ImageHeight"] == 1080
     assert data["AudioCodec"] == "aac"
     assert data["AudioCodecRFC6381"] == "n/a"
     assert data["AudioSampleRate"] == 48000.0
@@ -626,15 +626,15 @@ def test_to_bids_model_na_fields_omitted():
 
     assert "Device" not in data
     assert "DeviceSerialNumber" not in data
-    assert "Width" not in data
-    assert "Height" not in data
+    assert "ImageWidth" not in data
+    assert "ImageHeight" not in data
     assert "VideoCodec" not in data
     assert "AudioCodec" not in data
     assert "AudioSampleRate" not in data
     assert "AudioBitDepth" not in data
     assert "AudioChannelCount" not in data
     assert "RecordingDuration" not in data
-    assert data["FrameRate"] == 25.0
+    assert data["VideoFrameRate"] == 25.0
 
 
 def test_to_bids_model_none_values_omitted():
@@ -643,11 +643,12 @@ def test_to_bids_model_none_values_omitted():
     data = _to_bids_model(sr)
 
     assert "RecordingDuration" not in data
-    assert "FrameRate" not in data
+    assert "VideoFrameRate" not in data
 
 
 def test_to_bids_model_numeric_types():
-    """Width/Height are int, AudioSampleRate is float, AudioChannelCount is int."""
+    """ImageWidth/ImageHeight are int, AudioSampleRate is float,
+    AudioChannelCount is int."""
     sr = SplitResult(
         video_width="1280",
         video_height="720",
@@ -656,8 +657,8 @@ def test_to_bids_model_numeric_types():
     )
     data = _to_bids_model(sr)
 
-    assert isinstance(data["Width"], int) and data["Width"] == 1280
-    assert isinstance(data["Height"], int) and data["Height"] == 720
+    assert isinstance(data["ImageWidth"], int) and data["ImageWidth"] == 1280
+    assert isinstance(data["ImageHeight"], int) and data["ImageHeight"] == 720
     assert (
         isinstance(data["AudioSampleRate"], float)
         and data["AudioSampleRate"] == 44100.0
@@ -722,6 +723,21 @@ def test_to_bids_model_bit_depth_and_pixel_format_absent_when_not_in_sidecar():
     data = _to_bids_model(sr)
     assert "ImageBitDepth" not in data
     assert "ImagePixelFormat" not in data
+
+
+def test_to_bids_model_video_frame_count_from_sidecar_metadata():
+    """VideoFrameCount is written when present in sidecar_metadata."""
+    sr = SplitResult(video_codec="h264")
+    data = _to_bids_model(sr, sidecar_metadata={"VideoFrameCount": 270})
+    assert data["VideoFrameCount"] == 270
+    assert isinstance(data["VideoFrameCount"], int)
+
+
+def test_to_bids_model_video_frame_count_absent_when_not_in_sidecar():
+    """VideoFrameCount is omitted when absent from sidecar_metadata."""
+    sr = SplitResult(video_codec="h264")
+    data = _to_bids_model(sr)
+    assert "VideoFrameCount" not in data
 
 
 def test_to_bids_model_no_raw_fields():
@@ -795,7 +811,7 @@ def test_write_sidecar_default_is_bids():
         with open(tmp_path) as f:
             data = json.load(f)
         assert "RecordingDuration" in data
-        assert "FrameRate" in data
+        assert "VideoFrameRate" in data
         assert "duration" not in data
     finally:
         os.unlink(tmp_path)
@@ -811,12 +827,12 @@ def test_write_sidecar_bids_format_explicit():
         with open(tmp_path) as f:
             data = json.load(f)
         assert "RecordingDuration" in data
-        assert "Width" in data
-        assert "Height" in data
+        assert "ImageWidth" in data
+        assert "ImageHeight" in data
         assert "AudioCodec" in data
         assert "AudioSampleRate" in data
         assert "AudioChannelCount" in data
-        assert "FrameRate" in data
+        assert "VideoFrameRate" in data
     finally:
         os.unlink(tmp_path)
 
