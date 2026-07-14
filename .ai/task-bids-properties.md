@@ -21,7 +21,8 @@ Tracks implementation progress against [spec-bids-properties.md](spec-bids-prope
         mapped from `AudioInfo` fields
   - [x] `VideoCodec`/`VideoFrameRate`/`VideoCodecRFC6381`/`ImageWidth`/`ImageHeight`/
         `ImagePixelFormat`/`ImageBitDepth` mapped from `VideoInfo` fields
-  - [x] `VideoFrameCount` intentionally left unpopulated (no source field in `VideoInfo`)
+  - [x] `VideoFrameCount` mapped from `video.frame_count` (now populated upstream in
+        `video_audit.py`)
   - [x] `None`-valued source fields omitted from the result entirely
   - [x] `audio=None` / `video=None` / both `None` handled without error
   - [x] `props=None` (default) → fresh dict created and returned, unchanged behavior
@@ -70,8 +71,10 @@ Tracks implementation progress against [spec-bids-properties.md](spec-bids-prope
 Proposed test file location: `tests/bids/test_properties.py`. No automated tests exist yet —
 manually verified during development (audio+video, audio-only, video-only, neither).
 
-- [ ] `bids_properties_from_audio_video_info(audio, video)` — both present → all mappable fields
-      present, `VideoFrameCount` absent
+- [ ] `bids_properties_from_audio_video_info(audio, video)` — both present, `video.frame_count`
+      set → all mappable fields present including `VideoFrameCount`
+- [ ] `bids_properties_from_audio_video_info(audio, video)` — `video.frame_count=None` →
+      `VideoFrameCount` absent from the result
 - [ ] `bids_properties_from_audio_video_info(audio, None)` — audio-only fields present, no
       video-derived keys, `RecordingDuration` from `audio.duration_sec`
 - [ ] `bids_properties_from_audio_video_info(None, video)` — video-only fields present, no
@@ -108,7 +111,10 @@ manually verified during development (audio+video, audio-only, video-only, neith
       functions
 - [ ] `get_bids_properties` — orchestration entry point (path → va_record lookup →
       `bids_properties_from_ffprobe` fallback)
-- [ ] `VideoFrameCount` source (add upstream field vs. approximate vs. leave unset)
+- [x] `VideoFrameCount` source — resolved: `VideoInfo.frame_count` added to `video_audit.py`
+- [ ] `bids_properties_from_ffprobe` doesn't expose `count_frames` (from
+      `get_audio_video_info_ffprobe`'s new param) — callers can't request the exact/slower
+      frame count through this entry point yet
 - [ ] `RecordingDuration` precedence when `audio.duration_sec` and `video.duration_sec` disagree
 - [ ] `reprostim.qr.video_audit` import path will need updating if/when `video_audit.py` moves
       out of `qr/` per the broader package reorganization

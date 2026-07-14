@@ -103,7 +103,7 @@ caller achieves that by calling the higher-priority source's function *second*.
 | `IMAGE_HEIGHT`        | `video.height`                                    |
 | `IMAGE_PIXEL_FORMAT`  | `video.pix_fmt`                                   |
 | `IMAGE_BIT_DEPTH`     | `video.bit_depth`                                 |
-| `VIDEO_FRAME_COUNT`   | **not populated** — `VideoInfo` has no frame-count field (see Open Questions) |
+| `VIDEO_FRAME_COUNT`   | `video.frame_count` — exact `nb_read_frames` when `get_audio_video_info_ffprobe(path, count_frames=True)` was used, else `nb_frames` (container metadata) or an `fps * duration_sec` estimate (see `video_audit.py`) |
 
 Any source field that is `None` is omitted from the result entirely (never written as `"n/a"` or
 `None`), matching the BEP044 sidecar convention documented in
@@ -154,9 +154,13 @@ rather than raising.
       else `bids_properties_from_ffprobe(path)`. This is what `bids-inject-sidecar`'s
       `_do_sidecar` should eventually call instead of invoking `parse_bids_media_info`/`ffprobe`
       itself.
-- [ ] `VIDEO_FRAME_COUNT` has no direct `ffprobe`-derived source in `VideoInfo` — decide whether
-      to add a frame-count field to `VideoInfo`/`get_audio_video_info_ffprobe` upstream, or
-      approximate it (`fps × duration_sec`) rather than leave it unset (currently: left unset).
+- [x] `VIDEO_FRAME_COUNT` — resolved: `VideoInfo.frame_count` added upstream in `video_audit.py`
+      (exact `nb_read_frames` via new `get_audio_video_info_ffprobe(path, count_frames=True)`
+      param, else `nb_frames`, else `fps × duration_sec` estimate corrected for stream start
+      offset), and wired into `bids_properties_from_audio_video_info`.
+- [ ] `bids_properties_from_ffprobe` doesn't expose `count_frames` — always calls
+      `get_audio_video_info_ffprobe(path)` (default `count_frames=False`), so callers can't
+      request the exact (slower, full-decode) frame count through this entry point yet.
 - [ ] `RecordingDuration` precedence when both `audio.duration_sec` and `video.duration_sec` are
       present but differ (currently: video wins unconditionally) — confirm this is the right
       default, or whether a mismatch should itself be surfaced somehow.

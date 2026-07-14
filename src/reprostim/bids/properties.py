@@ -12,11 +12,15 @@ mapping independently.
 
 See .ai/spec-bids-properties.md for the full specification.
 """
-
+import logging
 from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
 from reprostim.qr.video_audit import AudioInfo, VideoInfo, get_audio_video_info_ffprobe
+
+# initialize the logger
+logger = logging.getLogger(__name__)
+logger.debug(f"name={__name__}")
 
 
 def _set_prop(props: Dict[str, Any], key: BidsMediaProperty, value: Any) -> None:
@@ -85,9 +89,7 @@ def bids_properties_from_audio_video_info(
         _set_prop(props, BidsMediaProperty.IMAGE_HEIGHT, video.height)
         _set_prop(props, BidsMediaProperty.IMAGE_PIXEL_FORMAT, video.pix_fmt)
         _set_prop(props, BidsMediaProperty.IMAGE_BIT_DEPTH, video.bit_depth)
-        # VIDEO_FRAME_COUNT has no direct ffprobe-derived source in
-        # VideoInfo (no frame-count field); left unset rather than
-        # approximating via fps * duration_sec. See spec Open Questions.
+        _set_prop(props, BidsMediaProperty.VIDEO_FRAME_COUNT, video.frame_count)
 
     return props
 
@@ -111,4 +113,6 @@ def bids_properties_from_ffprobe(
     :rtype: Dict[str, Any]
     """
     audio, video = get_audio_video_info_ffprobe(path)
+    # logger.debug(f"audio: {audio}")
+    # logger.debug(f"video: {video}")
     return bids_properties_from_audio_video_info(audio, video, props=props)
