@@ -11,11 +11,13 @@ It lives under the `reprostim.bids` package (`src/reprostim/bids/`) alongside `i
 — see [spec-bids-inject-sidecar.md § File / Module
 Structure](spec-bids-inject-sidecar.md#file--module-structure).
 
-**Status: stub.** The enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`, `ImageFormat`,
-`BidsMediaProperty`, `BidsMediaCodec`), the data models (`BidsMediaInfo`, `BidsMediaInfoError`,
-`BidsMediaErrorCode`), and the path-parsing function (`parse_bids_media_info`) are implemented;
-the `AudioInfo`/`VideoInfo` -> BIDS-dict mapping helpers are still TBD. This document is a
-placeholder to be fleshed out further once that remaining scope is decided.
+**Status: implemented and fully tested.** The enums (`BidsMediaType`, `AudioFormat`,
+`VideoFormat`, `ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), the data models
+(`BidsMediaInfo`, `BidsMediaInfoError`, `BidsMediaErrorCode`), and the path-parsing function
+(`parse_bids_media_info`) are all implemented, with 100% automated test coverage
+(`tests/bids/test_media.py`; see [task-bids-media.md](task-bids-media.md)). The
+`AudioInfo`/`VideoInfo` -> BIDS-dict mapping helpers this module originally described live in a
+separate module, `bids/properties.py` — see [spec-bids-properties.md](spec-bids-properties.md).
 
 Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
