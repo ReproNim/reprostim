@@ -87,7 +87,8 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
       `VideoCodecRFC6381` / `AudioCodecRFC6381` / `ImageBitDepth` / `ImagePixelFormat` (now
       `Image*`-prefixed, per [spec-bids-media.md](spec-bids-media.md)) plus other mappable
       properties (`AudioCodec`, `AudioSampleRate`, `RecordingDuration`, etc.) that
-      `_to_bids_model` doesn't currently read from `sidecar_metadata` (harmlessly unused for now)
+      `bids_properties_from_split_result` doesn't currently read from `sidecar_metadata`
+      (harmlessly unused for now)
       (TODO: future — read from `videos.tsv` columns instead of re-running `ffprobe`)
 - [x] ffprobe errors logged and injection continues (fields simply absent from `sidecar_metadata`)
 
@@ -239,23 +240,23 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       `bids_properties_from_ffprobe` *(was: unprefixed `BitDepth` / `PixelFormat`)*
 - [x] ffprobe failure logs error and injection continues; fields simply absent from
       `sidecar_metadata`
-- [x] `_to_bids_model` uses `VideoCodecRFC6381` / `AudioCodecRFC6381` from `sidecar_metadata` when provided
-- [x] `_to_bids_model` defaults `VideoCodecRFC6381` / `AudioCodecRFC6381` to `"n/a"` when absent
-- [x] `_to_bids_model` writes `ImageBitDepth` (int) / `ImagePixelFormat` (str) from
+- [x] `bids_properties_from_split_result` uses `VideoCodecRFC6381` / `AudioCodecRFC6381` from `sidecar_metadata` when provided
+- [x] `bids_properties_from_split_result` defaults `VideoCodecRFC6381` / `AudioCodecRFC6381` to `"n/a"` when absent
+- [x] `bids_properties_from_split_result` writes `ImageBitDepth` (int) / `ImagePixelFormat` (str) from
       `sidecar_metadata` when present *(was: unprefixed `BitDepth` / `PixelFormat`)*
-- [x] `_to_bids_model` omits `ImageBitDepth` / `ImagePixelFormat` when absent from
+- [x] `bids_properties_from_split_result` omits `ImageBitDepth` / `ImagePixelFormat` when absent from
       `sidecar_metadata`
-- [x] `_to_bids_model` writes `VideoFrameCount` (int) from `sidecar_metadata` when present, omits
+- [x] `bids_properties_from_split_result` writes `VideoFrameCount` (int) from `sidecar_metadata` when present, omits
       when absent — new field, populated via `video.frame_count` (see
       [task-bids-properties.md](task-bids-properties.md))
-- [x] `_to_bids_model`'s BIDS-field-name dict keys (`RecordingDuration`, `VideoCodec`,
+- [x] `bids_properties_from_split_result`'s BIDS-field-name dict keys (`RecordingDuration`, `VideoCodec`,
       `VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
       `ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`,
       `AudioSampleRate`, `AudioBitDepth`, `AudioChannelCount`) now reference
       `BidsMediaProperty.*.value` constants from `bids/media.py` instead of raw string literals.
       Only `TaskName`/`Device`/`DeviceSerialNumber` remain raw strings (ReproStim/non-BEP044
       extras — no `BidsMediaProperty` member exists for them).
-- [x] `Width`/`Height` renamed to `ImageWidth`/`ImageHeight` in `_to_bids_model` output (from
+- [x] `Width`/`Height` renamed to `ImageWidth`/`ImageHeight` in `bids_properties_from_split_result` output (from
       `sr.video_width`/`sr.video_height`), and `FrameRate` renamed to `VideoFrameRate` (from
       `sr.video_frame_rate`) — field-naming reconciliation now fully resolved, see spec
       Open Questions #4

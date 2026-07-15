@@ -2,25 +2,25 @@
 
 ## Overview
 
-`properties.py` (`src/reprostim/bids/properties.py`) extracts BIDS media-file sidecar properties
-(the `BidsMediaProperty` keys defined in [spec-bids-media.md](spec-bids-media.md)) from various
-sources — currently `ffprobe`-derived `AudioInfo`/`VideoInfo` (via
+`properties.py` (`src/reprostim/bids/properties.py`) is the **single place** in the codebase that
+produces BIDS media-file sidecar properties (the `BidsMediaProperty` keys defined in
+[spec-bids-media.md](spec-bids-media.md)) — from `ffprobe`-derived `AudioInfo`/`VideoInfo` (via
 `bids_properties_from_audio_video_info`, or directly from a file path via
-`bids_properties_from_ffprobe`), and in future cached `VaRecord` rows (`videos.tsv`).
+`bids_properties_from_ffprobe`), from a `split-video` result (via
+`bids_properties_from_split_result`), and in future cached `VaRecord` rows (`videos.tsv`).
 
-It is meant to become the **single place** `bids-inject-sidecar`, `bids-inject`, and
-`split-video` all produce BIDS sidecar properties from, instead of each reimplementing the
-`AudioInfo`/`VideoInfo`/`VaRecord` → BIDS-dict mapping independently — see
-[spec-bids-inject-sidecar.md § Relationship to `bids-inject` /
-`split-video`](spec-bids-inject-sidecar.md#relationship-to-bids-inject--split-video).
+This realizes what [spec-bids-inject-sidecar.md § Relationship to `bids-inject` /
+`split-video`](spec-bids-inject-sidecar.md#relationship-to-bids-inject--split-video) originally
+proposed: one module all consumers share, instead of each reimplementing the
+`AudioInfo`/`VideoInfo`/`SplitResult`/`VaRecord` → BIDS-dict mapping independently.
 
-**Status: two APIs implemented and one consumer wired up.** `bids_properties_from_audio_video_info`
-and `bids_properties_from_ffprobe` are done; `bids/inject.py::_call_split_video` now calls
-`bids_properties_from_ffprobe` (replacing its own direct `get_audio_video_info_ffprobe` call +
-manual field selection) to populate `sidecar_metadata`. `bids-inject-sidecar` (`_do_sidecar`) and
-`split_video.py::_to_bids_model` have **not** been wired up yet. The `VaRecord`-based entry point
-and a cache-aware/path-orchestrating wrapper covering both sources are future work (see Open
-Questions).
+**Status: three APIs implemented, two consumers wired up.** `bids_properties_from_audio_video_info`,
+`bids_properties_from_ffprobe`, and `bids_properties_from_split_result` are done.
+`bids/inject.py::_call_split_video` calls `bids_properties_from_ffprobe` to populate
+`sidecar_metadata`; `split_video.py::_write_sidecar` calls `bids_properties_from_split_result`
+(moved here from `split_video.py::_to_bids_model`, which no longer exists). `bids-inject-sidecar`
+(`_do_sidecar`) has **not** been wired up yet. The `VaRecord`-based entry point and a
+cache-aware/path-orchestrating wrapper covering all sources are future work (see Open Questions).
 
 ---
 
@@ -28,11 +28,12 @@ Questions).
 
 `bids/media.py` deliberately stays close to the BEP044 spec — it's the taxonomy (enums,
 `BidsMediaInfo`), not extraction logic (see [spec-bids-media.md §
-Overview](spec-bids-media.md#overview)). Something still has to turn actual `ffprobe`/cache
+Overview](spec-bids-media.md#overview)). Something still has to turn actual `ffprobe`/`split-video`
 output into `BidsMediaProperty`-keyed values, though, and that logic needs one home so
-`bids-inject-sidecar` and `bids-inject`/`split-video` (`split_video.py::_to_bids_model`) stop
-maintaining separate, potentially-drifting copies of the same field mapping. `properties.py` is
-that home.
+`bids-inject-sidecar`, `bids-inject`, and `split-video` don't maintain separate,
+potentially-drifting copies of the same field mapping. `properties.py` is that home —
+`split_video.py::_to_bids_model` was moved here as `bids_properties_from_split_result` for
+exactly this reason.
 
 ---
 
@@ -40,11 +41,23 @@ that home.
 
 `properties.py` depends on `bids/media.py` (for `BidsMediaProperty`) and on
 `reprostim.qr.video_audit` (for `AudioInfo`/`VideoInfo`, and in future `VaRecord`) — not the
-reverse. `bids/inject_sidecar.py`/`bids/inject.py` are expected to depend on `properties.py`
-rather than reaching into `qr.video_audit` directly. **`bids/inject.py` does this already**
-(`_call_split_video` imports `bids_properties_from_ffprobe`, not `get_audio_video_info_ffprobe`);
-`bids/inject_sidecar.py` still imports `parse_bids_media_info` from `bids/media.py` only, not
-`properties.py`.
+reverse. `bids/inject_sidecar.py`/`bids/inject.py`/`qr/split_video.py` are expected to depend on
+`properties.py` rather than reaching into `qr.video_audit` directly or reimplementing the
+mapping. **`bids/inject.py` and `qr/split_video.py` both do this already**
+(`_call_split_video` imports `bids_properties_from_ffprobe`, not `get_audio_video_info_ffprobe`;
+`_write_sidecar` imports `bids_properties_from_split_result`); `bids/inject_sidecar.py` still
+imports `parse_bids_media_info` from `bids/media.py` only, not `properties.py`.
+
+`qr/split_video.py` importing from `bids/properties.py` — `qr/` depending on `bids/` — mirrors
+the same direction already established for `bids/media.py` (`BidsMediaProperty` is a leaf
+taxonomy module anything can depend on); see the broader package-reorganization discussion this
+session.
+
+> **Circularity constraint**: `bids_properties_from_split_result`'s first parameter (`sr`) is
+> deliberately **untyped**, not annotated `reprostim.qr.split_video.SplitResult`. Since
+> `split_video.py` calls into `properties.py`, having `properties.py` import `SplitResult` back
+> from `split_video.py` would be circular. `sr` is documented as duck-typed instead — any object
+> exposing the same attribute names as `SplitResult` works.
 
 > `AudioInfo`/`VideoInfo`/`VaRecord` currently live in `reprostim/qr/video_audit.py`, not yet
 > moved to a `reprostim.media` package (see the broader package-reorganization discussion this
@@ -144,6 +157,41 @@ rather than raising.
 
 ---
 
+## `bids_properties_from_split_result` (implemented)
+
+```python
+def bids_properties_from_split_result(
+    sr, sidecar_metadata: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]: ...
+```
+
+Moved here from `split_video.py::_to_bids_model` (same name pattern as this module's other
+`bids_properties_from_*` functions). Converts a `split-video` result to a BEP044/BEP047 BIDS
+sidecar dict — the function `split_video.py::_write_sidecar` calls for `SidecarFormat.BIDS`
+output.
+
+- **`sr` is untyped** (no `SplitResult` annotation) — see the Layering section's circularity
+  note above. It's expected to expose `SplitResult`'s attributes: `orig_device`,
+  `orig_device_serial_number`, `buffer_duration`, `video_codec`, `video_frame_rate`,
+  `video_width`, `video_height`, `audio_codec`, `audio_sample_rate`, `audio_bit_depth`,
+  `audio_channel_count`.
+- **`sidecar_metadata`** (optional dict) supplies fields `sr` itself doesn't carry: `TaskName`
+  (written first, when present), `VideoCodecRFC6381`, `AudioCodecRFC6381`, `ImageBitDepth`,
+  `ImagePixelFormat`, `VideoFrameCount`. `bids/inject.py::_call_split_video` populates this dict
+  via `bids_properties_from_ffprobe`, so in practice a single `ffprobe` call's result flows
+  through as `sidecar_metadata` here.
+- Unlike the other two functions in this module, `bids_properties_from_split_result` does **not**
+  currently accept a `props` accumulation parameter (see [Shared `props`
+  accumulation](#shared-props-accumulation) above) — it always builds and returns a fresh dict.
+  Adding one for consistency is an open question below.
+- Field mapping: see [spec-split-video.md § BIDS Sidecar
+  Format](spec-split-video.md#bids-sidecar-format---sidecar-format-implemented) for the full
+  source → BIDS-field table (kept there since it documents `SplitResult`'s own field semantics,
+  which this function's docstring can't reference directly due to the circularity constraint
+  above).
+
+---
+
 ## Open Questions / TODOs
 
 - [ ] `bids_properties_from_va_record(record: VaRecord) -> Dict[str, Any]` — map a cached
@@ -168,10 +216,13 @@ rather than raising.
       own direct `get_audio_video_info_ffprobe` call + manual field selection).
 - [ ] Wire `bids_properties_from_ffprobe` into `bids/inject_sidecar.py::_do_sidecar`
       (currently `_do_sidecar` only calls `parse_bids_media_info`, not this module at all).
-- [ ] Factor `split_video.py::_to_bids_model` to use `properties.py` once the `VaRecord`/path
-      orchestration entry points exist (no behavior change to existing `split-video`/`bids-inject`
-      output) — see [spec-bids-inject-sidecar.md Open Questions
-      #3](spec-bids-inject-sidecar.md#open-questions--todos). Note `_to_bids_model` has already
-      been hand-updated to use `ImagePixelFormat`/`ImageBitDepth` (matching what
-      `bids_properties_from_ffprobe` produces) even though it doesn't call into `properties.py`
-      yet — the two are naming-compatible but not yet code-sharing.
+- [x] `split_video.py::_to_bids_model` — **resolved by moving it here**, not by making
+      `split_video.py` call into `properties.py`: it's now `bids_properties_from_split_result`
+      in this module (see above), and `split_video.py::_write_sidecar` calls it. Superseded the
+      original plan (see [spec-bids-inject-sidecar.md Open Questions
+      #3](spec-bids-inject-sidecar.md#open-questions--todos), which described factoring the
+      mapping *out of* `split_video.py` into a shared module — this is that shared module).
+- [ ] `bids_properties_from_split_result` doesn't accept a `props` accumulation parameter, unlike
+      the other two `bids_properties_from_*` functions in this module — add for consistency, or
+      confirm it's not needed since it's not currently composed with another source the way
+      `bids_properties_from_va_record`/`bids_properties_from_ffprobe` will be.

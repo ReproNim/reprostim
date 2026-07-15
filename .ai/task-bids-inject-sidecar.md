@@ -51,13 +51,14 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
 - [x] **Superseded**: field names are `Image*`-prefixed BEP044 names throughout, not the
       unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` this item originally decided on as an
       interim measure — see next item.
-- [ ] `split_video.py::_to_bids_model` updated to use the shared `bids/properties.py` mapping
-      *code* (it already writes the same `Image*`-prefixed field *names* by hand, via
-      `BidsMediaProperty.*.value` — this item is about sharing the mapping logic, not renaming)
+- [x] `split_video.py::_to_bids_model` updated to use the shared `bids/properties.py` mapping
+      code — **done by moving it there wholesale**, as `bids_properties_from_split_result`;
+      `split_video.py` no longer has any BIDS-mapping logic of its own (see
+      [task-bids-properties.md](task-bids-properties.md))
 - [x] Renamed to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 —
-      done in `split_video.py::_to_bids_model`, coordinated with `bids/inject.py::_call_split_video`
-      adopting `bids_properties_from_ffprobe`; not yet propagated to `bids-inject-sidecar` itself
-      since `_do_sidecar` isn't implemented yet
+      done in `bids_properties_from_split_result` (formerly `split_video.py::_to_bids_model`),
+      coordinated with `bids/inject.py::_call_split_video` adopting `bids_properties_from_ffprobe`;
+      not yet propagated to `bids-inject-sidecar` itself since `_do_sidecar` isn't implemented yet
 
 ### `--add` parsing (implemented: `_parse_ext_props`)
 - [x] Parse `--add META=VALUE` into a dict; error (`ValueError`) on malformed input (no `=` and

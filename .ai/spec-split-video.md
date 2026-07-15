@@ -55,33 +55,39 @@ to the sidecar file.
   [bids-standard/bids-specification PR #2367](https://github.com/bids-standard/bids-specification/pull/2367).
 - `raw`: Output is the raw `SplitResult` model dump (previous behaviour, all `orig_*` fields included).
 
-**`_to_bids_model(sr, sidecar_metadata)` signature:**
+**`bids_properties_from_split_result(sr, sidecar_metadata)` — lives in `bids/properties.py`, not
+here:**
+
+The BIDS-dict conversion previously implemented in this file as `_to_bids_model` was **moved to
+`src/reprostim/bids/properties.py` as `bids_properties_from_split_result`** — see
+[spec-bids-properties.md § `bids_properties_from_split_result`](spec-bids-properties.md#bids_properties_from_split_result-implemented)
+for the function itself (signature, the untyped-`sr`/circular-import rationale, `sidecar_metadata`
+semantics). `split_video.py::_write_sidecar` imports and calls it for `SidecarFormat.BIDS` output;
+`split_video.py` has no BIDS-mapping logic of its own anymore.
 
 ```python
-def _to_bids_model(sr: SplitResult, sidecar_metadata: dict | None = None) -> dict
+def bids_properties_from_split_result(sr, sidecar_metadata: dict | None = None) -> dict
 ```
 
-The optional `sidecar_metadata` dict allows callers to inject extra BIDS fields:
-`TaskName` (written as the **first** field in the output dict, before `Device`/
-`DeviceSerialNumber`, when present), `VideoCodecRFC6381`, `AudioCodecRFC6381`,
-`ImageBitDepth`, `ImagePixelFormat`, and `VideoFrameCount`. `bids_inject.py::_call_split_video`
-populates all of these — `TaskName` from `ScanMetadata.TaskName`, and the rest from
+`bids_inject.py::_call_split_video` populates `sidecar_metadata` — `TaskName` from
+`ScanMetadata.TaskName`, and the rest (`VideoCodecRFC6381`, `AudioCodecRFC6381`, `ImageBitDepth`,
+`ImagePixelFormat`, `VideoFrameCount`) from
 `bids/properties.py::bids_properties_from_ffprobe(input_path, props=sidecar_metadata)` (a single
-`ffprobe` call whose result also carries other properties `_to_bids_model` doesn't currently
-read, e.g. `AudioCodec`/`RecordingDuration` — those come from `SplitResult` fields instead, see
-table below; the ffprobe-derived duplicates are harmlessly unused).
+`ffprobe` call whose result also carries other properties this function doesn't currently read,
+e.g. `AudioCodec`/`RecordingDuration` — those come from `SplitResult` fields instead, see table
+below; the ffprobe-derived duplicates are harmlessly unused).
 
 **BIDS field name constants:** every dict key below that has a
 [`BidsMediaProperty`](spec-bids-media.md) member (`RecordingDuration`, `VideoCodec`,
 `VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
 `ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`, `AudioSampleRate`,
 `AudioBitDepth`, `AudioChannelCount`) is written via `BidsMediaProperty.*.value`
-(`from reprostim.bids.media import BidsMediaProperty`), not a raw string literal — this is now
-every field in the table below except the three ReproStim/non-BEP044 extras (`TaskName`/
-`Device`/`DeviceSerialNumber`, which have no `BidsMediaProperty` member since they're outside
-BEP044's media-file property table; see [spec-bids-media.md](spec-bids-media.md)).
+(`from reprostim.bids.media import BidsMediaProperty`, imported in `bids/properties.py`, not
+`split_video.py`) — this is every field in the table below except the three ReproStim/non-BEP044
+extras (`TaskName`/`Device`/`DeviceSerialNumber`, which have no `BidsMediaProperty` member since
+they're outside BEP044's media-file property table; see [spec-bids-media.md](spec-bids-media.md)).
 
-**`_to_bids_model` field mapping (in output order):**
+**`bids_properties_from_split_result` field mapping (in output order):**
 
 | Source                                          | BIDS field            | Notes                                                      |
 |--------------------------------------------------|-----------------------|--------------------------------------------------------------|
@@ -111,11 +117,13 @@ video resolution is detected, reflecting that reprostim-videocapture encodes wit
 and `VideoCodec` is omitted from the BIDS sidecar.
 
 **`VideoCodecRFC6381` / `AudioCodecRFC6381`:** Each is emitted alongside its FFmpeg-name
-counterpart as `"n/a"` — a placeholder indicating the RFC 6381 codec string is not yet
-resolved. Examples: `avc1.640028` (H.264 High Profile Level 4.0), `mp4a.40.2` (AAC-LC).
-Exact values require `ffprobe` to read the encoded profile/level from the output file.
-Both fields are set purely inside `_to_bids_model`; no corresponding fields in `SplitResult`.
-A future enhancement can populate them via ffprobe after the split.
+counterpart, defaulting to `"n/a"` when not supplied via `sidecar_metadata` — no corresponding
+fields exist in `SplitResult` itself. Examples: `avc1.640028` (H.264 High Profile Level 4.0),
+`mp4a.40.2` (AAC-LC). **Now populated in practice**: `bids_inject.py::_call_split_video` runs
+`ffprobe` (via `bids/properties.py::bids_properties_from_ffprobe`) and passes the real RFC 6381
+strings through `sidecar_metadata`, so the `"n/a"` default only shows up when `split-video` is
+invoked directly without that enrichment (e.g. via the bare CLI, or in unit tests that don't
+supply `sidecar_metadata`).
 
 **Example BIDS sidecar JSON (with TaskName from bids_inject):**
 ```json
@@ -126,9 +134,9 @@ A future enhancement can populate them via ffprobe after the split.
   "RecordingDuration": 190.0,
   "VideoCodec": "h264",
   "VideoCodecRFC6381": "n/a",
-  "FrameRate": 30.0,
-  "Width": 1920,
-  "Height": 1080,
+  "VideoFrameRate": 30.0,
+  "ImageWidth": 1920,
+  "ImageHeight": 1080,
   "AudioCodec": "aac",
   "AudioCodecRFC6381": "n/a",
   "AudioSampleRate": 48000.0,
@@ -139,7 +147,8 @@ A future enhancement can populate them via ffprobe after the split.
 
 **`do_main` / `_do_main_specs` / `_write_sidecar` signature:**
 - All accept `sidecar_format: str | None = None`; `None` resolves to `"bids"` at call time.
-- All accept `sidecar_metadata: dict | None = None`; passed through to `_to_bids_model`.
+- All accept `sidecar_metadata: dict | None = None`; passed through to
+  `bids/properties.py::bids_properties_from_split_result`.
 - `_do_main_specs` converts the string to `SidecarFormat` enum analogously to how
   `buffer_policy` is converted to `BufferPolicy`.
 

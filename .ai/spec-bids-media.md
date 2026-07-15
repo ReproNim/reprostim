@@ -303,14 +303,15 @@ Example resolutions:
       [spec-bids-properties.md](spec-bids-properties.md). `bids_properties_from_audio_video_info`
       implemented there; `VaRecord`-based and path-orchestrating entry points still TBD.
 - [x] Field-naming convention for `BidsMediaProperty` decided: `Image*`-prefixed, matching the
-      live BEP044 draft (see note above). **Fully reconciled** with `split_video.py::_to_bids_model`'s
-      output: `PixelFormat`/`BitDepth`/`Width`/`Height` there were all renamed to
+      live BEP044 draft (see note above). **Fully reconciled** with
+      `bids_properties_from_split_result`'s output (formerly `split_video.py::_to_bids_model`):
+      `PixelFormat`/`BitDepth`/`Width`/`Height` were all renamed to
       `ImagePixelFormat`/`ImageBitDepth`/`ImageWidth`/`ImageHeight` to match (see
       [spec-bids-inject-sidecar.md Open Questions
       #4](spec-bids-inject-sidecar.md#open-questions--todos)).
-- [ ] Factor `split_video.py::_to_bids_model` to use `bids_properties_from_*` directly (it
-      currently has its own independent field mapping, only coordinated on `Image*` key names by
-      hand) — see [spec-bids-properties.md](spec-bids-properties.md).
+- [x] `split_video.py::_to_bids_model` moved to `bids/properties.py::bids_properties_from_split_result`
+      — `split_video.py` no longer has any BIDS-mapping logic of its own, resolving the "factor
+      out" item this used to track. See [spec-bids-properties.md](spec-bids-properties.md).
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see note above) — decide
       whether `bids_inject.py` should adopt `BidsMediaType` instead of its own enum.
 - [x] `BidsMediaInfo` / `BidsMediaInfoError` / `BidsMediaErrorCode` implemented as pure data

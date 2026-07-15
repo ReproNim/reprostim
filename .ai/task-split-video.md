@@ -59,11 +59,19 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 ### Sidecar JSON
 - [x] `_resolve_sidecar_path` — derive sidecar path from output path and `--sidecar-json` value
 - [x] `_write_sidecar` — serialise `SplitResult` to JSON file (BIDS or raw format)
-- [x] `_write_sidecar` — accepts `sidecar_metadata: dict | None`; passed to `_to_bids_model`
+- [x] `_write_sidecar` — accepts `sidecar_metadata: dict | None`; passed to
+      `bids_properties_from_split_result` (`bids/properties.py`)
 - [x] `SidecarFormat` enum — `bids` (default) / `raw`
-- [x] `_to_bids_model` — convert `SplitResult` to BEP044/BEP047 BIDS sidecar dict
-- [x] `_to_bids_model` — accepts `sidecar_metadata: dict | None = None`
-- [x] `_to_bids_model` — `TaskName` from `sidecar_metadata` written as **first** field when present
+- [x] BIDS-dict conversion — **moved to `bids/properties.py::bids_properties_from_split_result`**
+      (was `_to_bids_model`, defined in this file; no BIDS-mapping logic remains in
+      `split_video.py` itself). Full checklist now tracked in
+      [task-bids-properties.md](task-bids-properties.md), not here — the entries below are kept
+      only as a historical record of what was verified before the move.
+- [x] `_to_bids_model` *(historical, pre-move)* — convert `SplitResult` to BEP044/BEP047 BIDS
+      sidecar dict
+- [x] `_to_bids_model` *(historical, pre-move)* — accepts `sidecar_metadata: dict | None = None`
+- [x] `_to_bids_model` *(historical, pre-move)* — `TaskName` from `sidecar_metadata` written as
+      **first** field when present
 - [x] `SplitResult.video_codec` — new field; set to `"h264"` when resolution present (reprostim uses `-c:v libx264`)
 - [x] `auto` / flag-only → `<output>.split-video.jsonl`
 - [x] Explicit path → use that path (treated as template in multi-spec mode)
@@ -143,43 +151,18 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 - [x] `_write_sidecar` — default format is BIDS
 - [x] `_write_sidecar` — BIDS format: correct BIDS field names written
 - [x] `_write_sidecar` — raw format: raw `SplitResult` fields written when `sidecar_format="raw"`
-- [x] `_to_bids_model` — full mapping: all populated fields produce correct BIDS keys
-- [x] `_to_bids_model` — `n/a` string fields omitted from output
-- [x] `_to_bids_model` — `None` optional fields omitted from output
-- [x] `_to_bids_model` — numeric fields parsed correctly (`ImageWidth`/`ImageHeight` as int, `AudioSampleRate` as float, `AudioBitDepth` as int, `AudioChannelCount` as int)
-- [x] `_to_bids_model` — `Device` / `DeviceSerialNumber` from `orig_device` / `orig_device_serial_number` (at start of output)
-- [x] `_to_bids_model` — `AudioBitDepth` after `AudioSampleRate`
-- [x] `_to_bids_model` — `VideoCodec` present when `video_codec="h264"` (resolution known)
-- [x] `_to_bids_model` — `VideoCodec` absent when `video_codec="n/a"` (no video stream)
-- [x] `_to_bids_model` — `VideoCodecRFC6381: "n/a"` default alongside `VideoCodec` when not
-      supplied via `sidecar_metadata`
-- [x] `_to_bids_model` — `AudioCodecRFC6381: "n/a"` default alongside `AudioCodec` when not
-      supplied via `sidecar_metadata`
-- [x] `_to_bids_model` — `TaskName` first field when `sidecar_metadata["TaskName"]` set
-- [x] `_to_bids_model` — `TaskName` absent when `sidecar_metadata` is `None` or empty
-- [x] `_to_bids_model` — `TaskName` precedes `Device` in field order
 - [x] `_write_sidecar` — `sidecar_metadata` threaded through to BIDS output (`TaskName` as first key)
 - [x] `do_main` — `sidecar_metadata` forwarded to `_do_main_specs`
-- [x] `_to_bids_model` — populate `VideoCodecRFC6381` / `AudioCodecRFC6381` from ffprobe output —
-      done via `bids_inject.py::_call_split_video` calling
-      `bids/properties.py::bids_properties_from_ffprobe` and passing the result as
-      `sidecar_metadata`, not inside `_to_bids_model`/`split_video.py` itself
-- [x] `_to_bids_model` — `ImageBitDepth` (int) / `ImagePixelFormat` (str) written from
-      `sidecar_metadata` when present, omitted when absent (`test_to_bids_model_bit_depth_and_pixel_format_from_sidecar_metadata`,
-      `test_to_bids_model_bit_depth_and_pixel_format_absent_when_not_in_sidecar`)
-- [x] `_to_bids_model` — `VideoFrameCount` (int) written from `sidecar_metadata` when present,
-      omitted when absent (`test_to_bids_model_video_frame_count_from_sidecar_metadata`,
-      `test_to_bids_model_video_frame_count_absent_when_not_in_sidecar`)
-- [x] `_to_bids_model`'s BIDS-field-name dict keys reference `BidsMediaProperty.*.value`
-      constants from `bids/media.py` instead of raw string literals, for every key that has a
-      matching member — now all of them except `TaskName`/`Device`/`DeviceSerialNumber`
-      (ReproStim/non-BEP044 extras with no `BidsMediaProperty` member)
-- [x] `_to_bids_model` — `Width`/`Height`/`FrameRate` renamed to `ImageWidth`/`ImageHeight`/
-      `VideoFrameRate` (from `sr.video_width`/`video_height`/`video_frame_rate`), completing the
-      field-naming reconciliation with BEP044 (tests updated:
-      `test_to_bids_model_full_mapping`, `test_to_bids_model_na_fields_omitted`,
-      `test_to_bids_model_none_values_omitted`, `test_to_bids_model_numeric_types`, and the
-      `_write_sidecar`/BIDS-format integration tests)
+- [x] **`bids_properties_from_split_result` (the BIDS-mapping logic itself, `_to_bids_model` as
+      was) — moved out of this file to `bids/properties.py`; its full test checklist (mapping
+      correctness, `n/a`/`None` omission, numeric parsing, `TaskName`/`Device` ordering,
+      `VideoCodecRFC6381`/`AudioCodecRFC6381`/`ImageBitDepth`/`ImagePixelFormat`/
+      `VideoFrameCount` from `sidecar_metadata`, `BidsMediaProperty.*.value` constant usage,
+      `Image*`-prefixed naming) now lives in
+      [task-bids-properties.md](task-bids-properties.md), not here. All 17 tests moved verbatim
+      from this file to `tests/bids/test_properties.py` (renamed `test_to_bids_model_*` →
+      `test_bids_properties_from_split_result_*`); `_write_sidecar`'s own integration tests above
+      stayed here since they test `_write_sidecar`, not the mapping function directly.**
 
 ### Multi-spec mode
 

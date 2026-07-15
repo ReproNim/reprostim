@@ -2,8 +2,10 @@
 
 Tracks implementation progress against [spec-bids-properties.md](spec-bids-properties.md).
 
-**Status:** two APIs implemented. `bids_properties_from_audio_video_info` and
-`bids_properties_from_ffprobe` are done and tested manually; no automated test file exists yet.
+**Status:** three APIs implemented, automated tests exist for `bids_properties_from_split_result`
+(`tests/bids/test_properties.py`, 17 tests, moved from `tests/qr/test_split_video.py`'s
+`_to_bids_model` tests). `bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`
+are done and tested manually only — no automated test file for those two yet.
 
 ---
 
@@ -48,14 +50,27 @@ Tracks implementation progress against [spec-bids-properties.md](spec-bids-prope
       `get_audio_video_info_ffprobe` call + manual `VideoCodecRFC6381`/`AudioCodecRFC6381`/
       `BitDepth`/`PixelFormat` selection with `bids_properties_from_ffprobe(input_path,
       props=sidecar_metadata)`; `sidecar_metadata` now also carries the other mappable
-      properties (`AudioCodec`, `RecordingDuration`, etc.) that `_to_bids_model` doesn't
-      currently read, harmlessly unused
+      properties (`AudioCodec`, `RecordingDuration`, etc.) that `bids_properties_from_split_result`
+      doesn't currently read, harmlessly unused
 - [ ] Wire into `bids/inject_sidecar.py::_do_sidecar` (currently calls `parse_bids_media_info`
       only, not this module)
-- [ ] Factor `split_video.py::_to_bids_model` to use this module (no behavior change) — note
-      `_to_bids_model` was hand-updated to the `Image*`-prefixed key names
-      (`ImagePixelFormat`/`ImageBitDepth`) this module already used, so the two are
-      naming-compatible now even though not yet code-sharing
+- [x] `bids_properties_from_split_result(sr, sidecar_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]`
+      — **moved here from `split_video.py::_to_bids_model`** (not just naming-compatible
+      anymore, actually the same code); `split_video.py::_write_sidecar` now imports and calls
+      it. `split_video.py` no longer has any BIDS-mapping logic of its own.
+  - [x] First parameter `sr` is intentionally **untyped** (no `SplitResult` annotation) — avoids
+        `properties.py` importing from `qr/split_video.py`, which would be circular since
+        `split_video.py` imports `bids_properties_from_split_result` from here
+  - [x] `TaskName`/`Device`/`DeviceSerialNumber`/`RecordingDuration`/`VideoCodec`/
+        `VideoCodecRFC6381`/`VideoFrameRate`/`ImageWidth`/`ImageHeight`/`ImageBitDepth`/
+        `ImagePixelFormat`/`VideoFrameCount`/`AudioCodec`/`AudioCodecRFC6381`/
+        `AudioSampleRate`/`AudioBitDepth`/`AudioChannelCount` all mapped (see
+        [spec-split-video.md](spec-split-video.md) for the full source → field table)
+  - [x] Does **not** currently accept a `props` accumulation parameter, unlike the other two
+        functions in this module (open question below)
+  - [x] `src/reprostim/qr/split_video.py` imports it from `reprostim.bids.properties`; the
+        now-unused `from reprostim.bids.media import BidsMediaProperty` import was removed from
+        `split_video.py` (moved with the function)
 
 ---
 
@@ -68,8 +83,38 @@ Tracks implementation progress against [spec-bids-properties.md](spec-bids-prope
 
 ## Tests and Code Coverage
 
-Proposed test file location: `tests/bids/test_properties.py`. No automated tests exist yet —
-manually verified during development (audio+video, audio-only, video-only, neither).
+Test file: `tests/bids/test_properties.py` (exists — 17 tests for
+`bids_properties_from_split_result`, moved verbatim from `tests/qr/test_split_video.py`'s
+`_to_bids_model` tests and renamed; see checklist below). `bids_properties_from_audio_video_info`/
+`bids_properties_from_ffprobe` still have **no automated tests** — manually verified during
+development only (audio+video, audio-only, video-only, neither).
+
+### `bids_properties_from_split_result` (implemented, in `tests/bids/test_properties.py`)
+
+- [x] `test_bids_properties_from_split_result_full_mapping` — all populated `SplitResult` fields
+      map to correct BIDS keys
+- [x] `test_bids_properties_from_split_result_na_fields_omitted` — `"n/a"`-valued fields omitted
+- [x] `test_bids_properties_from_split_result_none_values_omitted` — `None`-valued fields omitted
+- [x] `test_bids_properties_from_split_result_numeric_types` — `ImageWidth`/`ImageHeight` as int,
+      `AudioSampleRate` as float, `AudioChannelCount` as int
+- [x] `test_bids_properties_from_split_result_video_codec_present_when_resolution_known`
+- [x] `test_bids_properties_from_split_result_video_codec_absent_when_na`
+- [x] `test_bids_properties_from_split_result_rfc6381_from_sidecar_metadata`
+- [x] `test_bids_properties_from_split_result_rfc6381_defaults_to_na_without_sidecar_metadata`
+- [x] `test_bids_properties_from_split_result_bit_depth_and_pixel_format_from_sidecar_metadata`
+- [x] `test_bids_properties_from_split_result_bit_depth_and_pixel_format_absent_when_not_in_sidecar`
+- [x] `test_bids_properties_from_split_result_video_frame_count_from_sidecar_metadata`
+- [x] `test_bids_properties_from_split_result_video_frame_count_absent_when_not_in_sidecar`
+- [x] `test_bids_properties_from_split_result_no_raw_fields` — no raw `SplitResult` field names
+      leak into BIDS output
+- [x] `test_bids_properties_from_split_result_task_name_first_field`
+- [x] `test_bids_properties_from_split_result_task_name_absent_when_not_in_metadata`
+- [x] `test_bids_properties_from_split_result_task_name_absent_when_metadata_is_none`
+- [x] `test_bids_properties_from_split_result_task_name_first_before_device`
+- [ ] No test covers `sr` being a non-`SplitResult` duck-typed object (only real `SplitResult`
+      instances used) — the untyped-parameter contract itself isn't directly exercised
+
+### `bids_properties_from_audio_video_info` / `bids_properties_from_ffprobe` (not yet automated)
 
 - [ ] `bids_properties_from_audio_video_info(audio, video)` — both present, `video.frame_count`
       set → all mappable fields present including `VideoFrameCount`
@@ -118,3 +163,8 @@ manually verified during development (audio+video, audio-only, video-only, neith
 - [ ] `RecordingDuration` precedence when `audio.duration_sec` and `video.duration_sec` disagree
 - [ ] `reprostim.qr.video_audit` import path will need updating if/when `video_audit.py` moves
       out of `qr/` per the broader package reorganization
+- [ ] `bids_properties_from_split_result` doesn't accept a `props` accumulation parameter — add
+      for consistency with the other two `bids_properties_from_*` functions, or confirm not
+      needed
+- [ ] Automated tests for `bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`
+      — still manual-only, unlike `bids_properties_from_split_result`

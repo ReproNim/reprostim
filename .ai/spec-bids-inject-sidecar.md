@@ -162,14 +162,15 @@ a plain string (no casting attempted).
 
 > **Naming status: fully migrated to `Image*`-prefixed BEP044 names.** The BEP044
 > (media-files, PR #2367) draft specifies `ImageWidth` / `ImageHeight` / `ImagePixelFormat` /
-> `ImageBitDepth`. `split_video.py::_to_bids_model` (used by `split-video`/`bids-inject`, and the
-> reference this table matches) now writes all four `Image*`-prefixed names — `ImagePixelFormat`/
-> `ImageBitDepth` were renamed first (coordinated with `bids/inject.py` switching to
-> `bids/properties.py::bids_properties_from_ffprobe`, see
-> [spec-bids-properties.md](spec-bids-properties.md)), and `ImageWidth`/`ImageHeight` (from
-> `SplitResult.video_width`/`video_height`) followed in a second pass. Every key in this table
-> that has a matching [`BidsMediaProperty`](spec-bids-media.md) member is now written via
-> `BidsMediaProperty.*.value` in `_to_bids_model`, not a raw string literal — see
+> `ImageBitDepth`. `bids/properties.py::bids_properties_from_split_result` (used by
+> `split-video`/`bids-inject` via `split_video.py::_write_sidecar`; this logic used to live
+> directly in `split_video.py` as `_to_bids_model`, moved out — see
+> [spec-bids-properties.md](spec-bids-properties.md)) writes all four `Image*`-prefixed names —
+> `ImagePixelFormat`/`ImageBitDepth` were renamed first (coordinated with `bids/inject.py`
+> switching to `bids/properties.py::bids_properties_from_ffprobe`), and `ImageWidth`/
+> `ImageHeight` (from `SplitResult.video_width`/`video_height`) followed in a second pass. Every
+> key in this table that has a matching [`BidsMediaProperty`](spec-bids-media.md) member is
+> written via `BidsMediaProperty.*.value`, not a raw string literal — see
 > [Relationship to `bids-inject` / `split-video`](#relationship-to-bids-inject--split-video).
 
 ---
@@ -325,7 +326,8 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 
 ## Relationship to `bids-inject` / `split-video`
 
-`split_video.py` already contains `_to_bids_model()` and `_write_sidecar()`, used by
+`split_video.py::_write_sidecar()` (via `bids/properties.py::bids_properties_from_split_result`
+for the BIDS-dict mapping itself, moved out of `split_video.py` — see below) is used by
 `split-video --sidecar-json` and, transitively, by `bids-inject` (see
 [spec-bids-inject.md § Outputs → B](spec-bids-inject.md#b-sidecar-metadata--bep047behavior--reprostim-extras)).
 That existing logic is narrower in scope: it only ever writes a **fresh** sidecar for a file
@@ -336,15 +338,16 @@ pre-existing sidecar.
 explicit merge/conflict semantics. Recommended (but out of scope for the initial
 `bids-inject-sidecar` implementation) follow-up work:
 
-1. **Done, differently than originally proposed**: the BIDS field-name/type table lives in
-   `bids/media.py` (`BidsMediaProperty`), and the `AudioInfo`/`VideoInfo` → BIDS-dict mapping in a
-   separate `bids/properties.py` (`bids_properties_from_audio_video_info`/
-   `bids_properties_from_ffprobe`) — see [spec-bids-properties.md](spec-bids-properties.md).
-   `split_video.py::_to_bids_model` itself has **not** been factored to use it yet (still its own
-   independent implementation); `bids/inject.py::_call_split_video` has adopted
-   `bids_properties_from_ffprobe`.
+1. **Done**: the BIDS field-name/type table lives in `bids/media.py` (`BidsMediaProperty`), and
+   the `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping in a separate
+   `bids/properties.py` (`bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`/
+   `bids_properties_from_split_result`) — see [spec-bids-properties.md](spec-bids-properties.md).
+   `split_video.py::_to_bids_model` was moved into `bids/properties.py` wholesale as
+   `bids_properties_from_split_result` (not just referenced from a still-separate
+   implementation, as originally proposed) — `split_video.py` has no BIDS-mapping logic of its
+   own anymore. `bids/inject.py::_call_split_video` has adopted `bids_properties_from_ffprobe`.
 2. **Done**: `PixelFormat`/`BitDepth`/`Width`/`Height` vs `ImagePixelFormat`/`ImageBitDepth`/
-   `ImageWidth`/`ImageHeight` reconciled — `split_video.py::_to_bids_model` now writes all four
+   `ImageWidth`/`ImageHeight` reconciled — `bids_properties_from_split_result` writes all four
    `Image*`-prefixed names (see [BIDS Media-File Metadata
    Fields](#bids-media-file-metadata-fields) note above).
 3. Have `split_video.py::_write_sidecar` optionally delegate to `bids-inject-sidecar`'s
@@ -391,16 +394,19 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 2. **Format-preserving JSON updates** — evaluate/contribute to
    [bids-utils](https://github.com/bids-standard/bids-utils/) so `update` mode can minimize diffs
    against hand-edited sidecars instead of rewriting with `json.dumps`.
-3. **Shared `bids_media.py` extraction** — factor `_to_bids_model`'s field mapping out of
-   `split_video.py` so `bids-inject`/`split-video` and `bids-inject-sidecar` share one source of
-   truth (see [Relationship](#relationship-to-bids-inject--split-video)).
-4. **Field naming reconciliation** — **resolved**: `split_video.py::_to_bids_model` now writes
-   all four `Image*`-prefixed BEP044 names — `ImageBitDepth`/`ImagePixelFormat` (renamed first,
-   coordinated with `bids/inject.py::_call_split_video` switching to
-   `bids_properties_from_ffprobe` — see [spec-bids-properties.md](spec-bids-properties.md)), then
-   `ImageWidth`/`ImageHeight` (renamed from `SplitResult.video_width`/`video_height`-sourced
-   `Width`/`Height` in a follow-up pass). Every `_to_bids_model` key with a matching
-   `BidsMediaProperty` member is written via `BidsMediaProperty.*.value`, not a raw string
+3. **Shared `bids_media.py` extraction** — **done, and taken further than proposed**:
+   `_to_bids_model`'s field mapping wasn't just factored out of `split_video.py`, it was *moved*
+   wholesale into `bids/properties.py` as `bids_properties_from_split_result` — `split_video.py`
+   now imports and calls it rather than containing any mapping logic itself (see
+   [Relationship](#relationship-to-bids-inject--split-video)).
+4. **Field naming reconciliation** — **resolved**: `bids_properties_from_split_result` (formerly
+   `split_video.py::_to_bids_model`) writes all four `Image*`-prefixed BEP044 names —
+   `ImageBitDepth`/`ImagePixelFormat` (renamed first, coordinated with
+   `bids/inject.py::_call_split_video` switching to `bids_properties_from_ffprobe` — see
+   [spec-bids-properties.md](spec-bids-properties.md)), then `ImageWidth`/`ImageHeight` (renamed
+   from `SplitResult.video_width`/`video_height`-sourced `Width`/`Height` in a follow-up pass).
+   Every key with a matching `BidsMediaProperty` member is written via
+   `BidsMediaProperty.*.value`, not a raw string
    literal — see [Relationship](#relationship-to-bids-inject--split-video) item 2.
 5. **`--videos` path-matching precision** — exact resolved-path match vs. the time-range
    matching `bids-inject` uses (`find_video_audit_by_timerange`); a plain path match is proposed

@@ -4,11 +4,12 @@
 
 """
 Extraction of BIDS media-file properties (sidecar-JSON-key-keyed values)
-from ffprobe results, and in future from cached VaRecord (videos.tsv) rows
-and file paths. Meant to become the single place bids-inject-sidecar,
-bids-inject, and split-video produce BIDS sidecar properties from, instead
-of each reimplementing the AudioInfo/VideoInfo/VaRecord -> BIDS-dict
-mapping independently.
+from ffprobe results, split-video results, and in future from cached
+VaRecord (videos.tsv) rows and file paths. The single place
+bids-inject-sidecar, bids-inject, and split-video produce BIDS sidecar
+properties from, instead of each reimplementing the
+AudioInfo/VideoInfo/SplitResult/VaRecord -> BIDS-dict mapping
+independently.
 
 See .ai/spec-bids-properties.md for the full specification.
 """
@@ -116,3 +117,114 @@ def bids_properties_from_ffprobe(
     # logger.debug(f"audio: {audio}")
     # logger.debug(f"video: {video}")
     return bids_properties_from_audio_video_info(audio, video, props=props)
+
+
+def bids_properties_from_split_result(
+    sr, sidecar_metadata: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Convert a split-video result to a BEP044/BEP047 BIDS sidecar dict.
+
+    Maps a video-splitting result's fields to BIDS metadata field names as
+    defined in the common media file definitions
+    (bids-standard/bids-specification PR #2367).
+
+    *sr* is intentionally **untyped**: annotating it as
+    ``reprostim.qr.split_video.SplitResult`` would make this module import
+    from ``qr.split_video`` — but ``split_video.py`` is the caller of this
+    function, so that import would be circular. *sr* is expected to expose
+    the same attributes as ``SplitResult``: ``orig_device``,
+    ``orig_device_serial_number``, ``buffer_duration``, ``video_codec``,
+    ``video_frame_rate``, ``video_width``, ``video_height``, ``audio_codec``,
+    ``audio_sample_rate``, ``audio_bit_depth``, ``audio_channel_count``.
+
+    :param sr: Split-result-like object to convert (see note above).
+    :param sidecar_metadata: Optional dict with extra BIDS fields to inject.
+        Supports ``TaskName`` (written as the first field when present),
+        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``ImageBitDepth``,
+        ``ImagePixelFormat``, and ``VideoFrameCount`` (see
+        :class:`BidsMediaProperty` for the field-name constants backing
+        these keys).
+    :type sidecar_metadata: Optional[Dict[str, Any]]
+    :return: Dict with BIDS-compliant metadata field names.
+    :rtype: Dict[str, Any]
+    """
+    result: Dict[str, Any] = {}
+
+    if sidecar_metadata:
+        task_name = sidecar_metadata.get("TaskName")
+        if task_name:
+            result["TaskName"] = task_name
+
+    if sr.orig_device != "n/a":
+        result["Device"] = sr.orig_device
+
+    if sr.orig_device_serial_number != "n/a":
+        result["DeviceSerialNumber"] = sr.orig_device_serial_number
+
+    if sr.buffer_duration is not None:
+        result[BidsMediaProperty.RECORDING_DURATION.value] = sr.buffer_duration
+
+    if sr.video_codec != "n/a":
+        result[BidsMediaProperty.VIDEO_CODEC.value] = sr.video_codec
+        result[BidsMediaProperty.VIDEO_CODEC_RFC6381.value] = (
+            sidecar_metadata or {}
+        ).get(BidsMediaProperty.VIDEO_CODEC_RFC6381.value, "n/a")
+
+    if sr.video_frame_rate is not None:
+        result[BidsMediaProperty.VIDEO_FRAME_RATE.value] = sr.video_frame_rate
+
+    if sr.video_width != "n/a":
+        try:
+            result[BidsMediaProperty.IMAGE_WIDTH.value] = int(sr.video_width)
+        except (ValueError, TypeError):
+            pass
+
+    if sr.video_height != "n/a":
+        try:
+            result[BidsMediaProperty.IMAGE_HEIGHT.value] = int(sr.video_height)
+        except (ValueError, TypeError):
+            pass
+
+    if sidecar_metadata:
+        bit_depth = sidecar_metadata.get(BidsMediaProperty.IMAGE_BIT_DEPTH.value)
+        if bit_depth is not None:
+            result[BidsMediaProperty.IMAGE_BIT_DEPTH.value] = int(bit_depth)
+        pix_fmt = sidecar_metadata.get(BidsMediaProperty.IMAGE_PIXEL_FORMAT.value)
+        if pix_fmt:
+            result[BidsMediaProperty.IMAGE_PIXEL_FORMAT.value] = pix_fmt
+        frame_count = sidecar_metadata.get(BidsMediaProperty.VIDEO_FRAME_COUNT.value)
+        if frame_count is not None:
+            try:
+                result[BidsMediaProperty.VIDEO_FRAME_COUNT.value] = int(frame_count)
+            except (ValueError, TypeError):
+                pass
+
+    if sr.audio_codec != "n/a":
+        result[BidsMediaProperty.AUDIO_CODEC.value] = sr.audio_codec
+        result[BidsMediaProperty.AUDIO_CODEC_RFC6381.value] = (
+            sidecar_metadata or {}
+        ).get(BidsMediaProperty.AUDIO_CODEC_RFC6381.value, "n/a")
+
+    if sr.audio_sample_rate != "n/a":
+        try:
+            result[BidsMediaProperty.AUDIO_SAMPLE_RATE.value] = float(
+                sr.audio_sample_rate
+            )
+        except (ValueError, TypeError):
+            pass
+
+    if sr.audio_bit_depth != "n/a":
+        try:
+            result[BidsMediaProperty.AUDIO_BIT_DEPTH.value] = int(sr.audio_bit_depth)
+        except (ValueError, TypeError):
+            pass
+
+    if sr.audio_channel_count != "n/a":
+        try:
+            result[BidsMediaProperty.AUDIO_CHANNEL_COUNT.value] = int(
+                sr.audio_channel_count
+            )
+        except (ValueError, TypeError):
+            pass
+
+    return result
