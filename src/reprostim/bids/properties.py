@@ -188,7 +188,10 @@ def bids_properties_from_split_result(
     if sidecar_metadata:
         bit_depth = sidecar_metadata.get(BidsMediaProperty.IMAGE_BIT_DEPTH.value)
         if bit_depth is not None:
-            result[BidsMediaProperty.IMAGE_BIT_DEPTH.value] = int(bit_depth)
+            try:
+                result[BidsMediaProperty.IMAGE_BIT_DEPTH.value] = int(bit_depth)
+            except (ValueError, TypeError):
+                pass
         pix_fmt = sidecar_metadata.get(BidsMediaProperty.IMAGE_PIXEL_FORMAT.value)
         if pix_fmt:
             result[BidsMediaProperty.IMAGE_PIXEL_FORMAT.value] = pix_fmt
