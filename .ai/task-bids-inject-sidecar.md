@@ -2,14 +2,12 @@
 
 Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md).
 
-**Basic end-to-end logic is implemented and manually verified** (`_do_sidecar` in
-`bids/inject_sidecar.py`): `ffprobe`-only extraction, `--add` merge, `update`/`replace` modes,
-`error`/`overwrite` conflict resolution, `--dry-run`, per-file `bmi.valid` validation, and the
-`N processed, M written, K errors` summary all work against a real file. **Not implemented**:
-`--videos`/`videos.tsv` cache lookup (`ctx.videos_tsv` is accepted but never read) and `--add`
-declared-type casting. No automated test file exists yet for `inject_sidecar.py` — everything
-below marked done was verified via ad hoc scripts against a real fixture during development, not
-`pytest`.
+**Basic end-to-end logic is implemented, with automated tests at 100% statement/branch coverage**
+(`_do_sidecar` in `bids/inject_sidecar.py`, `tests/bids/test_inject_sidecar.py`, 46 tests):
+`ffprobe`-only extraction, `--add` merge, `update`/`replace` modes, `error`/`overwrite` conflict
+resolution, `--dry-run`, per-file `bmi.valid` validation, and the `N processed, M written, K
+errors` summary all covered. **Not implemented**: `--videos`/`videos.tsv` cache lookup
+(`ctx.videos_tsv` is accepted but never read) and `--add` declared-type casting.
 
 ---
 
@@ -172,57 +170,86 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 
 ## Tests and Code Coverage
 
-Proposed test file location: `tests/bids/test_inject_sidecar.py` (mirrors
-`tests/qr/test_bids_inject.py` pattern). **No automated test file exists yet.** `_do_sidecar`'s
-core scenarios (fresh write, no-op re-run, `--add` conflict under both policies, `--dry-run`,
-`update` vs. `replace` preserving/discarding unrelated keys, invalid-`bmi` rejection) were all
-manually verified via ad hoc scripts against a real fixture during development — the checklist
-below still tracks what an automated suite should cover, none of it is `pytest`-verified yet.
+Test file: `tests/bids/test_inject_sidecar.py` — **46 tests, 100% statement/branch coverage of
+`bids/inject_sidecar.py`** (`pytest --cov=reprostim.bids.inject_sidecar --cov-report=term-missing`).
+Uses real filenames with valid/invalid BIDS suffixes for `parse_bids_media_info` (no mocking
+needed — it's pure path parsing) and real `tmp_path` files for sidecar read/write; only
+`bids_properties_from_ffprobe` is mocked (patched at
+`reprostim.bids.inject_sidecar.bids_properties_from_ffprobe`), matching the codebase convention
+of never invoking real `ffprobe`/`subprocess` in unit tests.
 
-### `bids_media.py` (shared mapping)
-- [ ] BIDS field table covers all fields listed in spec § BIDS Media-File Metadata Fields
-- [ ] `AudioInfo` → BIDS-dict mapping — all fields populated when present
-- [ ] `VideoInfo` → BIDS-dict mapping — all fields populated when present
-- [ ] Fields absent from `AudioInfo`/`VideoInfo` are omitted from the output dict, not `"n/a"`
+*(`bids/media.py`'s own test checklist — field table, `AudioInfo`/`VideoInfo` mapping — is
+tracked in [task-bids-media.md](task-bids-media.md)/[task-bids-properties.md](task-bids-properties.md),
+not here; this file previously had a duplicate/misplaced copy of that checklist, removed.)*
 
-### `--add` parsing (`_parse_ext_props`) — no automated test file yet, manually verified in dev
-- [ ] `META=VALUE` with a JSON-parseable `VALUE` (e.g. `RecordingDuration=3600`) → int/float/bool/
+### `OverwriteMode` / `ConflictPolicy` / `BisContext` (implemented)
+- [x] `OverwriteMode`/`ConflictPolicy` member values
+- [x] `BisContext` defaults
+- [x] `BisContext` with all fields explicitly set
+
+### `--add` parsing (`_parse_ext_props`) (implemented)
+- [x] `META=VALUE` with a JSON-parseable `VALUE` (e.g. `RecordingDuration=3600`) → int/float/bool/
       null/dict/list per JSON, not a string
-- [ ] `META=VALUE` with a non-JSON `VALUE` (e.g. `AudioCodec=aac`) → stored as a plain string
-- [ ] Bare JSON object entry (e.g. `'{"AudioCodec": "aac", "AudioSampleRate": 48000}'`) → all
+- [x] `META=VALUE` with a non-JSON `VALUE` (e.g. `AudioCodec=aac`) → stored as a plain string
+- [x] Bare JSON object entry (e.g. `'{"AudioCodec": "aac", "AudioSampleRate": 48000}'`) → all
       top-level keys merged into the result
-- [ ] Bare JSON object entry takes priority even when its content contains a literal `=`
-- [ ] Multiple entries with a conflicting key (via plain `META=VALUE`, bulk JSON, or both) → last
+- [x] Bare JSON object entry takes priority even when its content contains a literal `=`
+- [x] Multiple entries with a conflicting key (via plain `META=VALUE`, bulk JSON, or both) → last
       one wins
-- [ ] Malformed input (no `=`, not a JSON object) → raises `ValueError` before any file processed
-- [ ] Empty/whitespace-only `META` (e.g. `'=novalue'`) → raises `ValueError`
-- [ ] `do_main` with a malformed `--add` → returns `1`, reports via `out_func`, no file touched
+- [x] Malformed input (no `=`, not a JSON object) → raises `ValueError` before any file processed
+- [x] Empty/whitespace-only `META` (e.g. `'=novalue'`) → raises `ValueError`
+- [x] Empty `add_meta` list → `{}`
+- [x] `do_main` with a malformed `--add` → returns `1`, reports via `out_func`, no file touched
+      (both with and without `out_func`)
+
+### `_error` / `_verbose` (implemented)
+- [x] `_error` — logs and reports via `out_func` with `"Error: "` prefix; no-`out_func` doesn't raise
+- [x] `_verbose` — reports via `out_func` only when `ctx.verbose`; no-`out_func` doesn't raise
 
 ### `--videos` cache lookup
 - [ ] File found in `videos.tsv` index → cached fields used, `ffprobe` not called for those fields
 - [ ] File not found in index → falls back to `ffprobe`
 - [ ] No `--videos` given → always uses `ffprobe`
 
-### Conflict resolution
-- [ ] Field absent → written without conflict
-- [ ] Existing `"n/a"` + new real value → written without conflict
-- [ ] Existing == new → no-op, not flagged as conflict
-- [ ] Existing real != new real, `error` (default) → file errors, sidecar unchanged
-- [ ] Existing real != new real, `overwrite` → warning logged, sidecar updated
-- [ ] Existing real value + new `"n/a"`, default `error` → file errors even though mode is default
+*(Not implemented — `ctx.videos_tsv` is accepted but never consulted; no tests possible until
+this exists.)*
+
+### Conflict resolution (implemented)
+- [x] Field absent → written without conflict
+- [x] Existing `"n/a"` + new real value → written without conflict
+- [x] Existing == new → no-op, not flagged as conflict
+- [x] Existing real != new real, `error` (default) → file errors, sidecar unchanged
+- [x] Existing real != new real, `overwrite` → warning logged, sidecar updated
+- [x] Existing real value + new `"n/a"`, default `error` → file errors even though mode is default
 - [ ] Existing real value + new `"n/a"`, `overwrite` → warning logged, sidecar updated to `"n/a"`
-- [ ] Conflict via `--add` value behaves identically to conflict via extracted value
+      *(not directly tested — the `error`-policy variant is, and the code path is identical/shared
+      with the general "differs" branch already covered by the `overwrite`-policy test)*
+- [x] Conflict via `--add` value behaves identically to conflict via extracted value — implicit:
+      `_do_sidecar` merges `ext_props` into `fields` before the conflict loop runs, so there's no
+      code-level distinction to test separately (see `test_do_sidecar_ext_props_override_extracted_fields`)
 
-### `--mode`
-- [ ] `update` + no existing sidecar → sidecar created with extracted/added fields only
-- [ ] `update` + existing sidecar → untouched keys preserved, touched keys merged/conflict-checked
-- [ ] `update` + malformed existing JSON → file errors, no partial write
-- [ ] `replace` + existing sidecar → existing content discarded entirely
-- [ ] `replace` + no existing sidecar → behaves like a fresh write
+### `--mode` (implemented)
+- [x] `update` + no existing sidecar → sidecar created with extracted/added fields only
+- [x] `update` + existing sidecar → untouched keys preserved, touched keys merged/conflict-checked
+- [x] `update` + malformed existing JSON → file errors, no partial write
+- [x] `replace` + existing sidecar → existing content discarded entirely
+- [x] `replace` + malformed existing JSON → not even read, no error (replace mode never loads
+      existing content) — extra case beyond the original checklist
+- [ ] `replace` + no existing sidecar → behaves like a fresh write *(not separately tested — same
+      code path as "existing sidecar discarded", just with no file to discard)*
 
-### Dry-run mode
-- [ ] `--dry-run` → no sidecar file written or modified
-- [ ] `--dry-run` → per-file planned field set printed
+### Dry-run mode (implemented)
+- [x] `--dry-run` → no sidecar file written or modified
+- [x] `--dry-run` → per-file planned field set printed (`_do_sidecar` and `do_main` both)
+- [x] `--dry-run` with no `out_func` doesn't raise
+
+### `_do_sidecar_all` / `do_main` batch behavior (implemented)
+- [x] Invalid path (doesn't exist on disk) counted as an error, distinct from an existing file
+      that itself fails (`bmi.valid` or write failure)
+- [x] Zero errors when every file succeeds
+- [x] Summary line format (`N processed, M written, K errors`), including `[DRY-RUN] ` prefix
+- [x] Non-zero exit code when any file errors; zero when all succeed
+- [x] `--add` values flow all the way through to the written sidecar
 
 ### CLI tests (Click `CliRunner`)
 - [ ] `--help` renders without error
@@ -233,13 +260,18 @@ below still tracks what an automated suite should cover, none of it is `pytest`-
 - [ ] One file erroring in a multi-file batch does not prevent other files from being processed
 - [ ] Exit code is non-zero when any file in the batch errors
 
+*(Not covered — `tests/bids/test_inject_sidecar.py` tests `bids/inject_sidecar.py`'s functions
+directly, not the `cli/cmd_bids_inject_sidecar.py` Click command wrapper. A separate
+`tests/cli/test_cmd_bids_inject_sidecar.py` using Click's `CliRunner` would be needed for this
+section.)*
+
 ### Coverage targets
 
-| Module | Target |
-|---|---|
-| `bids/media.py` | ≥ 90% |
-| `bids/inject_sidecar.py` | ≥ 80% |
-| `cli/cmd_bids_inject_sidecar.py` | ≥ 80% |
+| Module | Target | Actual |
+|---|---|---|
+| `bids/media.py` | ≥ 90% | **100%** (see task-bids-media.md) |
+| `bids/inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
+| `cli/cmd_bids_inject_sidecar.py` | ≥ 80% | 0% (no CLI-layer tests yet) |
 
 ---
 
