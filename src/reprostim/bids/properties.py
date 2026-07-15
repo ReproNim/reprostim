@@ -52,7 +52,7 @@ def bids_properties_from_audio_video_info(
     :type audio: Optional[AudioInfo]
     :param video: Video stream info from ``get_audio_video_info_ffprobe``,
         or ``None`` if the file has no video stream.
-    :type video: Optional[VideoInfo]
+    :type video: Optional[~reprostim.qr.video_audit.VideoInfo]
     :param props: Optional dict to populate/merge into instead of creating a
         fresh one — lets a caller accumulate properties from several
         ``bids_properties_from_*`` calls into one shared dict. Existing keys
