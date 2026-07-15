@@ -131,28 +131,145 @@ def _parse_ext_props(add_meta: List[str]) -> Dict[str, Any]:
     return props
 
 
-def _do_sidecar(ctx: BisContext, path: str):
-    """"""
-    logger.debug(f"_do_sidecar(path={path}")
+def _error(ctx: BisContext, msg: str) -> None:
+    """Log *msg* as an error and report it via ``ctx.out_func``, if set.
+
+    Shared by every per-file processing function in this module as the
+    single place a fatal-for-this-file error is reported, so logging and
+    ``out_func`` reporting stay consistent. Returns nothing — callers
+    decide their own control flow, typically ``_error(ctx, msg); return
+    False``.
+
+    :param ctx: Processing context (used for ``out_func``).
+    :type ctx: BisContext
+    :param msg: Human-readable error message.
+    :type msg: str
+    """
+    logger.error(msg)
+    if ctx.out_func:
+        ctx.out_func(f"Error: {msg}")
+
+
+def _verbose(ctx: BisContext, msg: str) -> None:
+    """Log *msg* at debug level and, when ``ctx.verbose`` is set, also
+    report it via ``ctx.out_func``.
+
+    Mirrors :func:`_error` for non-fatal, verbose-only diagnostic output.
+
+    :param ctx: Processing context (used for ``verbose``/``out_func``).
+    :type ctx: BisContext
+    :param msg: Human-readable message.
+    :type msg: str
+    """
+    logger.debug(msg)
+    if ctx.verbose and ctx.out_func:
+        ctx.out_func(msg)
+
+
+def _do_sidecar(ctx: BisContext, path: str) -> bool:
+    """Extract BIDS media-file metadata for *path* and write/update its
+    sidecar JSON.
+
+    Basic implementation: extraction is purely ``ffprobe``-based (via
+    :func:`bids_properties_from_ffprobe`) plus ``ctx.ext_props``
+    (``--add`` overrides). ``ctx.videos_tsv`` cache lookup is not
+    consulted yet — see spec Open Questions.
+
+    :param ctx: Processing context (mode, conflict policy, ext_props, etc.)
+    :type ctx: BisContext
+    :param path: Path to the audio/video file.
+    :type path: str
+    :return: ``True`` on success (sidecar written, or dry-run computed
+        cleanly); ``False`` if the file was skipped due to an error.
+    :rtype: bool
+    """
+    logger.debug(f"_do_sidecar(path={path})")
 
     # TODO: check file exists and when not report error and processing error
 
     bmi: BidsMediaInfo = parse_bids_media_info(path)
     logger.debug(f"bmi: {bmi}")
-    # TODO: make something with errors, and when !bmi.valid
-    # break processing and report processing error
+    if not bmi.valid:
+        errors = "; ".join(f"{e.code.value}: {e.message}" for e in bmi.errors)
+        _error(ctx, f"{path}: invalid BIDS media file: {errors}")
+        return False
+
     props: dict = bids_properties_from_ffprobe(path)
     logger.debug(f"bids_props_ffrobe: {props}")
 
+    # --add overrides take priority over extracted fields.
+    fields: Dict[str, Any] = dict(props)
+    fields.update(ctx.ext_props)
 
-def _do_sidecar_all(ctx: BisContext, files: List[str]):
-    # iterate over paths and depending on whether it's a file or directory,
-    # process accordingly
+    sidecar_path = os.path.splitext(path)[0] + ".json"
+
+    existing: Dict[str, Any] = {}
+    if ctx.mode == OverwriteMode.UPDATE and os.path.isfile(sidecar_path):
+        try:
+            with open(sidecar_path) as f:
+                existing = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            _error(ctx, f"{sidecar_path}: failed to read existing sidecar: {e}")
+            return False
+
+    merged: Dict[str, Any] = dict(existing)
+    for field, value in fields.items():
+        current = existing.get(field)
+        if current is None or current == "n/a" or current == value:
+            merged[field] = value
+            continue
+
+        # Conflict: existing has a different, non-"n/a" value.
+        if ctx.conflict_policy == ConflictPolicy.ERROR:
+            _error(
+                ctx,
+                f"{path}: conflicting value for {field!r}: "
+                f"existing={current!r}, new={value!r}",
+            )
+            return False
+        logger.warning(f"{path}: overwriting {field!r}: {current!r} -> {value!r}")
+        _verbose(
+            ctx, f"Warning: {path}: overwriting {field!r}: {current!r} -> {value!r}"
+        )
+        merged[field] = value
+
+    if ctx.dry_run:
+        if ctx.out_func:
+            ctx.out_func(f"[DRY-RUN] {path} -> {sidecar_path}: {merged}")
+        return True
+
+    try:
+        with open(sidecar_path, "w") as f:
+            json.dump(merged, f, indent=2)
+    except OSError as e:
+        _error(ctx, f"{sidecar_path}: failed to write sidecar: {e}")
+        return False
+
+    _verbose(ctx, f"{path} -> {sidecar_path}: wrote {len(merged)} fields")
+
+    return True
+
+
+def _do_sidecar_all(ctx: BisContext, files: List[str]) -> int:
+    """Process every path in *files*, writing/updating its sidecar.
+
+    :param ctx: Processing context.
+    :type ctx: BisContext
+    :param files: Audio/video file paths to process.
+    :type files: List[str]
+    :return: Number of files that errored (invalid path, or a failure
+        reported by :func:`_do_sidecar`).
+    :rtype: int
+    """
+    errors = 0
     for path in files:
         if os.path.isfile(path):
-            _do_sidecar(ctx, path)
+            if not _do_sidecar(ctx, path):
+                errors += 1
         else:
-            logger.warning(f"Skipping invalid path: {path}")
+            _error(ctx, f"Skipping invalid path: {path}")
+            errors += 1
+    return errors
 
 
 def do_main(
@@ -167,11 +284,12 @@ def do_main(
 ) -> int:
     """Main entry point for the bids-inject-sidecar command.
 
-    NOT YET IMPLEMENTED (GitHub issue #259). See .ai/spec-bids-inject-sidecar.md
-    for the intended behavior: for each file in ``files``, extract BIDS
-    media-file metadata (via ``videos`` cache lookup and/or ``ffprobe``), merge
-    in ``add`` overrides, and write/update the corresponding ``.json`` sidecar
-    according to ``mode`` and ``existing_different``.
+    For each file in ``files``, extracts BIDS media-file metadata via
+    ``ffprobe`` (see :func:`_do_sidecar`), merges in ``add`` overrides, and
+    writes/updates the corresponding ``.json`` sidecar according to ``mode``
+    and ``existing_different``. ``videos`` (``videos.tsv`` cache lookup) is
+    accepted but **not yet consulted** — extraction is ``ffprobe``-only for
+    now; see .ai/spec-bids-inject-sidecar.md Open Questions.
 
     :param files: Audio/video file paths from the CLI ``FILES`` argument.
     :type files: List[str]
@@ -215,6 +333,15 @@ def do_main(
         out_func=out_func,
         ext_props=ext_props,
     )
-    _do_sidecar_all(ctx, files)
+    error_count = _do_sidecar_all(ctx, files)
 
-    return 0
+    n = len(files)
+    prefix = "[DRY-RUN] " if dry_run else ""
+    summary_line = (
+        f"{prefix}{n} processed, {n - error_count} written, {error_count} errors"
+    )
+    logger.debug(summary_line)
+    if out_func:
+        out_func(summary_line)
+
+    return 1 if error_count > 0 else 0

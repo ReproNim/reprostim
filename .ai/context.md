@@ -40,7 +40,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
   - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
   - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
-  - `cmd_bids_inject_sidecar.py` - *(planned, not yet implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
+  - `cmd_bids_inject_sidecar.py` - *(basic logic implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
@@ -55,9 +55,12 @@ Main Python package with CLI tools and analysis utilities.
 - **bids/** - BIDS dataset injection and media-file metadata/sidecar helpers (split out of `qr/`
   as an ongoing package reorganization)
   - `inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
-  - `inject_sidecar.py` - *(core `_do_sidecar` extraction/write logic still `TODO`)* Standalone BIDS media-file sidecar extraction/write engine; `OverwriteMode`/`ConflictPolicy` enums, `BisContext`, and `--add` parsing (`_parse_ext_props`, JSON-aware) are implemented (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
+  - `inject_sidecar.py` - Standalone BIDS media-file sidecar extraction/write engine; basic
+    per-file logic implemented (`ffprobe`-only extraction, `--add` merge, `update`/`replace`
+    modes, conflict resolution, `--dry-run`, summary) — `--videos`/`videos.tsv` cache lookup and
+    `--add` declared-type casting still not implemented (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
   - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files (see [spec-bids-media.md](.ai/spec-bids-media.md), [task-bids-media.md](.ai/task-bids-media.md))
-  - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `qr/split_video.py::_to_bids_model`); `VaRecord`-based and path-orchestrating entry points still TBD, not yet wired into `inject_sidecar.py` (see [spec-bids-properties.md](.ai/spec-bids-properties.md), [task-bids-properties.md](.ai/task-bids-properties.md))
+  - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `qr/split_video.py::_to_bids_model`); wired into both `bids/inject.py` and `bids/inject_sidecar.py`. `VaRecord`-based/path-orchestrating entry points still TBD (see [spec-bids-properties.md](.ai/spec-bids-properties.md), [task-bids-properties.md](.ai/task-bids-properties.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction

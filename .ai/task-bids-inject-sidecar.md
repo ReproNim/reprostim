@@ -2,22 +2,29 @@
 
 Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md).
 
-Most of this list is not implemented yet. A CLI stub exists (`cli/cmd_bids_inject_sidecar.py`),
-and `bids/inject_sidecar.py` has the `OverwriteMode`/`ConflictPolicy` enums and `BisContext`
-wired (see Core Logic below), but the actual per-file extraction/write logic (`_do_sidecar`) is
-still a `TODO`. Unless noted otherwise, items below remain unchecked.
+**Basic end-to-end logic is implemented and manually verified** (`_do_sidecar` in
+`bids/inject_sidecar.py`): `ffprobe`-only extraction, `--add` merge, `update`/`replace` modes,
+`error`/`overwrite` conflict resolution, `--dry-run`, per-file `bmi.valid` validation, and the
+`N processed, M written, K errors` summary all work against a real file. **Not implemented**:
+`--videos`/`videos.tsv` cache lookup (`ctx.videos_tsv` is accepted but never read) and `--add`
+declared-type casting. No automated test file exists yet for `inject_sidecar.py` — everything
+below marked done was verified via ad hoc scripts against a real fixture during development, not
+`pytest`.
 
 ---
 
 ## CLI Options
 
-- [ ] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
-- [ ] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup
-- [ ] `-m / --mode [replace|update]` — default `update`
-- [ ] `-a / --add META=VALUE` — repeatable, manual field override/addition
-- [ ] `-e / --existing-different [error|overwrite]` — default `error`
-- [ ] `-v / --verbose`
-- [ ] `-d / --dry-run` *(added for consistency with sibling commands; confirm before implementing — see spec Open Questions #6)*
+All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is accepted but not yet consulted
+by `_do_sidecar` (see `--videos` cache lookup section below).
+
+- [x] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
+- [x] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup (accepted, not yet used)
+- [x] `-m / --mode [replace|update]` — default `update`
+- [x] `-a / --add META=VALUE` — repeatable, manual field override/addition
+- [x] `-e / --existing-different [error|overwrite]` — default `error`
+- [x] `-v / --verbose`
+- [x] `-d / --dry-run` — kept, see spec Open Questions #6 (now resolved: implemented and kept)
 
 ---
 
@@ -83,72 +90,94 @@ still a `TODO`. Unless noted otherwise, items below remain unchecked.
 - [ ] Map matched `VaRecord` columns (`audio_sr`, `video_res_detected`, codec columns) into BIDS fields
 - [ ] Fall back to `ffprobe` extraction for any file not found in the index, or for fields the TSV doesn't carry
 
-### `ffprobe` extraction
-- [ ] Reuse `bids/properties.py::bids_properties_from_ffprobe` (wraps
-      `get_audio_video_info_ffprobe` from `src/reprostim/qr/video_audit.py`) — this already
-      implements the `AudioInfo`/`VideoInfo` → BIDS field mapping below, so `_do_sidecar` should
-      call it directly rather than reimplementing; see [task-bids-properties.md Open
-      Questions](task-bids-properties.md#open-questions--future-work) for the "wire into
-      `_do_sidecar`" item
-- [ ] Map `AudioInfo` fields → BIDS audio fields (`AudioCodec`, `AudioSampleRate`, `AudioChannelCount`, `AudioBitDepth`, `AudioCodecRFC6381`)
-- [ ] Map `VideoInfo` fields → BIDS video fields (`VideoCodec`, `VideoFrameRate`, `VideoCodecRFC6381`, `ImageWidth`, `ImageHeight`, `ImagePixelFormat`, `ImageBitDepth`, `VideoFrameCount` — `Image*`-prefixed per BEP044, already the naming `bids_properties_from_ffprobe` produces)
-- [ ] `RecordingDuration` derived from stream duration
-- [ ] Omit (not `"n/a"`) fields that cannot be determined
-- [ ] `ffprobe` failure logged, does not abort the whole file unless no fields at all are available
+### `ffprobe` extraction (implemented)
+- [x] Reuse `bids/properties.py::bids_properties_from_ffprobe` — `_do_sidecar` calls it directly
+      (`props: dict = bids_properties_from_ffprobe(path)`), not reimplemented
+- [x] `AudioInfo`/`VideoInfo` → BIDS field mapping — inherited for free from
+      `bids_properties_from_ffprobe`/`bids_properties_from_audio_video_info`; see
+      [task-bids-properties.md](task-bids-properties.md) for that mapping's own checklist
+- [x] `RecordingDuration` derived from stream duration — same, inherited
+- [x] Omit (not `"n/a"`) fields that cannot be determined — same, inherited (`_set_prop` skips
+      `None` values)
+- [x] `ffprobe` failure logged, does not abort the whole file unless no fields at all are
+      available — same, inherited (`get_audio_video_info_ffprobe` catches its own subprocess
+      failures and returns empty `AudioInfo`/`VideoInfo` rather than raising)
+- [x] `bmi.valid` check (`parse_bids_media_info`) — **not in the original checklist**, added as
+      a first-pass sanity check before extraction; invalid files are skipped with a reported
+      `BidsMediaInfoError` detail (see spec Error Handling table)
 
-### Sidecar path resolution
-- [ ] Derive sidecar path: input file extension replaced with `.json`
+### Sidecar path resolution (implemented)
+- [x] Derive sidecar path: input file extension replaced with `.json`
+      (`os.path.splitext(path)[0] + ".json"`)
 
-### `--mode` write behavior
-- [ ] `update` (default) — load existing sidecar if present, merge new fields, preserve untouched existing keys
-- [ ] `update` — no existing sidecar → treat as `{}`, write fresh
-- [ ] `replace` — discard existing sidecar content entirely, write only this run's fields
-- [ ] Malformed existing sidecar JSON (`update` mode) → error, skip file, no partial merge
+### `--mode` write behavior (implemented)
+- [x] `update` (default) — load existing sidecar if present, merge new fields, preserve untouched existing keys
+- [x] `update` — no existing sidecar → treat as `{}`, write fresh
+- [x] `replace` — discard existing sidecar content entirely, write only this run's fields
+- [x] Malformed existing sidecar JSON (`update` mode) → error, skip file, no partial merge
+      (`json.JSONDecodeError` caught)
 
-### Conflict resolution (`--existing-different`)
-- [ ] Field absent from existing sidecar → write, no conflict
-- [ ] Existing value is `"n/a"` → write new value, no conflict (treated as no prior value)
-- [ ] New value equals existing value → no-op, not counted as conflict
-- [ ] Existing real value vs. different new real value, `error` (default) → abort file, report field + old/new values
-- [ ] Existing real value vs. different new real value, `overwrite` → log warning, write new value
-- [ ] Existing real value vs. new value `"n/a"` → `error` is the default outcome regardless of `--existing-different` value; `overwrite` still logs+proceeds
-- [ ] `--add`-supplied values subject to identical conflict rules as extracted values (no bypass)
+### Conflict resolution (`--existing-different`) (implemented)
+- [x] Field absent from existing sidecar → write, no conflict
+- [x] Existing value is `"n/a"` → write new value, no conflict (treated as no prior value)
+- [x] New value equals existing value → no-op, not counted as conflict
+- [x] Existing real value vs. different new real value, `error` (default) → abort file, report field + old/new values
+- [x] Existing real value vs. different new real value, `overwrite` → log warning, write new value
+- [x] Existing real value vs. new value `"n/a"` → falls into the same policy-driven "differs"
+      branch as the row above — no special case needed, matches spec exactly
+- [x] `--add`-supplied values subject to identical conflict rules as extracted values (no
+      bypass) — `fields = dict(props); fields.update(ctx.ext_props)` merges both into one dict
+      before the conflict-resolution loop runs, so there's no way to distinguish origin at that
+      point
 
-### Dry-run mode
-- [ ] `--dry-run` — compute and print per-file field set that would be written, no file writes
+### Dry-run mode (implemented)
+- [x] `--dry-run` — compute and print per-file field set that would be written, no file writes
 
-### Batch processing / summary
-- [ ] Process each `FILE` independently; one file's error does not stop the batch
-- [ ] Final summary line: `N processed, M written, K errors`
-- [ ] Non-zero exit code when `K > 0`
-- [ ] In verbose mode, print per-field extraction/merge/conflict detail
+### Batch processing / summary (implemented)
+- [x] Process each `FILE` independently; one file's error does not stop the batch
+- [x] Final summary line: `N processed, M written, K errors` (`[DRY-RUN] ` prefix when `--dry-run`)
+- [x] Non-zero exit code when `K > 0`
+- [x] In verbose mode, print per-field extraction/merge/conflict detail — via `_verbose(ctx, msg)`
+      (new shared helper, mirrors `_error`; logs at debug level always, echoes to `out_func` only
+      when `ctx.verbose`)
 
 ---
 
 ## Error Handling
 
-- [ ] Input `FILE` does not exist → error, skip file, continue batch
-- [ ] `ffprobe` not installed/fails → logged error, affected fields omitted, file not necessarily fatal
-- [ ] `--videos` path not found in `videos.tsv` → fall back to `ffprobe`, not an error
-- [ ] Malformed `--add` (missing `=`) → fatal error before any file processed
-- [ ] `--add` casting failure for known BIDS field → fatal error before any file processed
-- [ ] Sidecar directory not writable → error, skip file
+- [x] Input `FILE` does not exist → error, skip file, continue batch
+- [x] `FILE` fails `bmi.valid` check → error (reports `BidsMediaInfoError` details), skip file,
+      continue batch — not in the original checklist, added
+- [x] `ffprobe` not installed/fails → logged error, affected fields omitted, file not necessarily fatal
+- [ ] `--videos` path not found in `videos.tsv` → fall back to `ffprobe`, not an error — N/A yet,
+      `--videos` isn't consulted at all
+- [x] Malformed `--add` (missing `=`) → fatal error before any file processed
+- [ ] `--add` casting failure for known BIDS field → fatal error before any file processed — N/A,
+      declared-type casting isn't implemented (see spec Open Questions #8)
+- [x] Sidecar directory not writable → error, skip file (`OSError` around the write)
 
 ---
 
 ## Documentation
 
-- [ ] `bids-inject-sidecar` added to RTD CLI index (`docs/source/cli/`)
-- [ ] `bids-inject-sidecar` added to RTD API reference (`docs/source/api/index.rst`)
-- [ ] `cmd_bids_inject_sidecar.py` cross-referenced from `.ai/context.md` CLI module list
-- [ ] `bids_inject_sidecar.py` / `bids_media.py` cross-referenced from `.ai/context.md` qr module list
+- [x] `bids-inject-sidecar` added to RTD CLI index (`docs/source/cli/bids-inject-sidecar.rst`,
+      referenced from `docs/source/cli/index.rst`)
+- [x] `bids-inject-sidecar` added to RTD API reference (`docs/source/api/index.rst` →
+      `bids.inject_sidecar`)
+- [x] `cmd_bids_inject_sidecar.py` cross-referenced from `.ai/context.md` CLI module list
+- [x] `inject_sidecar.py` / `media.py` cross-referenced from `.ai/context.md` `bids/` module list
+      *(module moved from `qr/` to `bids/` since this item was written)*
 
 ---
 
 ## Tests and Code Coverage
 
 Proposed test file location: `tests/bids/test_inject_sidecar.py` (mirrors
-`tests/qr/test_bids_inject.py` pattern).
+`tests/qr/test_bids_inject.py` pattern). **No automated test file exists yet.** `_do_sidecar`'s
+core scenarios (fresh write, no-op re-run, `--add` conflict under both policies, `--dry-run`,
+`update` vs. `replace` preserving/discarding unrelated keys, invalid-`bmi` rejection) were all
+manually verified via ad hoc scripts against a real fixture during development — the checklist
+below still tracks what an automated suite should cover, none of it is `pytest`-verified yet.
 
 ### `bids_media.py` (shared mapping)
 - [ ] BIDS field table covers all fields listed in spec § BIDS Media-File Metadata Fields

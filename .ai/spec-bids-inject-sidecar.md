@@ -18,6 +18,13 @@ it produces (or updates) its sidecar. It is meant to become the generic "engine"
 Corresponds to GitHub issue: https://github.com/ReproNim/reprostim/issues/259
 Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
+**Status: basic per-file extraction/write logic implemented** — `ffprobe`-only extraction (via
+`bids_properties_from_ffprobe`), `--add` merge, `update`/`replace` write modes, and
+`error`/`overwrite` conflict resolution all work end-to-end. **Not yet implemented**: `--videos`
+cache lookup (`ctx.videos_tsv` is accepted but not consulted — extraction is always `ffprobe`),
+and `--add` declared-type casting. See [task-bids-inject-sidecar.md](task-bids-inject-sidecar.md)
+for the detailed checklist.
+
 ---
 
 ## Motivation
@@ -217,10 +224,13 @@ sub-01_task-rest_recording-reprostim_audiovideo.mkv
 | `update`  | **(default)** Load existing sidecar JSON if present (empty dict if not). Merge in newly extracted / `--add`ed fields per [Conflict Resolution](#conflict-resolution). All pre-existing keys not touched by this run are preserved as-is. Write the merged result back with `json.dumps(..., indent=2)`. |
 | `replace` | Existing sidecar content (if any) is discarded entirely. Write a fresh sidecar containing only the fields produced by this run (extraction + `--add`).            |
 
-### Conflict Resolution
+### Conflict Resolution (implemented)
 
 Applies to every field about to be written, whether from extraction or `--add`, when a sidecar
-already exists (`update` mode only — `replace` mode has no prior content to conflict with):
+already exists (`update` mode only — `replace` mode has no prior content to conflict with).
+`_do_sidecar`'s conflict-resolution loop implements this table exactly, including the "real vs.
+`n/a`" row, without needing a special case for it (falls naturally into the general
+"differs" branch, which is already policy-driven):
 
 | Existing value | New value | Outcome                                                                                     |
 |----------------|-----------|-----------------------------------------------------------------------------------------------|
@@ -278,31 +288,39 @@ range — see [Open Questions / TODOs](#open-questions--todos).
 ## Algorithm / Data Flow
 
 ```
-1. Parse --add entries into ext_props via _parse_ext_props (JSON-object or META=VALUE, VALUE
-   itself JSON-parsed when possible); error out early (before touching any file) on a
-   malformed entry, since it applies identically to every file in the batch.
+1. [implemented] Parse --add entries into ext_props via _parse_ext_props (JSON-object or
+   META=VALUE, VALUE itself JSON-parsed when possible); error out early (before touching any
+   file) on a malformed entry, since it applies identically to every file in the batch.
 
-2. If --videos given: load videos.tsv once (cached), build a path → VaRecord index
-   (paths resolved relative to videos.tsv location, matching bids-inject's convention).
+2. [NOT implemented] If --videos given: load videos.tsv once (cached), build a path → VaRecord
+   index (paths resolved relative to videos.tsv location, matching bids-inject's convention).
+   ctx.videos_tsv is accepted and stored but never read from.
 
-3. For each FILE in FILE1 [FILE2 ...]:
-   a. Resolve sidecar path: FILE with extension replaced by ".json".
-   b. Determine existing sidecar content:
-        - update mode: load JSON if sidecar exists, else {}
-        - replace mode: {} (existing content discarded, only used for logging what
-          was overwritten in --verbose)
-   c. Extract technical fields:
-        i.  Look up FILE in the videos.tsv index (if loaded); map matched columns.
-        ii. For any BIDS field not yet populated, run ffprobe via
-            get_audio_video_info_ffprobe(FILE) and map AudioInfo/VideoInfo → BIDS fields.
-   d. Apply --add overrides on top of extracted fields (highest priority).
-   e. For each field to be written, apply Conflict Resolution against the existing
-      sidecar content (update mode only). On an unresolved conflict (error mode),
-      mark this FILE as errored and stop processing it (no partial write).
-   f. If --dry-run: print the field set that would be written; do not write.
-      Else: write merged/replaced JSON to the sidecar path (json.dumps(..., indent=2)).
+3. For each FILE in FILE1 [FILE2 ...] (_do_sidecar):
+   a. [implemented] Validate FILE via parse_bids_media_info(FILE); if not bmi.valid, mark this
+      FILE as errored (report BidsMediaInfoError details) and stop processing it — not in the
+      original pseudocode below, added as a first-pass sanity check.
+   b. [implemented] Extract technical fields: run ffprobe via bids_properties_from_ffprobe(FILE)
+      (wraps get_audio_video_info_ffprobe + AudioInfo/VideoInfo → BIDS field mapping).
+      [NOT implemented] Step i. below (videos.tsv index lookup) is skipped entirely — extraction
+      is always ffprobe-only for now:
+        i.  [NOT implemented] Look up FILE in the videos.tsv index (if loaded); map matched columns.
+        ii. [implemented, unconditional rather than "not yet populated"] Run ffprobe and map
+            AudioInfo/VideoInfo → BIDS fields.
+   c. [implemented] Apply --add overrides (ctx.ext_props) on top of extracted fields (highest
+      priority) via plain dict.update semantics.
+   d. [implemented] Resolve sidecar path: FILE with extension replaced by ".json".
+   e. [implemented] Determine existing sidecar content:
+        - update mode: load JSON if sidecar exists, else {}; malformed existing JSON → error,
+          skip file, no partial merge
+        - replace mode: {} (existing content discarded)
+   f. [implemented] For each field to be written, apply Conflict Resolution against the existing
+      sidecar content (update mode only). On an unresolved conflict (error policy), mark this
+      FILE as errored and stop processing it (no partial write).
+   g. [implemented] If --dry-run: print the field set that would be written; do not write.
+      Else: write merged/replaced JSON to the sidecar path (json.dump(..., indent=2)).
 
-4. Report summary: N processed, M written, K errors. Non-zero exit code if K > 0.
+4. [implemented] Report summary: N processed, M written, K errors. Non-zero exit code if K > 0.
 ```
 
 ---
@@ -373,16 +391,17 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 
 | Condition                                                  | Behavior                                                                 |
 |--------------------------------------------------------------|-----------------------------------------------------------------------------|
-| Input `FILE` does not exist                                 | Error and skip that file; continue with the rest of the batch.             |
+| Input `FILE` does not exist *(implemented)*                  | Error and skip that file (`_do_sidecar_all`); continue with the rest of the batch. |
+| `FILE` fails `parse_bids_media_info` validity check (`bmi.valid is False`) *(implemented)* | Error and skip that file — reported via `_error`, includes the `BidsMediaErrorCode`/message for each `BidsMediaInfoError`. Not in the original spec text; added since `_do_sidecar` calls `parse_bids_media_info` as a first-pass sanity check before extraction. |
 | `ffprobe` not installed / fails                              | Error logged (per existing `get_audio_video_info_ffprobe` behavior); fields it would have supplied are simply omitted, not fatal to the whole file unless no fields at all could be determined and no `--add` compensates. |
-| `--videos` given but path not found in `videos.tsv`     | Fall back to `ffprobe` extraction for that file; not an error.             |
+| `--videos` given but path not found in `videos.tsv` *(not yet implemented — `--videos` cache lookup isn't wired up at all yet, see Open Questions)* | Would fall back to `ffprobe` extraction for that file; not an error, once implemented. |
 | Malformed `--add` entry (no `=`, and not a JSON object) *(implemented)* | Fatal `ValueError` from `_parse_ext_props`, caught in `do_main`; applies to whole invocation, before any file is processed. |
 | `--add` entry's `META` (before `=`) is empty/whitespace *(implemented)* | Same as above — fatal before any file is processed.                        |
 | `--add` value fails declared-type casting for a known BIDS field *(not yet implemented — see [`--add` Value Parsing](#--add-value-parsing-implemented-_parse_ext_props))* | Would be fatal error before any file is processed, once implemented. |
-| Existing sidecar JSON is not valid JSON (`update` mode)        | Error and skip that file; do not attempt a partial merge.                  |
-| Field conflict, `--existing-different error` (default)         | Error and skip that file; report the conflicting field, old and new values.|
-| Field conflict, `--existing-different overwrite`                | Warn and proceed; value is overwritten.                                    |
-| Sidecar directory not writable                                 | Error and skip that file.                                                  |
+| Existing sidecar JSON is not valid JSON (`update` mode) *(implemented)* | Error and skip that file (`json.JSONDecodeError` caught in `_do_sidecar`); do not attempt a partial merge. |
+| Field conflict, `--existing-different error` (default) *(implemented)* | Error and skip that file; report the conflicting field, old and new values (`_error`). |
+| Field conflict, `--existing-different overwrite` *(implemented)* | Warn and proceed (`logger.warning` + `_verbose`); value is overwritten.    |
+| Sidecar directory not writable *(implemented)*                | Error and skip that file (`OSError` caught around the `open(sidecar_path, "w")` call). |
 
 ---
 
@@ -408,12 +427,13 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    Every key with a matching `BidsMediaProperty` member is written via
    `BidsMediaProperty.*.value`, not a raw string
    literal — see [Relationship](#relationship-to-bids-inject--split-video) item 2.
-5. **`--videos` path-matching precision** — exact resolved-path match vs. the time-range
-   matching `bids-inject` uses (`find_video_audit_by_timerange`); a plain path match is proposed
-   here since `bids-inject-sidecar` operates on files directly rather than matching against scan
-   timing windows.
-6. **`--dry-run` / `-v` options** — added for consistency with sibling commands; confirm desired
-   before implementation, since they are not in the original issue text.
+5. **`--videos` path-matching precision** — still fully open: `--videos`/`ctx.videos_tsv` isn't
+   consulted at all yet (see Algorithm step 2/3.b above), so the choice between exact
+   resolved-path match vs. `bids-inject`'s time-range matching
+   (`find_video_audit_by_timerange`) hasn't been made in code, only proposed here.
+6. **`--dry-run` / `-v` options** — **implemented and kept**: both work as designed
+   (`--dry-run` prints the planned field set without writing; `-v/--verbose` reports per-field
+   merge/conflict/write detail via `_verbose`).
 7. **Casting failures for unknown-but-numeric-looking `--add` fields** — **resolved differently
    than originally anticipated**: `_parse_ext_props` (implemented) JSON-parses every `VALUE`
    regardless of whether `META` is a known BIDS field, so `--add CustomCount=5` already becomes
