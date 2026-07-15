@@ -5,9 +5,239 @@
 """Tests for reprostim.bids.properties."""
 
 from datetime import datetime
+from unittest.mock import patch
 
-from reprostim.bids.properties import bids_properties_from_split_result
+from reprostim.bids.properties import (
+    bids_properties_from_audio_video_info,
+    bids_properties_from_ffprobe,
+    bids_properties_from_split_result,
+)
 from reprostim.qr.split_video import SplitResult
+from reprostim.qr.video_audit import AudioInfo, VideoInfo
+
+# ===========================================================================
+# bids_properties_from_audio_video_info
+# ===========================================================================
+
+
+def _make_audio_info(**overrides) -> AudioInfo:
+    defaults = dict(
+        codec="aac",
+        sample_rate=48000,
+        channels=2,
+        bits_per_sample=16,
+        codec_rfc6381="mp4a.40.2",
+        duration_sec=12.5,
+    )
+    defaults.update(overrides)
+    return AudioInfo(**defaults)
+
+
+def _make_video_info(**overrides) -> VideoInfo:
+    defaults = dict(
+        codec="h264",
+        fps=30.0,
+        codec_rfc6381="avc1.640028",
+        width=1920,
+        height=1080,
+        pix_fmt="yuv420p",
+        bit_depth=8,
+        duration_sec=12.0,
+        frame_count=360,
+    )
+    defaults.update(overrides)
+    return VideoInfo(**defaults)
+
+
+def test_audio_video_info_both_present_full_mapping():
+    """All AudioInfo/VideoInfo fields map to the correct BIDS keys."""
+    audio = _make_audio_info()
+    video = _make_video_info()
+    data = bids_properties_from_audio_video_info(audio, video)
+
+    assert data == {
+        "RecordingDuration": 12.0,
+        "AudioCodec": "aac",
+        "AudioSampleRate": 48000,
+        "AudioChannelCount": 2,
+        "AudioBitDepth": 16,
+        "AudioCodecRFC6381": "mp4a.40.2",
+        "VideoCodec": "h264",
+        "VideoFrameRate": 30.0,
+        "VideoCodecRFC6381": "avc1.640028",
+        "ImageWidth": 1920,
+        "ImageHeight": 1080,
+        "ImagePixelFormat": "yuv420p",
+        "ImageBitDepth": 8,
+        "VideoFrameCount": 360,
+    }
+
+
+def test_audio_video_info_recording_duration_prefers_video_when_both_set():
+    """RecordingDuration comes from video.duration_sec when both are set."""
+    audio = _make_audio_info(duration_sec=99.0)
+    video = _make_video_info(duration_sec=12.0)
+    data = bids_properties_from_audio_video_info(audio, video)
+    assert data["RecordingDuration"] == 12.0
+
+
+def test_audio_video_info_recording_duration_falls_back_to_audio():
+    """RecordingDuration falls back to audio.duration_sec when video's is None."""
+    audio = _make_audio_info(duration_sec=99.0)
+    video = _make_video_info(duration_sec=None)
+    data = bids_properties_from_audio_video_info(audio, video)
+    assert data["RecordingDuration"] == 99.0
+
+
+def test_audio_video_info_recording_duration_absent_when_neither_available():
+    """RecordingDuration is absent when video has no duration and audio is None."""
+    video = _make_video_info(duration_sec=None)
+    data = bids_properties_from_audio_video_info(None, video)
+    assert "RecordingDuration" not in data
+
+
+def test_audio_video_info_audio_only():
+    """audio-only: only audio-derived keys present, RecordingDuration from audio."""
+    audio = _make_audio_info()
+    data = bids_properties_from_audio_video_info(audio, None)
+    assert data == {
+        "RecordingDuration": 12.5,
+        "AudioCodec": "aac",
+        "AudioSampleRate": 48000,
+        "AudioChannelCount": 2,
+        "AudioBitDepth": 16,
+        "AudioCodecRFC6381": "mp4a.40.2",
+    }
+
+
+def test_audio_video_info_video_only():
+    """video-only: only video-derived keys present, RecordingDuration from video."""
+    video = _make_video_info()
+    data = bids_properties_from_audio_video_info(None, video)
+    assert data == {
+        "RecordingDuration": 12.0,
+        "VideoCodec": "h264",
+        "VideoFrameRate": 30.0,
+        "VideoCodecRFC6381": "avc1.640028",
+        "ImageWidth": 1920,
+        "ImageHeight": 1080,
+        "ImagePixelFormat": "yuv420p",
+        "ImageBitDepth": 8,
+        "VideoFrameCount": 360,
+    }
+
+
+def test_audio_video_info_both_none_returns_empty_dict():
+    """audio=None, video=None -> {}."""
+    assert bids_properties_from_audio_video_info(None, None) == {}
+
+
+def test_audio_video_info_none_valued_audio_field_omitted():
+    """A None-valued AudioInfo field is omitted, not written as None."""
+    audio = _make_audio_info(codec=None, codec_rfc6381=None)
+    data = bids_properties_from_audio_video_info(audio, None)
+    assert "AudioCodec" not in data
+    assert "AudioCodecRFC6381" not in data
+
+
+def test_audio_video_info_none_valued_video_field_omitted():
+    """A None-valued VideoInfo field is omitted, not written as None."""
+    video = _make_video_info(pix_fmt=None, frame_count=None)
+    data = bids_properties_from_audio_video_info(None, video)
+    assert "ImagePixelFormat" not in data
+    assert "VideoFrameCount" not in data
+
+
+def test_audio_video_info_props_default_creates_fresh_dict_each_call():
+    """props=None (default) returns a new dict on every call."""
+    audio = _make_audio_info()
+    r1 = bids_properties_from_audio_video_info(audio, None)
+    r2 = bids_properties_from_audio_video_info(audio, None)
+    assert r1 == r2
+    assert r1 is not r2
+
+
+def test_audio_video_info_props_shared_dict_mutated_and_returned():
+    """props=<dict> is mutated in place and returned as the same object."""
+    audio = _make_audio_info()
+    shared: dict = {}
+    result = bids_properties_from_audio_video_info(audio, None, props=shared)
+    assert result is shared
+    assert shared["AudioCodec"] == "aac"
+
+
+def test_audio_video_info_props_overwrites_existing_key():
+    """A pre-existing key in props is overwritten by this call's non-None value."""
+    audio = _make_audio_info(codec="opus")
+    shared = {"AudioCodec": "placeholder"}
+    bids_properties_from_audio_video_info(audio, None, props=shared)
+    assert shared["AudioCodec"] == "opus"
+
+
+def test_audio_video_info_props_preserves_unrelated_key():
+    """A pre-existing unrelated key in props survives untouched."""
+    audio = _make_audio_info()
+    shared = {"CustomField": "keep-me"}
+    bids_properties_from_audio_video_info(audio, None, props=shared)
+    assert shared["CustomField"] == "keep-me"
+    assert shared["AudioCodec"] == "aac"
+
+
+def test_audio_video_info_props_accumulates_across_two_calls():
+    """Two separate calls (audio-only, then video-only) into the same shared
+    props dict accumulate both sets of keys."""
+    audio = _make_audio_info()
+    video = _make_video_info()
+    shared: dict = {}
+    bids_properties_from_audio_video_info(audio, None, props=shared)
+    bids_properties_from_audio_video_info(None, video, props=shared)
+    assert shared["AudioCodec"] == "aac"
+    assert shared["VideoCodec"] == "h264"
+
+
+# ===========================================================================
+# bids_properties_from_ffprobe
+# ===========================================================================
+
+
+def test_ffprobe_calls_get_audio_video_info_and_maps():
+    """bids_properties_from_ffprobe wraps get_audio_video_info_ffprobe and
+    bids_properties_from_audio_video_info."""
+    audio = _make_audio_info()
+    video = _make_video_info()
+    with patch(
+        "reprostim.bids.properties.get_audio_video_info_ffprobe",
+        return_value=(audio, video),
+    ) as mock_probe:
+        data = bids_properties_from_ffprobe("fake.mkv")
+    mock_probe.assert_called_once_with("fake.mkv")
+    assert data == bids_properties_from_audio_video_info(audio, video)
+
+
+def test_ffprobe_no_streams_returns_empty_dict():
+    """A path ffprobe can't read (default-constructed AudioInfo/VideoInfo) -> {}."""
+    with patch(
+        "reprostim.bids.properties.get_audio_video_info_ffprobe",
+        return_value=(AudioInfo(), VideoInfo()),
+    ):
+        data = bids_properties_from_ffprobe("/nonexistent.mkv")
+    assert data == {}
+
+
+def test_ffprobe_props_passthrough():
+    """props is forwarded unchanged to bids_properties_from_audio_video_info."""
+    audio = _make_audio_info()
+    video = _make_video_info()
+    shared = {"CustomField": "keep-me"}
+    with patch(
+        "reprostim.bids.properties.get_audio_video_info_ffprobe",
+        return_value=(audio, video),
+    ):
+        result = bids_properties_from_ffprobe("fake.mkv", props=shared)
+    assert result is shared
+    assert shared["CustomField"] == "keep-me"
+    assert shared["AudioCodec"] == "aac"
+
 
 # ===========================================================================
 # bids_properties_from_split_result
@@ -255,3 +485,56 @@ def test_bids_properties_from_split_result_task_name_first_before_device():
     keys = list(data.keys())
     assert "TaskName" in keys and "Device" in keys
     assert keys.index("TaskName") < keys.index("Device")
+
+
+def test_bids_properties_from_split_result_invalid_video_width_omitted():
+    """A non-numeric, non-'n/a' video_width is omitted, not raised."""
+    sr = SplitResult(video_width="not-a-number", video_codec="h264")
+    data = bids_properties_from_split_result(sr)
+    assert "ImageWidth" not in data
+
+
+def test_bids_properties_from_split_result_invalid_video_height_omitted():
+    """A non-numeric, non-'n/a' video_height is omitted, not raised."""
+    sr = SplitResult(video_height="not-a-number", video_codec="h264")
+    data = bids_properties_from_split_result(sr)
+    assert "ImageHeight" not in data
+
+
+def test_bids_properties_from_split_result_invalid_audio_sample_rate_omitted():
+    """A non-numeric, non-'n/a' audio_sample_rate is omitted, not raised."""
+    sr = SplitResult(audio_sample_rate="not-a-number", audio_codec="aac")
+    data = bids_properties_from_split_result(sr)
+    assert "AudioSampleRate" not in data
+
+
+def test_bids_properties_from_split_result_invalid_audio_bit_depth_omitted():
+    """A non-numeric, non-'n/a' audio_bit_depth is omitted, not raised."""
+    sr = SplitResult(audio_bit_depth="not-a-number", audio_codec="aac")
+    data = bids_properties_from_split_result(sr)
+    assert "AudioBitDepth" not in data
+
+
+def test_bids_properties_from_split_result_invalid_audio_channel_count_omitted():
+    """A non-numeric, non-'n/a' audio_channel_count is omitted, not raised."""
+    sr = SplitResult(audio_channel_count="not-a-number", audio_codec="aac")
+    data = bids_properties_from_split_result(sr)
+    assert "AudioChannelCount" not in data
+
+
+def test_bids_properties_from_split_result_inv_image_bit_depth_from_sidecar_omitted():
+    """A non-numeric ImageBitDepth in sidecar_metadata is omitted, not raised."""
+    sr = SplitResult(video_codec="h264")
+    data = bids_properties_from_split_result(
+        sr, sidecar_metadata={"ImageBitDepth": "not-a-number"}
+    )
+    assert "ImageBitDepth" not in data
+
+
+def test_bids_properties_from_split_result_inv_frame_count_from_sidecar_omitted():
+    """A non-numeric VideoFrameCount in sidecar_metadata is omitted, not raised."""
+    sr = SplitResult(video_codec="h264")
+    data = bids_properties_from_split_result(
+        sr, sidecar_metadata={"VideoFrameCount": "not-a-number"}
+    )
+    assert "VideoFrameCount" not in data

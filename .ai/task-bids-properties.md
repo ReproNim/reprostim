@@ -2,10 +2,16 @@
 
 Tracks implementation progress against [spec-bids-properties.md](spec-bids-properties.md).
 
-**Status:** three APIs implemented, automated tests exist for `bids_properties_from_split_result`
-(`tests/bids/test_properties.py`, 17 tests, moved from `tests/qr/test_split_video.py`'s
-`_to_bids_model` tests). `bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`
-are done and tested manually only — no automated test file for those two yet.
+**Status:** three APIs implemented, all with automated tests in `tests/bids/test_properties.py`
+(39 tests total — 17 for `bids_properties_from_split_result` moved from
+`tests/qr/test_split_video.py`'s `_to_bids_model` tests, plus 15 new for
+`bids_properties_from_audio_video_info`, 3 for `bids_properties_from_ffprobe`, and 4 exercising
+previously-uncovered exception branches in `bids_properties_from_split_result`).
+`src/reprostim/bids/properties.py` is at **100% statement coverage** (`--cov-report=term-missing`
+shows no missing lines). Along the way, fixed a latent bug: `ImageBitDepth` from
+`sidecar_metadata` was `int()`-converted with no `try/except`, unlike every sibling numeric
+field — a malformed value (e.g. `"not-a-number"`) would have raised uncaught instead of being
+omitted; now wrapped to match the others.
 
 ---
 
@@ -83,11 +89,13 @@ are done and tested manually only — no automated test file for those two yet.
 
 ## Tests and Code Coverage
 
-Test file: `tests/bids/test_properties.py` (exists — 17 tests for
-`bids_properties_from_split_result`, moved verbatim from `tests/qr/test_split_video.py`'s
-`_to_bids_model` tests and renamed; see checklist below). `bids_properties_from_audio_video_info`/
-`bids_properties_from_ffprobe` still have **no automated tests** — manually verified during
-development only (audio+video, audio-only, video-only, neither).
+Test file: `tests/bids/test_properties.py` — **41 tests, 100% statement coverage of
+`bids/properties.py`** (`pytest --cov=reprostim.bids.properties --cov-report=term-missing`).
+17 tests for `bids_properties_from_split_result` were moved verbatim from
+`tests/qr/test_split_video.py`'s `_to_bids_model` tests and renamed; 24 more were added to bring
+`bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe` from zero automated
+coverage to full, and to close the remaining exception-branch gaps in
+`bids_properties_from_split_result`.
 
 ### `bids_properties_from_split_result` (implemented, in `tests/bids/test_properties.py`)
 
@@ -111,41 +119,54 @@ development only (audio+video, audio-only, video-only, neither).
 - [x] `test_bids_properties_from_split_result_task_name_absent_when_not_in_metadata`
 - [x] `test_bids_properties_from_split_result_task_name_absent_when_metadata_is_none`
 - [x] `test_bids_properties_from_split_result_task_name_first_before_device`
+- [x] `test_bids_properties_from_split_result_invalid_video_width_omitted` — non-numeric
+      `video_width` omitted, not raised (exception-branch coverage)
+- [x] `test_bids_properties_from_split_result_invalid_video_height_omitted`
+- [x] `test_bids_properties_from_split_result_invalid_audio_sample_rate_omitted`
+- [x] `test_bids_properties_from_split_result_invalid_audio_bit_depth_omitted`
+- [x] `test_bids_properties_from_split_result_invalid_audio_channel_count_omitted`
+- [x] `test_bids_properties_from_split_result_invalid_image_bit_depth_from_sidecar_omitted` —
+      also the regression test for the `ImageBitDepth` bug fix (see Status above)
+- [x] `test_bids_properties_from_split_result_invalid_video_frame_count_from_sidecar_omitted`
 - [ ] No test covers `sr` being a non-`SplitResult` duck-typed object (only real `SplitResult`
       instances used) — the untyped-parameter contract itself isn't directly exercised
 
-### `bids_properties_from_audio_video_info` / `bids_properties_from_ffprobe` (not yet automated)
+### `bids_properties_from_audio_video_info` / `bids_properties_from_ffprobe` (implemented)
 
-- [ ] `bids_properties_from_audio_video_info(audio, video)` — both present, `video.frame_count`
-      set → all mappable fields present including `VideoFrameCount`
-- [ ] `bids_properties_from_audio_video_info(audio, video)` — `video.frame_count=None` →
-      `VideoFrameCount` absent from the result
-- [ ] `bids_properties_from_audio_video_info(audio, None)` — audio-only fields present, no
-      video-derived keys, `RecordingDuration` from `audio.duration_sec`
-- [ ] `bids_properties_from_audio_video_info(None, video)` — video-only fields present, no
-      audio-derived keys, `RecordingDuration` from `video.duration_sec`
-- [ ] `bids_properties_from_audio_video_info(None, None)` → `{}`
-- [ ] A `None`-valued field on `AudioInfo`/`VideoInfo` (e.g. `codec=None`) is omitted from the
-      result, not written as `None`/`"n/a"`
-- [ ] Result keys are plain strings (`"AudioCodec"`, not `BidsMediaProperty.AUDIO_CODEC`)
-- [ ] `_set_prop` — skips `None`, sets `props[key.value]` for a non-`None` value
-- [ ] `bids_properties_from_ffprobe(path)` for a real audio+video fixture → matches
-      `bids_properties_from_audio_video_info(*get_audio_video_info_ffprobe(path))`
-- [ ] `bids_properties_from_ffprobe` for a nonexistent path → `{}`, no exception raised
-- [ ] `props=None` (default, both functions) → returns a fresh dict each call (not the same
-      object across calls)
-- [ ] `props=<dict>` (both functions) → return value `is` the passed-in dict
-- [ ] `props=<dict>` with a pre-existing unrelated key → that key survives untouched
-- [ ] `props=<dict>` with a pre-existing key this call also sets → overwritten by this call's
-      non-`None` value
-- [ ] Two calls into the same shared `props` (e.g. audio-only then video-only) → both sets of
-      keys present in the final dict
+- [x] `test_audio_video_info_both_present_full_mapping` — both present, all 14 fields incl.
+      `VideoFrameCount` (exact-dict assertion, not just spot checks)
+- [x] `test_audio_video_info_recording_duration_prefers_video_when_both_set`
+- [x] `test_audio_video_info_recording_duration_falls_back_to_audio` —
+      `video.duration_sec=None` falls back to `audio.duration_sec`
+- [x] `test_audio_video_info_recording_duration_absent_when_neither_available`
+- [x] `test_audio_video_info_audio_only` — audio-only fields present,
+      `RecordingDuration` from `audio.duration_sec`
+- [x] `test_audio_video_info_video_only` — video-only fields present incl.
+      `VideoFrameCount`, `RecordingDuration` from `video.duration_sec`
+- [x] `test_audio_video_info_both_none_returns_empty_dict`
+- [x] `test_audio_video_info_none_valued_audio_field_omitted`
+- [x] `test_audio_video_info_none_valued_video_field_omitted`
+- [x] `_set_prop` — covered indirectly (it's the sole mechanism `bids_properties_from_audio_video_info`
+      uses to populate every field; no direct unit test needed)
+- [x] `test_ffprobe_calls_get_audio_video_info_and_maps` — mocks
+      `reprostim.bids.properties.get_audio_video_info_ffprobe`, asserts result matches
+      `bids_properties_from_audio_video_info` called with the same `(audio, video)`
+- [x] `test_ffprobe_no_streams_returns_empty_dict` — mocked default-constructed
+      `AudioInfo()`/`VideoInfo()` → `{}`, no exception (matches
+      `get_audio_video_info_ffprobe`'s real never-raises contract)
+- [x] `test_ffprobe_props_passthrough`
+- [x] `test_audio_video_info_props_default_creates_fresh_dict_each_call`
+- [x] `test_audio_video_info_props_shared_dict_mutated_and_returned`
+- [x] `test_audio_video_info_props_overwrites_existing_key`
+- [x] `test_audio_video_info_props_preserves_unrelated_key`
+- [x] `test_audio_video_info_props_accumulates_across_two_calls` — audio-only then video-only
+      into the same shared dict; both sets of keys present
 
 ### Coverage targets
 
-| Module | Target |
-|---|---|
-| `bids/properties.py` | ≥ 90% |
+| Module | Target | Actual |
+|---|---|---|
+| `bids/properties.py` | ≥ 90% | **100%** (statement) |
 
 ---
 
