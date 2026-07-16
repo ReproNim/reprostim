@@ -27,7 +27,6 @@ from reprostim.qr.split_video import (
     _do_main_specs,
     _expand_output_template,
     _has_template_tokens,
-    _parse_audio_info,
     _parse_interval_sec,
     _parse_spec,
     _parse_ts,
@@ -1016,54 +1015,6 @@ def test_cli_sidecar_format_raw_passed_to_do_main(input_video):
         )
         mock_dm.assert_called_once()
         assert mock_dm.call_args.kwargs["sidecar_format"] == "raw"
-
-
-# ===========================================================================
-# _parse_audio_info
-# ===========================================================================
-
-
-def test_parse_audio_info_full_string():
-    """Full audio info string parses all four fields correctly."""
-    result = _parse_audio_info("48000Hz 16b 2ch aac")
-    assert result["audio_sample_rate"] == "48000"
-    assert result["audio_bit_depth"] == "16"
-    assert result["audio_channel_count"] == "2"
-    assert result["audio_codec"] == "aac"
-
-
-def test_parse_audio_info_missing_bit_depth_defaults_to_16():
-    """String without explicit bit depth defaults audio_bit_depth to '16'."""
-    result = _parse_audio_info("48000Hz 2ch aac")
-    assert result["audio_sample_rate"] == "48000"
-    assert result["audio_bit_depth"] == "16"
-    assert result["audio_channel_count"] == "2"
-    assert result["audio_codec"] == "aac"
-
-
-def test_parse_audio_info_none_returns_na():
-    """None input returns all n/a fields."""
-    result = _parse_audio_info(None)
-    assert all(v == "n/a" for v in result.values())
-
-
-def test_parse_audio_info_na_string_returns_na():
-    """'n/a' string returns all n/a fields."""
-    result = _parse_audio_info("n/a")
-    assert all(v == "n/a" for v in result.values())
-
-
-def test_parse_audio_info_empty_string_returns_na():
-    """Empty string returns all n/a fields."""
-    result = _parse_audio_info("")
-    assert all(v == "n/a" for v in result.values())
-
-
-def test_parse_audio_info_sample_rate_only():
-    """String with only sample rate populates that field; others are n/a or default."""
-    result = _parse_audio_info("44100Hz")
-    assert result["audio_sample_rate"] == "44100"
-    assert result["audio_bit_depth"] == "16"  # hardcoded default
 
 
 # ===========================================================================

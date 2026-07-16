@@ -11,9 +11,10 @@ from reprostim.bids.properties import (
     bids_properties_from_audio_video_info,
     bids_properties_from_ffprobe,
     bids_properties_from_split_result,
+    bids_properties_from_video_audit,
 )
 from reprostim.qr.split_video import SplitResult
-from reprostim.qr.video_audit import AudioInfo, VideoInfo
+from reprostim.qr.video_audit import AudioInfo, VaRecord, VideoInfo
 
 # ===========================================================================
 # bids_properties_from_audio_video_info
@@ -538,3 +539,134 @@ def test_bids_properties_from_split_result_inv_frame_count_from_sidecar_omitted(
         sr, sidecar_metadata={"VideoFrameCount": "not-a-number"}
     )
     assert "VideoFrameCount" not in data
+
+
+# ===========================================================================
+# bids_properties_from_video_audit
+# ===========================================================================
+
+_GET_FILE_VIDEO_AUDIT_PATCH = "reprostim.bids.properties.get_file_video_audit"
+
+
+def _make_va_record(**overrides) -> VaRecord:
+    defaults = dict(
+        path="/data/a.mkv",
+        duration="12.5",
+        video_res_recorded="1920x1080",
+        video_fps_recorded="30.0",
+        audio_sr="48000Hz 16b 2ch aac",
+    )
+    defaults.update(overrides)
+    return VaRecord(**defaults)
+
+
+def test_video_audit_calls_get_file_video_audit_cached_no_lock():
+    """cached=True, use_lock=False are hardcoded; path/path_tsv passed through."""
+    va = _make_va_record()
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va) as mock_gfva:
+        bids_properties_from_video_audit("/data/a.mkv", "videos.tsv")
+    mock_gfva.assert_called_once_with(
+        "/data/a.mkv", "videos.tsv", cached=True, use_lock=False
+    )
+
+
+def test_video_audit_path_tsv_defaults_to_none():
+    va = _make_va_record()
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va) as mock_gfva:
+        bids_properties_from_video_audit("/data/a.mkv")
+    mock_gfva.assert_called_once_with("/data/a.mkv", None, cached=True, use_lock=False)
+
+
+def test_video_audit_full_mapping():
+    va = _make_va_record()
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv", "videos.tsv")
+
+    assert data == {
+        "RecordingDuration": 12.5,
+        "ImageWidth": 1920,
+        "ImageHeight": 1080,
+        "VideoFrameRate": 30.0,
+        "AudioSampleRate": 48000.0,
+        "AudioBitDepth": 16,
+        "AudioChannelCount": 2,
+        "AudioCodec": "aac",
+    }
+    assert isinstance(data["ImageWidth"], int)
+    assert isinstance(data["ImageHeight"], int)
+    assert isinstance(data["AudioBitDepth"], int)
+    assert isinstance(data["AudioChannelCount"], int)
+
+
+def test_video_audit_all_na_returns_empty_dict():
+    va = _make_va_record(
+        duration="n/a",
+        video_res_recorded="n/a",
+        video_fps_recorded="n/a",
+        audio_sr="n/a",
+    )
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert data == {}
+
+
+def test_video_audit_duration_invalid_omitted():
+    va = _make_va_record(duration="not-a-number")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "RecordingDuration" not in data
+
+
+def test_video_audit_resolution_invalid_omits_both_dimensions():
+    va = _make_va_record(video_res_recorded="bogus")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "ImageWidth" not in data
+    assert "ImageHeight" not in data
+
+
+def test_video_audit_fps_invalid_omitted():
+    va = _make_va_record(video_fps_recorded="not-a-number")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "VideoFrameRate" not in data
+
+
+def test_video_audit_audio_sample_rate_only():
+    """audio_sr with only a sample rate: sample rate set, bit depth defaults
+    to 16 per parse_audio_sr, channel count/codec omitted."""
+    va = _make_va_record(audio_sr="44100Hz")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert data["AudioSampleRate"] == 44100.0
+    assert data["AudioBitDepth"] == 16
+    assert "AudioChannelCount" not in data
+    assert "AudioCodec" not in data
+
+
+def test_video_audit_props_default_creates_fresh_dict_each_call():
+    va = _make_va_record()
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        first = bids_properties_from_video_audit("/data/a.mkv")
+        second = bids_properties_from_video_audit("/data/a.mkv")
+    assert first is not second
+
+
+def test_video_audit_audio_sample_rate_invalid_omitted():
+    """parse_audio_sr doesn't digit-validate the Hz token, so a malformed
+    audio_sr can yield a non-numeric audio_sample_rate; must be omitted, not
+    raised."""
+    va = _make_va_record(audio_sr="abcHz")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "AudioSampleRate" not in data
+
+
+def test_video_audit_props_shared_dict_mutated_and_returned():
+    va = _make_va_record()
+    shared = {"CustomField": "keep-me"}
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        result = bids_properties_from_video_audit("/data/a.mkv", props=shared)
+    assert result is shared
+    assert shared["CustomField"] == "keep-me"
+    assert shared["AudioCodec"] == "aac"

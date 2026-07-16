@@ -7,20 +7,26 @@ produces BIDS media-file sidecar properties (the `BidsMediaProperty` keys define
 [spec-bids-media.md](spec-bids-media.md)) — from `ffprobe`-derived `AudioInfo`/`VideoInfo` (via
 `bids_properties_from_audio_video_info`, or directly from a file path via
 `bids_properties_from_ffprobe`), from a `split-video` result (via
-`bids_properties_from_split_result`), and in future cached `VaRecord` rows (`videos.tsv`).
+`bids_properties_from_split_result`), and from a cached `VaRecord` row (`videos.tsv`, via
+`bids_properties_from_video_audit`).
 
 This realizes what [spec-bids-inject-sidecar.md § Relationship to `bids-inject` /
 `split-video`](spec-bids-inject-sidecar.md#relationship-to-bids-inject--split-video) originally
 proposed: one module all consumers share, instead of each reimplementing the
 `AudioInfo`/`VideoInfo`/`SplitResult`/`VaRecord` → BIDS-dict mapping independently.
 
-**Status: three APIs implemented, two consumers wired up.** `bids_properties_from_audio_video_info`,
-`bids_properties_from_ffprobe`, and `bids_properties_from_split_result` are done.
-`bids/inject.py::_call_split_video` calls `bids_properties_from_ffprobe` to populate
-`sidecar_metadata`; `split_video.py::_write_sidecar` calls `bids_properties_from_split_result`
-(moved here from `split_video.py::_to_bids_model`, which no longer exists). `bids-inject-sidecar`
-(`_do_sidecar`) has **not** been wired up yet. The `VaRecord`-based entry point and a
-cache-aware/path-orchestrating wrapper covering all sources are future work (see Open Questions).
+**Status: four APIs implemented, two consumers wired up.** `bids_properties_from_audio_video_info`,
+`bids_properties_from_ffprobe`, `bids_properties_from_split_result`, and
+`bids_properties_from_video_audit` are done, all with 100% test coverage
+(`tests/bids/test_properties.py`). `bids/inject.py::_call_split_video` calls
+`bids_properties_from_ffprobe` to populate `sidecar_metadata`; `split_video.py::_write_sidecar`
+calls `bids_properties_from_split_result` (moved here from `split_video.py::_to_bids_model`, which
+no longer exists). `bids-inject-sidecar` (`_do_sidecar`) calls `bids_properties_from_ffprobe` but
+**not yet** `bids_properties_from_video_audit` — the `--videos` cache-lookup path described in
+[spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md) still needs to be wired up to call it
+(see that spec's Open Questions). A cache-aware/path-orchestrating wrapper covering all sources
+(preferring `VaRecord` when available, falling back to `ffprobe`) is future work (see Open
+Questions).
 
 ---
 
@@ -40,13 +46,30 @@ exactly this reason.
 ## Layering
 
 `properties.py` depends on `bids/media.py` (for `BidsMediaProperty`) and on
-`reprostim.qr.video_audit` (for `AudioInfo`/`VideoInfo`, and in future `VaRecord`) — not the
-reverse. `bids/inject_sidecar.py`/`bids/inject.py`/`qr/split_video.py` are expected to depend on
+`reprostim.qr.video_audit` (for `AudioInfo`/`VideoInfo`, `VaRecord`, `get_audio_video_info_ffprobe`,
+`get_file_video_audit`, `parse_audio_sr`) — not the reverse.
+`bids/inject_sidecar.py`/`bids/inject.py`/`qr/split_video.py` are expected to depend on
 `properties.py` rather than reaching into `qr.video_audit` directly or reimplementing the
 mapping. **`bids/inject.py` and `qr/split_video.py` both do this already**
 (`_call_split_video` imports `bids_properties_from_ffprobe`, not `get_audio_video_info_ffprobe`;
-`_write_sidecar` imports `bids_properties_from_split_result`); `bids/inject_sidecar.py` still
-imports `parse_bids_media_info` from `bids/media.py` only, not `properties.py`.
+`_write_sidecar` imports `bids_properties_from_split_result`); `qr/split_video.py` separately
+imports `parse_audio_sr` directly from `qr.video_audit` (not via `properties.py`) in `_split_video`,
+to populate `SplitResult`'s own `audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/
+`audio_codec` fields from a `SplitDevice.audio_sr` string — that use is *not* mediated by
+`properties.py`, since it produces `SplitResult` fields, not a BIDS properties dict.
+`bids/inject_sidecar.py` still imports `parse_bids_media_info` from `bids/media.py` only, not
+`bids_properties_from_video_audit` from `properties.py`.
+
+> **`parse_audio_sr`** (`reprostim.qr.video_audit.parse_audio_sr`) parses the composite
+> `'48000Hz 16b 2ch aac'`-style string used by both `VaRecord.audio_sr` and `SplitDevice.audio_sr`
+> into typed-ish string fields (`audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/
+> `audio_codec`, `"n/a"` when absent). It lives in `video_audit.py` (not `properties.py`) since
+> that's where the composite string format originates (`do_audit_file` assembles
+> `VaRecord.audio_sr` from `AudioInfo`) and where `qr/split_video.py` already depended on it before
+> this session (as the now-removed `split_video._parse_audio_info`) — moving it to `properties.py`
+> would have made `qr/split_video.py`'s existing, unrelated use of it depend on `bids/properties.py`
+> for no reason. `bids_properties_from_video_audit` (below) is the only place in `properties.py`
+> that calls it.
 
 `qr/split_video.py` importing from `bids/properties.py` — `qr/` depending on `bids/` — mirrors
 the same direction already established for `bids/media.py` (`BidsMediaProperty` is a leaf
@@ -129,8 +152,8 @@ def _set_prop(props: Dict[str, Any], key: BidsMediaProperty, value: Any) -> None
 ```
 
 Sets `props[key.value] = value`, skipping `None`. Factored out (not a closure inside
-`bids_properties_from_audio_video_info`) specifically so the planned `VaRecord`-based function
-below can reuse it.
+`bids_properties_from_audio_video_info`) so `bids_properties_from_video_audit` below can reuse
+it too.
 
 ---
 
@@ -146,9 +169,8 @@ Convenience wrapper: calls `reprostim.qr.video_audit.get_audio_video_info_ffprob
 `(AudioInfo, VideoInfo)`, then passes them (plus `props`, unchanged) straight through to
 `bids_properties_from_audio_video_info` — see [Shared `props`
 accumulation](#shared-props-accumulation) above.
-This is the direct-from-`ffprobe` counterpart to the still-TBD `bids_properties_from_va_record`
-(cache-based) below — together they'll back a single orchestrating entry point once the latter
-exists.
+This is the direct-from-`ffprobe` counterpart to `bids_properties_from_video_audit` (cache-based)
+below — together they back the still-TBD single orchestrating entry point (see Open Questions).
 
 `get_audio_video_info_ffprobe` never returns `None` for either stream — it returns a
 default-constructed (all-`None`-fields) `AudioInfo`/`VideoInfo` when a stream is absent or
@@ -192,13 +214,89 @@ output.
 
 ---
 
+## `bids_properties_from_video_audit` (implemented)
+
+```python
+def bids_properties_from_video_audit(
+    path: str,
+    path_tsv: Optional[str] = None,
+    props: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]: ...
+```
+
+Looks up a cached `VaRecord` for *path* in *path_tsv* (a `videos.tsv` produced by `video-audit`)
+and maps it to BIDS media-file properties — the cache-based counterpart to
+`bids_properties_from_ffprobe` (direct-from-`ffprobe`) above.
+
+- Calls `get_file_video_audit(path, path_tsv, cached=True, use_lock=False)` — always with
+  `cached=True` (prefer already-loaded, in-process TSV data over reloading from disk) and
+  `use_lock=False` (skip the advisory file lock, dirty-read mode). This is a deliberate choice
+  for read-mostly batch tooling like `bids-inject-sidecar` reading a `videos.tsv` that
+  `video-audit` itself is not concurrently writing — not appropriate for `video-audit`'s own
+  writer path, which needs the lock. `get_file_video_audit` itself falls back to auditing the
+  file directly (full `ffprobe`/QR-parse pass) when *path* has no matching row in *path_tsv*, or
+  *path_tsv* isn't given/found.
+- **Field mapping** uses the `VaRecord`'s `duration`/`video_res_recorded`/`video_fps_recorded`/
+  `audio_sr` fields — not the `video_res_detected`/`video_fps_detected` ones. The `_recorded`
+  fields are derived from the actual media stream (ffprobe/QR parsing, populated in
+  `do_audit_file` from a `ParseSummary`), while the `_detected` fields are derived from the
+  psychopy display-capture session log (what was *displayed*, not what's encoded in the file) —
+  the sidecar should describe the file itself, so `_recorded` is the correct source.
+
+  | `BidsMediaProperty`     | Source                                                          |
+  |--------------------------|------------------------------------------------------------------|
+  | `RECORDING_DURATION`    | `float(va.duration)`                                              |
+  | `IMAGE_WIDTH`/`IMAGE_HEIGHT` | `va.video_res_recorded` (`"WxH"` string, split on `"x"`)     |
+  | `VIDEO_FRAME_RATE`      | `float(va.video_fps_recorded)`                                    |
+  | `AUDIO_SAMPLE_RATE`/`AUDIO_BIT_DEPTH`/`AUDIO_CHANNEL_COUNT`/`AUDIO_CODEC` | `parse_audio_sr(va.audio_sr)` |
+
+  Any field that is `"n/a"` in the `VaRecord`, or fails to parse (non-numeric `duration`/
+  `video_res_recorded`/`video_fps_recorded`/`audio_sample_rate` — `parse_audio_sr` doesn't
+  digit-validate the `Hz` token), is omitted, matching every other `bids_properties_from_*`
+  function in this module. `audio_bit_depth`/`audio_channel_count` from `parse_audio_sr` are
+  never non-numeric other than `"n/a"` (that function's own `isdigit()` checks guarantee it), so
+  those two conversions are **not** wrapped in `try/except` — unlike `RecordingDuration`/
+  `ImageWidth`/`ImageHeight`/`VideoFrameRate`/`AudioSampleRate`, which are.
+- No image (`ImagePixelFormat`/`ImageBitDepth`) or codec-RFC6381 fields — `VaRecord` doesn't carry
+  them at all (see its field list in `qr/video_audit.py`).
+- Accepts the standard `props` accumulation parameter (see [Shared `props`
+  accumulation](#shared-props-accumulation) above), unlike `bids_properties_from_split_result`.
+- **Not yet wired up** to any consumer — `bids-inject-sidecar`'s `--videos` cache-lookup path
+  (`ctx.videos_tsv`) is accepted but not consulted at all yet; see
+  [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md) Open Questions.
+
+### `parse_audio_sr` (implemented, lives in `qr/video_audit.py`)
+
+```python
+def parse_audio_sr(audio_sr: Optional[str]) -> dict: ...
+```
+
+Parses a composite `'48000Hz 16b 2ch aac'`-style string (the format `do_audit_file` assembles for
+`VaRecord.audio_sr` from `AudioInfo`, and that `SplitDevice.audio_sr` also uses) into
+`{"audio_sample_rate", "audio_bit_depth", "audio_channel_count", "audio_codec"}`, all strings,
+`"n/a"` when a field can't be determined. Defaults `audio_bit_depth` to `"16"` when not present in
+the string (a pre-existing quirk carried over unchanged from its previous home).
+
+Moved from `qr/split_video.py::_parse_audio_info` (private) to `qr/video_audit.py::parse_audio_sr`
+(public) this session, since `video_audit.py` is where the string format originates and where
+both `qr/split_video.py` (building `SplitResult` fields) and `bids/properties.py` (building BIDS
+properties, via `bids_properties_from_video_audit`) need to consume it — a single shared
+implementation instead of `properties.py` reimplementing the same parsing rules locally (which
+would also have meant either duplicating the logic or `properties.py` importing from
+`qr/split_video.py`, circular per the Layering section above). Tests moved from
+`tests/qr/test_split_video.py` to `tests/qr/test_video_audit.py` accordingly.
+
+---
+
 ## Open Questions / TODOs
 
-- [ ] `bids_properties_from_va_record(record: VaRecord) -> Dict[str, Any]` — map a cached
-      `videos.tsv` row (`audio_sr`, `video_res_detected`, codec columns) to the same property
-      dict, for the `--videos` cache-lookup path `bids-inject-sidecar`'s spec describes.
-- [ ] `get_bids_properties(path: str, va_record: Optional[VaRecord] = None) -> Dict[str, Any]` —
-      single orchestrating entry point: resolve `va_record` → `bids_properties_from_va_record`,
+- [x] `bids_properties_from_video_audit(path, path_tsv=None) -> Dict[str, Any]` — **resolved**:
+      implemented, wraps `get_file_video_audit(path, path_tsv, cached=True, use_lock=False)`, maps
+      the `_recorded`/`audio_sr`/`duration` `VaRecord` fields (see above). Not yet consumed by
+      `bids-inject-sidecar`'s `--videos` option, though — that wiring remains open (see
+      [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md)).
+- [ ] `get_bids_properties(path: str, path_tsv: Optional[str] = None) -> Dict[str, Any]` —
+      single orchestrating entry point: resolve `path_tsv` → `bids_properties_from_video_audit`,
       else `bids_properties_from_ffprobe(path)`. This is what `bids-inject-sidecar`'s
       `_do_sidecar` should eventually call instead of invoking `parse_bids_media_info`/`ffprobe`
       itself.

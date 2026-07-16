@@ -19,7 +19,12 @@ import isodate
 from pydantic import BaseModel, Field
 
 from reprostim.bids.properties import bids_properties_from_split_result
-from reprostim.qr.video_audit import VaRecord, find_metadata_json, get_file_video_audit
+from reprostim.qr.video_audit import (
+    VaRecord,
+    find_metadata_json,
+    get_file_video_audit,
+    parse_audio_sr,
+)
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -104,46 +109,6 @@ class SplitResult(BaseModel):
     orig_offset: Optional[float] = None  # Offset of the split segment in seconds
     orig_device: str = "n/a"  # Video-audio capture device name
     orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
-
-
-def _parse_audio_info(audio_info: Optional[str]) -> dict:
-    """Parse audio_info string into separate BIDS-style fields.
-
-    Parses format like '48000Hz 16b 2ch aac' into individual fields.
-    Returns n/a for all fields if parsing fails.
-
-    :param audio_info: Audio info string (e.g., '48000Hz 2ch aac')
-    :type audio_info: Optional[str]
-    :return: Dict with audio_sample_rate, audio_bit_depth,
-             audio_channel_count, audio_codec
-    :rtype: dict
-    """
-    na = {
-        "audio_sample_rate": "n/a",
-        "audio_bit_depth": "n/a",
-        "audio_channel_count": "n/a",
-        "audio_codec": "n/a",
-    }
-    if not audio_info or audio_info == "n/a":
-        return na
-
-    try:
-        result = dict(na)
-        for part in audio_info.split():
-            if part.endswith("Hz"):
-                result["audio_sample_rate"] = part[:-2]
-            elif part.endswith("b") and part[:-1].isdigit():
-                result["audio_bit_depth"] = part[:-1]
-            elif part.endswith("ch") and part[:-2].isdigit():
-                result["audio_channel_count"] = part[:-2]
-            else:
-                result["audio_codec"] = part
-        # hardcode bit depth to 16 if not parsed
-        if result["audio_bit_depth"] == "n/a":
-            result["audio_bit_depth"] = "16"
-        return result
-    except Exception:
-        return na
 
 
 def _format_time(dt: datetime) -> str:
@@ -603,7 +568,7 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         ),
         video_frame_rate=sd.fps,
         video_codec="h264" if sd.resolution and sd.resolution != "n/a" else "n/a",
-        **_parse_audio_info(sd.audio_sr),
+        **parse_audio_sr(sd.audio_sr),
         orig_device=sd.device,
         orig_device_serial_number=sd.device_serial_number,
     )

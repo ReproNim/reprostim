@@ -372,6 +372,55 @@ def format_tts(t: float) -> str:
     return f"{format_date(dt)} {format_time(dt)}"
 
 
+def parse_audio_sr(audio_sr: Optional[str]) -> dict:
+    """Parse a composite ``audio_sr``-style string into separate BIDS-style
+    fields.
+
+    Parses format like ``'48000Hz 16b 2ch aac'`` into individual fields.
+    Returns ``n/a`` for all fields if parsing fails. This is the inverse of
+    the composite string assembled in :func:`do_audit_file` for
+    ``VaRecord.audio_sr`` (``f"{ai.sample_rate}Hz {ai.bits_per_sample}b
+    {ai.channels}ch {ai.codec}"``); shared by any caller that needs to
+    recover typed fields from that string (e.g. ``qr.split_video``,
+    ``bids.properties``).
+
+    :param audio_sr: Composite audio-info string (e.g., ``'48000Hz 2ch
+        aac'``), such as ``VaRecord.audio_sr`` or a ``SplitDevice``'s
+        equivalent field.
+    :type audio_sr: Optional[str]
+    :return: Dict with ``audio_sample_rate``, ``audio_bit_depth``,
+             ``audio_channel_count``, ``audio_codec`` (all strings, ``n/a``
+             when not determined).
+    :rtype: dict
+    """
+    na = {
+        "audio_sample_rate": "n/a",
+        "audio_bit_depth": "n/a",
+        "audio_channel_count": "n/a",
+        "audio_codec": "n/a",
+    }
+    if not audio_sr or audio_sr == "n/a":
+        return na
+
+    try:
+        result = dict(na)
+        for part in audio_sr.split():
+            if part.endswith("Hz"):
+                result["audio_sample_rate"] = part[:-2]
+            elif part.endswith("b") and part[:-1].isdigit():
+                result["audio_bit_depth"] = part[:-1]
+            elif part.endswith("ch") and part[:-2].isdigit():
+                result["audio_channel_count"] = part[:-2]
+            else:
+                result["audio_codec"] = part
+        # hardcode bit depth to 16 if not parsed
+        if result["audio_bit_depth"] == "n/a":
+            result["audio_bit_depth"] = "16"
+        return result
+    except Exception:
+        return na
+
+
 def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
     """
     Iterate over all REPROSTIM-METADATA-JSON lines in the log file.

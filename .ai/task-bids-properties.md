@@ -2,16 +2,22 @@
 
 Tracks implementation progress against [spec-bids-properties.md](spec-bids-properties.md).
 
-**Status:** three APIs implemented, all with automated tests in `tests/bids/test_properties.py`
-(39 tests total — 17 for `bids_properties_from_split_result` moved from
-`tests/qr/test_split_video.py`'s `_to_bids_model` tests, plus 15 new for
-`bids_properties_from_audio_video_info`, 3 for `bids_properties_from_ffprobe`, and 4 exercising
-previously-uncovered exception branches in `bids_properties_from_split_result`).
-`src/reprostim/bids/properties.py` is at **100% statement coverage** (`--cov-report=term-missing`
-shows no missing lines). Along the way, fixed a latent bug: `ImageBitDepth` from
-`sidecar_metadata` was `int()`-converted with no `try/except`, unlike every sibling numeric
-field — a malformed value (e.g. `"not-a-number"`) would have raised uncaught instead of being
-omitted; now wrapped to match the others.
+**Status:** four APIs implemented, all with automated tests in `tests/bids/test_properties.py`
+(52 tests total). `src/reprostim/bids/properties.py` is at **100% statement + branch coverage**
+(`--cov-report=term-missing` shows no missing lines). Along the way, fixed a latent bug:
+`ImageBitDepth` from `sidecar_metadata` was `int()`-converted with no `try/except`, unlike every
+sibling numeric field — a malformed value (e.g. `"not-a-number"`) would have raised uncaught
+instead of being omitted; now wrapped to match the others.
+
+**New this round:** `bids_properties_from_video_audit(path, path_tsv=None, props=None)` — maps a
+cached `VaRecord` (looked up via `get_file_video_audit(path, path_tsv, cached=True,
+use_lock=False)`) to BIDS properties. Its audio-string parsing needed the same composite-string
+logic `qr/split_video.py` already had (`_parse_audio_info`, for the identically-formatted
+`SplitDevice.audio_sr`); rather than duplicate it or create a circular import, that function moved
+to `qr/video_audit.py` as the public `parse_audio_sr` (same implementation, new home — it's where
+the string format originates). `qr/split_video.py` now imports it from there instead of defining
+it locally; its own tests moved from `tests/qr/test_split_video.py` to
+`tests/qr/test_video_audit.py` accordingly.
 
 ---
 
@@ -19,7 +25,7 @@ omitted; now wrapped to match the others.
 
 - [x] `_set_prop(props: Dict[str, Any], key: BidsMediaProperty, value: Any) -> None` — internal
       helper, sets `props[key.value] = value`, skips `None`; factored out of the mapping function
-      itself so `bids_properties_from_va_record` (future) can reuse it
+      itself so `bids_properties_from_video_audit` (below) can reuse it too
 - [x] `bids_properties_from_audio_video_info(audio: Optional[AudioInfo], video: Optional[VideoInfo], props: Optional[Dict[str, Any]] = None) -> Dict[str, Any]`
   - [x] Returns a plain `Dict[str, Any]` keyed by `BidsMediaProperty.value` (sidecar JSON key
         strings), not by the enum member
@@ -48,9 +54,27 @@ omitted; now wrapped to match the others.
         (`tests/data/reprostim-videos/2024.06.04-13.51.24.278--2024.06.04-13.51.31.057.mkv`)
         and the shared-`props` accumulation pattern (independent dicts by default, same object
         mutated/returned when shared, call-order priority)
-- [ ] `bids_properties_from_va_record(record: VaRecord) -> Dict[str, Any]` — not implemented
-- [ ] `get_bids_properties(path: str, va_record: Optional[VaRecord] = None) -> Dict[str, Any]` —
-      not implemented (single orchestrating entry point over `bids_properties_from_va_record`
+- [x] `bids_properties_from_video_audit(path: str, path_tsv: Optional[str] = None, props: Optional[Dict[str, Any]] = None) -> Dict[str, Any]`
+  - [x] Calls `get_file_video_audit(path, path_tsv, cached=True, use_lock=False)` — hardcoded
+        `cached=True`/`use_lock=False`, not parameterized (dirty-read, cache-preferring, matches
+        the read-mostly-batch-tooling use case)
+  - [x] `RecordingDuration` from `va.duration`, `ImageWidth`/`ImageHeight` from
+        `va.video_res_recorded` (`"WxH"` split), `VideoFrameRate` from `va.video_fps_recorded` —
+        the `_recorded` fields (actual media stream), not `_detected` (display-capture log)
+  - [x] `AudioSampleRate`/`AudioBitDepth`/`AudioChannelCount`/`AudioCodec` from
+        `parse_audio_sr(va.audio_sr)`
+  - [x] `"n/a"`/unparseable fields omitted, not raised or written as `"n/a"`
+  - [x] Accepts the standard `props` accumulation parameter (unlike
+        `bids_properties_from_split_result`)
+  - [ ] **Not wired up to any consumer yet** — `bids-inject-sidecar`'s `--videos` cache-lookup
+        path doesn't call it (see task-bids-inject-sidecar.md)
+- [x] `parse_audio_sr(audio_sr: Optional[str]) -> dict` — **moved to `qr/video_audit.py`** (public)
+      from `qr/split_video.py::_parse_audio_info` (private); same implementation. Used by
+      `bids_properties_from_video_audit` here, and by `qr/split_video.py::_split_video` (building
+      `SplitResult.audio_sample_rate`/etc. from `SplitDevice.audio_sr` — not mediated through
+      `properties.py`, since that produces `SplitResult` fields, not a BIDS properties dict)
+- [ ] `get_bids_properties(path: str, path_tsv: Optional[str] = None) -> Dict[str, Any]` —
+      not implemented (single orchestrating entry point over `bids_properties_from_video_audit`
       and `bids_properties_from_ffprobe`)
 - [x] Wire into `bids/inject.py::_call_split_video` — replaced its own direct
       `get_audio_video_info_ffprobe` call + manual `VideoCodecRFC6381`/`AudioCodecRFC6381`/
@@ -89,13 +113,16 @@ omitted; now wrapped to match the others.
 
 ## Tests and Code Coverage
 
-Test file: `tests/bids/test_properties.py` — **41 tests, 100% statement coverage of
+Test file: `tests/bids/test_properties.py` — **52 tests, 100% statement + branch coverage of
 `bids/properties.py`** (`pytest --cov=reprostim.bids.properties --cov-report=term-missing`).
 17 tests for `bids_properties_from_split_result` were moved verbatim from
 `tests/qr/test_split_video.py`'s `_to_bids_model` tests and renamed; 24 more were added to bring
 `bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe` from zero automated
 coverage to full, and to close the remaining exception-branch gaps in
-`bids_properties_from_split_result`.
+`bids_properties_from_split_result`; 11 more added this round for
+`bids_properties_from_video_audit` (below). `parse_audio_sr`'s own tests live in
+`tests/qr/test_video_audit.py` (moved there with the function — see task-video-audit checklist,
+or the spec's Layering section), not here.
 
 ### `bids_properties_from_split_result` (implemented, in `tests/bids/test_properties.py`)
 
@@ -162,21 +189,51 @@ coverage to full, and to close the remaining exception-branch gaps in
 - [x] `test_audio_video_info_props_accumulates_across_two_calls` — audio-only then video-only
       into the same shared dict; both sets of keys present
 
+### `bids_properties_from_video_audit` (implemented, in `tests/bids/test_properties.py`)
+
+- [x] `test_video_audit_calls_get_file_video_audit_cached_no_lock` — `cached=True`/`use_lock=False`
+      hardcoded, `path`/`path_tsv` passed through
+- [x] `test_video_audit_path_tsv_defaults_to_none`
+- [x] `test_video_audit_full_mapping` — fully-populated `VaRecord` → exact-dict assertion, all
+      8 mappable fields, with type checks (`ImageWidth`/`ImageHeight`/`AudioBitDepth`/
+      `AudioChannelCount` as `int`)
+- [x] `test_video_audit_all_na_returns_empty_dict`
+- [x] `test_video_audit_duration_invalid_omitted` — non-numeric `duration` omitted, not raised
+- [x] `test_video_audit_resolution_invalid_omits_both_dimensions` — malformed
+      `video_res_recorded` omits both `ImageWidth`/`ImageHeight` (atomic — not one without other)
+- [x] `test_video_audit_fps_invalid_omitted`
+- [x] `test_video_audit_audio_sample_rate_only` — `audio_sr="44100Hz"` → sample rate set, bit
+      depth defaults to `"16"` per `parse_audio_sr`, channel count/codec omitted
+- [x] `test_video_audit_audio_sample_rate_invalid_omitted` — `parse_audio_sr` doesn't
+      digit-validate the `Hz` token, so a malformed `audio_sr` (e.g. `"abcHz"`) can produce a
+      non-numeric `audio_sample_rate`; must be omitted, not raised (the one reachable
+      `except (ValueError, TypeError)` branch among the audio fields — see spec's note on why
+      `audio_bit_depth`/`audio_channel_count` aren't similarly wrapped)
+- [x] `test_video_audit_props_default_creates_fresh_dict_each_call`
+- [x] `test_video_audit_props_shared_dict_mutated_and_returned`
+
 ### Coverage targets
 
 | Module | Target | Actual |
 |---|---|---|
-| `bids/properties.py` | ≥ 90% | **100%** (statement) |
+| `bids/properties.py` | ≥ 90% | **100%** (statement + branch) |
 
 ---
 
 ## Open Questions / Future Work
 
-- [ ] `bids_properties_from_va_record` — field mapping from `VaRecord` columns; should accept the
-      same optional `props` param for consistency with the other `bids_properties_from_*`
-      functions
-- [ ] `get_bids_properties` — orchestration entry point (path → va_record lookup →
-      `bids_properties_from_ffprobe` fallback)
+- [x] `bids_properties_from_va_record` — **resolved**, implemented as
+      `bids_properties_from_video_audit(path, path_tsv=None, props=None)` (takes `path`/`path_tsv`
+      and calls `get_file_video_audit` itself, rather than taking a pre-fetched `VaRecord` — a
+      slightly different shape than originally sketched here, but accepts the same optional
+      `props` param for consistency with the other `bids_properties_from_*` functions)
+- [ ] `get_bids_properties` — orchestration entry point (path → `bids_properties_from_video_audit`
+      lookup → `bids_properties_from_ffprobe` fallback) — still not implemented; not yet clear
+      whether it should try `bids_properties_from_video_audit` first and fall back to
+      `bids_properties_from_ffprobe`, or always call both and let `props` accumulation semantics
+      (call-order priority) decide
+- [ ] `bids_properties_from_video_audit` not wired into any consumer yet — `bids-inject-sidecar`'s
+      `--videos`/`ctx.videos_tsv` is accepted but not consulted (see task-bids-inject-sidecar.md)
 - [x] `VideoFrameCount` source — resolved: `VideoInfo.frame_count` added to `video_audit.py`
 - [ ] `bids_properties_from_ffprobe` doesn't expose `count_frames` (from
       `get_audio_video_info_ffprobe`'s new param) — callers can't request the exact/slower
@@ -185,7 +242,7 @@ coverage to full, and to close the remaining exception-branch gaps in
 - [ ] `reprostim.qr.video_audit` import path will need updating if/when `video_audit.py` moves
       out of `qr/` per the broader package reorganization
 - [ ] `bids_properties_from_split_result` doesn't accept a `props` accumulation parameter — add
-      for consistency with the other two `bids_properties_from_*` functions, or confirm not
+      for consistency with the other three `bids_properties_from_*` functions, or confirm not
       needed
-- [ ] Automated tests for `bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`
-      — still manual-only, unlike `bids_properties_from_split_result`
+- [x] Automated tests for `bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`
+      — resolved, fully covered alongside everything else in this module

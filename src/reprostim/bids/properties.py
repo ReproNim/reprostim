@@ -17,7 +17,14 @@ import logging
 from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
-from reprostim.qr.video_audit import AudioInfo, VideoInfo, get_audio_video_info_ffprobe
+from reprostim.qr.video_audit import (
+    AudioInfo,
+    VaRecord,
+    VideoInfo,
+    get_audio_video_info_ffprobe,
+    get_file_video_audit,
+    parse_audio_sr,
+)
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -231,3 +238,103 @@ def bids_properties_from_split_result(
             pass
 
     return result
+
+
+def bids_properties_from_video_audit(
+    path: str,
+    path_tsv: Optional[str] = None,
+    props: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Look up a cached ``VaRecord`` for *path* in *path_tsv* (a
+    ``videos.tsv`` produced by ``video-audit``) and map it to BIDS
+    media-file properties.
+
+    Wraps ``get_file_video_audit(path, path_tsv, cached=True,
+    use_lock=False)``: prefers already-loaded, cached TSV data over
+    reloading from disk, and skips the advisory file lock (dirty read) —
+    appropriate for read-mostly batch tooling (e.g. ``bids-inject-sidecar``)
+    rather than the ``video-audit`` writer itself. Falls back to auditing
+    the file directly when *path* has no matching row in *path_tsv*, or
+    *path_tsv* is not given/found — see
+    :func:`reprostim.qr.video_audit.get_file_video_audit`.
+
+    Uses the ``VaRecord``'s ``duration``/``video_res_recorded``/
+    ``video_fps_recorded``/``audio_sr`` fields (derived from the media
+    stream itself via ffprobe/QR parsing), not the ``*_detected`` ones
+    (derived from the psychopy display-capture log), since the sidecar
+    should describe the file, not what was displayed. Fields absent or
+    ``"n/a"`` in the ``VaRecord`` are omitted, matching every other
+    ``bids_properties_from_*`` function in this module.
+
+    :param path: Path to the audio/video file.
+    :type path: str
+    :param path_tsv: Optional path to ``videos.tsv``.
+    :type path_tsv: Optional[str]
+    :param props: Optional dict to populate/merge into instead of creating a
+        fresh one; see :func:`bids_properties_from_audio_video_info`.
+    :type props: Optional[Dict[str, Any]]
+    :return: *props* (or a new dict if *props* was ``None``); see
+        :func:`bids_properties_from_audio_video_info`.
+    :rtype: Dict[str, Any]
+    """
+    if props is None:
+        props = {}
+
+    va: VaRecord = get_file_video_audit(path, path_tsv, cached=True, use_lock=False)
+
+    if va.duration and va.duration != "n/a":
+        try:
+            _set_prop(props, BidsMediaProperty.RECORDING_DURATION, float(va.duration))
+        except (ValueError, TypeError):
+            pass
+
+    if va.video_res_recorded and va.video_res_recorded != "n/a":
+        width_str, _, height_str = va.video_res_recorded.partition("x")
+        try:
+            width, height = int(width_str), int(height_str)
+        except (ValueError, TypeError):
+            pass
+        else:
+            _set_prop(props, BidsMediaProperty.IMAGE_WIDTH, width)
+            _set_prop(props, BidsMediaProperty.IMAGE_HEIGHT, height)
+
+    if va.video_fps_recorded and va.video_fps_recorded != "n/a":
+        try:
+            _set_prop(
+                props,
+                BidsMediaProperty.VIDEO_FRAME_RATE,
+                float(va.video_fps_recorded),
+            )
+        except (ValueError, TypeError):
+            pass
+
+    audio = parse_audio_sr(va.audio_sr)
+
+    if audio["audio_sample_rate"] != "n/a":
+        try:
+            _set_prop(
+                props,
+                BidsMediaProperty.AUDIO_SAMPLE_RATE,
+                float(audio["audio_sample_rate"]),
+            )
+        except (ValueError, TypeError):
+            pass
+
+    if audio["audio_bit_depth"] != "n/a":
+        # parse_audio_sr only ever sets this to a digit-string or "n/a"
+        _set_prop(
+            props, BidsMediaProperty.AUDIO_BIT_DEPTH, int(audio["audio_bit_depth"])
+        )
+
+    if audio["audio_channel_count"] != "n/a":
+        # parse_audio_sr only ever sets this to a digit-string or "n/a"
+        _set_prop(
+            props,
+            BidsMediaProperty.AUDIO_CHANNEL_COUNT,
+            int(audio["audio_channel_count"]),
+        )
+
+    if audio["audio_codec"] != "n/a":
+        _set_prop(props, BidsMediaProperty.AUDIO_CODEC, audio["audio_codec"])
+
+    return props

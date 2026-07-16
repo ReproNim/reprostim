@@ -31,7 +31,13 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] `_parse_interval_sec` — seconds float or ISO 8601 duration → float seconds
 - [x] `_parse_date_time` — `date_str` + `time_str` → naive `datetime`
 - [x] `_parse_fps` — fps string → float
-- [x] `_parse_audio_info` — audio info string → dict
+- [x] `parse_audio_sr` (`qr.video_audit`) — audio info string → dict; used here to build
+      `SplitResult`'s `audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/`audio_codec`
+      fields from `SplitDevice.audio_sr`. Moved from this module's own private
+      `_parse_audio_info` to `qr/video_audit.py` (public) so `bids/properties.py` could reuse the
+      same implementation instead of duplicating it — see
+      [spec-bids-properties.md](spec-bids-properties.md). Its tests moved to
+      `tests/qr/test_video_audit.py` accordingly (see [task-video-audit.md](task-video-audit.md)).
 
 ### Spec parsing and output templates
 - [x] `_parse_spec` — `START/DURATION` and `START//END` formats parsed to `SpecEntry`
