@@ -7,6 +7,8 @@
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
+
 from reprostim.bids.properties import (
     bids_properties_from_audio_video_info,
     bids_properties_from_ffprobe,
@@ -546,6 +548,17 @@ def test_bids_properties_from_split_result_inv_frame_count_from_sidecar_omitted(
 # ===========================================================================
 
 _GET_FILE_VIDEO_AUDIT_PATCH = "reprostim.bids.properties.get_file_video_audit"
+_FIND_METADATA_JSON_PATCH = "reprostim.bids.properties.find_metadata_json"
+
+
+@pytest.fixture(autouse=True)
+def _no_session_begin_log():
+    """bids_properties_from_video_audit also calls find_metadata_json(path +
+    ".log", ...) to recover Device/DeviceSerialNumber. Default it to "no log
+    file found" so the tests below don't depend on filesystem state; tests
+    covering that lookup override this patch themselves."""
+    with patch(_FIND_METADATA_JSON_PATCH, return_value=None):
+        yield
 
 
 def _make_va_record(**overrides) -> VaRecord:
@@ -670,3 +683,35 @@ def test_video_audit_props_shared_dict_mutated_and_returned():
     assert result is shared
     assert shared["CustomField"] == "keep-me"
     assert shared["AudioCodec"] == "aac"
+
+
+def test_video_audit_device_and_serial_from_session_begin_log():
+    va = _make_va_record()
+    session_begin = {"type": "session_begin", "vDev": "TestDevice", "serial": "SN-1"}
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va), patch(
+        _FIND_METADATA_JSON_PATCH, return_value=session_begin
+    ) as mock_fmj:
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    mock_fmj.assert_called_once_with("/data/a.mkv.log", "type", "session_begin")
+    assert data["Device"] == "TestDevice"
+    assert data["DeviceSerialNumber"] == "SN-1"
+
+
+def test_video_audit_no_session_begin_log_omits_device_fields():
+    va = _make_va_record()
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va), patch(
+        _FIND_METADATA_JSON_PATCH, return_value=None
+    ):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "Device" not in data
+    assert "DeviceSerialNumber" not in data
+
+
+def test_video_audit_session_begin_log_missing_fields_omitted():
+    va = _make_va_record()
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va), patch(
+        _FIND_METADATA_JSON_PATCH, return_value={"type": "session_begin"}
+    ):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "Device" not in data
+    assert "DeviceSerialNumber" not in data

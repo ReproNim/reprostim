@@ -21,6 +21,7 @@ from reprostim.qr.video_audit import (
     AudioInfo,
     VaRecord,
     VideoInfo,
+    find_metadata_json,
     get_audio_video_info_ffprobe,
     get_file_video_audit,
     parse_audio_sr,
@@ -266,6 +267,14 @@ def bids_properties_from_video_audit(
     ``"n/a"`` in the ``VaRecord`` are omitted, matching every other
     ``bids_properties_from_*`` function in this module.
 
+    ``VaRecord``/``videos.tsv`` has no ``Device``/``DeviceSerialNumber``
+    columns yet, so those two are instead recovered the same way
+    ``qr.split_video`` does: by looking for a ``session_begin``
+    REPROSTIM-METADATA-JSON entry in ``<path>.log`` (see
+    :func:`reprostim.qr.video_audit.find_metadata_json`) and reading its
+    ``vDev``/``serial`` fields. Omitted if ``<path>.log`` doesn't exist, has
+    no ``session_begin`` entry, or that entry lacks the field.
+
     :param path: Path to the audio/video file.
     :type path: str
     :param path_tsv: Optional path to ``videos.tsv``.
@@ -336,5 +345,17 @@ def bids_properties_from_video_audit(
 
     if audio["audio_codec"] != "n/a":
         _set_prop(props, BidsMediaProperty.AUDIO_CODEC, audio["audio_codec"])
+
+    # Device/DeviceSerialNumber aren't part of VaRecord (see docstring); recover
+    # them from the recording log's session_begin metadata, if present.
+    sb = find_metadata_json(path + ".log", "type", "session_begin")
+    if sb is not None:
+        device = sb.get("vDev", "n/a") or "n/a"
+        if device != "n/a":
+            props["Device"] = device
+
+        device_serial_number = sb.get("serial", "n/a") or "n/a"
+        if device_serial_number != "n/a":
+            props["DeviceSerialNumber"] = device_serial_number
 
     return props
