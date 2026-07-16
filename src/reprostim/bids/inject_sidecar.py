@@ -16,7 +16,10 @@ from typing import Any, Callable, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from reprostim.bids.media import BidsMediaInfo, parse_bids_media_info
-from reprostim.bids.properties import bids_properties_from_ffprobe
+from reprostim.bids.properties import (
+    bids_properties_from_ffprobe,
+    bids_properties_from_video_audit,
+)
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -194,10 +197,14 @@ def _do_sidecar(ctx: BisContext, path: str) -> bool:
     """Extract BIDS media-file metadata for *path* and write/update its
     sidecar JSON.
 
-    Basic implementation: extraction is purely ``ffprobe``-based (via
-    :func:`bids_properties_from_ffprobe`) plus ``ctx.ext_props``
-    (``--add`` overrides). ``ctx.videos_tsv`` cache lookup is not
-    consulted yet — see spec Open Questions.
+    When ``ctx.videos_tsv`` is set, extraction prefers
+    :func:`bids_properties_from_video_audit` (cached ``videos.tsv``
+    lookup, falling back to auditing *path* directly when it has no
+    matching row — see that function). If it raises, extraction falls
+    back to the plain ``ffprobe``-based :func:`bids_properties_from_ffprobe`
+    for this file. When ``ctx.videos_tsv`` is not set, extraction is
+    ``ffprobe``-only, as before. Either way, ``ctx.ext_props`` (``--add``
+    overrides) is merged on top.
 
     :param ctx: Processing context (mode, conflict policy, ext_props, etc.)
     :type ctx: BisContext
@@ -221,8 +228,22 @@ def _do_sidecar(ctx: BisContext, path: str) -> bool:
             return False
         _warn(ctx, msg)
 
-    props: dict = bids_properties_from_ffprobe(path)
-    logger.debug(f"bids_props_ffrobe: {props}")
+    props: Optional[dict] = None
+    if ctx.videos_tsv:
+        try:
+            props = bids_properties_from_video_audit(path, ctx.videos_tsv)
+            logger.debug(f"bids_props_video_audit: {props}")
+        except Exception as e:
+            _warn(
+                ctx,
+                f"{path}: bids_properties_from_video_audit failed ({e}), "
+                f"falling back to ffprobe",
+            )
+            props = None
+
+    if props is None:
+        props = bids_properties_from_ffprobe(path)
+        logger.debug(f"bids_props_ffprobe: {props}")
 
     # --add overrides take priority over extracted fields.
     fields: Dict[str, Any] = dict(props)
@@ -312,12 +333,12 @@ def do_main(
 ) -> int:
     """Main entry point for the bids-inject-sidecar command.
 
-    For each file in ``files``, extracts BIDS media-file metadata via
-    ``ffprobe`` (see :func:`_do_sidecar`), merges in ``add`` overrides, and
-    writes/updates the corresponding ``.json`` sidecar according to ``mode``
-    and ``existing_different``. ``videos`` (``videos.tsv`` cache lookup) is
-    accepted but **not yet consulted** — extraction is ``ffprobe``-only for
-    now; see .ai/spec-bids-inject-sidecar.md Open Questions.
+    For each file in ``files``, extracts BIDS media-file metadata (see
+    :func:`_do_sidecar`: prefers the ``videos.tsv`` cache via
+    ``bids_properties_from_video_audit`` when ``videos`` is given, falling
+    back to ``ffprobe`` on lookup failure or when ``videos`` is not given),
+    merges in ``add`` overrides, and writes/updates the corresponding
+    ``.json`` sidecar according to ``mode`` and ``existing_different``.
 
     :param files: Audio/video file paths from the CLI ``FILES`` argument.
     :type files: List[str]

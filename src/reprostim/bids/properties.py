@@ -275,6 +275,12 @@ def bids_properties_from_video_audit(
     ``vDev``/``serial`` fields. Omitted if ``<path>.log`` doesn't exist, has
     no ``session_begin`` entry, or that entry lacks the field.
 
+    ``VaRecord`` also has no codec column, so ``VideoCodec`` is set to
+    ``"h264"`` whenever ``video_res_recorded`` is present (not ``"n/a"``),
+    reflecting that ``reprostim-videocapture`` always encodes with
+    ``-c:v libx264`` — matching ``SplitResult.video_codec``'s inference in
+    ``bids_properties_from_split_result``.
+
     :param path: Path to the audio/video file.
     :type path: str
     :param path_tsv: Optional path to ``videos.tsv``.
@@ -306,6 +312,11 @@ def bids_properties_from_video_audit(
         else:
             _set_prop(props, BidsMediaProperty.IMAGE_WIDTH, width)
             _set_prop(props, BidsMediaProperty.IMAGE_HEIGHT, height)
+
+        # VaRecord has no codec column; reprostim-videocapture always encodes
+        # with -c:v libx264, so h264 is inferred whenever a resolution is
+        # present, matching split_video.py's SplitResult.video_codec.
+        _set_prop(props, BidsMediaProperty.VIDEO_CODEC, "h264")
 
     if va.video_fps_recorded and va.video_fps_recorded != "n/a":
         try:

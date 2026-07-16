@@ -208,6 +208,7 @@ def test_warn_returns_none():
 # ===========================================================================
 
 _FFPROBE_PATCH = "reprostim.bids.inject_sidecar.bids_properties_from_ffprobe"
+_VIDEO_AUDIT_PATCH = "reprostim.bids.inject_sidecar.bids_properties_from_video_audit"
 
 
 def test_do_sidecar_invalid_media_file_strict_reports_error_and_returns_false(
@@ -260,6 +261,60 @@ def test_do_sidecar_fresh_write(tmp_path):
 
     assert result is True
     assert json.loads(sidecar_path.read_text()) == {"AudioCodec": "aac"}
+
+
+def test_do_sidecar_videos_tsv_uses_video_audit_not_ffprobe(tmp_path):
+    """When ctx.videos_tsv is set, extraction prefers
+    bids_properties_from_video_audit and never calls ffprobe."""
+    path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
+    path.touch()
+    sidecar_path = path.with_suffix(".json")
+    ctx = BisContext(videos_tsv=str(tmp_path / "videos.tsv"))
+
+    with patch(
+        _VIDEO_AUDIT_PATCH, return_value={"AudioCodec": "aac"}
+    ) as mock_va, patch(_FFPROBE_PATCH) as mock_ffprobe:
+        result = _do_sidecar(ctx, str(path))
+
+    assert result is True
+    mock_va.assert_called_once_with(str(path), ctx.videos_tsv)
+    mock_ffprobe.assert_not_called()
+    assert json.loads(sidecar_path.read_text()) == {"AudioCodec": "aac"}
+
+
+def test_do_sidecar_videos_tsv_failure_falls_back_to_ffprobe(tmp_path):
+    """If bids_properties_from_video_audit raises, extraction rolls back to
+    the plain ffprobe-based approach for that file, with a warning."""
+    path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
+    path.touch()
+    sidecar_path = path.with_suffix(".json")
+    msgs = []
+    ctx = BisContext(videos_tsv=str(tmp_path / "videos.tsv"), out_func=msgs.append)
+
+    with patch(_VIDEO_AUDIT_PATCH, side_effect=RuntimeError("boom")), patch(
+        _FFPROBE_PATCH, return_value={"AudioCodec": "aac"}
+    ) as mock_ffprobe:
+        result = _do_sidecar(ctx, str(path))
+
+    assert result is True
+    mock_ffprobe.assert_called_once_with(str(path))
+    assert any("Warn:" in m and "falling back to ffprobe" in m for m in msgs)
+    assert json.loads(sidecar_path.read_text()) == {"AudioCodec": "aac"}
+
+
+def test_do_sidecar_no_videos_tsv_uses_ffprobe_only(tmp_path):
+    """Without ctx.videos_tsv, bids_properties_from_video_audit is never
+    consulted (unchanged, ffprobe-only behavior)."""
+    path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
+    path.touch()
+    ctx = BisContext()
+
+    with patch(_VIDEO_AUDIT_PATCH) as mock_va, patch(
+        _FFPROBE_PATCH, return_value={"AudioCodec": "aac"}
+    ):
+        _do_sidecar(ctx, str(path))
+
+    mock_va.assert_not_called()
 
 
 def test_do_sidecar_ext_props_override_extracted_fields(tmp_path):

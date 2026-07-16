@@ -600,6 +600,7 @@ def test_video_audit_full_mapping():
         "ImageWidth": 1920,
         "ImageHeight": 1080,
         "VideoFrameRate": 30.0,
+        "VideoCodec": "h264",
         "AudioSampleRate": 48000.0,
         "AudioBitDepth": 16,
         "AudioChannelCount": 2,
@@ -631,11 +632,29 @@ def test_video_audit_duration_invalid_omitted():
 
 
 def test_video_audit_resolution_invalid_omits_both_dimensions():
+    """An unparseable (but non-"n/a") resolution string still counts as
+    "resolution present" for the VideoCodec inference below, matching
+    SplitResult.video_codec's inference in split_video.py."""
     va = _make_va_record(video_res_recorded="bogus")
     with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
         data = bids_properties_from_video_audit("/data/a.mkv")
     assert "ImageWidth" not in data
     assert "ImageHeight" not in data
+    assert data["VideoCodec"] == "h264"
+
+
+def test_video_audit_video_codec_h264_when_resolution_present():
+    va = _make_va_record(video_res_recorded="1920x1080")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert data["VideoCodec"] == "h264"
+
+
+def test_video_audit_video_codec_omitted_when_resolution_na():
+    va = _make_va_record(video_res_recorded="n/a")
+    with patch(_GET_FILE_VIDEO_AUDIT_PATCH, return_value=va):
+        data = bids_properties_from_video_audit("/data/a.mkv")
+    assert "VideoCodec" not in data
 
 
 def test_video_audit_fps_invalid_omitted():
