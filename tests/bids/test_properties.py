@@ -632,7 +632,7 @@ def test_video_audit_duration_invalid_omitted():
 
 
 def test_video_audit_resolution_invalid_omits_both_dimensions():
-    """An unparseable (but non-"n/a") resolution string still counts as
+    """An unparsable (but non-"n/a") resolution string still counts as
     "resolution present" for the VideoCodec inference below, matching
     SplitResult.video_codec's inference in split_video.py."""
     va = _make_va_record(video_res_recorded="bogus")
