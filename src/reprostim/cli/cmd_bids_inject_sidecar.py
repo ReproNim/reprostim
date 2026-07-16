@@ -64,6 +64,15 @@ logger = logging.getLogger(__name__)
     "that file. 'overwrite': log a warning and proceed with the new value.",
 )
 @click.option(
+    "-s",
+    "--strict",
+    is_flag=True,
+    default=False,
+    help="Treat metadata problems (e.g. a filename with no valid BIDS media "
+    "type suffix) as a fatal error for that file. When not set (default), "
+    "such problems are reported as a warning and processing continues.",
+)
+@click.option(
     "-d",
     "--dry-run",
     is_flag=True,
@@ -86,6 +95,7 @@ def bids_inject_sidecar(
     mode: str,
     add_meta: tuple,
     existing_different: str,
+    strict: bool,
     dry_run: bool,
     verbose: bool,
 ):
@@ -105,6 +115,7 @@ def bids_inject_sidecar(
     logger.info(f"JSON mode          : {mode}")
     logger.info(f"Add metadata       : {add_meta}")
     logger.info(f"Existing-different : {existing_different}")
+    logger.info(f"Strict             : {strict}")
     logger.info(f"Dry-run            : {dry_run}")
     logger.info(f"Verbose            : {verbose}")
 
@@ -116,6 +127,7 @@ def bids_inject_sidecar(
         mode=mode,
         add_meta=list(add_meta),
         existing_different=existing_different,
+        strict=strict,
         dry_run=dry_run,
         verbose=verbose,
         out_func=click.echo,

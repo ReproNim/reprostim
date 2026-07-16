@@ -61,6 +61,13 @@ class BisContext(BaseModel):
         description="Optional path to videos.tsv used to look up cached "
         "fields instead of re-running ffprobe.",
     )
+    strict: bool = Field(
+        default=False,
+        description="When True, an invalid BidsMediaInfo (per "
+        "parse_bids_media_info) is a fatal error for that file. When False "
+        "(default), the problem is reported as a warning and processing "
+        "continues.",
+    )
     dry_run: bool = Field(
         default=False,
         description="When True, compute but do not write any sidecar.",
@@ -166,6 +173,23 @@ def _verbose(ctx: BisContext, msg: str) -> None:
         ctx.out_func(msg)
 
 
+def _warn(ctx: BisContext, msg: str) -> None:
+    """Log *msg* at info level and report it via ``ctx.out_func``, if set.
+
+    Used for non-strict-mode diagnostics that are notable but not fatal for
+    the file being processed — the caller continues processing after this
+    is called. Mirrors :func:`_error`, at a lower severity.
+
+    :param ctx: Processing context (used for ``out_func``).
+    :type ctx: BisContext
+    :param msg: Human-readable message.
+    :type msg: str
+    """
+    logger.info(msg)
+    if ctx.out_func:
+        ctx.out_func(f"Warn: {msg}")
+
+
 def _do_sidecar(ctx: BisContext, path: str) -> bool:
     """Extract BIDS media-file metadata for *path* and write/update its
     sidecar JSON.
@@ -191,8 +215,11 @@ def _do_sidecar(ctx: BisContext, path: str) -> bool:
     logger.debug(f"bmi: {bmi}")
     if not bmi.valid:
         errors = "; ".join(f"{e.code.value}: {e.message}" for e in bmi.errors)
-        _error(ctx, f"{path}: invalid BIDS media file: {errors}")
-        return False
+        msg = f"{path}: invalid BIDS media file: {errors}"
+        if ctx.strict:
+            _error(ctx, msg)
+            return False
+        _warn(ctx, msg)
 
     props: dict = bids_properties_from_ffprobe(path)
     logger.debug(f"bids_props_ffrobe: {props}")
@@ -278,6 +305,7 @@ def do_main(
     mode: str,
     add_meta: List[str],
     existing_different: str,
+    strict: bool,
     dry_run: bool,
     verbose: bool,
     out_func: Callable,
@@ -305,6 +333,11 @@ def do_main(
     :param existing_different: Conflict policy when a field already exists in
         the sidecar with a different value, ``"error"`` or ``"overwrite"``.
     :type existing_different: str
+    :param strict: When ``True``, an invalid BidsMediaInfo (per
+        ``parse_bids_media_info``) is a fatal error for that file. When
+        ``False`` (default), the problem is reported as a warning and
+        processing continues.
+    :type strict: bool
     :param dry_run: When ``True``, compute but do not write any sidecar.
     :type dry_run: bool
     :param verbose: Enable verbose output.
@@ -328,6 +361,7 @@ def do_main(
         mode=OverwriteMode(mode),
         conflict_policy=ConflictPolicy(existing_different),
         videos_tsv=videos,
+        strict=strict,
         dry_run=dry_run,
         verbose=verbose,
         out_func=out_func,

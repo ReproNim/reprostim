@@ -86,6 +86,7 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 | `-m / --mode [replace\|update]`               | Choice  | `update`  | `replace` overwrites the entire sidecar `.json` with only the freshly extracted/`--add`ed fields. `update` merges freshly extracted/`--add`ed fields into the existing sidecar (if any), preserving other existing keys untouched. See [JSON Sidecar Write Behavior](#json-sidecar-write-behavior). |
 | `-a / --add META=VALUE`                       | String, repeatable | none | Manually specify (or override) a metadata field, e.g. `--add DeviceSerialNumber=ABC12345 --add RecordingDuration=3600`, or supply several at once as a bare JSON object, e.g. `--add '{"AudioCodec": "aac", "AudioSampleRate": 48000}'`. `VALUE` is parsed as JSON when possible (so numbers/bools/`null`/objects come through typed), else stored as a plain string. See [`--add` Value Parsing](#--add-value-parsing-implemented-_parse_ext_props). Repeatable — entries merge in order, later keys win on conflict. |
 | `-e / --existing-different [error\|overwrite]` | Choice  | `error`   | Policy when a field about to be written already exists in the sidecar with a **different, non-`n/a`** value. `error`: abort processing that file and report the conflict. `overwrite`: log a warning and proceed with the new value. See [Conflict Resolution](#conflict-resolution). |
+| `-s / --strict`                               | Flag    | `False`   | When set, a `FILE` failing the `parse_bids_media_info` validity check (`bmi.valid is False`) is a fatal error for that file — reported via `_error` and the file is skipped. When not set (default), the same problem is only reported as a warning (`_warn`) and processing continues to extraction/write for that file. |
 | `-v / --verbose`                              | Flag    | `False`   | Increase verbosity (per-field extraction/merge/conflict detail).                                                                                                                                |
 | `-d / --dry-run`                              | Flag    | `False`   | *(Added for consistency with `bids-inject`/`video-audit`; not explicitly requested in issue #259.)* Compute and print the field set that would be written per file, without writing any sidecar. |
 
@@ -101,8 +102,8 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 > overwrite policy for `bids-inject`, values `SKIP`/`FORCE`/`ALWAYS`/`ERROR`). The two classes are
 > intentionally same-named but distinct, disambiguated by module (`reprostim.bids.inject.OverwriteMode`
 > vs. `reprostim.bids.inject_sidecar.OverwriteMode`). `BisContext` carries them as `mode` and
-> `conflict_policy` fields, alongside `videos_tsv`, `dry_run`, `verbose`, and `out_func` (all
-> populated directly from `do_main`'s corresponding parameters — same field names/style as
+> `conflict_policy` fields, alongside `videos_tsv`, `strict`, `dry_run`, `verbose`, and `out_func`
+> (all populated directly from `do_main`'s corresponding parameters — same field names/style as
 > `bids/inject.py::BiContext`).
 
 ### Example invocations
@@ -297,9 +298,10 @@ range — see [Open Questions / TODOs](#open-questions--todos).
    ctx.videos_tsv is accepted and stored but never read from.
 
 3. For each FILE in FILE1 [FILE2 ...] (_do_sidecar):
-   a. [implemented] Validate FILE via parse_bids_media_info(FILE); if not bmi.valid, mark this
-      FILE as errored (report BidsMediaInfoError details) and stop processing it — not in the
-      original pseudocode below, added as a first-pass sanity check.
+   a. [implemented] Validate FILE via parse_bids_media_info(FILE); if not bmi.valid, report the
+      BidsMediaInfoError details either way. If --strict: mark this FILE as errored and stop
+      processing it. If not --strict (default): report as a warning only and continue to step b —
+      not in the original pseudocode below, added as a first-pass sanity check.
    b. [implemented] Extract technical fields: run ffprobe via bids_properties_from_ffprobe(FILE)
       (wraps get_audio_video_info_ffprobe + AudioInfo/VideoInfo → BIDS field mapping).
       [NOT implemented] Step i. below (videos.tsv index lookup) is skipped entirely — extraction
@@ -392,7 +394,8 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 | Condition                                                  | Behavior                                                                 |
 |--------------------------------------------------------------|-----------------------------------------------------------------------------|
 | Input `FILE` does not exist *(implemented)*                  | Error and skip that file (`_do_sidecar_all`); continue with the rest of the batch. |
-| `FILE` fails `parse_bids_media_info` validity check (`bmi.valid is False`) *(implemented)* | Error and skip that file — reported via `_error`, includes the `BidsMediaErrorCode`/message for each `BidsMediaInfoError`. Not in the original spec text; added since `_do_sidecar` calls `parse_bids_media_info` as a first-pass sanity check before extraction. |
+| `FILE` fails `parse_bids_media_info` validity check (`bmi.valid is False`), `--strict` set *(implemented)* | Error and skip that file — reported via `_error`, includes the `BidsMediaErrorCode`/message for each `BidsMediaInfoError`. Not in the original spec text; added since `_do_sidecar` calls `parse_bids_media_info` as a first-pass sanity check before extraction. |
+| `FILE` fails `parse_bids_media_info` validity check (`bmi.valid is False`), `--strict` not set (default) *(implemented)* | Warning only — reported via `_warn`, includes the same `BidsMediaErrorCode`/message details; file is **not** skipped, processing continues to extraction/write. |
 | `ffprobe` not installed / fails                              | Error logged (per existing `get_audio_video_info_ffprobe` behavior); fields it would have supplied are simply omitted, not fatal to the whole file unless no fields at all could be determined and no `--add` compensates. |
 | `--videos` given but path not found in `videos.tsv` *(not yet implemented — `--videos` cache lookup isn't wired up at all yet, see Open Questions)* | Would fall back to `ffprobe` extraction for that file; not an error, once implemented. |
 | Malformed `--add` entry (no `=`, and not a JSON object) *(implemented)* | Fatal `ValueError` from `_parse_ext_props`, caught in `do_main`; applies to whole invocation, before any file is processed. |

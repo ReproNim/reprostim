@@ -18,6 +18,7 @@ from reprostim.bids.inject_sidecar import (
     _error,
     _parse_ext_props,
     _verbose,
+    _warn,
     do_main,
 )
 
@@ -46,6 +47,7 @@ def test_biscontext_defaults():
     assert ctx.mode == OverwriteMode.UPDATE
     assert ctx.conflict_policy == ConflictPolicy.ERROR
     assert ctx.videos_tsv is None
+    assert ctx.strict is False
     assert ctx.dry_run is False
     assert ctx.verbose is False
     assert ctx.out_func is None
@@ -57,6 +59,7 @@ def test_biscontext_custom_values():
         mode=OverwriteMode.REPLACE,
         conflict_policy=ConflictPolicy.OVERWRITE,
         videos_tsv="videos.tsv",
+        strict=True,
         dry_run=True,
         verbose=True,
         out_func=print,
@@ -65,6 +68,7 @@ def test_biscontext_custom_values():
     assert ctx.mode == OverwriteMode.REPLACE
     assert ctx.conflict_policy == ConflictPolicy.OVERWRITE
     assert ctx.videos_tsv == "videos.tsv"
+    assert ctx.strict is True
     assert ctx.dry_run is True
     assert ctx.verbose is True
     assert ctx.out_func is print
@@ -175,26 +179,71 @@ def test_verbose_no_out_func_does_not_raise():
 
 
 # ===========================================================================
+# _warn
+# ===========================================================================
+
+
+def test_warn_calls_out_func_with_prefix_regardless_of_verbose():
+    msgs = []
+    ctx = BisContext(verbose=False, out_func=msgs.append)
+    _warn(ctx, "heads up")
+    assert msgs == ["Warn: heads up"]
+
+
+def test_warn_no_out_func_does_not_raise():
+    ctx = BisContext(out_func=None)
+    _warn(ctx, "heads up")  # should not raise
+
+
+def test_warn_returns_none():
+    ctx = BisContext(out_func=lambda m: None)
+    assert _warn(ctx, "x") is None
+
+
+# ===========================================================================
 # _do_sidecar
 # ===========================================================================
 
 _FFPROBE_PATCH = "reprostim.bids.inject_sidecar.bids_properties_from_ffprobe"
 
 
-def test_do_sidecar_invalid_media_file_reports_error_and_returns_false(tmp_path):
-    """A filename with no valid BIDS media-type suffix and an unknown
-    extension fails the bmi.valid check before ffprobe is even consulted."""
+def test_do_sidecar_invalid_media_file_strict_reports_error_and_returns_false(
+    tmp_path,
+):
+    """In strict mode, a filename with no valid BIDS media-type suffix and an
+    unknown extension fails the bmi.valid check before ffprobe is even
+    consulted."""
     path = tmp_path / "randomname.xyz"
     path.touch()
     msgs = []
-    ctx = BisContext(out_func=msgs.append)
+    ctx = BisContext(strict=True, out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH) as mock_ffprobe:
         result = _do_sidecar(ctx, str(path))
 
     assert result is False
     mock_ffprobe.assert_not_called()
-    assert any("invalid BIDS media file" in m for m in msgs)
+    assert any("Error:" in m and "invalid BIDS media file" in m for m in msgs)
+
+
+def test_do_sidecar_invalid_media_file_non_strict_warns_and_continues(
+    tmp_path,
+):
+    """By default (non-strict), the same invalid-bmi problem is only reported
+    as a warning and processing continues through to a written sidecar."""
+    path = tmp_path / "randomname.xyz"
+    path.touch()
+    sidecar_path = path.with_suffix(".json")
+    msgs = []
+    ctx = BisContext(out_func=msgs.append)
+
+    with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
+        result = _do_sidecar(ctx, str(path))
+
+    assert result is True
+    assert any("Warn:" in m and "invalid BIDS media file" in m for m in msgs)
+    assert not any(m.startswith("Error:") for m in msgs)
+    assert json.loads(sidecar_path.read_text()) == {"AudioCodec": "aac"}
 
 
 def test_do_sidecar_fresh_write(tmp_path):
@@ -443,10 +492,11 @@ def test_do_sidecar_all_counts_errors_and_skips_invalid_paths(tmp_path):
 
 def test_do_sidecar_all_counts_a_failing_existing_file(tmp_path):
     """An existing file that _do_sidecar itself rejects (invalid BIDS
-    filename) is counted as an error too, distinct from a missing path."""
+    filename, strict mode) is counted as an error too, distinct from a
+    missing path."""
     bad = tmp_path / "randomname.xyz"
     bad.touch()
-    ctx = BisContext()
+    ctx = BisContext(strict=True)
 
     with patch(_FFPROBE_PATCH) as mock_ffprobe:
         errors = _do_sidecar_all(ctx, [str(bad)])
@@ -485,6 +535,7 @@ def test_do_main_malformed_add_returns_1_before_any_processing(tmp_path):
             mode="update",
             add_meta=["no-equals-no-json"],
             existing_different="error",
+            strict=False,
             dry_run=False,
             verbose=False,
             out_func=msgs.append,
@@ -506,6 +557,7 @@ def test_do_main_malformed_add_no_out_func_does_not_raise(tmp_path):
             mode="update",
             add_meta=["no-equals-no-json"],
             existing_different="error",
+            strict=False,
             dry_run=False,
             verbose=False,
             out_func=None,
@@ -527,6 +579,7 @@ def test_do_main_success_returns_0_with_summary(tmp_path):
             mode="update",
             add_meta=[],
             existing_different="error",
+            strict=False,
             dry_run=False,
             verbose=False,
             out_func=msgs.append,
@@ -549,6 +602,7 @@ def test_do_main_errors_return_1_with_summary_counts(tmp_path):
             mode="update",
             add_meta=[],
             existing_different="error",
+            strict=False,
             dry_run=False,
             verbose=False,
             out_func=msgs.append,
@@ -570,6 +624,7 @@ def test_do_main_dry_run_prefix_in_summary(tmp_path):
             mode="update",
             add_meta=[],
             existing_different="error",
+            strict=False,
             dry_run=True,
             verbose=False,
             out_func=msgs.append,
@@ -592,6 +647,7 @@ def test_do_main_add_meta_flows_into_sidecar(tmp_path):
             mode="update",
             add_meta=["TaskName=rest"],
             existing_different="error",
+            strict=False,
             dry_run=False,
             verbose=False,
             out_func=None,
@@ -600,6 +656,52 @@ def test_do_main_add_meta_flows_into_sidecar(tmp_path):
     assert rc == 0
     data = json.loads(sidecar_path.read_text())
     assert data == {"AudioCodec": "aac", "TaskName": "rest"}
+
+
+def test_do_main_strict_invalid_media_file_errors(tmp_path):
+    path = tmp_path / "randomname.xyz"
+    path.touch()
+    msgs = []
+
+    with patch(_FFPROBE_PATCH) as mock_ffprobe:
+        rc = do_main(
+            files=[str(path)],
+            videos=None,
+            mode="update",
+            add_meta=[],
+            existing_different="error",
+            strict=True,
+            dry_run=False,
+            verbose=False,
+            out_func=msgs.append,
+        )
+
+    assert rc == 1
+    mock_ffprobe.assert_not_called()
+    assert "1 processed, 0 written, 1 errors" in msgs
+
+
+def test_do_main_non_strict_invalid_media_file_still_processed(tmp_path):
+    path = tmp_path / "randomname.xyz"
+    path.touch()
+    msgs = []
+
+    with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
+        rc = do_main(
+            files=[str(path)],
+            videos=None,
+            mode="update",
+            add_meta=[],
+            existing_different="error",
+            strict=False,
+            dry_run=False,
+            verbose=False,
+            out_func=msgs.append,
+        )
+
+    assert rc == 0
+    assert "1 processed, 1 written, 0 errors" in msgs
+    assert any("Warn:" in m and "invalid BIDS media file" in m for m in msgs)
 
 
 def test_do_main_no_out_func_does_not_raise(tmp_path):
@@ -613,6 +715,7 @@ def test_do_main_no_out_func_does_not_raise(tmp_path):
             mode="update",
             add_meta=[],
             existing_different="error",
+            strict=False,
             dry_run=False,
             verbose=False,
             out_func=None,

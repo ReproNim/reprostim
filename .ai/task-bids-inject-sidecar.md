@@ -3,10 +3,10 @@
 Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md).
 
 **Basic end-to-end logic is implemented, with automated tests at 100% statement/branch coverage**
-(`_do_sidecar` in `bids/inject_sidecar.py`, `tests/bids/test_inject_sidecar.py`, 46 tests):
+(`_do_sidecar` in `bids/inject_sidecar.py`, `tests/bids/test_inject_sidecar.py`, 52 tests):
 `ffprobe`-only extraction, `--add` merge, `update`/`replace` modes, `error`/`overwrite` conflict
-resolution, `--dry-run`, per-file `bmi.valid` validation, and the `N processed, M written, K
-errors` summary all covered. **Not implemented**: `--videos`/`videos.tsv` cache lookup
+resolution, `--strict`/non-strict `bmi.valid` handling, `--dry-run`, and the `N processed, M
+written, K errors` summary all covered. **Not implemented**: `--videos`/`videos.tsv` cache lookup
 (`ctx.videos_tsv` is accepted but never read) and `--add` declared-type casting.
 
 ---
@@ -21,6 +21,11 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 - [x] `-m / --mode [replace|update]` — default `update`
 - [x] `-a / --add META=VALUE` — repeatable, manual field override/addition
 - [x] `-e / --existing-different [error|overwrite]` — default `error`
+- [x] `-s / --strict` — boolean flag, default `False`. When set, a file failing the `bmi.valid`
+      check (`parse_bids_media_info`) is a fatal error for that file (logged at error level,
+      reported via `out_func` with an `"Error: "` prefix, file skipped). When not set (default),
+      the same problem is only reported as a warning (`out_func` with a `"Warn: "` prefix) and
+      processing continues through to extraction/write for that file.
 - [x] `-v / --verbose`
 - [x] `-d / --dry-run` — kept, see spec Open Questions #6 (now resolved: implemented and kept)
 
@@ -36,8 +41,9 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 - [x] `ConflictPolicy(str, Enum)` — `ERROR`/`OVERWRITE`, backs `--existing-different`
 - [x] `BisContext` carries them as `mode: OverwriteMode` and `conflict_policy: ConflictPolicy`
       fields, defaulting to `UPDATE`/`ERROR`
-- [x] `BisContext` also carries `videos_tsv: Optional[str]`, `dry_run: bool`, `verbose: bool`,
-      `out_func: Optional[Callable]` — mirrors `bids/inject.py::BiContext`'s field naming/style
+- [x] `BisContext` also carries `videos_tsv: Optional[str]`, `strict: bool` (default `False`),
+      `dry_run: bool`, `verbose: bool`, `out_func: Optional[Callable]` — mirrors
+      `bids/inject.py::BiContext`'s field naming/style
 - [x] `BisContext.ext_props: Dict[str, Any]` — parsed `--add` result, see `--add` parsing section
       below
 - [x] `do_main` converts the CLI's plain `mode`/`existing_different` strings into these enums,
@@ -101,8 +107,11 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
       available — same, inherited (`get_audio_video_info_ffprobe` catches its own subprocess
       failures and returns empty `AudioInfo`/`VideoInfo` rather than raising)
 - [x] `bmi.valid` check (`parse_bids_media_info`) — **not in the original checklist**, added as
-      a first-pass sanity check before extraction; invalid files are skipped with a reported
-      `BidsMediaInfoError` detail (see spec Error Handling table)
+      a first-pass sanity check before extraction; reports the `BidsMediaInfoError` detail either
+      way. In `--strict` mode (`ctx.strict=True`) an invalid file is a fatal error and is skipped
+      (via `_error`); by default (`ctx.strict=False`) it's only reported as a warning (via
+      `_warn`) and processing continues to extraction/write for that file (see spec Error
+      Handling table)
 
 ### Sidecar path resolution (implemented)
 - [x] Derive sidecar path: input file extension replaced with `.json`
@@ -144,8 +153,10 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 ## Error Handling
 
 - [x] Input `FILE` does not exist → error, skip file, continue batch
-- [x] `FILE` fails `bmi.valid` check → error (reports `BidsMediaInfoError` details), skip file,
-      continue batch — not in the original checklist, added
+- [x] `FILE` fails `bmi.valid` check, `--strict` set → error (reports `BidsMediaInfoError`
+      details), skip file, continue batch — not in the original checklist, added
+- [x] `FILE` fails `bmi.valid` check, `--strict` not set (default) → info-level log only (reports
+      `BidsMediaInfoError` details), file still processed — not in the original checklist, added
 - [x] `ffprobe` not installed/fails → logged error, affected fields omitted, file not necessarily fatal
 - [ ] `--videos` path not found in `videos.tsv` → fall back to `ffprobe`, not an error — N/A yet,
       `--videos` isn't consulted at all
@@ -170,7 +181,7 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 
 ## Tests and Code Coverage
 
-Test file: `tests/bids/test_inject_sidecar.py` — **46 tests, 100% statement/branch coverage of
+Test file: `tests/bids/test_inject_sidecar.py` — **52 tests, 100% statement/branch coverage of
 `bids/inject_sidecar.py`** (`pytest --cov=reprostim.bids.inject_sidecar --cov-report=term-missing`).
 Uses real filenames with valid/invalid BIDS suffixes for `parse_bids_media_info` (no mocking
 needed — it's pure path parsing) and real `tmp_path` files for sidecar read/write; only
@@ -202,9 +213,19 @@ not here; this file previously had a duplicate/misplaced copy of that checklist,
 - [x] `do_main` with a malformed `--add` → returns `1`, reports via `out_func`, no file touched
       (both with and without `out_func`)
 
-### `_error` / `_verbose` (implemented)
+### `_error` / `_verbose` / `_warn` (implemented)
 - [x] `_error` — logs and reports via `out_func` with `"Error: "` prefix; no-`out_func` doesn't raise
 - [x] `_verbose` — reports via `out_func` only when `ctx.verbose`; no-`out_func` doesn't raise
+- [x] `_warn` — logs at info level and reports via `out_func` with `"Warn: "` prefix regardless of
+      `ctx.verbose` (unlike `_verbose`); no-`out_func` doesn't raise; returns `None`
+
+### `--strict` / non-strict `bmi.valid` handling (implemented)
+- [x] `--strict` set, invalid `bmi` → `_error` called (`"Error: "` prefix), `_do_sidecar` returns
+      `False`, `ffprobe` never invoked
+- [x] `--strict` not set (default), invalid `bmi` → `_warn` called (`"Warn: "` prefix),
+      `_do_sidecar` continues on to extraction/write and returns `True` on success
+- [x] Same distinction exercised at `_do_sidecar_all` and `do_main` level (batch error counts /
+      exit codes reflect strict vs. non-strict)
 
 ### `--videos` cache lookup
 - [ ] File found in `videos.tsv` index → cached fields used, `ffprobe` not called for those fields
