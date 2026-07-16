@@ -7,7 +7,9 @@
 import json
 from unittest.mock import patch
 
+import click
 import pytest
+from click.testing import CliRunner
 
 from reprostim.bids.inject_sidecar import (
     BisContext,
@@ -21,6 +23,7 @@ from reprostim.bids.inject_sidecar import (
     _warn,
     do_main,
 )
+from reprostim.cli.cmd_bids_inject_sidecar import bids_inject_sidecar
 
 # ===========================================================================
 # OverwriteMode / ConflictPolicy
@@ -722,3 +725,235 @@ def test_do_main_no_out_func_does_not_raise(tmp_path):
         )
 
     assert rc == 0
+
+
+# ===========================================================================
+# CLI tests (Click CliRunner) for cmd_bids_inject_sidecar
+# ===========================================================================
+
+_CLI_DO_MAIN_PATCH = "reprostim.bids.inject_sidecar.do_main"
+
+
+@pytest.fixture()
+def media_file(tmp_path):
+    """A file with a valid BIDS media-type suffix, so it passes both Click's
+    exists=True check and the bmi.valid check inside _do_sidecar."""
+    f = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
+    f.touch()
+    return f
+
+
+def test_cli_help_renders_without_error():
+    result = CliRunner().invoke(bids_inject_sidecar, ["--help"])
+    assert result.exit_code == 0
+    assert "Usage" in result.output
+
+
+def test_cli_missing_files_argument_nonzero_exit():
+    result = CliRunner().invoke(bids_inject_sidecar, [])
+    assert result.exit_code != 0
+    assert "missing" in result.output.lower()
+
+
+def test_cli_nonexistent_file_argument_nonzero_exit(tmp_path):
+    missing = str(tmp_path / "does-not-exist.mkv")
+    result = CliRunner().invoke(bids_inject_sidecar, [missing])
+    assert result.exit_code != 0
+    assert "does not exist" in result.output.lower()
+
+
+def test_cli_unknown_mode_value_errors(media_file):
+    result = CliRunner().invoke(
+        bids_inject_sidecar, ["--mode", "bogus", str(media_file)]
+    )
+    assert result.exit_code != 0
+    assert "invalid choice" in result.output.lower() or "invalid value" in (
+        result.output.lower()
+    )
+
+
+def test_cli_unknown_existing_different_value_errors(media_file):
+    result = CliRunner().invoke(
+        bids_inject_sidecar, ["--existing-different", "bogus", str(media_file)]
+    )
+    assert result.exit_code != 0
+    assert "invalid choice" in result.output.lower() or "invalid value" in (
+        result.output.lower()
+    )
+
+
+def test_cli_nonexistent_videos_path_nonzero_exit(media_file, tmp_path):
+    missing_videos = str(tmp_path / "videos.tsv")
+    result = CliRunner().invoke(
+        bids_inject_sidecar, ["--videos", missing_videos, str(media_file)]
+    )
+    assert result.exit_code != 0
+    assert "does not exist" in result.output.lower()
+
+
+def test_cli_multiple_add_options_accumulate(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(
+            bids_inject_sidecar,
+            [
+                "--add",
+                "TaskName=rest",
+                "--add",
+                "RecordingDuration=3600",
+                str(media_file),
+            ],
+        )
+    mock_dm.assert_called_once()
+    assert mock_dm.call_args.kwargs["add_meta"] == [
+        "TaskName=rest",
+        "RecordingDuration=3600",
+    ]
+
+
+def test_cli_files_passed_as_list_to_do_main(tmp_path):
+    a = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
+    b = tmp_path / "sub-01_task-rest_recording-reprostim_audio.wav"
+    a.touch()
+    b.touch()
+
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(a), str(b)])
+
+    mock_dm.assert_called_once()
+    assert mock_dm.call_args.kwargs["files"] == [str(a), str(b)]
+
+
+def test_cli_mode_default_passed_to_do_main(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["mode"] == "update"
+
+
+def test_cli_mode_custom_passed_to_do_main(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, ["-m", "replace", str(media_file)])
+    assert mock_dm.call_args.kwargs["mode"] == "replace"
+
+
+def test_cli_existing_different_default_passed_to_do_main(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["existing_different"] == "error"
+
+
+def test_cli_existing_different_custom_passed_to_do_main(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, ["-e", "overwrite", str(media_file)])
+    assert mock_dm.call_args.kwargs["existing_different"] == "overwrite"
+
+
+def test_cli_strict_flag_default_false(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["strict"] is False
+
+
+def test_cli_strict_flag_set_true(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, ["-s", str(media_file)])
+    assert mock_dm.call_args.kwargs["strict"] is True
+
+
+def test_cli_dry_run_flag_default_false(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["dry_run"] is False
+
+
+def test_cli_dry_run_flag_set_true(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, ["-d", str(media_file)])
+    assert mock_dm.call_args.kwargs["dry_run"] is True
+
+
+def test_cli_verbose_flag_default_false(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["verbose"] is False
+
+
+def test_cli_verbose_flag_set_true(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, ["-v", str(media_file)])
+    assert mock_dm.call_args.kwargs["verbose"] is True
+
+
+def test_cli_videos_option_passed_to_do_main(media_file, tmp_path):
+    videos_tsv = tmp_path / "videos.tsv"
+    videos_tsv.touch()
+
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(
+            bids_inject_sidecar, ["-f", str(videos_tsv), str(media_file)]
+        )
+    assert mock_dm.call_args.kwargs["videos"] == str(videos_tsv)
+
+
+def test_cli_videos_default_none(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["videos"] is None
+
+
+def test_cli_out_func_is_click_echo(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
+        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert mock_dm.call_args.kwargs["out_func"] is click.echo
+
+
+def test_cli_verbose_prints_completion_summary(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0):
+        result = CliRunner().invoke(bids_inject_sidecar, ["-v", str(media_file)])
+    assert "completed in" in result.output
+
+
+def test_cli_non_verbose_omits_completion_summary(media_file):
+    with patch(_CLI_DO_MAIN_PATCH, return_value=0):
+        result = CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+    assert "completed in" not in result.output
+
+
+# --- End-to-end (real do_main, mocked ffprobe only) ---
+
+
+def test_cli_end_to_end_success_exit_code_zero(media_file):
+    with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
+        result = CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+
+    assert result.exit_code == 0
+    assert json.loads(media_file.with_suffix(".json").read_text()) == {
+        "AudioCodec": "aac"
+    }
+
+
+def test_cli_end_to_end_strict_invalid_file_nonzero_exit(tmp_path):
+    bad = tmp_path / "randomname.xyz"
+    bad.touch()
+
+    with patch(_FFPROBE_PATCH) as mock_ffprobe:
+        result = CliRunner().invoke(bids_inject_sidecar, ["--strict", str(bad)])
+
+    assert result.exit_code != 0
+    mock_ffprobe.assert_not_called()
+    assert "1 processed, 0 written, 1 errors" in result.output
+
+
+def test_cli_end_to_end_one_bad_file_does_not_stop_batch(tmp_path):
+    good = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
+    bad = tmp_path / "randomname.xyz"
+    good.touch()
+    bad.touch()
+
+    with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
+        result = CliRunner().invoke(
+            bids_inject_sidecar, ["--strict", str(bad), str(good)]
+        )
+
+    assert result.exit_code != 0
+    assert "2 processed, 1 written, 1 errors" in result.output
+    assert json.loads(good.with_suffix(".json").read_text()) == {"AudioCodec": "aac"}

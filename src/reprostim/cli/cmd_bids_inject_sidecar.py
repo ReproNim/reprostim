@@ -143,4 +143,5 @@ def bids_inject_sidecar(
             f"Command 'bids-inject-sidecar' completed in {elapsed_sec} sec, "
             f"exit code {res}"
         )
-    return res
+    if res:
+        ctx.exit(res)

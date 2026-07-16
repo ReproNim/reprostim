@@ -3,11 +3,22 @@
 Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md).
 
 **Basic end-to-end logic is implemented, with automated tests at 100% statement/branch coverage**
-(`_do_sidecar` in `bids/inject_sidecar.py`, `tests/bids/test_inject_sidecar.py`, 52 tests):
-`ffprobe`-only extraction, `--add` merge, `update`/`replace` modes, `error`/`overwrite` conflict
-resolution, `--strict`/non-strict `bmi.valid` handling, `--dry-run`, and the `N processed, M
-written, K errors` summary all covered. **Not implemented**: `--videos`/`videos.tsv` cache lookup
-(`ctx.videos_tsv` is accepted but never read) and `--add` declared-type casting.
+of both `bids/inject_sidecar.py` and `cli/cmd_bids_inject_sidecar.py`
+(`tests/bids/test_inject_sidecar.py`, 78 tests): `ffprobe`-only extraction, `--add` merge,
+`update`/`replace` modes, `error`/`overwrite` conflict resolution, `--strict`/non-strict
+`bmi.valid` handling, `--dry-run`, the `N processed, M written, K errors` summary, and the full
+Click CLI options layer (via `CliRunner`) all covered. **Not implemented**:
+`--videos`/`videos.tsv` cache lookup (`ctx.videos_tsv` is accepted but never read) and `--add`
+declared-type casting.
+
+**Bug fixed while adding CLI tests:** `bids_inject_sidecar`'s `return res` never actually set the
+process exit code — Click discards a plain callback return value in standalone mode (see
+`click/core.py::BaseCommand.main`'s explicit comment "it's not safe to `ctx.exit(rv)` here" — it
+always calls `ctx.exit()` with no args after `invoke()` returns). Confirmed via a real subprocess
+run: `bids-inject-sidecar --strict <bad-file>` reported `1 errors` in its own summary line but
+exited `0`. Fixed to `if res: ctx.exit(res)`, matching the convention already used in
+`cmd_video_audit.py`. `cmd_split_video.py` has the identical `return res` pattern and is likely
+affected too, but that's out of scope here — not touched.
 
 ---
 
@@ -181,8 +192,10 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 
 ## Tests and Code Coverage
 
-Test file: `tests/bids/test_inject_sidecar.py` — **52 tests, 100% statement/branch coverage of
-`bids/inject_sidecar.py`** (`pytest --cov=reprostim.bids.inject_sidecar --cov-report=term-missing`).
+Test file: `tests/bids/test_inject_sidecar.py` — **78 tests total** (52 core-logic tests + 26 CLI
+tests, see below), **100% statement/branch coverage of both `bids/inject_sidecar.py` and
+`cli/cmd_bids_inject_sidecar.py`**
+(`pytest --cov=reprostim.bids.inject_sidecar --cov=reprostim.cli.cmd_bids_inject_sidecar --cov-report=term-missing`).
 Uses real filenames with valid/invalid BIDS suffixes for `parse_bids_media_info` (no mocking
 needed — it's pure path parsing) and real `tmp_path` files for sidecar read/write; only
 `bids_properties_from_ffprobe` is mocked (patched at
@@ -272,19 +285,35 @@ this exists.)*
 - [x] Non-zero exit code when any file errors; zero when all succeed
 - [x] `--add` values flow all the way through to the written sidecar
 
-### CLI tests (Click `CliRunner`)
-- [ ] `--help` renders without error
-- [ ] Missing `FILE` argument → non-zero exit with error message
-- [ ] Unknown `--mode` value → Click error (invalid choice)
-- [ ] Unknown `--existing-different` value → Click error (invalid choice)
-- [ ] Multiple `--add` options accumulate correctly
-- [ ] One file erroring in a multi-file batch does not prevent other files from being processed
-- [ ] Exit code is non-zero when any file in the batch errors
+### CLI tests (Click `CliRunner`) (implemented)
 
-*(Not covered — `tests/bids/test_inject_sidecar.py` tests `bids/inject_sidecar.py`'s functions
-directly, not the `cli/cmd_bids_inject_sidecar.py` Click command wrapper. A separate
-`tests/cli/test_cmd_bids_inject_sidecar.py` using Click's `CliRunner` would be needed for this
-section.)*
+Same file, `tests/bids/test_inject_sidecar.py`, appended `# CLI tests (Click CliRunner) for
+cmd_bids_inject_sidecar` section (26 tests; `bids_inject_sidecar` imported directly from
+`reprostim.cli.cmd_bids_inject_sidecar`, not a separate `tests/cli/` module). Most tests mock
+`do_main` at `reprostim.bids.inject_sidecar.do_main` (the point of use — `bids_inject_sidecar`
+does `from ..bids.inject_sidecar import do_main` inside the function body) and assert on
+`mock.call_args.kwargs`, matching the `tests/qr/test_split_video.py` CLI-test convention; three
+"end-to-end" tests instead mock only `bids_properties_from_ffprobe` and let the real `do_main`
+run, to exercise the batch/exit-code behavior below through the actual Click layer.
+
+- [x] `--help` renders without error
+- [x] Missing `FILE` argument → non-zero exit with error message
+- [x] `FILE` argument that doesn't exist on disk → non-zero exit (`click.Path(exists=True)`)
+- [x] Unknown `--mode` value → Click error (invalid choice)
+- [x] Unknown `--existing-different` value → Click error (invalid choice)
+- [x] `--videos` path that doesn't exist on disk → non-zero exit (`click.Path(exists=True)`)
+- [x] Multiple `--add` options accumulate correctly (passed through as an ordered list)
+- [x] Multiple `FILE` arguments passed through as a list
+- [x] `--mode`/`--existing-different`/`--strict`/`--dry-run`/`--verbose`/`--videos` each have
+      their default and explicit-value cases verified against `do_main`'s kwargs
+- [x] `out_func` passed to `do_main` is `click.echo`
+- [x] `-v/--verbose` prints the "completed in ... sec" summary line; without it, the line is absent
+- [x] One file erroring in a multi-file batch does not prevent other files from being processed
+      (end-to-end: a `--strict`-invalid file alongside a valid one — the valid file's sidecar is
+      still written)
+- [x] Exit code is non-zero when any file in the batch errors (end-to-end, real `do_main`) — this
+      required the `ctx.exit(res)` bug fix above; before that fix this assertion would have failed
+- [x] Exit code is zero on a fully successful run (end-to-end, real `do_main`)
 
 ### Coverage targets
 
@@ -292,7 +321,7 @@ section.)*
 |---|---|---|
 | `bids/media.py` | ≥ 90% | **100%** (see task-bids-media.md) |
 | `bids/inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
-| `cli/cmd_bids_inject_sidecar.py` | ≥ 80% | 0% (no CLI-layer tests yet) |
+| `cli/cmd_bids_inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
 
 ---
 
