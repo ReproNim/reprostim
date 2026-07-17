@@ -4,12 +4,12 @@ Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-i
 
 **Basic end-to-end logic is implemented, with automated tests at 100% statement/branch coverage**
 of both `bids/inject_sidecar.py` and `cli/cmd_bids_inject_sidecar.py`
-(`tests/bids/test_inject_sidecar.py`, 78 tests): `ffprobe`-only extraction, `--add` merge,
+(`tests/bids/test_inject_sidecar.py`, 78 tests): `ffprobe`-only extraction, `--videos`/`videos.tsv`
+cache lookup (via `bids_properties_from_video_audit`, falling back to `ffprobe`), `--add` merge,
 `update`/`replace` modes, `error`/`overwrite` conflict resolution, `--strict`/non-strict
 `bmi.valid` handling, `--dry-run`, the `N processed, M written, K errors` summary, and the full
-Click CLI options layer (via `CliRunner`) all covered. **Not implemented**:
-`--videos`/`videos.tsv` cache lookup (`ctx.videos_tsv` is accepted but never read) and `--add`
-declared-type casting.
+Click CLI options layer (via `CliRunner`) all covered. **Not implemented**: `--add` declared-type
+casting.
 
 **Bug fixed while adding CLI tests:** `bids_inject_sidecar`'s `return res` never actually set the
 process exit code — Click discards a plain callback return value in standalone mode (see
@@ -24,11 +24,11 @@ affected too, but that's out of scope here — not touched.
 
 ## CLI Options
 
-All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is accepted but not yet consulted
-by `_do_sidecar` (see `--videos` cache lookup section below).
+All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `_do_sidecar`
+(see `--videos` cache lookup section below).
 
 - [x] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
-- [x] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup (accepted, not yet used)
+- [x] `-f / --videos PATH` — optional `videos.tsv` for cached-field lookup
 - [x] `-m / --mode [replace|update]` — default `update`
 - [x] `-a / --add META=VALUE` — repeatable, manual field override/addition
 - [x] `-e / --existing-different [error|overwrite]` — default `error`
@@ -99,11 +99,19 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
       without a field-type table, but does not validate/enforce a *specific* known field's
       declared type (see spec Open Questions #8)
 
-### `--videos` cache lookup
-- [ ] Load `videos.tsv` once, build path → `VaRecord` index (paths resolved relative to `videos.tsv` location)
-- [ ] Match `FILE` against the index by resolved path
-- [ ] Map matched `VaRecord` columns (`audio_sr`, `video_res_detected`, codec columns) into BIDS fields
-- [ ] Fall back to `ffprobe` extraction for any file not found in the index, or for fields the TSV doesn't carry
+### `--videos` cache lookup (implemented)
+- [x] Load `videos.tsv` once, build path → `VaRecord` index (paths resolved relative to
+      `videos.tsv` location) — via `get_file_video_audit(path, path_tsv, cached=True,
+      use_lock=False)` in `bids_properties_from_video_audit`
+- [x] Match `FILE` against the index by resolved path
+- [x] Map matched `VaRecord` columns (`duration`, `video_res_recorded`, `video_fps_recorded`,
+      `audio_sr`) into BIDS fields — plus `Device`/`DeviceSerialNumber` recovered from
+      `<path>.log`'s `session_begin` metadata, and `VideoCodec` inferred as `"h264"`; see
+      `bids_properties_from_video_audit`'s docstring for the full mapping
+- [x] Fall back to `ffprobe` extraction for any file not found in the index, or for fields the TSV
+      doesn't carry — `bids_properties_from_video_audit` itself falls back to auditing the file
+      directly when there's no matching row; `_do_sidecar` additionally falls back to
+      `bids_properties_from_ffprobe` if `bids_properties_from_video_audit` raises
 
 ### `ffprobe` extraction (implemented)
 - [x] Reuse `bids/properties.py::bids_properties_from_ffprobe` — `_do_sidecar` calls it directly
@@ -169,8 +177,7 @@ by `_do_sidecar` (see `--videos` cache lookup section below).
 - [x] `FILE` fails `bmi.valid` check, `--strict` not set (default) → info-level log only (reports
       `BidsMediaInfoError` details), file still processed — not in the original checklist, added
 - [x] `ffprobe` not installed/fails → logged error, affected fields omitted, file not necessarily fatal
-- [ ] `--videos` path not found in `videos.tsv` → fall back to `ffprobe`, not an error — N/A yet,
-      `--videos` isn't consulted at all
+- [x] `--videos` path not found in `videos.tsv` → fall back to `ffprobe`, not an error
 - [x] Malformed `--add` (missing `=`) → fatal error before any file processed
 - [ ] `--add` casting failure for known BIDS field → fatal error before any file processed — N/A,
       declared-type casting isn't implemented (see spec Open Questions #8)
@@ -240,13 +247,15 @@ not here; this file previously had a duplicate/misplaced copy of that checklist,
 - [x] Same distinction exercised at `_do_sidecar_all` and `do_main` level (batch error counts /
       exit codes reflect strict vs. non-strict)
 
-### `--videos` cache lookup
-- [ ] File found in `videos.tsv` index → cached fields used, `ffprobe` not called for those fields
-- [ ] File not found in index → falls back to `ffprobe`
-- [ ] No `--videos` given → always uses `ffprobe`
-
-*(Not implemented — `ctx.videos_tsv` is accepted but never consulted; no tests possible until
-this exists.)*
+### `--videos` cache lookup (implemented)
+- [x] File found in `videos.tsv` index → cached fields used, `ffprobe` not called
+      (`test_do_sidecar_videos_tsv_uses_video_audit_not_ffprobe`)
+- [x] `bids_properties_from_video_audit` raises → falls back to `ffprobe`
+      (`test_do_sidecar_videos_tsv_failure_falls_back_to_ffprobe`) — file-not-found-in-index
+      itself is handled inside `bids_properties_from_video_audit`/`get_file_video_audit` (falls
+      back to auditing directly), not exercised as a separate `_do_sidecar`-level case here
+- [x] No `--videos` given → always uses `ffprobe`, `bids_properties_from_video_audit` never called
+      (`test_do_sidecar_no_videos_tsv_uses_ffprobe_only`)
 
 ### Conflict resolution (implemented)
 - [x] Field absent → written without conflict
