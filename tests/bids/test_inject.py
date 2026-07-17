@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Tests for the Datetime / Timezone public API in reprostim.qr.bids_inject."""
+"""Tests for the Datetime / Timezone public API in reprostim.bids.inject."""
 
 import csv
 import io
@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytest
 
-from reprostim.qr.bids_inject import (
+from reprostim.bids.inject import (
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
     MediaSuffix,
@@ -507,7 +507,7 @@ def test_open_dataset_file_plain_fallback_reads_content(tmp_path):
     f = tmp_path / "test.tsv"
     f.write_text("col1\tcol2\nval1\tval2\n", encoding="utf-8")
 
-    with patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", False):
+    with patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", False):
         with _open_dataset_file(str(f)) as fh:
             content = fh.read()
 
@@ -521,8 +521,8 @@ def test_open_dataset_file_adapter_reads_content(tmp_path):
     mock_adapter.open.return_value = io.BytesIO(raw)
 
     with (
-        patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
-        patch("reprostim.qr.bids_inject.FsspecAdapter", return_value=mock_adapter),
+        patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", True),
+        patch("reprostim.bids.inject.FsspecAdapter", return_value=mock_adapter),
     ):
         with _open_dataset_file(str(tmp_path / "dummy.tsv")) as fh:
             content = fh.read()
@@ -537,9 +537,9 @@ def test_open_dataset_file_adapter_setup_failure_falls_back(tmp_path):
     f.write_text("fallback\n", encoding="utf-8")
 
     with (
-        patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
+        patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", True),
         patch(
-            "reprostim.qr.bids_inject.FsspecAdapter",
+            "reprostim.bids.inject.FsspecAdapter",
             side_effect=RuntimeError("not a DataLad dataset"),
         ),
     ):
@@ -558,8 +558,8 @@ def test_open_dataset_file_adapter_open_failure_falls_back(tmp_path):
     mock_adapter.open.side_effect = FileNotFoundError("annex object not present")
 
     with (
-        patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
-        patch("reprostim.qr.bids_inject.FsspecAdapter", return_value=mock_adapter),
+        patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", True),
+        patch("reprostim.bids.inject.FsspecAdapter", return_value=mock_adapter),
     ):
         with _open_dataset_file(str(f)) as fh:
             content = fh.read()
@@ -573,7 +573,7 @@ def test_open_dataset_file_caller_exception_propagates(tmp_path):
     f.write_text("data\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="boom"):
-        with patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", False):
+        with patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", False):
             with _open_dataset_file(str(f)):
                 raise ValueError("boom")
 
@@ -585,8 +585,8 @@ def test_open_dataset_file_caller_exception_propagates_adapter_path(tmp_path):
 
     with pytest.raises(ValueError, match="boom"):
         with (
-            patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", True),
-            patch("reprostim.qr.bids_inject.FsspecAdapter", return_value=mock_adapter),
+            patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", True),
+            patch("reprostim.bids.inject.FsspecAdapter", return_value=mock_adapter),
         ):
             with _open_dataset_file(str(tmp_path / "dummy.tsv")):
                 raise ValueError("boom")
@@ -597,7 +597,7 @@ def test_open_dataset_file_newline_forwarded(tmp_path):
     f = tmp_path / "test.tsv"
     f.write_bytes(b"col1\tcol2\r\nval1\tval2\r\n")
 
-    with patch("reprostim.qr.bids_inject.DATALAD_FUSE_AVAILABLE", False):
+    with patch("reprostim.bids.inject.DATALAD_FUSE_AVAILABLE", False):
         with _open_dataset_file(str(f), newline="") as fh:
             content = fh.read()
 
@@ -608,7 +608,7 @@ def test_open_dataset_file_newline_forwarded(tmp_path):
 # ScanMetadata.TaskName / _load_scan_metadata
 # ===========================================================================
 
-BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids"
 _BOLD_JSON = (
     BIDS_FIXTURE
     / "sub-qa"
@@ -766,8 +766,8 @@ def test_find_bids_root_fallback_sub_component(tmp_path):
 # Integration tests (synthetic BIDS fixture)
 # ===========================================================================
 
-# Path to the static BIDS fixture committed under tests/data/bids_inject/
-_BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids_inject"
+# Path to the static BIDS fixture committed under tests/data/bids/
+_BIDS_FIXTURE = Path(__file__).parent.parent / "data" / "bids"
 _SCANS_TSV = str(
     _BIDS_FIXTURE / "sub-qa" / "ses-20250814" / "sub-qa_ses-20250814_scans.tsv"
 )
@@ -1167,7 +1167,7 @@ def test_call_split_video_passes_rfc6381_in_sidecar_metadata(tmp_path):
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         with patch(
-            "reprostim.qr.bids_inject.get_audio_video_info_ffprobe",
+            "reprostim.bids.properties.get_audio_video_info_ffprobe",
             return_value=(fake_ai, fake_vi),
         ):
             ret, _ = _run(
@@ -1187,8 +1187,8 @@ def test_call_split_video_passes_rfc6381_in_sidecar_metadata(tmp_path):
 def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
     tmp_path,
 ):
-    """_call_split_video adds BitDepth and PixelFormat to sidecar_metadata
-    via ffprobe."""
+    """_call_split_video adds ImageBitDepth and ImagePixelFormat to
+    sidecar_metadata via ffprobe."""
     scans_tsv = _copy_bids_fixture(tmp_path)
     videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
 
@@ -1203,7 +1203,7 @@ def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         with patch(
-            "reprostim.qr.bids_inject.get_audio_video_info_ffprobe",
+            "reprostim.bids.properties.get_audio_video_info_ffprobe",
             return_value=(fake_ai, fake_vi),
         ):
             ret, _ = _run(
@@ -1216,8 +1216,8 @@ def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
 
     assert ret == 0
     assert "sidecar_metadata" in captured
-    assert captured["sidecar_metadata"].get("BitDepth") == 10
-    assert captured["sidecar_metadata"].get("PixelFormat") == "yuv420p10le"
+    assert captured["sidecar_metadata"].get("ImageBitDepth") == 10
+    assert captured["sidecar_metadata"].get("ImagePixelFormat") == "yuv420p10le"
 
 
 def test_call_split_video_rfc6381_ffprobe_error_continues(tmp_path):
@@ -1233,7 +1233,7 @@ def test_call_split_video_rfc6381_ffprobe_error_continues(tmp_path):
 
     with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
         with patch(
-            "reprostim.qr.bids_inject.get_audio_video_info_ffprobe",
+            "reprostim.bids.properties.get_audio_video_info_ffprobe",
             side_effect=RuntimeError("ffprobe not found"),
         ):
             ret, _ = _run(

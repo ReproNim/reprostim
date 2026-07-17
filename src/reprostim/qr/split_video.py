@@ -18,7 +18,13 @@ from typing import List, Optional, Tuple
 import isodate
 from pydantic import BaseModel, Field
 
-from reprostim.qr.video_audit import VaRecord, find_metadata_json, get_file_video_audit
+from reprostim.bids.properties import bids_properties_from_split_result
+from reprostim.qr.video_audit import (
+    VaRecord,
+    find_metadata_json,
+    get_file_video_audit,
+    parse_audio_sr,
+)
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -103,131 +109,6 @@ class SplitResult(BaseModel):
     orig_offset: Optional[float] = None  # Offset of the split segment in seconds
     orig_device: str = "n/a"  # Video-audio capture device name
     orig_device_serial_number: str = "n/a"  # Video-audio capture device serial number
-
-
-def _to_bids_model(sr: "SplitResult", sidecar_metadata: dict | None = None) -> dict:
-    """Convert SplitResult to a BEP044/BEP047 BIDS sidecar dict.
-
-    Maps SplitResult fields to BIDS metadata field names as defined in
-    the common media file definitions (bids-standard/bids-specification PR #2367).
-
-    :param sr: SplitResult to convert
-    :param sidecar_metadata: Optional dict with extra BIDS fields to inject.
-        Supports ``TaskName`` (written as the first field when present),
-        ``VideoCodecRFC6381``, ``AudioCodecRFC6381``, ``BitDepth``, and
-        ``PixelFormat``.
-    :return: Dict with BIDS-compliant metadata field names
-    """
-    result = {}
-
-    if sidecar_metadata:
-        task_name = sidecar_metadata.get("TaskName")
-        if task_name:
-            result["TaskName"] = task_name
-
-    if sr.orig_device != "n/a":
-        result["Device"] = sr.orig_device
-
-    if sr.orig_device_serial_number != "n/a":
-        result["DeviceSerialNumber"] = sr.orig_device_serial_number
-
-    if sr.buffer_duration is not None:
-        result["RecordingDuration"] = sr.buffer_duration
-
-    if sr.video_codec != "n/a":
-        result["VideoCodec"] = sr.video_codec
-        result["VideoCodecRFC6381"] = (sidecar_metadata or {}).get(
-            "VideoCodecRFC6381", "n/a"
-        )
-
-    if sr.video_frame_rate is not None:
-        result["FrameRate"] = sr.video_frame_rate
-
-    if sr.video_width != "n/a":
-        try:
-            result["Width"] = int(sr.video_width)
-        except (ValueError, TypeError):
-            pass
-
-    if sr.video_height != "n/a":
-        try:
-            result["Height"] = int(sr.video_height)
-        except (ValueError, TypeError):
-            pass
-
-    if sidecar_metadata:
-        bit_depth = sidecar_metadata.get("BitDepth")
-        if bit_depth is not None:
-            result["BitDepth"] = int(bit_depth)
-        pix_fmt = sidecar_metadata.get("PixelFormat")
-        if pix_fmt:
-            result["PixelFormat"] = pix_fmt
-
-    if sr.audio_codec != "n/a":
-        result["AudioCodec"] = sr.audio_codec
-        result["AudioCodecRFC6381"] = (sidecar_metadata or {}).get(
-            "AudioCodecRFC6381", "n/a"
-        )
-
-    if sr.audio_sample_rate != "n/a":
-        try:
-            result["AudioSampleRate"] = float(sr.audio_sample_rate)
-        except (ValueError, TypeError):
-            pass
-
-    if sr.audio_bit_depth != "n/a":
-        try:
-            result["AudioBitDepth"] = int(sr.audio_bit_depth)
-        except (ValueError, TypeError):
-            pass
-
-    if sr.audio_channel_count != "n/a":
-        try:
-            result["AudioChannelCount"] = int(sr.audio_channel_count)
-        except (ValueError, TypeError):
-            pass
-
-    return result
-
-
-def _parse_audio_info(audio_info: Optional[str]) -> dict:
-    """Parse audio_info string into separate BIDS-style fields.
-
-    Parses format like '48000Hz 16b 2ch aac' into individual fields.
-    Returns n/a for all fields if parsing fails.
-
-    :param audio_info: Audio info string (e.g., '48000Hz 2ch aac')
-    :type audio_info: Optional[str]
-    :return: Dict with audio_sample_rate, audio_bit_depth,
-             audio_channel_count, audio_codec
-    :rtype: dict
-    """
-    na = {
-        "audio_sample_rate": "n/a",
-        "audio_bit_depth": "n/a",
-        "audio_channel_count": "n/a",
-        "audio_codec": "n/a",
-    }
-    if not audio_info or audio_info == "n/a":
-        return na
-
-    try:
-        result = dict(na)
-        for part in audio_info.split():
-            if part.endswith("Hz"):
-                result["audio_sample_rate"] = part[:-2]
-            elif part.endswith("b") and part[:-1].isdigit():
-                result["audio_bit_depth"] = part[:-1]
-            elif part.endswith("ch") and part[:-2].isdigit():
-                result["audio_channel_count"] = part[:-2]
-            else:
-                result["audio_codec"] = part
-        # hardcode bit depth to 16 if not parsed
-        if result["audio_bit_depth"] == "n/a":
-            result["audio_bit_depth"] = "16"
-        return result
-    except Exception:
-        return na
 
 
 def _format_time(dt: datetime) -> str:
@@ -687,7 +568,7 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         ),
         video_frame_rate=sd.fps,
         video_codec="h264" if sd.resolution and sd.resolution != "n/a" else "n/a",
-        **_parse_audio_info(sd.audio_sr),
+        **parse_audio_sr(sd.audio_sr),
         orig_device=sd.device,
         orig_device_serial_number=sd.device_serial_number,
     )
@@ -754,7 +635,11 @@ def _write_sidecar(
     logger.info(f"Writing sidecar JSON to: {sidecar_path}")
     with open(sidecar_path, "w") as f:
         if sidecar_format == SidecarFormat.BIDS:
-            f.write(json.dumps(_to_bids_model(sr, sidecar_metadata), indent=2))
+            f.write(
+                json.dumps(
+                    bids_properties_from_split_result(sr, sidecar_metadata), indent=2
+                )
+            )
         else:
             f.write(sr.model_dump_json(indent=2))
         f.write("\n")

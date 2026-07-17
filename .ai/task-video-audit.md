@@ -106,6 +106,14 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `do_main` — CLI entry point
 - [x] `get_file_video_audit` — single-file lookup (TSV or live audit)
 - [x] `find_video_audit_by_timerange` — time-range lookup for BIDS
+- [x] `parse_audio_sr` — parse a composite `'48000Hz 16b 2ch aac'`-style string (the format
+      `do_audit_file` assembles for `VaRecord.audio_sr`) into typed-ish string fields
+      (`audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/`audio_codec`, `"n/a"` when
+      absent). Moved here (public) from `qr/split_video.py::_parse_audio_info` (private, same
+      implementation) so both `qr/split_video.py` and `bids/properties.py`
+      (`bids_properties_from_video_audit`) can share one implementation instead of duplicating it
+      — see [spec-bids-properties.md](spec-bids-properties.md). Tests moved from
+      `tests/qr/test_split_video.py` to `tests/qr/test_video_audit.py` accordingly.
 
 ---
 
@@ -127,6 +135,18 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] `format_duration` — zero, sub-minute, hours, `None` → `"n/a"`
 - [x] `format_date` — known datetime → `"YYYY-MM-DD"`, `None` → `"n/a"`
 - [x] `format_time` — known datetime → `"HH:MM:SS.mmm"`, `None` → `"n/a"`
+
+#### `parse_audio_sr`
+- [x] Full string (`"48000Hz 16b 2ch aac"`) — all four fields parsed correctly
+- [x] Missing bit depth — defaults `audio_bit_depth` to `"16"`
+- [x] `None` input → all `"n/a"`
+- [x] `"n/a"` string input → all `"n/a"`
+- [x] Empty string input → all `"n/a"`
+- [x] Sample-rate-only string → sample rate set, bit depth defaults to `"16"`, others `"n/a"`
+
+(Moved verbatim from `tests/qr/test_split_video.py`'s `_parse_audio_info` tests, renamed
+`test_parse_audio_info_*` → `test_parse_audio_sr_*`, when the function itself moved — see
+[spec-bids-properties.md](spec-bids-properties.md) Layering section.)
 
 #### `check_coherent`
 - [x] All fields valid and matching → `True`

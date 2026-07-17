@@ -77,6 +77,7 @@ class VideoInfo(BaseModel):
     codec_rfc6381: Optional[str] = None  # Video codec in RFC 6381 format
     duration_sec: Optional[float] = None  # Duration in seconds
     fps: Optional[float] = None  # Frames per second
+    frame_count: Optional[int] = None  # Frames count
     height: Optional[int] = None  # Video frame height in pixels
     level: Optional[int] = None  # Video codec level
     pix_fmt: Optional[str] = None  # Pixel format (e.g., "yuv420p")
@@ -371,6 +372,55 @@ def format_tts(t: float) -> str:
     return f"{format_date(dt)} {format_time(dt)}"
 
 
+def parse_audio_sr(audio_sr: Optional[str]) -> dict:
+    """Parse a composite ``audio_sr``-style string into separate BIDS-style
+    fields.
+
+    Parses format like ``'48000Hz 16b 2ch aac'`` into individual fields.
+    Returns ``n/a`` for all fields if parsing fails. This is the inverse of
+    the composite string assembled in :func:`do_audit_file` for
+    ``VaRecord.audio_sr`` (``f"{ai.sample_rate}Hz {ai.bits_per_sample}b
+    {ai.channels}ch {ai.codec}"``); shared by any caller that needs to
+    recover typed fields from that string (e.g. ``qr.split_video``,
+    ``bids.properties``).
+
+    :param audio_sr: Composite audio-info string (e.g., ``'48000Hz 2ch
+        aac'``), such as ``VaRecord.audio_sr`` or a ``SplitDevice``'s
+        equivalent field.
+    :type audio_sr: Optional[str]
+    :return: Dict with ``audio_sample_rate``, ``audio_bit_depth``,
+             ``audio_channel_count``, ``audio_codec`` (all strings, ``n/a``
+             when not determined).
+    :rtype: dict
+    """
+    na = {
+        "audio_sample_rate": "n/a",
+        "audio_bit_depth": "n/a",
+        "audio_channel_count": "n/a",
+        "audio_codec": "n/a",
+    }
+    if not audio_sr or audio_sr == "n/a":
+        return na
+
+    try:
+        result = dict(na)
+        for part in audio_sr.split():
+            if part.endswith("Hz"):
+                result["audio_sample_rate"] = part[:-2]
+            elif part.endswith("b") and part[:-1].isdigit():
+                result["audio_bit_depth"] = part[:-1]
+            elif part.endswith("ch") and part[:-2].isdigit():
+                result["audio_channel_count"] = part[:-2]
+            else:
+                result["audio_codec"] = part
+        # hardcode bit depth to 16 if not parsed
+        if result["audio_bit_depth"] == "n/a":
+            result["audio_bit_depth"] = "16"
+        return result
+    except Exception:
+        return na
+
+
 def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
     """
     Iterate over all REPROSTIM-METADATA-JSON lines in the log file.
@@ -398,6 +448,9 @@ def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
                     continue
 
 
+# Note: refactor and move this API to separate module like capture.metadata or
+# similar, also define data classes for parsed reprostim-videocapture metadata
+# there and use it in split_video/bids.properties modules
 def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     """Find the first metadata JSON entry with a specific key-value pair.
 
@@ -477,7 +530,9 @@ def video_codec_to_rfc6381(
 
 
 # NB: move in future to audio package or tool?
-def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
+def get_audio_video_info_ffprobe(
+    path: str, count_frames: bool = False
+) -> Tuple[AudioInfo, VideoInfo]:
     """Extract audio and video stream information from the video file using ffprobe.
 
     Issues a single ffprobe call that reads all streams, then splits results
@@ -486,6 +541,14 @@ def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
 
     :param path: Path to the video file (.mkv, .mp4, .avi)
     :type path: str
+    :param count_frames: When ``True``, pass ``-count_frames`` to ``ffprobe``
+        so it decodes the whole stream to report an exact ``nb_read_frames``
+        count (populates ``VideoInfo.frame_count`` precisely, but is
+        significantly slower — a full decode pass instead of just reading
+        container metadata). When ``False`` (default), ``frame_count`` falls
+        back to the container's ``nb_frames`` field, or an
+        ``fps * duration_sec`` estimate, if available.
+    :type count_frames: bool
 
     :return: Tuple of (AudioInfo, VideoInfo) with extracted stream information.
              Fields are ``None`` when the corresponding stream is absent or a
@@ -504,6 +567,10 @@ def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
             "quiet",  # suppress logs
             "-print_format",
             "json",  # JSON output
+        ]
+        if count_frames:
+            cmd.append("-count_frames")
+        cmd += [
             "-show_streams",  # streams
             path,
         ]
@@ -575,6 +642,27 @@ def get_audio_video_info_ffprobe(path: str) -> Tuple[AudioInfo, VideoInfo]:
                 vi.duration_sec = int(h) * 3600 + int(m) * 60 + float(sec)
             elif "duration" in s:
                 vi.duration_sec = float(s["duration"])
+
+            # nb_read_frames (from -count_frames, actual decoded count) is
+            # preferred over nb_frames (container metadata, sometimes
+            # missing/unreliable, e.g. "N/A") when both are present.
+            for frame_count_key in ("nb_read_frames", "nb_frames"):
+                try:
+                    vi.frame_count = int(s[frame_count_key])
+                    break
+                except (KeyError, ValueError, TypeError):
+                    continue
+            if (
+                vi.frame_count is None
+                and vi.duration_sec is not None
+                and vi.fps is not None
+            ):
+                # Exclude the stream's start offset within the container, if
+                # any, for a more accurate estimate.
+                dur_sec = vi.duration_sec
+                if vi.start_time is not None and 0 < vi.start_time < dur_sec:
+                    dur_sec -= vi.start_time
+                vi.frame_count = round(dur_sec * vi.fps)
 
     except FileNotFoundError:
         logger.error("ffprobe is not installed or not in PATH")

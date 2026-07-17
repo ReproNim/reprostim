@@ -81,9 +81,16 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Media suffix determination (`_video` / `_audio` / `_audiovideo`) from `videos.tsv`
 - [x] Delegate to `split-video` Python API (`do_main`)
 - [x] Build `sidecar_metadata` dict from `record.metadata.TaskName` and pass to `do_main`
-- [x] Populate `VideoCodecRFC6381` / `AudioCodecRFC6381` in `sidecar_metadata` via `get_audio_video_info_ffprobe` (TODO: future — read from `videos.tsv` columns instead)
-- [x] Populate `BitDepth` / `PixelFormat` in `sidecar_metadata` from `VideoInfo.bit_depth` / `VideoInfo.pix_fmt`
-- [x] ffprobe errors logged and injection continues (RFC6381 / BitDepth / PixelFormat silently omitted)
+- [x] Populate `sidecar_metadata` via `bids/properties.py::bids_properties_from_ffprobe(input_path,
+      props=sidecar_metadata)` (replaced the earlier direct `get_audio_video_info_ffprobe` call +
+      manual field selection; see [task-bids-properties.md](task-bids-properties.md)) — adds
+      `VideoCodecRFC6381` / `AudioCodecRFC6381` / `ImageBitDepth` / `ImagePixelFormat` (now
+      `Image*`-prefixed, per [spec-bids-media.md](spec-bids-media.md)) plus other mappable
+      properties (`AudioCodec`, `AudioSampleRate`, `RecordingDuration`, etc.) that
+      `bids_properties_from_split_result` doesn't currently read from `sidecar_metadata`
+      (harmlessly unused for now)
+      (TODO: future — read from `videos.tsv` columns instead of re-running `ffprobe`)
+- [x] ffprobe errors logged and injection continues (fields simply absent from `sidecar_metadata`)
 
 ### Dry-run mode
 - [x] Skip `split-video` call and file writes when `--dry-run`
@@ -159,7 +166,7 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 
 ## Tests and Code Coverage
 
-Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_audiocodes.py` pattern).
+Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audiocodes.py` pattern).
 
 ### Datetime / Timezone API (`dt_` functions)
 
@@ -227,18 +234,38 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 
 - [x] `_call_split_video` passes `sidecar_metadata` with `TaskName` to `split-video`
 - [x] `_call_split_video` passes empty `sidecar_metadata` when `TaskName` absent
-- [x] `_call_split_video` adds `VideoCodecRFC6381` / `AudioCodecRFC6381` to `sidecar_metadata` via ffprobe
-- [x] `_call_split_video` adds `BitDepth` / `PixelFormat` to `sidecar_metadata` via ffprobe
-- [x] ffprobe failure logs error and injection continues; RFC6381/BitDepth/PixelFormat silently omitted
-- [x] `_to_bids_model` uses `VideoCodecRFC6381` / `AudioCodecRFC6381` from `sidecar_metadata` when provided
-- [x] `_to_bids_model` defaults `VideoCodecRFC6381` / `AudioCodecRFC6381` to `"n/a"` when absent
-- [x] `_to_bids_model` writes `BitDepth` (int) / `PixelFormat` (str) from `sidecar_metadata` when present
-- [x] `_to_bids_model` omits `BitDepth` / `PixelFormat` when absent from `sidecar_metadata`
+- [x] `_call_split_video` adds `VideoCodecRFC6381` / `AudioCodecRFC6381` to `sidecar_metadata` via
+      `bids_properties_from_ffprobe` *(was: direct `get_audio_video_info_ffprobe` call)*
+- [x] `_call_split_video` adds `ImageBitDepth` / `ImagePixelFormat` to `sidecar_metadata` via
+      `bids_properties_from_ffprobe` *(was: unprefixed `BitDepth` / `PixelFormat`)*
+- [x] ffprobe failure logs error and injection continues; fields simply absent from
+      `sidecar_metadata`
+- [x] `bids_properties_from_split_result` uses `VideoCodecRFC6381` / `AudioCodecRFC6381` from `sidecar_metadata` when provided
+- [x] `bids_properties_from_split_result` defaults `VideoCodecRFC6381` / `AudioCodecRFC6381` to `"n/a"` when absent
+- [x] `bids_properties_from_split_result` writes `ImageBitDepth` (int) / `ImagePixelFormat` (str) from
+      `sidecar_metadata` when present *(was: unprefixed `BitDepth` / `PixelFormat`)*
+- [x] `bids_properties_from_split_result` omits `ImageBitDepth` / `ImagePixelFormat` when absent from
+      `sidecar_metadata`
+- [x] `bids_properties_from_split_result` writes `VideoFrameCount` (int) from `sidecar_metadata` when present, omits
+      when absent — new field, populated via `video.frame_count` (see
+      [task-bids-properties.md](task-bids-properties.md))
+- [x] `bids_properties_from_split_result`'s BIDS-field-name dict keys (`RecordingDuration`, `VideoCodec`,
+      `VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
+      `ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`,
+      `AudioSampleRate`, `AudioBitDepth`, `AudioChannelCount`) now reference
+      `BidsMediaProperty.*.value` constants from `bids/media.py` instead of raw string literals.
+      Only `TaskName`/`Device`/`DeviceSerialNumber` remain raw strings (ReproStim/non-BEP044
+      extras — no `BidsMediaProperty` member exists for them).
+- [x] `Width`/`Height` renamed to `ImageWidth`/`ImageHeight` in `bids_properties_from_split_result` output (from
+      `sr.video_width`/`sr.video_height`), and `FrameRate` renamed to `VideoFrameRate` (from
+      `sr.video_frame_rate`) — field-naming reconciliation now fully resolved, see spec
+      Open Questions #4
 
 ### Integration tests (with synthetic BIDS fixture)
 
 > Requires a small synthetic BIDS dataset fixture (a few `_scans.tsv` files, stub JSON
-> sidecars, and a stub `videos.tsv`) committed under `tests/data/bids_inject/`.
+> sidecars, and a stub `videos.tsv`) committed under `tests/data/bids/` *(originally
+> `tests/data/bids_inject/`, renamed for reuse across other `reprostim.bids` module tests)*.
 
 - [ ] Single `_scans.tsv` + matching video → `split-video` called with correct args (mocked)
 - [x] Dry-run: `split-video` not called; planned actions logged
@@ -305,16 +332,17 @@ Test file location: `tests/qr/test_bids_inject.py` (mirrors `tests/audio/test_au
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/bids_inject.py` — `dt_` API functions | 100% | **100%** ✓ |
-| `qr/bids_inject.py` — internal helpers | ≥ 90% | 0% (pending) |
-| `qr/bids_inject.py` — overall | ≥ 80% | 34% (pending) |
+| `bids/inject.py` — `dt_` API functions | 100% | **100%** ✓ |
+| `bids/inject.py` — internal helpers | ≥ 90% | 0% (pending) |
+| `bids/inject.py` — overall | ≥ 80% | 34% (pending) |
 | `cli/cmd_bids_inject.py` | ≥ 80% | 0% (pending) |
 
 ### Test infrastructure
 
-- [x] Create `tests/qr/` package (`__init__.py`)
-- [x] Create `tests/qr/test_bids_inject.py`
-- [x] Create synthetic BIDS fixture under `tests/data/bids_inject/`
+- [x] Create `tests/bids/` package (`__init__.py`) *(originally `tests/qr/`, moved along with
+      `bids_inject.py` → `bids/inject.py`)*
+- [x] Create `tests/bids/test_inject.py` *(originally `tests/qr/test_bids_inject.py`)*
+- [x] Create synthetic BIDS fixture under `tests/data/bids/` *(originally `tests/data/bids_inject/`)*
   - [x] `dataset_description.json`
   - [x] `sub-qa/ses-20250814/sub-qa_ses-20250814_scans.tsv` (2–3 rows)
   - [x] Stub JSON sidecars for each scan row

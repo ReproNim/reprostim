@@ -25,10 +25,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
-from reprostim.qr.video_audit import (
-    find_video_audit_by_timerange,
-    get_audio_video_info_ffprobe,
-)
+from reprostim.bids.properties import bids_properties_from_ffprobe
+from reprostim.qr.video_audit import find_video_audit_by_timerange
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -965,15 +963,7 @@ def _call_split_video(
     # TODO: in the future, read these fields from dedicated columns in videos.tsv
     #       populated by video-audit, avoiding the extra ffprobe call here.
     try:
-        ai, vi = get_audio_video_info_ffprobe(input_path)
-        if vi.codec_rfc6381:
-            sidecar_metadata["VideoCodecRFC6381"] = vi.codec_rfc6381
-        if ai.codec_rfc6381:
-            sidecar_metadata["AudioCodecRFC6381"] = ai.codec_rfc6381
-        if vi.bit_depth is not None:
-            sidecar_metadata["BitDepth"] = vi.bit_depth
-        if vi.pix_fmt:
-            sidecar_metadata["PixelFormat"] = vi.pix_fmt
+        bids_properties_from_ffprobe(input_path, props=sidecar_metadata)
     except Exception as e:
         logger.error(f"Failed to get video info for {input_path}: {e}")
 

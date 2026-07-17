@@ -27,13 +27,11 @@ from reprostim.qr.split_video import (
     _do_main_specs,
     _expand_output_template,
     _has_template_tokens,
-    _parse_audio_info,
     _parse_interval_sec,
     _parse_spec,
     _parse_ts,
     _resolve_sidecar_path,
     _split_video,
-    _to_bids_model,
     _write_sidecar,
     do_main,
 )
@@ -583,202 +581,6 @@ def test_write_sidecar_no_absolute_dates():
 
 
 # ===========================================================================
-# _to_bids_model
-# ===========================================================================
-
-
-def test_to_bids_model_full_mapping():
-    """All populated SplitResult fields map to correct BIDS keys."""
-    sr = _make_split_result()
-    data = _to_bids_model(sr)
-
-    assert data["Device"] == "TestDevice"
-    assert data["DeviceSerialNumber"] == "SN-12345"
-    assert data["RecordingDuration"] == 190.0
-    assert data["VideoCodec"] == "h264"
-    assert data["VideoCodecRFC6381"] == "n/a"
-    assert data["FrameRate"] == 30.0
-    assert data["Width"] == 1920
-    assert data["Height"] == 1080
-    assert data["AudioCodec"] == "aac"
-    assert data["AudioCodecRFC6381"] == "n/a"
-    assert data["AudioSampleRate"] == 48000.0
-    assert data["AudioBitDepth"] == 16
-    assert data["AudioChannelCount"] == 2
-
-
-def test_to_bids_model_na_fields_omitted():
-    """Fields with value 'n/a' are omitted from BIDS output."""
-    sr = SplitResult(
-        duration=60.0,
-        video_frame_rate=25.0,
-        video_width="n/a",
-        video_height="n/a",
-        video_codec="n/a",
-        audio_codec="n/a",
-        audio_sample_rate="n/a",
-        audio_bit_depth="n/a",
-        audio_channel_count="n/a",
-        orig_device="n/a",
-        orig_device_serial_number="n/a",
-    )
-    data = _to_bids_model(sr)
-
-    assert "Device" not in data
-    assert "DeviceSerialNumber" not in data
-    assert "Width" not in data
-    assert "Height" not in data
-    assert "VideoCodec" not in data
-    assert "AudioCodec" not in data
-    assert "AudioSampleRate" not in data
-    assert "AudioBitDepth" not in data
-    assert "AudioChannelCount" not in data
-    assert "RecordingDuration" not in data
-    assert data["FrameRate"] == 25.0
-
-
-def test_to_bids_model_none_values_omitted():
-    """Fields with None value are omitted from BIDS output."""
-    sr = SplitResult(duration=None, video_frame_rate=None)
-    data = _to_bids_model(sr)
-
-    assert "RecordingDuration" not in data
-    assert "FrameRate" not in data
-
-
-def test_to_bids_model_numeric_types():
-    """Width/Height are int, AudioSampleRate is float, AudioChannelCount is int."""
-    sr = SplitResult(
-        video_width="1280",
-        video_height="720",
-        audio_sample_rate="44100",
-        audio_channel_count="1",
-    )
-    data = _to_bids_model(sr)
-
-    assert isinstance(data["Width"], int) and data["Width"] == 1280
-    assert isinstance(data["Height"], int) and data["Height"] == 720
-    assert (
-        isinstance(data["AudioSampleRate"], float)
-        and data["AudioSampleRate"] == 44100.0
-    )
-    assert isinstance(data["AudioChannelCount"], int) and data["AudioChannelCount"] == 1
-
-
-def test_to_bids_model_video_codec_present_when_resolution_known():
-    """VideoCodec and VideoCodecRFC6381 are included when video_codec is set."""
-    sr = SplitResult(video_width="1920", video_height="1080", video_codec="h264")
-    data = _to_bids_model(sr)
-    assert data["VideoCodec"] == "h264"
-    assert data["VideoCodecRFC6381"] == "n/a"
-
-
-def test_to_bids_model_video_codec_absent_when_na():
-    """VideoCodec is omitted when video_codec is 'n/a' (no video stream)."""
-    sr = SplitResult(video_width="n/a", video_height="n/a", video_codec="n/a")
-    data = _to_bids_model(sr)
-    assert "VideoCodec" not in data
-
-
-def test_to_bids_model_rfc6381_from_sidecar_metadata():
-    """VideoCodecRFC6381 and AudioCodecRFC6381 are taken from sidecar_metadata."""
-    sr = SplitResult(video_codec="h264", audio_codec="aac")
-    data = _to_bids_model(
-        sr,
-        sidecar_metadata={
-            "VideoCodecRFC6381": "avc1.640028",
-            "AudioCodecRFC6381": "mp4a.40.2",
-        },
-    )
-    assert data["VideoCodecRFC6381"] == "avc1.640028"
-    assert data["AudioCodecRFC6381"] == "mp4a.40.2"
-
-
-def test_to_bids_model_rfc6381_defaults_to_na_without_sidecar_metadata():
-    """VideoCodecRFC6381 and AudioCodecRFC6381 default to 'n/a' when absent."""
-    sr = SplitResult(video_codec="h264", audio_codec="aac")
-    data = _to_bids_model(sr)
-    assert data["VideoCodecRFC6381"] == "n/a"
-    assert data["AudioCodecRFC6381"] == "n/a"
-
-
-def test_to_bids_model_bit_depth_and_pixel_format_from_sidecar_metadata():
-    """BitDepth and PixelFormat are written when present in sidecar_metadata."""
-    sr = SplitResult(video_codec="h264")
-    data = _to_bids_model(
-        sr,
-        sidecar_metadata={"BitDepth": 10, "PixelFormat": "yuv420p"},
-    )
-    assert data["BitDepth"] == 10
-    assert isinstance(data["BitDepth"], int)
-    assert data["PixelFormat"] == "yuv420p"
-
-
-def test_to_bids_model_bit_depth_and_pixel_format_absent_when_not_in_sidecar():
-    """BitDepth and PixelFormat are omitted when absent from sidecar_metadata."""
-    sr = SplitResult(video_codec="h264")
-    data = _to_bids_model(sr)
-    assert "BitDepth" not in data
-    assert "PixelFormat" not in data
-
-
-def test_to_bids_model_no_raw_fields():
-    """BIDS output contains no raw SplitResult field names."""
-    sr = _make_split_result()
-    data = _to_bids_model(sr)
-    raw_keys = {
-        "duration",
-        "video_frame_rate",
-        "video_width",
-        "video_height",
-        "video_codec",
-        "audio_codec",
-        "audio_sample_rate",
-        "audio_bit_depth",
-        "audio_channel_count",
-        "orig_device",
-        "orig_device_serial_number",
-        "orig_start",
-        "orig_end",
-        "orig_buffer_start",
-    }
-    for key in raw_keys:
-        assert key not in data, f"Raw field '{key}' should not appear in BIDS output"
-
-
-def test_to_bids_model_task_name_first_field():
-    """TaskName from sidecar_metadata is output as the first field in BIDS JSON."""
-    sr = _make_split_result()
-    data = _to_bids_model(sr, sidecar_metadata={"TaskName": "rest"})
-    assert data["TaskName"] == "rest"
-    keys = list(data.keys())
-    assert keys[0] == "TaskName", f"TaskName must be the first key, got: {keys}"
-
-
-def test_to_bids_model_task_name_absent_when_not_in_metadata():
-    """TaskName is absent when sidecar_metadata does not contain it."""
-    sr = _make_split_result()
-    data = _to_bids_model(sr, sidecar_metadata={})
-    assert "TaskName" not in data
-
-
-def test_to_bids_model_task_name_absent_when_metadata_is_none():
-    """TaskName is absent when sidecar_metadata is None."""
-    sr = _make_split_result()
-    data = _to_bids_model(sr, sidecar_metadata=None)
-    assert "TaskName" not in data
-
-
-def test_to_bids_model_task_name_first_before_device():
-    """TaskName precedes Device in field order when both are present."""
-    sr = _make_split_result()
-    data = _to_bids_model(sr, sidecar_metadata={"TaskName": "faces"})
-    keys = list(data.keys())
-    assert "TaskName" in keys and "Device" in keys
-    assert keys.index("TaskName") < keys.index("Device")
-
-
-# ===========================================================================
 # _write_sidecar — format variants
 # ===========================================================================
 
@@ -793,7 +595,7 @@ def test_write_sidecar_default_is_bids():
         with open(tmp_path) as f:
             data = json.load(f)
         assert "RecordingDuration" in data
-        assert "FrameRate" in data
+        assert "VideoFrameRate" in data
         assert "duration" not in data
     finally:
         os.unlink(tmp_path)
@@ -809,12 +611,12 @@ def test_write_sidecar_bids_format_explicit():
         with open(tmp_path) as f:
             data = json.load(f)
         assert "RecordingDuration" in data
-        assert "Width" in data
-        assert "Height" in data
+        assert "ImageWidth" in data
+        assert "ImageHeight" in data
         assert "AudioCodec" in data
         assert "AudioSampleRate" in data
         assert "AudioChannelCount" in data
-        assert "FrameRate" in data
+        assert "VideoFrameRate" in data
     finally:
         os.unlink(tmp_path)
 
@@ -1213,54 +1015,6 @@ def test_cli_sidecar_format_raw_passed_to_do_main(input_video):
         )
         mock_dm.assert_called_once()
         assert mock_dm.call_args.kwargs["sidecar_format"] == "raw"
-
-
-# ===========================================================================
-# _parse_audio_info
-# ===========================================================================
-
-
-def test_parse_audio_info_full_string():
-    """Full audio info string parses all four fields correctly."""
-    result = _parse_audio_info("48000Hz 16b 2ch aac")
-    assert result["audio_sample_rate"] == "48000"
-    assert result["audio_bit_depth"] == "16"
-    assert result["audio_channel_count"] == "2"
-    assert result["audio_codec"] == "aac"
-
-
-def test_parse_audio_info_missing_bit_depth_defaults_to_16():
-    """String without explicit bit depth defaults audio_bit_depth to '16'."""
-    result = _parse_audio_info("48000Hz 2ch aac")
-    assert result["audio_sample_rate"] == "48000"
-    assert result["audio_bit_depth"] == "16"
-    assert result["audio_channel_count"] == "2"
-    assert result["audio_codec"] == "aac"
-
-
-def test_parse_audio_info_none_returns_na():
-    """None input returns all n/a fields."""
-    result = _parse_audio_info(None)
-    assert all(v == "n/a" for v in result.values())
-
-
-def test_parse_audio_info_na_string_returns_na():
-    """'n/a' string returns all n/a fields."""
-    result = _parse_audio_info("n/a")
-    assert all(v == "n/a" for v in result.values())
-
-
-def test_parse_audio_info_empty_string_returns_na():
-    """Empty string returns all n/a fields."""
-    result = _parse_audio_info("")
-    assert all(v == "n/a" for v in result.values())
-
-
-def test_parse_audio_info_sample_rate_only():
-    """String with only sample rate populates that field; others are n/a or default."""
-    result = _parse_audio_info("44100Hz")
-    assert result["audio_sample_rate"] == "44100"
-    assert result["audio_bit_depth"] == "16"  # hardcoded default
 
 
 # ===========================================================================
