@@ -448,6 +448,9 @@ def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
                     continue
 
 
+# Note: refactor and move this API to separate module like capture.metadata or
+# similar, also define data classes for parsed reprostim-videocapture metadata
+# there and use it in split_video/bids.properties modules
 def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     """Find the first metadata JSON entry with a specific key-value pair.
 
