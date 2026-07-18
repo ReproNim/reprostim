@@ -8,7 +8,7 @@ metadata (per the [BEP044/media-files proposal, bids-standard/bids-specification
 directly from one or more audio and/or video files and writes/updates the corresponding
 `.json` sidecar file(s) next to each input file.
 
-Unlike [`bids-inject`](spec-bids-inject.md), this command does **not** perform scan-matching,
+Unlike [`bids-inject`](inject-spec.md), this command does **not** perform scan-matching,
 timing orchestration, or `_scans.tsv` I/O. It operates purely file-by-file: given a media file,
 it produces (or updates) its sidecar. It is meant to become the generic "engine" that
 `bids-inject` delegates to for sidecar generation, replacing the inline `_to_bids_model` /
@@ -23,7 +23,7 @@ Relevant to: https://github.com/ReproNim/reprostim/issues/14
 `bids_properties_from_video_audit`, falling back to `ffprobe` when there's no cache or no
 matching row), `--add` merge, `update`/`replace` write modes, and `error`/`overwrite` conflict
 resolution all work end-to-end. **Not yet implemented**: `--add` declared-type casting. See
-[task-bids-inject-sidecar.md](task-bids-inject-sidecar.md) for the detailed checklist.
+[inject-sidecar-tasks.md](inject-sidecar-tasks.md) for the detailed checklist.
 
 ---
 
@@ -91,8 +91,8 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 | `-d / --dry-run`                              | Flag    | `False`   | *(Added for consistency with `bids-inject`/`video-audit`; not explicitly requested in issue #259.)* Compute and print the field set that would be written per file, without writing any sidecar. |
 
 > **Note on additions beyond the issue text:** `-v/--verbose` and `-d/--dry-run` were added to
-> match the conventions of every other `reprostim` subcommand (see [spec-bids-inject.md](spec-bids-inject.md),
-> [spec-video-audit.md](spec-video-audit.md)). They are not present in the original issue body
+> match the conventions of every other `reprostim` subcommand (see [inject-spec.md](inject-spec.md),
+> [spec-video-audit.md](../spec-video-audit.md)). They are not present in the original issue body
 > and can be dropped if deemed unnecessary during implementation review.
 
 > **Enum types (implemented):** `--mode` is backed by `OverwriteMode(str, Enum)`
@@ -173,11 +173,11 @@ a plain string (no casting attempted).
 > `ImageBitDepth`. `bids/properties.py::bids_properties_from_split_result` (used by
 > `split-video`/`bids-inject` via `split_video.py::_write_sidecar`; this logic used to live
 > directly in `split_video.py` as `_to_bids_model`, moved out — see
-> [spec-bids-properties.md](spec-bids-properties.md)) writes all four `Image*`-prefixed names —
+> [properties-spec.md](properties-spec.md)) writes all four `Image*`-prefixed names —
 > `ImagePixelFormat`/`ImageBitDepth` were renamed first (coordinated with `bids/inject.py`
 > switching to `bids/properties.py::bids_properties_from_ffprobe`), and `ImageWidth`/
 > `ImageHeight` (from `SplitResult.video_width`/`video_height`) followed in a second pass. Every
-> key in this table that has a matching [`BidsMediaProperty`](spec-bids-media.md) member is
+> key in this table that has a matching [`BidsMediaProperty`](media-spec.md) member is
 > written via `BidsMediaProperty.*.value`, not a raw string literal — see
 > [Relationship to `bids-inject` / `split-video`](#relationship-to-bids-inject--split-video).
 
@@ -341,8 +341,8 @@ range — see [Open Questions / TODOs](#open-questions--todos).
 |----------------------------------------------------|--------------------------------------------------------------------------|
 | `src/reprostim/cli/cmd_bids_inject_sidecar.py`      | Click command definition (`bids-inject-sidecar`)                       |
 | `src/reprostim/bids/inject_sidecar.py`              | Core logic: per-file extraction, `--add` parsing, conflict resolution, JSON read/write |
-| `src/reprostim/bids/media.py`                       | Shared BIDS media-field taxonomy: `BidsMediaType`/`BidsMediaProperty`/format/codec enums, `BidsMediaInfo`, `parse_bids_media_info` (see [spec-bids-media.md](spec-bids-media.md)) |
-| `src/reprostim/bids/properties.py`                  | `AudioInfo`/`VideoInfo`/`VaRecord` → BIDS-dict mapping (`bids_properties_from_ffprobe`, `bids_properties_from_video_audit`), factored out so both `split-video`/`bids-inject` and `bids-inject-sidecar` can share one source of truth (see [spec-bids-properties.md](spec-bids-properties.md)) — both wired into `_do_sidecar` |
+| `src/reprostim/bids/media.py`                       | Shared BIDS media-field taxonomy: `BidsMediaType`/`BidsMediaProperty`/format/codec enums, `BidsMediaInfo`, `parse_bids_media_info` (see [media-spec.md](media-spec.md)) |
+| `src/reprostim/bids/properties.py`                  | `AudioInfo`/`VideoInfo`/`VaRecord` → BIDS-dict mapping (`bids_properties_from_ffprobe`, `bids_properties_from_video_audit`), factored out so both `split-video`/`bids-inject` and `bids-inject-sidecar` can share one source of truth (see [properties-spec.md](properties-spec.md)) — both wired into `_do_sidecar` |
 
 > All three modules live under `src/reprostim/bids/`, along with `inject.py` (`bids-inject`'s own
 > core logic) — the package reorganization that started with `inject_sidecar.py`/`media.py`
@@ -357,7 +357,7 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 `split_video.py::_write_sidecar()` (via `bids/properties.py::bids_properties_from_split_result`
 for the BIDS-dict mapping itself, moved out of `split_video.py` — see below) is used by
 `split-video --sidecar-json` and, transitively, by `bids-inject` (see
-[spec-bids-inject.md § Outputs → B](spec-bids-inject.md#b-sidecar-metadata--bep047behavior--reprostim-extras)).
+[inject-spec.md § Outputs → B](inject-spec.md#b-sidecar-metadata--bep047behavior--reprostim-extras)).
 That existing logic is narrower in scope: it only ever writes a **fresh** sidecar for a file
 `split-video` itself just produced, with no notion of merging into or reconciling against a
 pre-existing sidecar.
@@ -369,7 +369,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 1. **Done**: the BIDS field-name/type table lives in `bids/media.py` (`BidsMediaProperty`), and
    the `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping in a separate
    `bids/properties.py` (`bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`/
-   `bids_properties_from_split_result`) — see [spec-bids-properties.md](spec-bids-properties.md).
+   `bids_properties_from_split_result`) — see [properties-spec.md](properties-spec.md).
    `split_video.py::_to_bids_model` was moved into `bids/properties.py` wholesale as
    `bids_properties_from_split_result` (not just referenced from a still-separate
    implementation, as originally proposed) — `split_video.py` has no BIDS-mapping logic of its
@@ -433,7 +433,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    `split_video.py::_to_bids_model`) writes all four `Image*`-prefixed BEP044 names —
    `ImageBitDepth`/`ImagePixelFormat` (renamed first, coordinated with
    `bids/inject.py::_call_split_video` switching to `bids_properties_from_ffprobe` — see
-   [spec-bids-properties.md](spec-bids-properties.md)), then `ImageWidth`/`ImageHeight` (renamed
+   [properties-spec.md](properties-spec.md)), then `ImageWidth`/`ImageHeight` (renamed
    from `SplitResult.video_width`/`video_height`-sourced `Width`/`Height` in a follow-up pass).
    Every key with a matching `BidsMediaProperty` member is written via
    `BidsMediaProperty.*.value`, not a raw string
@@ -442,7 +442,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    Algorithm step 3.b.i above, via `bids_properties_from_video_audit`/`get_file_video_audit`), but
    whether a plain resolved-path match is sufficient, vs. `bids-inject`'s time-range matching
    (`find_video_audit_by_timerange`), hasn't been separately confirmed — still open, see
-   [task-bids-inject-sidecar.md](task-bids-inject-sidecar.md).
+   [inject-sidecar-tasks.md](inject-sidecar-tasks.md).
 6. **`--dry-run` / `-v` options** — **implemented and kept**: both work as designed
    (`--dry-run` prints the planned field set without writing; `-v/--verbose` reports per-field
    merge/conflict/write detail via `_verbose`).
@@ -456,5 +456,5 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    accepted and stored as the plain string `"stereo"` (not valid JSON, so no error), even though
    `AudioChannelCount` is declared `integer`. Whether/how to add that validation layer on top of
    `ext_props` — and whether it belongs in `_parse_ext_props` itself or a later stage once
-   `BidsMediaProperty` carries declared types (see [spec-bids-media.md Open
-   Questions](spec-bids-media.md#open-questions--todos)) — is open.
+   `BidsMediaProperty` carries declared types (see [media-spec.md Open
+   Questions](media-spec.md#open-questions--todos)) — is open.

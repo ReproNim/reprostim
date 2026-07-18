@@ -1,6 +1,6 @@
 # `bids-inject-sidecar` Task List
 
-Tracks implementation progress against [spec-bids-inject-sidecar.md](spec-bids-inject-sidecar.md).
+Tracks implementation progress against [inject-sidecar-spec.md](inject-sidecar-spec.md).
 
 **Basic end-to-end logic is implemented, with automated tests at 100% statement/branch coverage**
 of both `bids/inject_sidecar.py` and `cli/cmd_bids_inject_sidecar.py`
@@ -69,14 +69,14 @@ All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `
 - [x] Create `src/reprostim/bids/media.py` with the BIDS Media-File Metadata Fields table (name → type)
 - [x] Factor `AudioInfo`/`VideoInfo` → BIDS-dict mapping out — done as a separate module,
       `bids/properties.py` (`bids_properties_from_audio_video_info`), not inside `bids/media.py`
-      itself; see [task-bids-properties.md](task-bids-properties.md)
+      itself; see [properties-tasks.md](properties-tasks.md)
 - [x] **Superseded**: field names are `Image*`-prefixed BEP044 names throughout, not the
       unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` this item originally decided on as an
       interim measure — see next item.
 - [x] `split_video.py::_to_bids_model` updated to use the shared `bids/properties.py` mapping
       code — **done by moving it there wholesale**, as `bids_properties_from_split_result`;
       `split_video.py` no longer has any BIDS-mapping logic of its own (see
-      [task-bids-properties.md](task-bids-properties.md))
+      [properties-tasks.md](properties-tasks.md))
 - [x] Renamed to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 —
       done in `bids_properties_from_split_result` (formerly `split_video.py::_to_bids_model`),
       coordinated with `bids/inject.py::_call_split_video` adopting `bids_properties_from_ffprobe`;
@@ -118,7 +118,7 @@ All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `
       (`props: dict = bids_properties_from_ffprobe(path)`), not reimplemented
 - [x] `AudioInfo`/`VideoInfo` → BIDS field mapping — inherited for free from
       `bids_properties_from_ffprobe`/`bids_properties_from_audio_video_info`; see
-      [task-bids-properties.md](task-bids-properties.md) for that mapping's own checklist
+      [properties-tasks.md](properties-tasks.md) for that mapping's own checklist
 - [x] `RecordingDuration` derived from stream duration — same, inherited
 - [x] Omit (not `"n/a"`) fields that cannot be determined — same, inherited (`_set_prop` skips
       `None` values)
@@ -210,7 +210,7 @@ needed — it's pure path parsing) and real `tmp_path` files for sidecar read/wr
 of never invoking real `ffprobe`/`subprocess` in unit tests.
 
 *(`bids/media.py`'s own test checklist — field table, `AudioInfo`/`VideoInfo` mapping — is
-tracked in [task-bids-media.md](task-bids-media.md)/[task-bids-properties.md](task-bids-properties.md),
+tracked in [media-tasks.md](media-tasks.md)/[properties-tasks.md](properties-tasks.md),
 not here; this file previously had a duplicate/misplaced copy of that checklist, removed.)*
 
 ### `OverwriteMode` / `ConflictPolicy` / `BisContext` (implemented)
@@ -328,7 +328,7 @@ run, to exercise the batch/exit-code behavior below through the actual Click lay
 
 | Module | Target | Actual |
 |---|---|---|
-| `bids/media.py` | ≥ 90% | **100%** (see task-bids-media.md) |
+| `bids/media.py` | ≥ 90% | **100%** (see media-tasks.md) |
 | `bids/inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
 | `cli/cmd_bids_inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
 

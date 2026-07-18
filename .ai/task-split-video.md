@@ -36,7 +36,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
       fields from `SplitDevice.audio_sr`. Moved from this module's own private
       `_parse_audio_info` to `qr/video_audit.py` (public) so `bids/properties.py` could reuse the
       same implementation instead of duplicating it — see
-      [spec-bids-properties.md](spec-bids-properties.md). Its tests moved to
+      [bids/properties-spec.md](bids/properties-spec.md). Its tests moved to
       `tests/qr/test_video_audit.py` accordingly (see [task-video-audit.md](task-video-audit.md)).
 
 ### Spec parsing and output templates
@@ -71,7 +71,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] BIDS-dict conversion — **moved to `bids/properties.py::bids_properties_from_split_result`**
       (was `_to_bids_model`, defined in this file; no BIDS-mapping logic remains in
       `split_video.py` itself). Full checklist now tracked in
-      [task-bids-properties.md](task-bids-properties.md), not here — the entries below are kept
+      [bids/properties-tasks.md](bids/properties-tasks.md), not here — the entries below are kept
       only as a historical record of what was verified before the move.
 - [x] `_to_bids_model` *(historical, pre-move)* — convert `SplitResult` to BEP044/BEP047 BIDS
       sidecar dict
@@ -165,7 +165,7 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
       `VideoCodecRFC6381`/`AudioCodecRFC6381`/`ImageBitDepth`/`ImagePixelFormat`/
       `VideoFrameCount` from `sidecar_metadata`, `BidsMediaProperty.*.value` constant usage,
       `Image*`-prefixed naming) now lives in
-      [task-bids-properties.md](task-bids-properties.md), not here. All 17 tests moved verbatim
+      [bids/properties-tasks.md](bids/properties-tasks.md), not here. All 17 tests moved verbatim
       from this file to `tests/bids/test_properties.py` (renamed `test_to_bids_model_*` →
       `test_bids_properties_from_split_result_*`); `_write_sidecar`'s own integration tests above
       stayed here since they test `_write_sidecar`, not the mapping function directly.**

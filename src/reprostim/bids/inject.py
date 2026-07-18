@@ -7,7 +7,7 @@ Core logic for bids-inject: cross-reference ReproStim videos.tsv with BIDS
 _scans.tsv files to slice and inject per-acquisition video clips into a BIDS
 dataset.
 
-See .ai/spec-bids-inject.md for the full specification.
+See .ai/bids/inject-spec.md for the full specification.
 """
 
 import contextlib

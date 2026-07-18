@@ -733,7 +733,7 @@ Columns used by `bids-inject`:
 
 Registered in `src/reprostim/cli/entrypoint.py` alongside other commands. `inject.py` lives under
 `src/reprostim/bids/` alongside `inject_sidecar.py`/`media.py` (see
-[spec-bids-media.md](spec-bids-media.md)) — moved there from `qr/` as part of the ongoing package
+[media-spec.md](media-spec.md)) — moved there from `qr/` as part of the ongoing package
 reorganization.
 
 ---

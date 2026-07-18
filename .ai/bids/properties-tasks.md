@@ -1,6 +1,6 @@
 # `bids/properties.py` Task List
 
-Tracks implementation progress against [spec-bids-properties.md](spec-bids-properties.md).
+Tracks implementation progress against [properties-spec.md](properties-spec.md).
 
 **Status:** four APIs implemented, all with automated tests in `tests/bids/test_properties.py`
 (52 tests total). `src/reprostim/bids/properties.py` is at **100% statement + branch coverage**
@@ -67,7 +67,7 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
   - [x] Accepts the standard `props` accumulation parameter (unlike
         `bids_properties_from_split_result`)
   - [ ] **Not wired up to any consumer yet** — `bids-inject-sidecar`'s `--videos` cache-lookup
-        path doesn't call it (see task-bids-inject-sidecar.md)
+        path doesn't call it (see inject-sidecar-tasks.md)
 - [x] `parse_audio_sr(audio_sr: Optional[str]) -> dict` — **moved to `qr/video_audit.py`** (public)
       from `qr/split_video.py::_parse_audio_info` (private); same implementation. Used by
       `bids_properties_from_video_audit` here, and by `qr/split_video.py::_split_video` (building
@@ -95,7 +95,7 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
         `VideoCodecRFC6381`/`VideoFrameRate`/`ImageWidth`/`ImageHeight`/`ImageBitDepth`/
         `ImagePixelFormat`/`VideoFrameCount`/`AudioCodec`/`AudioCodecRFC6381`/
         `AudioSampleRate`/`AudioBitDepth`/`AudioChannelCount` all mapped (see
-        [spec-split-video.md](spec-split-video.md) for the full source → field table)
+        [spec-split-video.md](../spec-split-video.md) for the full source → field table)
   - [x] Does **not** currently accept a `props` accumulation parameter, unlike the other two
         functions in this module (open question below)
   - [x] `src/reprostim/qr/split_video.py` imports it from `reprostim.bids.properties`; the
@@ -233,7 +233,7 @@ or the spec's Layering section), not here.
       `bids_properties_from_ffprobe`, or always call both and let `props` accumulation semantics
       (call-order priority) decide
 - [ ] `bids_properties_from_video_audit` not wired into any consumer yet — `bids-inject-sidecar`'s
-      `--videos`/`ctx.videos_tsv` is accepted but not consulted (see task-bids-inject-sidecar.md)
+      `--videos`/`ctx.videos_tsv` is accepted but not consulted (see inject-sidecar-tasks.md)
 - [x] `VideoFrameCount` source — resolved: `VideoInfo.frame_count` added to `video_audit.py`
 - [ ] `bids_properties_from_ffprobe` doesn't expose `count_frames` (from
       `get_audio_video_info_ffprobe`'s new param) — callers can't request the exact/slower

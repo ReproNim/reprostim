@@ -112,7 +112,7 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
       absent). Moved here (public) from `qr/split_video.py::_parse_audio_info` (private, same
       implementation) so both `qr/split_video.py` and `bids/properties.py`
       (`bids_properties_from_video_audit`) can share one implementation instead of duplicating it
-      — see [spec-bids-properties.md](spec-bids-properties.md). Tests moved from
+      — see [bids/properties-spec.md](bids/properties-spec.md). Tests moved from
       `tests/qr/test_split_video.py` to `tests/qr/test_video_audit.py` accordingly.
 
 ---
@@ -146,7 +146,7 @@ Test file location: `tests/qr/test_video_audit.py`
 
 (Moved verbatim from `tests/qr/test_split_video.py`'s `_parse_audio_info` tests, renamed
 `test_parse_audio_info_*` → `test_parse_audio_sr_*`, when the function itself moved — see
-[spec-bids-properties.md](spec-bids-properties.md) Layering section.)
+[bids/properties-spec.md](bids/properties-spec.md) Layering section.)
 
 #### `check_coherent`
 - [x] All fields valid and matching → `True`

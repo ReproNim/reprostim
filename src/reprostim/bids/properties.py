@@ -11,7 +11,7 @@ properties from, instead of each reimplementing the
 AudioInfo/VideoInfo/SplitResult/VaRecord -> BIDS-dict mapping
 independently.
 
-See .ai/spec-bids-properties.md for the full specification.
+See .ai/bids/properties-spec.md for the full specification.
 """
 import logging
 from typing import Any, Dict, Optional
@@ -53,7 +53,7 @@ def bids_properties_from_audio_video_info(
     Fields that cannot be determined (no matching stream, field absent from
     ffprobe output) are simply omitted from the result rather than written
     as ``"n/a"`` or ``None``, matching the BEP044 sidecar convention (see
-    spec-bids-media.md).
+    bids/media-spec.md).
 
     :param audio: Audio stream info from ``get_audio_video_info_ffprobe``,
         or ``None`` if the file has no audio stream.
