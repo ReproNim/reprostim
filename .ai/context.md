@@ -76,10 +76,12 @@ Main Python package with CLI tools and analysis utilities.
   - `metadata.py` - Parse `REPROSTIM-METADATA-JSON` entries from reprostim-videocapture log files
     (`iter_metadata_json`, `find_metadata_json`); also defines `MetadataType` enum
     (`SESSION_BEGIN`/`CAPTURE_STOP`/`SESSION_END`) mirroring the `"type"` values `_METADATA_LOG`
-    writes in `VideoCapture.cpp` (not yet wired into the `find_metadata_json` call sites), the
-    matching `MetadataBase`/`MetadataSessionBegin`/`MetadataCaptureStop`/`MetadataSessionEnd`
-    pydantic models (all-`str`, weakly typed for now), and `find_metadata_by_class(path, cls)` to
-    look up + construct one by class. Moved out of `video/audit.py` since it's capture-tool log
+    writes in `VideoCapture.cpp`, the matching
+    `MetadataBase`/`MetadataSessionBegin`/`MetadataCaptureStop`/`MetadataSessionEnd` pydantic
+    models (all-`str`, weakly typed for now), and `find_metadata_by_class(path, cls)` to look up +
+    construct one by class — all three `video/audit.py`/`video/split.py`/`bids/properties.py` call
+    sites now use `find_metadata_by_class(path, MetadataSessionBegin)` with typed attribute access
+    instead of raw `dict`/`.get()`. Moved out of `video/audit.py` since it's capture-tool log
     parsing, not video-file analysis — used by
     `video/audit.py`, `video/split.py`, and `bids/properties.py` (see
     [capture/metadata-spec.md](capture/metadata-spec.md),

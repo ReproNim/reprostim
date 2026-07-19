@@ -22,6 +22,7 @@ import click.testing
 import pytest
 from filelock import Timeout
 
+from reprostim.capture.metadata import MetadataSessionBegin
 from reprostim.cli.cmd_video_audit import video_audit
 from reprostim.video.audit import (
     VaContext,
@@ -835,8 +836,8 @@ def test_do_audit_file_happy_path(tmp_path):
         duration_sec=60.0,
     )
     mock_vi2 = MagicMock(spec=VideoInfo)
-    sb = {"frameRate": "30.0", "cx": 1920, "cy": 1080}
-    with patch("reprostim.video.audit.find_metadata_json", return_value=sb), patch(
+    sb = MetadataSessionBegin(frameRate="30.0", cx=1920, cy=1080)
+    with patch("reprostim.video.audit.find_metadata_by_class", return_value=sb), patch(
         "reprostim.video.audit.do_info_file", return_value=(mock_vi, mock_vti)
     ), patch("reprostim.video.audit.do_parse", return_value=iter([mock_ps])), patch(
         "reprostim.video.audit.get_audio_video_info_ffprobe",

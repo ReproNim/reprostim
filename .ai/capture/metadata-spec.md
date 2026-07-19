@@ -72,12 +72,13 @@ sync with that file — these are the only three values it currently emits):
 | `CAPTURE_STOP`  | `"capture_stop"`  | Capture stops (`message` explains why); carries `cap_ts_start`/`cap_isotime_start` and `cap_ts_stop`/`cap_isotime_stop` |
 | `SESSION_END`   | `"session_end"`   | Session logger closes, after the ffmpeg thread has terminated; carries `message` and `cap_ts_start`/`cap_isotime_start` |
 
-Not yet wired into any `find_metadata_json(..., "type", ...)` call site —
-those still pass the raw string literal `"session_begin"` (see
-`video/audit.py::do_audit_file`, `video/split.py::_split_video`,
-`bids/properties.py::bids_properties_from_video_audit`). Left as-is for
-now; switching them to `MetadataType.SESSION_BEGIN` is a follow-up, not
-done as part of adding the enum.
+Not called directly by any client — resolved internally by
+`_find_metadata_type_by_class`/`find_metadata_by_class` (below) instead.
+`video/audit.py::do_audit_file`, `video/split.py::_calc_split_data`, and
+`bids/properties.py::bids_properties_from_video_audit` no longer reference
+the raw string literal `"session_begin"` at all; they call
+`find_metadata_by_class(path, MetadataSessionBegin)` and let that resolve
+`MetadataType.SESSION_BEGIN`.
 
 ### `MetadataBase`, `MetadataSessionBegin`, `MetadataCaptureStop`, `MetadataSessionEnd`
 
@@ -127,9 +128,21 @@ itself, or any custom subclass not in `_METADATA_TYPE_BY_CLASS`), there's no
 class: ..."`) and returns `None` rather than guessing or falling back to an
 untyped result.
 
-Wiring this into `video/audit.py`, `video/split.py`, `bids/properties.py`
-(which still call `find_metadata_json(..., "type", "session_begin")`
-directly and work with raw dicts) is a follow-up — see Open Questions.
+All three former `find_metadata_json(path + ".log", "type", "session_begin")`
+call sites now use `find_metadata_by_class(path + ".log",
+MetadataSessionBegin)` and typed attribute access instead of `dict`/`.get()`:
+
+- `video/audit.py::do_audit_file` — `sb.frameRate`, `sb.cx`/`sb.cy`
+  (previously `sb["frameRate"]`, `sb['cx']`/`sb['cy']`)
+- `video/split.py::_calc_split_data` — `sb.vDev or "n/a"`, `sb.serial or
+  "n/a"` (previously `sb.get("vDev", "n/a") or "n/a"`, same for `serial`)
+- `bids/properties.py::bids_properties_from_video_audit` — same pattern as
+  `video/split.py`
+
+`find_metadata_json` itself is no longer imported/called from any of those
+three modules — it's now purely an implementation detail of
+`find_metadata_by_class`, not a public entry point client code is expected
+to use directly.
 
 ---
 
@@ -155,12 +168,10 @@ multi-line ffmpeg banners) interleaved between them.
   semantic typing (parsed `datetime` for `cap_isotime_start` etc., `int`
   for `cx`/`cy`, `bool` for `autoRecovery`). Deliberate first pass; a
   follow-up could add real types once callers actually need them.
-- `MetadataType` isn't wired into the existing `find_metadata_json(...,
-  "type", "session_begin")` call sites yet (see `MetadataType` section
-  above) — they still use the raw string literal.
-- `video/audit.py`, `video/split.py`, `bids/properties.py` still work with
-  raw `dict`/`.get(key)` results from `find_metadata_json` — none of them
-  use `find_metadata_by_class`/construct `MetadataSessionBegin`/etc. yet.
+- `video/audit.py`, `video/split.py`, `bids/properties.py` now all go
+  through `find_metadata_by_class(path, MetadataSessionBegin)` — which
+  resolves `MetadataType.SESSION_BEGIN` internally — so the raw string
+  literal `"session_begin"` is gone from all three call sites too.
 - `find_metadata_json` rescans the whole file on every call with no
   caching; fine for today's call sites (one lookup per video), would need
   revisiting if a caller starts looking up many keys from the same file.

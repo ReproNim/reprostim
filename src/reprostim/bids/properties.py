@@ -17,7 +17,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
-from reprostim.capture.metadata import find_metadata_json
+from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
 from reprostim.video.audit import (
     AudioInfo,
     VaRecord,
@@ -271,7 +271,7 @@ def bids_properties_from_video_audit(
     columns yet, so those two are instead recovered the same way
     ``video.split`` does: by looking for a ``session_begin``
     REPROSTIM-METADATA-JSON entry in ``<path>.log`` (see
-    :func:`reprostim.capture.metadata.find_metadata_json`) and reading its
+    :func:`reprostim.capture.metadata.find_metadata_by_class`) and reading its
     ``vDev``/``serial`` fields. Omitted if ``<path>.log`` doesn't exist, has
     no ``session_begin`` entry, or that entry lacks the field.
 
@@ -359,13 +359,13 @@ def bids_properties_from_video_audit(
 
     # Device/DeviceSerialNumber aren't part of VaRecord (see docstring); recover
     # them from the recording log's session_begin metadata, if present.
-    sb = find_metadata_json(path + ".log", "type", "session_begin")
+    sb = find_metadata_by_class(path + ".log", MetadataSessionBegin)
     if sb is not None:
-        device = sb.get("vDev", "n/a") or "n/a"
+        device = sb.vDev or "n/a"
         if device != "n/a":
             props["Device"] = device
 
-        device_serial_number = sb.get("serial", "n/a") or "n/a"
+        device_serial_number = sb.serial or "n/a"
         if device_serial_number != "n/a":
             props["DeviceSerialNumber"] = device_serial_number
 

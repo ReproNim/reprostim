@@ -341,7 +341,7 @@ def _make_va_record():
 # ===========================================================================
 
 
-@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.find_metadata_by_class", return_value=None)
 @patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_basic(mock_gfva, _mock_fmj):
     """Basic: start + duration within video → correct SplitData."""
@@ -366,7 +366,7 @@ def test_calc_split_data_basic(mock_gfva, _mock_fmj):
     assert sd.full_seg.end_ts == _VIDEO_END
 
 
-@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.find_metadata_by_class", return_value=None)
 @patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_buffer_trim_at_start_flexible(mock_gfva, _mock_fmj):
     """Flexible policy: buffer before trimmed when it extends before video start."""
@@ -389,7 +389,7 @@ def test_calc_split_data_buffer_trim_at_start_flexible(mock_gfva, _mock_fmj):
     assert sd.buf_seg.offset_sec == pytest.approx(0.0)
 
 
-@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.find_metadata_by_class", return_value=None)
 @patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_buffer_trim_at_end_flexible(mock_gfva, _mock_fmj):
     """Flexible policy: buffer after trimmed when it extends past video end."""
@@ -411,7 +411,7 @@ def test_calc_split_data_buffer_trim_at_end_flexible(mock_gfva, _mock_fmj):
     assert sd.buf_seg.end_ts == _VIDEO_END
 
 
-@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.find_metadata_by_class", return_value=None)
 @patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_buffer_overflow_strict_raises(mock_gfva, _mock_fmj):
     """Strict policy: buffer overflow before video start raises ValueError."""
@@ -429,7 +429,7 @@ def test_calc_split_data_buffer_overflow_strict_raises(mock_gfva, _mock_fmj):
         )
 
 
-@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.find_metadata_by_class", return_value=None)
 @patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_no_overlap_raises(mock_gfva, _mock_fmj):
     """Selected segment starting before video start raises ValueError."""

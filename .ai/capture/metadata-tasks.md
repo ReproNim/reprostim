@@ -9,21 +9,12 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 - [x] `src/reprostim/capture/metadata.py` created
 - [x] `JSON_PATTERN`, `iter_metadata_json`, `find_metadata_json` moved here verbatim from
       `video/audit.py` (no behavior change)
-- [x] `video/audit.py` — removed the two functions and `JSON_PATTERN`; now imports
-      `find_metadata_json` from `reprostim.capture.metadata` (the only one it uses internally, in
-      `do_audit_file`); dropped now-unused `import re`
-- [x] `video/split.py` — updated to import `find_metadata_json` from `reprostim.capture.metadata`
-      instead of `reprostim.video.audit`
-- [x] `bids/properties.py` — updated to import `find_metadata_json` from
-      `reprostim.capture.metadata` instead of `reprostim.video.audit`; docstring reference to
-      `reprostim.video.audit.find_metadata_json` updated to the new path
+- [x] `video/audit.py` — removed the two functions and `JSON_PATTERN`; dropped now-unused
+      `import re`
 - [x] `MetadataType(str, Enum)` added — `SESSION_BEGIN`/`CAPTURE_STOP`/`SESSION_END`, mirroring the
       `"type"` values written by `_METADATA_LOG` in
       `src/reprostim-capture/videocapture/src/VideoCapture.cpp` (confirmed exactly these 3 values,
       only 3 call sites, all in that one file)
-- [ ] Wire `MetadataType` into the existing `find_metadata_json(..., "type", "session_begin")` call
-      sites (`video/audit.py::do_audit_file`, `video/split.py::_split_video`,
-      `bids/properties.py::bids_properties_from_video_audit`) — explicitly deferred, not done yet
 - [x] `MetadataBase`/`MetadataSessionBegin`/`MetadataCaptureStop`/`MetadataSessionEnd` pydantic
       models added, one per `MetadataType` value, field-for-field from the three `_METADATA_LOG`
       call sites in `VideoCapture.cpp`
@@ -42,7 +33,19 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 - [x] `find_metadata_by_class` returns `None` and logs an error when `cls` has no corresponding
       `MetadataType` (e.g. called with `MetadataBase` itself, or any unregistered subclass) — no
       silent fallback to an untyped/best-effort result
-- [ ] `iter_metadata_json`/`find_metadata_json` still return raw `dict`s (unchanged, expected) —
+- [x] `video/audit.py::do_audit_file` — switched from
+      `find_metadata_json(path + ".log", "type", "session_begin")` + `sb["frameRate"]`/`sb['cx']`/
+      `sb['cy']` to `find_metadata_by_class(path + ".log", MetadataSessionBegin)` + typed
+      `sb.frameRate`/`sb.cx`/`sb.cy` attribute access
+- [x] `video/split.py::_calc_split_data` — switched to `find_metadata_by_class(path + ".log",
+      MetadataSessionBegin)` + `sb.vDev or "n/a"`/`sb.serial or "n/a"` (previously
+      `sb.get("vDev", "n/a") or "n/a"`/same for `serial`)
+- [x] `bids/properties.py::bids_properties_from_video_audit` — same switch as `video/split.py`;
+      docstring reference to `find_metadata_json` updated to `find_metadata_by_class`
+- [x] `find_metadata_json` no longer imported/called from `video/audit.py`, `video/split.py`, or
+      `bids/properties.py` — it's now purely an implementation detail of `find_metadata_by_class`
+      within `capture/metadata.py` itself
+- [x] `iter_metadata_json`/`find_metadata_json` still return raw `dict`s (unchanged, by design) —
       `find_metadata_by_class` is the only entry point that constructs typed models
 
 ---
@@ -57,10 +60,18 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
       (interleaved ffmpeg output around 3 metadata marker lines: `session_begin`, `capture_stop`,
       `session_end`) — regression coverage against the real log format, not just synthetic lines
 - [x] `tests/video/test_audit.py` — removed the moved tests and the now-unused `_write_log` helper
-      and `find_metadata_json`/`iter_metadata_json` imports; the existing
-      `patch("reprostim.video.audit.find_metadata_json", ...)` in the `do_audit_file` test was left
-      as-is (still valid — the name is imported into `video.audit`'s own namespace and called
-      unqualified there)
+      and `find_metadata_json`/`iter_metadata_json` imports; `test_do_audit_file_happy_path`'s
+      `patch("reprostim.video.audit.find_metadata_json", ...)` updated to
+      `find_metadata_by_class`, and its `sb` fixture value changed from a raw dict to a
+      `MetadataSessionBegin(...)` instance to match the new attribute-access call site
+- [x] `tests/video/test_split.py` — all 5 `@patch("reprostim.video.split.find_metadata_json", ...)`
+      decorators on `_calc_split_data` tests updated to `find_metadata_by_class` (all still
+      `return_value=None`, so no other change needed)
+- [x] `tests/bids/test_properties.py` — `_FIND_METADATA_JSON_PATCH` renamed
+      `_FIND_METADATA_BY_CLASS_PATCH` (now patches `find_metadata_by_class`); the 3 tests around
+      device/serial recovery updated: dict fixtures → `MetadataSessionBegin(...)` instances, and
+      the `assert_called_once_with(...)` call-signature assertion updated from
+      `("/data/a.mkv.log", "type", "session_begin")` to `("/data/a.mkv.log", MetadataSessionBegin)`
 - [x] Full suite green after the move (`tests/capture/`, `tests/video/`, `tests/bids/`)
 - [x] `test_metadata_session_begin_from_real_sample_log` / `test_metadata_capture_stop_from_real_sample_log`
       / `test_metadata_session_end_from_real_sample_log` — construct each model from the real
@@ -88,9 +99,5 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 
 - [ ] `Metadata*` models are `str`-only for now (per spec) — no parsed `datetime`/`int`/`bool`
       fields yet.
-- [ ] `video/audit.py`, `video/split.py`, `bids/properties.py` still use raw `dict`/`.get(key)`
-      results from `find_metadata_json` — none construct `Metadata*` models yet.
-- [ ] No caching/indexing in `find_metadata_json` — acceptable for current call sites (single
-      lookup per video); revisit if that changes.
-- [ ] Existing `find_metadata_json(..., "type", "session_begin")` call sites still pass the raw
-      string literal instead of `MetadataType.SESSION_BEGIN` (see above).
+- [ ] No caching/indexing in `find_metadata_json`/`find_metadata_by_class` — acceptable for current
+      call sites (single lookup per video); revisit if that changes.

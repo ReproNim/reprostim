@@ -26,7 +26,7 @@ from typing import Dict, Generator, List, Optional, Set, Tuple
 from filelock import FileLock, Timeout
 from pydantic import BaseModel
 
-from reprostim.capture.metadata import find_metadata_json
+from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
 from reprostim.qr.parse import (
     InfoSummary,
     ParseContext,
@@ -897,11 +897,11 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
                 return
 
             # try to find session_begin in log file
-            sb = find_metadata_json(path + ".log", "type", "session_begin")
+            sb = find_metadata_by_class(path + ".log", MetadataSessionBegin)
             if sb is not None:
                 logger.debug(f"sb: {sb}")
-                vr.video_fps_detected = sb["frameRate"]
-                vr.video_res_detected = f"{sb['cx']}x{sb['cy']}"
+                vr.video_fps_detected = sb.frameRate
+                vr.video_res_detected = f"{sb.cx}x{sb.cy}"
 
             vi: InfoSummary
             vti: VideoTimeInfo
