@@ -16,6 +16,8 @@ import re
 from enum import Enum
 from typing import Dict, Generator, Optional
 
+from pydantic import BaseModel, field_validator
+
 # initialize the logger
 # Note: all logs out to stderr
 logger = logging.getLogger(__name__)
@@ -43,6 +45,62 @@ class MetadataType(str, Enum):
     """Emitted once when the session logger closes, after the ffmpeg thread
     has terminated; carries ``message`` and
     ``cap_ts_start``/``cap_isotime_start``."""
+
+
+class MetadataBase(BaseModel):
+    """Fields common to every REPROSTIM-METADATA-JSON entry, regardless of
+    :class:`MetadataType`.
+
+    All fields are ``Optional[str]`` for now, mirroring the raw JSON as
+    written by ``_METADATA_LOG`` in
+    ``src/reprostim-capture/videocapture/src/VideoCapture.cpp`` — no
+    semantic typing (e.g. parsed timestamps, numeric resolution) yet. Values
+    that aren't already JSON strings (``cx``/``cy`` are JSON numbers,
+    ``autoRecovery`` is a JSON bool) are coerced to ``str`` on load.
+    """
+
+    type: Optional[str] = None  # MetadataType value, e.g. "session_begin"
+    version: Optional[str] = None  # reprostim-videocapture version string
+    json_ts: Optional[str] = None  # Entry write time (reprostim timestamp format)
+    json_isotime: Optional[str] = None  # Entry write time (ISO 8601)
+    cap_ts_start: Optional[str] = (
+        None  # Capture start time (reprostim timestamp format)
+    )
+    cap_isotime_start: Optional[str] = None  # Capture start time (ISO 8601)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _stringify(cls, v):
+        return None if v is None else str(v)
+
+
+class MetadataSessionBegin(MetadataBase):
+    """``type: session_begin`` — written once when a recording session
+    starts."""
+
+    appName: Optional[str] = None  # Capture application name
+    serial: Optional[str] = None  # Video capture device serial number
+    vDev: Optional[str] = None  # Video capture device name
+    aDev: Optional[str] = None  # Audio-in device (ALSA device name)
+    cx: Optional[str] = None  # Video frame width in pixels
+    cy: Optional[str] = None  # Video frame height in pixels
+    frameRate: Optional[str] = None  # Video frame rate
+    autoRecovery: Optional[str] = None  # Whether auto-recovery is enabled
+
+
+class MetadataCaptureStop(MetadataBase):
+    """``type: capture_stop`` — written when capture stops."""
+
+    message: Optional[str] = None  # Reason capture stopped
+    cap_ts_stop: Optional[str] = None  # Capture stop time (reprostim timestamp format)
+    cap_isotime_stop: Optional[str] = None  # Capture stop time (ISO 8601)
+
+
+class MetadataSessionEnd(MetadataBase):
+    """``type: session_end`` — written once the session logger closes,
+    after the ffmpeg thread has terminated."""
+
+    message: Optional[str] = None  # Reason the session ended
 
 
 def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:

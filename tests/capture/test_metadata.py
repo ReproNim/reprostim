@@ -7,7 +7,13 @@
 import json
 import pathlib
 
-from reprostim.capture.metadata import find_metadata_json, iter_metadata_json
+from reprostim.capture.metadata import (
+    MetadataCaptureStop,
+    MetadataSessionBegin,
+    MetadataSessionEnd,
+    find_metadata_json,
+    iter_metadata_json,
+)
 
 _DATA_DIR = pathlib.Path(__file__).parent.parent / "data" / "capture"
 _SAMPLE_LOG = _DATA_DIR / "metadata-videocapture.mkv.log"
@@ -54,7 +60,7 @@ def test_iter_metadata_json_real_sample_log():
     ]
     assert results[0]["cx"] == 1920
     assert results[0]["cy"] == 1080
-    assert results[0]["serial"] == "D206191219786"
+    assert results[0]["serial"] == "TESTSERIAL0001"
 
 
 def test_find_metadata_json_found(tmp_path):
@@ -74,3 +80,45 @@ def test_find_metadata_json_real_sample_log():
     assert result is not None
     assert result["vDev"] == "USB Capture HDMI"
     assert result["frameRate"] == "60"
+
+
+# ===========================================================================
+# MetadataSessionBegin / MetadataCaptureStop / MetadataSessionEnd
+# ===========================================================================
+
+
+def test_metadata_session_begin_from_real_sample_log():
+    msg = find_metadata_json(str(_SAMPLE_LOG), "type", "session_begin")
+    sb = MetadataSessionBegin(**msg)
+    assert sb.type == "session_begin"
+    assert sb.serial == "TESTSERIAL0001"
+    assert sb.vDev == "USB Capture HDMI"
+    assert sb.aDev == "hw:3,0"
+    # cx/cy are JSON ints in the log; coerced to str
+    assert sb.cx == "1920"
+    assert sb.cy == "1080"
+    assert sb.frameRate == "60"
+    # autoRecovery is a JSON bool in the log; coerced to str
+    assert sb.autoRecovery == "False"
+
+
+def test_metadata_capture_stop_from_real_sample_log():
+    msg = find_metadata_json(str(_SAMPLE_LOG), "type", "capture_stop")
+    cs = MetadataCaptureStop(**msg)
+    assert cs.type == "capture_stop"
+    assert cs.cap_ts_start == "2025.11.05-14.03.28.837"
+    assert cs.cap_ts_stop == "2025.11.05-14.13.47.677"
+    assert "Whack resolution" in cs.message
+
+
+def test_metadata_session_end_from_real_sample_log():
+    msg = find_metadata_json(str(_SAMPLE_LOG), "type", "session_end")
+    se = MetadataSessionEnd(**msg)
+    assert se.type == "session_end"
+    assert se.message == "ffmpeg thread terminated"
+
+
+def test_metadata_base_fields_are_optional():
+    assert MetadataSessionBegin().type is None
+    assert MetadataCaptureStop().message is None
+    assert MetadataSessionEnd().cap_isotime_start is None

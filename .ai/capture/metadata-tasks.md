@@ -24,6 +24,17 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 - [ ] Wire `MetadataType` into the existing `find_metadata_json(..., "type", "session_begin")` call
       sites (`video/audit.py::do_audit_file`, `video/split.py::_split_video`,
       `bids/properties.py::bids_properties_from_video_audit`) — explicitly deferred, not done yet
+- [x] `MetadataBase`/`MetadataSessionBegin`/`MetadataCaptureStop`/`MetadataSessionEnd` pydantic
+      models added, one per `MetadataType` value, field-for-field from the three `_METADATA_LOG`
+      call sites in `VideoCapture.cpp`
+- [x] All model fields declared `Optional[str] = None` (per spec, a deliberate weakly-typed first
+      pass) — including `cx`/`cy` (JSON numbers) and `autoRecovery` (JSON bool) in
+      `MetadataSessionBegin`
+- [x] Shared `field_validator("*", mode="before")` on `MetadataBase` stringifies any non-`str`
+      input so int/bool JSON values coerce to `str` instead of raising a pydantic validation error
+      — verified the wildcard validator is inherited by subclass-only fields too
+- [ ] `iter_metadata_json`/`find_metadata_json` still return raw `dict`s — no call site constructs
+      these models yet (see spec Open Questions)
 
 ---
 
@@ -42,6 +53,11 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
       as-is (still valid — the name is imported into `video.audit`'s own namespace and called
       unqualified there)
 - [x] Full suite green after the move (`tests/capture/`, `tests/video/`, `tests/bids/`)
+- [x] `test_metadata_session_begin_from_real_sample_log` / `test_metadata_capture_stop_from_real_sample_log`
+      / `test_metadata_session_end_from_real_sample_log` — construct each model from the real
+      sample log via `find_metadata_json`, verifying `cx`/`cy`/`autoRecovery` coerce to `str`
+- [x] `test_metadata_base_fields_are_optional` — all three models construct with zero args (every
+      field defaults to `None`)
 
 ---
 
@@ -56,9 +72,10 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 
 ## Open Questions / Future Work
 
-- [ ] Typed data classes for parsed metadata (per `type`: `session_begin`/`capture_stop`/
-      `session_end`) — see spec's Open Questions. Would let `video/audit.py`, `video/split.py`,
-      and `bids/properties.py` stop doing ad-hoc `.get(key)` access on raw dicts.
+- [ ] `Metadata*` models are `str`-only for now (per spec) — no parsed `datetime`/`int`/`bool`
+      fields yet.
+- [ ] `video/audit.py`, `video/split.py`, `bids/properties.py` still use raw `dict`/`.get(key)`
+      results from `find_metadata_json` — none construct `Metadata*` models yet.
 - [ ] No caching/indexing in `find_metadata_json` — acceptable for current call sites (single
       lookup per video); revisit if that changes.
 - [ ] Existing `find_metadata_json(..., "type", "session_begin")` call sites still pass the raw
