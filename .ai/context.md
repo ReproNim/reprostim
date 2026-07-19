@@ -74,9 +74,12 @@ Main Python package with CLI tools and analysis utilities.
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows) (moved out of `qr/`
     as part of the ongoing package reorganization; no dedicated `.ai/capture/` spec/task docs yet)
   - `metadata.py` - Parse `REPROSTIM-METADATA-JSON` entries from reprostim-videocapture log files
-    (`iter_metadata_json`, `find_metadata_json`); moved out of `video/audit.py` since it's
-    capture-tool log parsing, not video-file analysis — used by `video/audit.py`, `video/split.py`,
-    and `bids/properties.py` (see [capture/metadata-spec.md](capture/metadata-spec.md),
+    (`iter_metadata_json`, `find_metadata_json`); also defines `MetadataType` enum
+    (`SESSION_BEGIN`/`CAPTURE_STOP`/`SESSION_END`) mirroring the `"type"` values `_METADATA_LOG`
+    writes in `VideoCapture.cpp` (not yet wired into the `find_metadata_json` call sites). Moved
+    out of `video/audit.py` since it's capture-tool log parsing, not video-file analysis — used by
+    `video/audit.py`, `video/split.py`, and `bids/properties.py` (see
+    [capture/metadata-spec.md](capture/metadata-spec.md),
     [capture/metadata-tasks.md](capture/metadata-tasks.md))
   - VideoInfo Pydantic model for structured metadata
   - Video fixup capabilities using ffmpeg for truncated/invalid-timing videos

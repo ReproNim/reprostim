@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+from enum import Enum
 from typing import Dict, Generator, Optional
 
 # initialize the logger
@@ -22,6 +23,26 @@ logger.debug(f"name={__name__}")
 
 # Global REPROSTIM-METADATA-JSON regex pattern
 JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
+
+
+class MetadataType(str, Enum):
+    """``type`` field values emitted via ``_METADATA_LOG`` in
+    ``src/reprostim-capture/videocapture/src/VideoCapture.cpp``. Keep in sync
+    with that file — these are the only three values reprostim-videocapture
+    currently writes."""
+
+    SESSION_BEGIN = "session_begin"
+    """Emitted once when a recording session starts; carries device/session
+    info (``serial``, ``vDev``, ``aDev``, ``cx``, ``cy``, ``frameRate``,
+    ``autoRecovery``, ``cap_ts_start``/``cap_isotime_start``)."""
+    CAPTURE_STOP = "capture_stop"
+    """Emitted when capture stops (``message`` explains why); carries
+    ``cap_ts_start``/``cap_isotime_start`` and
+    ``cap_ts_stop``/``cap_isotime_stop``."""
+    SESSION_END = "session_end"
+    """Emitted once when the session logger closes, after the ffmpeg thread
+    has terminated; carries ``message`` and
+    ``cap_ts_start``/``cap_isotime_start``."""
 
 
 def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:

@@ -17,6 +17,13 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 - [x] `bids/properties.py` — updated to import `find_metadata_json` from
       `reprostim.capture.metadata` instead of `reprostim.video.audit`; docstring reference to
       `reprostim.video.audit.find_metadata_json` updated to the new path
+- [x] `MetadataType(str, Enum)` added — `SESSION_BEGIN`/`CAPTURE_STOP`/`SESSION_END`, mirroring the
+      `"type"` values written by `_METADATA_LOG` in
+      `src/reprostim-capture/videocapture/src/VideoCapture.cpp` (confirmed exactly these 3 values,
+      only 3 call sites, all in that one file)
+- [ ] Wire `MetadataType` into the existing `find_metadata_json(..., "type", "session_begin")` call
+      sites (`video/audit.py::do_audit_file`, `video/split.py::_split_video`,
+      `bids/properties.py::bids_properties_from_video_audit`) — explicitly deferred, not done yet
 
 ---
 
@@ -54,3 +61,5 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
       and `bids/properties.py` stop doing ad-hoc `.get(key)` access on raw dicts.
 - [ ] No caching/indexing in `find_metadata_json` — acceptable for current call sites (single
       lookup per video); revisit if that changes.
+- [ ] Existing `find_metadata_json(..., "type", "session_begin")` call sites still pass the raw
+      string literal instead of `MetadataType.SESSION_BEGIN` (see above).

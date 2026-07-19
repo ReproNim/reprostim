@@ -59,6 +59,26 @@ the file from the start.
 Typical usage: `find_metadata_json(video_path + ".log", "type", "session_begin")`
 to recover the capture device/session info for a given recorded video.
 
+### `MetadataType(str, Enum)`
+
+The `"type"` field values reprostim-videocapture writes, mirrored from the
+`_METADATA_LOG` call sites in
+`src/reprostim-capture/videocapture/src/VideoCapture.cpp` (must be kept in
+sync with that file — these are the only three values it currently emits):
+
+| Member          | Value             | Emitted when...                                                                    |
+|-----------------|-------------------|-------------------------------------------------------------------------------------|
+| `SESSION_BEGIN` | `"session_begin"` | Recording session starts; carries device/session info (`serial`, `vDev`, `aDev`, `cx`, `cy`, `frameRate`, `autoRecovery`, `cap_ts_start`/`cap_isotime_start`) |
+| `CAPTURE_STOP`  | `"capture_stop"`  | Capture stops (`message` explains why); carries `cap_ts_start`/`cap_isotime_start` and `cap_ts_stop`/`cap_isotime_stop` |
+| `SESSION_END`   | `"session_end"`   | Session logger closes, after the ffmpeg thread has terminated; carries `message` and `cap_ts_start`/`cap_isotime_start` |
+
+Not yet wired into any `find_metadata_json(..., "type", ...)` call site —
+those still pass the raw string literal `"session_begin"` (see
+`video/audit.py::do_audit_file`, `video/split.py::_split_video`,
+`bids/properties.py::bids_properties_from_video_audit`). Left as-is for
+now; switching them to `MetadataType.SESSION_BEGIN` is a follow-up, not
+done as part of adding the enum.
+
 ---
 
 ## Log Format Reference
@@ -80,11 +100,14 @@ multi-line ffmpeg banners) interleaved between them.
 ## Open Questions / Future Work
 
 - No typed data model exists yet for the parsed metadata dict — callers
-  currently work with raw `dict`/`.get(key)` access. The original
-  in-`video/audit.py` version of this code carried a note proposing typed
-  data classes for parsed `reprostim-videocapture` metadata (e.g. a
-  `SessionBeginInfo`/`CaptureStopInfo` pydantic model per `type`); not yet
-  implemented.
+  currently work with raw `dict`/`.get(key)` access. `MetadataType` covers
+  discriminating the `"type"` field itself; the original in-`video/audit.py`
+  version of this code carried a further note proposing typed data classes
+  per `type` (e.g. a `SessionBeginInfo`/`CaptureStopInfo` pydantic model);
+  not yet implemented.
+- `MetadataType` isn't wired into the existing `find_metadata_json(...,
+  "type", "session_begin")` call sites yet (see `MetadataType` section
+  above) — they still use the raw string literal.
 - `find_metadata_json` rescans the whole file on every call with no
   caching; fine for today's call sites (one lookup per video), would need
   revisiting if a caller starts looking up many keys from the same file.
