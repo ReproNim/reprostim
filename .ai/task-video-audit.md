@@ -35,7 +35,7 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 ### Internal audit (`VaSource.INTERNAL`)
 - [x] Extract start/end timestamps from `.log` sidecar
 - [x] Extract video resolution and FPS from `session_begin` metadata
-- [x] Extract recorded resolution/FPS/duration via `qr_parse.do_info_file`
+- [x] Extract recorded resolution/FPS/duration via `parse.do_info_file`
 - [x] Extract audio info (codec, sample rate, channels, duration) via ffprobe
 - [x] Compute human-readable duration (`HH:MM:SS.mmm`)
 - [x] Coherence check (`check_coherent`) — res/fps/timestamps consistent

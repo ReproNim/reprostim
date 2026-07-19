@@ -27,7 +27,7 @@ from typing import Dict, Generator, List, Optional, Set, Tuple
 from filelock import FileLock, Timeout
 from pydantic import BaseModel
 
-from reprostim.qr.qr_parse import (
+from reprostim.qr.parse import (
     InfoSummary,
     ParseContext,
     ParseSummary,

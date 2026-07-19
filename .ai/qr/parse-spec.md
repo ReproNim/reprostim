@@ -123,7 +123,7 @@ Videos/2025/08/2025.08.14-15.04.15.714--2025.08.14-16.00.26.656.mkv
 
 ### Baseline measurements (2026-04-08)
 
-All numbers are **frames per second (fps)** processed by the main frame loop in `qr_parse.py`.
+All numbers are **frames per second (fps)** processed by the main frame loop in `parse.py`.
 
 | # | Configuration                                                            | fps   | Notes                                                                            |
 |----|--------------------------------------------------------------------------|-------|----------------------------------------------------------------------------------|

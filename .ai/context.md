@@ -32,7 +32,7 @@ Main Python package with CLI tools and analysis utilities.
 **Key Modules:**
 - **cli/** - Command-line interface (Click-based with DYMGroup for suggestions)
   - `entrypoint.py` - Main CLI dispatcher
-  - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [spec-qr-parse.md](.ai/spec-qr-parse.md))
+  - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [qr/parse-spec.md](qr/parse-spec.md))
   - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
@@ -44,7 +44,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
-  - `qr_parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [spec-qr-parse.md](.ai/spec-qr-parse.md))
+  - `parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [qr/parse-spec.md](qr/parse-spec.md))
   - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities
@@ -284,7 +284,7 @@ Integrated with BIDS datasets for archival
 | `overview.md` | Detailed project scope and architecture |
 | `src/reprostim/__init__.py` | Logger initialization, package entry point |
 | `src/reprostim/cli/entrypoint.py` | Main CLI dispatcher |
-| `src/reprostim/qr/qr_parse.py` | Video QR code extraction (JSONL output) |
+| `src/reprostim/qr/parse.py` | Video QR code extraction (JSONL output) |
 | `src/reprostim/audio/audiocodes.py` | FSK/NFE audio codec generation |
 | `src/reprostim/capture/nosignal.py` | No-signal frame detection algorithm |
 | `.readthedocs.yaml` | Read the Docs build configuration |

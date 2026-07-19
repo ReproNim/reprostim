@@ -1,6 +1,6 @@
 # `qr-parse` Task List
 
-Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
+Tracks implementation progress against [parse-spec.md](parse-spec.md).
 
 ---
 
@@ -69,7 +69,7 @@ Tracks implementation progress against [spec-qr-parse.md](spec-qr-parse.md).
 - [ ] QR codes are detected and match expected output on reference test video
 
 ### Coverage
-- [x] `qr_parse.py` ≥ 80% — achieved **93%**
+- [x] `parse.py` ≥ 80% — achieved **93%**
 - [x] `cmd_qr_parse.py` ≥ 80% — achieved **100%**
 - [x] `get_video_time_info` edge cases: invalid filename, start-only filename, start ≥ end
 - [x] `_decode_qr_pyzbar` / `_decode_qr_opencv` found-code paths
@@ -103,4 +103,4 @@ Extend `-v / --video-decoder` with additional backends once `opencv` path is sta
 - [ ] `ffmpeg` — drive frame extraction via `ffmpeg` subprocess or `ffmpeg-python` bindings; useful for formats/codecs OpenCV cannot handle
 - [ ] `pyav` — use `av` (PyAV) bindings for libavcodec/libavformat; lower overhead than subprocess, supports hardware-accelerated decode (VAAPI, NVDEC)
 - [ ] ? `decord` — GPU-accelerated video reader (`decord` package); designed for ML workloads, supports batch frame reads and CUDA tensors
-- [ ] Abstract `_open_video(ctx) -> iterator[frame]` API in `qr_parse.py` so backends are swappable without touching the main frame loop
+- [ ] Abstract `_open_video(ctx) -> iterator[frame]` API in `parse.py` so backends are swappable without touching the main frame loop
