@@ -84,7 +84,7 @@ def monitor_displays(
     """Monitor GUI/displays connection status."""
     logger.debug("reprostim monitor-displays")
 
-    from ..qr.disp_mon import DmProvider, do_monitor_displays
+    from ..capture.disp_mon import DmProvider, do_monitor_displays
 
     res: int = 0
     logger.debug("reprostim monitor-displays script started")

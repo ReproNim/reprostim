@@ -14,8 +14,8 @@ API Reference
    bids.inject_sidecar
    bids.media
    bids.properties
+   capture.disp_mon
    capture.nosignal
-   qr.disp_mon
    qr.parse
    qr.psychopy
    qr.timesync_stimuli

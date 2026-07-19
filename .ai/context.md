@@ -46,7 +46,6 @@ Main Python package with CLI tools and analysis utilities.
 - **qr/** - QR code processing and time synchronization
   - `parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [qr/parse-spec.md](qr/parse-spec.md))
   - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
-  - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities
   - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [spec-timing.md](.ai/spec-timing.md), [task-timing.md](.ai/task-timing.md))
 
@@ -72,6 +71,8 @@ Main Python package with CLI tools and analysis utilities.
 
 - **capture/** - Video capture utilities
   - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2)
+  - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows) (moved out of `qr/`
+    as part of the ongoing package reorganization; no dedicated `.ai/capture/` spec/task docs yet)
   - VideoInfo Pydantic model for structured metadata
   - Video fixup capabilities using ffmpeg for truncated/invalid-timing videos
 

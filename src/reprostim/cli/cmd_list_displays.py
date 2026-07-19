@@ -32,7 +32,7 @@ def list_displays(ctx, provider: str, fmt: str):
     """List information about available GUI/displays."""
     logger.debug("reprostim list-displays")
 
-    from ..qr.disp_mon import DmProvider, do_list_displays
+    from ..capture.disp_mon import DmProvider, do_list_displays
 
     res: int = 0
     logger.debug("reprostim list-displays script started")
