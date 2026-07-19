@@ -48,14 +48,12 @@ from reprostim.video.audit import (
     do_audit_internal,
     do_ext,
     do_main,
-    find_metadata_json,
     find_video_audit_by_timerange,
     format_date,
     format_duration,
     format_time,
     get_audio_video_info_ffprobe,
     get_file_video_audit,
-    iter_metadata_json,
     parse_audio_sr,
     run_ext_all,
     run_ext_nosignal,
@@ -690,44 +688,6 @@ def test_get_tsv_records_cached(tmp_path):
 
 
 # ===========================================================================
-# iter_metadata_json / find_metadata_json
-# ===========================================================================
-
-
-def _write_log(tmp_path, entries):
-    log = tmp_path / "test.log"
-    lines = [
-        f"PREFIX REPROSTIM-METADATA-JSON: {json.dumps(e)} :REPROSTIM-METADATA-JSON\n"
-        for e in entries
-    ]
-    log.write_text("".join(lines))
-    return str(log)
-
-
-def test_iter_metadata_json_valid(tmp_path):
-    path = _write_log(tmp_path, [{"type": "session_begin", "cx": 1920}])
-    results = list(iter_metadata_json(path))
-    assert len(results) == 1
-    assert results[0]["cx"] == 1920
-
-
-def test_iter_metadata_json_missing_file(tmp_path):
-    assert list(iter_metadata_json(str(tmp_path / "missing.log"))) == []
-
-
-def test_find_metadata_json_found(tmp_path):
-    path = _write_log(tmp_path, [{"type": "session_begin", "cx": 1920}])
-    result = find_metadata_json(path, "type", "session_begin")
-    assert result is not None and result["cx"] == 1920
-
-
-def test_find_metadata_json_not_found(tmp_path):
-    log = tmp_path / "empty.log"
-    log.write_text("no metadata here\n")
-    assert find_metadata_json(str(log), "type", "session_begin") is None
-
-
-# ===========================================================================
 # _parse_rec_datetime
 # ===========================================================================
 
@@ -1068,20 +1028,6 @@ def test_get_file_video_audit_tsv_miss_fallback(tmp_path):
     ):
         result = get_file_video_audit(str(mkv), path_tsv=tsv, use_lock=False)
     assert result is not None and result.name == "test.mkv"
-
-
-# ===========================================================================
-# iter_metadata_json — invalid JSON branch
-# ===========================================================================
-
-
-def test_iter_metadata_json_invalid_json(tmp_path):
-    """Invalid JSON embedded in a metadata marker line is silently skipped."""
-    log = tmp_path / "bad.log"
-    log.write_text(
-        "PREFIX REPROSTIM-METADATA-JSON: not-valid-json :REPROSTIM-METADATA-JSON\n"
-    )
-    assert list(iter_metadata_json(str(log))) == []
 
 
 # ===========================================================================

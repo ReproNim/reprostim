@@ -15,6 +15,7 @@ API Reference
    bids.media
    bids.properties
    capture.disp_mon
+   capture.metadata
    capture.nosignal
    qr.parse
    qr.psychopy

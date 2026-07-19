@@ -17,11 +17,11 @@ import logging
 from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
+from reprostim.capture.metadata import find_metadata_json
 from reprostim.video.audit import (
     AudioInfo,
     VaRecord,
     VideoInfo,
-    find_metadata_json,
     get_audio_video_info_ffprobe,
     get_file_video_audit,
     parse_audio_sr,
@@ -271,7 +271,7 @@ def bids_properties_from_video_audit(
     columns yet, so those two are instead recovered the same way
     ``video.split`` does: by looking for a ``session_begin``
     REPROSTIM-METADATA-JSON entry in ``<path>.log`` (see
-    :func:`reprostim.video.audit.find_metadata_json`) and reading its
+    :func:`reprostim.capture.metadata.find_metadata_json`) and reading its
     ``vDev``/``serial`` fields. Omitted if ``<path>.log`` doesn't exist, has
     no ``session_begin`` entry, or that entry lacks the field.
 

@@ -73,6 +73,11 @@ Main Python package with CLI tools and analysis utilities.
   - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2)
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows) (moved out of `qr/`
     as part of the ongoing package reorganization; no dedicated `.ai/capture/` spec/task docs yet)
+  - `metadata.py` - Parse `REPROSTIM-METADATA-JSON` entries from reprostim-videocapture log files
+    (`iter_metadata_json`, `find_metadata_json`); moved out of `video/audit.py` since it's
+    capture-tool log parsing, not video-file analysis — used by `video/audit.py`, `video/split.py`,
+    and `bids/properties.py` (see [capture/metadata-spec.md](capture/metadata-spec.md),
+    [capture/metadata-tasks.md](capture/metadata-tasks.md))
   - VideoInfo Pydantic model for structured metadata
   - Video fixup capabilities using ffmpeg for truncated/invalid-timing videos
 

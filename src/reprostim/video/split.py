@@ -19,12 +19,8 @@ import isodate
 from pydantic import BaseModel, Field
 
 from reprostim.bids.properties import bids_properties_from_split_result
-from reprostim.video.audit import (
-    VaRecord,
-    find_metadata_json,
-    get_file_video_audit,
-    parse_audio_sr,
-)
+from reprostim.capture.metadata import find_metadata_json
+from reprostim.video.audit import VaRecord, get_file_video_audit, parse_audio_sr
 
 # initialize the logger
 # Note: all logs out to stderr
