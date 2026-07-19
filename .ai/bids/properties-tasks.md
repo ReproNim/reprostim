@@ -12,12 +12,12 @@ instead of being omitted; now wrapped to match the others.
 **New this round:** `bids_properties_from_video_audit(path, path_tsv=None, props=None)` — maps a
 cached `VaRecord` (looked up via `get_file_video_audit(path, path_tsv, cached=True,
 use_lock=False)`) to BIDS properties. Its audio-string parsing needed the same composite-string
-logic `qr/split_video.py` already had (`_parse_audio_info`, for the identically-formatted
+logic `video/split.py` already had (`_parse_audio_info`, for the identically-formatted
 `SplitDevice.audio_sr`); rather than duplicate it or create a circular import, that function moved
-to `qr/video_audit.py` as the public `parse_audio_sr` (same implementation, new home — it's where
-the string format originates). `qr/split_video.py` now imports it from there instead of defining
+to `video/audit.py` as the public `parse_audio_sr` (same implementation, new home — it's where
+the string format originates). `video/split.py` now imports it from there instead of defining
 it locally; its own tests moved from `tests/qr/test_split_video.py` to
-`tests/qr/test_video_audit.py` accordingly.
+`tests/video/test_audit.py` accordingly.
 
 ---
 
@@ -45,7 +45,7 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
         keys are overwritten by the current call's non-`None` values (`dict.update()` semantics
         — priority is by call order, not a feature of `props` itself)
 - [x] `bids_properties_from_ffprobe(path: str, props: Optional[Dict[str, Any]] = None) -> Dict[str, Any]`
-  - [x] Calls `reprostim.qr.video_audit.get_audio_video_info_ffprobe(path)`, passes result (and
+  - [x] Calls `reprostim.video.audit.get_audio_video_info_ffprobe(path)`, passes result (and
         `props`, unchanged) to `bids_properties_from_audio_video_info`
   - [x] Nonexistent/unreadable path → `{}` (or the passed-in `props`, untouched) — no exception,
         since `get_audio_video_info_ffprobe` returns default-constructed `AudioInfo`/`VideoInfo`
@@ -68,9 +68,9 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
         `bids_properties_from_split_result`)
   - [ ] **Not wired up to any consumer yet** — `bids-inject-sidecar`'s `--videos` cache-lookup
         path doesn't call it (see inject-sidecar-tasks.md)
-- [x] `parse_audio_sr(audio_sr: Optional[str]) -> dict` — **moved to `qr/video_audit.py`** (public)
-      from `qr/split_video.py::_parse_audio_info` (private); same implementation. Used by
-      `bids_properties_from_video_audit` here, and by `qr/split_video.py::_split_video` (building
+- [x] `parse_audio_sr(audio_sr: Optional[str]) -> dict` — **moved to `video/audit.py`** (public)
+      from `video/split.py::_parse_audio_info` (private); same implementation. Used by
+      `bids_properties_from_video_audit` here, and by `video/split.py::_split_video` (building
       `SplitResult.audio_sample_rate`/etc. from `SplitDevice.audio_sr` — not mediated through
       `properties.py`, since that produces `SplitResult` fields, not a BIDS properties dict)
 - [ ] `get_bids_properties(path: str, path_tsv: Optional[str] = None) -> Dict[str, Any]` —
@@ -89,16 +89,16 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
       anymore, actually the same code); `split_video.py::_write_sidecar` now imports and calls
       it. `split_video.py` no longer has any BIDS-mapping logic of its own.
   - [x] First parameter `sr` is intentionally **untyped** (no `SplitResult` annotation) — avoids
-        `properties.py` importing from `qr/split_video.py`, which would be circular since
+        `properties.py` importing from `video/split.py`, which would be circular since
         `split_video.py` imports `bids_properties_from_split_result` from here
   - [x] `TaskName`/`Device`/`DeviceSerialNumber`/`RecordingDuration`/`VideoCodec`/
         `VideoCodecRFC6381`/`VideoFrameRate`/`ImageWidth`/`ImageHeight`/`ImageBitDepth`/
         `ImagePixelFormat`/`VideoFrameCount`/`AudioCodec`/`AudioCodecRFC6381`/
         `AudioSampleRate`/`AudioBitDepth`/`AudioChannelCount` all mapped (see
-        [spec-split-video.md](../spec-split-video.md) for the full source → field table)
+        [video/split-spec.md](../video/split-spec.md) for the full source → field table)
   - [x] Does **not** currently accept a `props` accumulation parameter, unlike the other two
         functions in this module (open question below)
-  - [x] `src/reprostim/qr/split_video.py` imports it from `reprostim.bids.properties`; the
+  - [x] `src/reprostim/video/split.py` imports it from `reprostim.bids.properties`; the
         now-unused `from reprostim.bids.media import BidsMediaProperty` import was removed from
         `split_video.py` (moved with the function)
 
@@ -121,7 +121,7 @@ Test file: `tests/bids/test_properties.py` — **52 tests, 100% statement + bran
 coverage to full, and to close the remaining exception-branch gaps in
 `bids_properties_from_split_result`; 11 more added this round for
 `bids_properties_from_video_audit` (below). `parse_audio_sr`'s own tests live in
-`tests/qr/test_video_audit.py` (moved there with the function — see task-video-audit checklist,
+`tests/video/test_audit.py` (moved there with the function — see [../video/audit-tasks.md](../video/audit-tasks.md) checklist,
 or the spec's Layering section), not here.
 
 ### `bids_properties_from_split_result` (implemented, in `tests/bids/test_properties.py`)
@@ -239,8 +239,8 @@ or the spec's Layering section), not here.
       `get_audio_video_info_ffprobe`'s new param) — callers can't request the exact/slower
       frame count through this entry point yet
 - [ ] `RecordingDuration` precedence when `audio.duration_sec` and `video.duration_sec` disagree
-- [ ] `reprostim.qr.video_audit` import path will need updating if/when `video_audit.py` moves
-      out of `qr/` per the broader package reorganization
+- [x] `reprostim.video.audit` import path updated now that `video_audit.py` moved out of `qr/`
+      to `video/audit.py` per the broader package reorganization
 - [ ] `bids_properties_from_split_result` doesn't accept a `props` accumulation parameter — add
       for consistency with the other three `bids_properties_from_*` functions, or confirm not
       needed

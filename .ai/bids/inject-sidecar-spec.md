@@ -12,7 +12,7 @@ Unlike [`bids-inject`](inject-spec.md), this command does **not** perform scan-m
 timing orchestration, or `_scans.tsv` I/O. It operates purely file-by-file: given a media file,
 it produces (or updates) its sidecar. It is meant to become the generic "engine" that
 `bids-inject` delegates to for sidecar generation, replacing the inline `_to_bids_model` /
-`_write_sidecar` logic currently embedded in `split_video.py` (see
+`_write_sidecar` logic currently embedded in `split.py` (see
 [Relationship to `bids-inject` / `split-video`](#relationship-to-bids-inject--split-video)).
 
 Corresponds to GitHub issue: https://github.com/ReproNim/reprostim/issues/259
@@ -92,7 +92,7 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 
 > **Note on additions beyond the issue text:** `-v/--verbose` and `-d/--dry-run` were added to
 > match the conventions of every other `reprostim` subcommand (see [inject-spec.md](inject-spec.md),
-> [spec-video-audit.md](../spec-video-audit.md)). They are not present in the original issue body
+> [video/audit-spec.md](../video/audit-spec.md)). They are not present in the original issue body
 > and can be dropped if deemed unnecessary during implementation review.
 
 > **Enum types (implemented):** `--mode` is backed by `OverwriteMode(str, Enum)`
@@ -171,8 +171,8 @@ a plain string (no casting attempted).
 > **Naming status: fully migrated to `Image*`-prefixed BEP044 names.** The BEP044
 > (media-files, PR #2367) draft specifies `ImageWidth` / `ImageHeight` / `ImagePixelFormat` /
 > `ImageBitDepth`. `bids/properties.py::bids_properties_from_split_result` (used by
-> `split-video`/`bids-inject` via `split_video.py::_write_sidecar`; this logic used to live
-> directly in `split_video.py` as `_to_bids_model`, moved out — see
+> `split-video`/`bids-inject` via `split.py::_write_sidecar`; this logic used to live
+> directly in `split.py` as `_to_bids_model`, moved out — see
 > [properties-spec.md](properties-spec.md)) writes all four `Image*`-prefixed names —
 > `ImagePixelFormat`/`ImageBitDepth` were renamed first (coordinated with `bids/inject.py`
 > switching to `bids/properties.py::bids_properties_from_ffprobe`), and `ImageWidth`/
@@ -197,7 +197,7 @@ For each input `FILE`, technical metadata is obtained in this priority order:
    falls back to step 2 for that file.
 2. **`ffprobe` extraction** (fallback, or when `--videos` is omitted): call
    `bids_properties_from_ffprobe(path)` (wraps `get_audio_video_info_ffprobe`, reused from
-   `src/reprostim/qr/video_audit.py`) to obtain `AudioInfo` / `VideoInfo`, then map their fields
+   `src/reprostim/video/audit.py`) to obtain `AudioInfo` / `VideoInfo`, then map their fields
    into the BIDS field table above. Used instead of step 1's result entirely for a given file
    (not merged field-by-field) — `_do_sidecar` picks one source or the other per file.
 3. **`--add META=VALUE` overrides** (highest priority): applied last, after extraction, so
@@ -354,8 +354,8 @@ Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
 
 ## Relationship to `bids-inject` / `split-video`
 
-`split_video.py::_write_sidecar()` (via `bids/properties.py::bids_properties_from_split_result`
-for the BIDS-dict mapping itself, moved out of `split_video.py` — see below) is used by
+`split.py::_write_sidecar()` (via `bids/properties.py::bids_properties_from_split_result`
+for the BIDS-dict mapping itself, moved out of `split.py` — see below) is used by
 `split-video --sidecar-json` and, transitively, by `bids-inject` (see
 [inject-spec.md § Outputs → B](inject-spec.md#b-sidecar-metadata--bep047behavior--reprostim-extras)).
 That existing logic is narrower in scope: it only ever writes a **fresh** sidecar for a file
@@ -370,15 +370,15 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    the `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping in a separate
    `bids/properties.py` (`bids_properties_from_audio_video_info`/`bids_properties_from_ffprobe`/
    `bids_properties_from_split_result`) — see [properties-spec.md](properties-spec.md).
-   `split_video.py::_to_bids_model` was moved into `bids/properties.py` wholesale as
+   `split.py::_to_bids_model` was moved into `bids/properties.py` wholesale as
    `bids_properties_from_split_result` (not just referenced from a still-separate
-   implementation, as originally proposed) — `split_video.py` has no BIDS-mapping logic of its
+   implementation, as originally proposed) — `split.py` has no BIDS-mapping logic of its
    own anymore. `bids/inject.py::_call_split_video` has adopted `bids_properties_from_ffprobe`.
 2. **Done**: `PixelFormat`/`BitDepth`/`Width`/`Height` vs `ImagePixelFormat`/`ImageBitDepth`/
    `ImageWidth`/`ImageHeight` reconciled — `bids_properties_from_split_result` writes all four
    `Image*`-prefixed names (see [BIDS Media-File Metadata
    Fields](#bids-media-file-metadata-fields) note above).
-3. Have `split_video.py::_write_sidecar` optionally delegate to `bids-inject-sidecar`'s
+3. Have `split.py::_write_sidecar` optionally delegate to `bids-inject-sidecar`'s
    `update`-mode writer instead of its own `_write_sidecar`, once the merge semantics are proven.
 
 ---
@@ -387,7 +387,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
 
 | Component                       | Relationship                                                                 |
 |----------------------------------|-------------------------------------------------------------------------------|
-| `get_audio_video_info_ffprobe`   | Reused from `src/reprostim/qr/video_audit.py` for ffprobe-based extraction.  |
+| `get_audio_video_info_ffprobe`   | Reused from `src/reprostim/video/audit.py` for ffprobe-based extraction.  |
 | `videos.tsv` / `video-audit`     | Optional metadata cache source via `--videos`, avoiding redundant `ffprobe` calls. |
 | `bids-inject`                    | Prospective consumer — see [Relationship](#relationship-to-bids-inject--split-video). |
 | `split-video`                    | Prospective consumer of the same writer logic for `--sidecar-json`.          |
@@ -425,12 +425,12 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    [bids-utils](https://github.com/bids-standard/bids-utils/) so `update` mode can minimize diffs
    against hand-edited sidecars instead of rewriting with `json.dumps`.
 3. **Shared `bids_media.py` extraction** — **done, and taken further than proposed**:
-   `_to_bids_model`'s field mapping wasn't just factored out of `split_video.py`, it was *moved*
-   wholesale into `bids/properties.py` as `bids_properties_from_split_result` — `split_video.py`
+   `_to_bids_model`'s field mapping wasn't just factored out of `split.py`, it was *moved*
+   wholesale into `bids/properties.py` as `bids_properties_from_split_result` — `split.py`
    now imports and calls it rather than containing any mapping logic itself (see
    [Relationship](#relationship-to-bids-inject--split-video)).
 4. **Field naming reconciliation** — **resolved**: `bids_properties_from_split_result` (formerly
-   `split_video.py::_to_bids_model`) writes all four `Image*`-prefixed BEP044 names —
+   `split.py::_to_bids_model`) writes all four `Image*`-prefixed BEP044 names —
    `ImageBitDepth`/`ImagePixelFormat` (renamed first, coordinated with
    `bids/inject.py::_call_split_video` switching to `bids_properties_from_ffprobe` — see
    [properties-spec.md](properties-spec.md)), then `ImageWidth`/`ImageHeight` (renamed

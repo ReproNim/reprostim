@@ -179,7 +179,7 @@ def video_audit(
 ):
     """Analyze recorded video files."""
 
-    from ..qr.video_audit import VaMode, VaSource, do_main
+    from ..video.audit import VaMode, VaSource, do_main
 
     # load config file and apply as defaults for any param not set on CLI
     config = _load_config(config_path) if config_path else {}

@@ -37,8 +37,8 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
   - `cmd_monitor_displays.py` - Monitor display connection status with callbacks
-  - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
-  - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
+  - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [video/audit-spec.md](video/audit-spec.md), [video/audit-tasks.md](video/audit-tasks.md))
+  - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [video/split-spec.md](video/split-spec.md))
   - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [bids/inject-spec.md](bids/inject-spec.md))
   - `cmd_bids_inject_sidecar.py` - *(basic logic implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
   - `cmd_echo.py` - Simple echo command for testing
@@ -48,9 +48,12 @@ Main Python package with CLI tools and analysis utilities.
   - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities
-  - `video_audit.py` - Comprehensive video analysis with multiple audit sources (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
-  - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
   - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [spec-timing.md](.ai/spec-timing.md), [task-timing.md](.ai/task-timing.md))
+
+- **video/** - Recorded-video analysis and slicing (split out of `qr/` as part of the ongoing
+  package reorganization)
+  - `audit.py` - Comprehensive video analysis with multiple audit sources (see [video/audit-spec.md](video/audit-spec.md), [video/audit-tasks.md](video/audit-tasks.md))
+  - `split.py` - Video slicing/splitting functionality (see [video/split-spec.md](video/split-spec.md))
 
 - **bids/** - BIDS dataset injection and media-file metadata/sidecar helpers (split out of `qr/`
   as an ongoing package reorganization)
@@ -60,7 +63,7 @@ Main Python package with CLI tools and analysis utilities.
     modes, conflict resolution, `--dry-run`, summary) — `--videos`/`videos.tsv` cache lookup and
     `--add` declared-type casting still not implemented (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
   - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files (see [bids/media-spec.md](bids/media-spec.md), [bids/media-tasks.md](bids/media-tasks.md))
-  - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `qr/split_video.py::_to_bids_model`); wired into both `bids/inject.py` and `bids/inject_sidecar.py`. `VaRecord`-based/path-orchestrating entry points still TBD (see [bids/properties-spec.md](bids/properties-spec.md), [bids/properties-tasks.md](bids/properties-tasks.md))
+  - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `video/split.py::_to_bids_model`); wired into both `bids/inject.py` and `bids/inject_sidecar.py`. `VaRecord`-based/path-orchestrating entry points still TBD (see [bids/properties-spec.md](bids/properties-spec.md), [bids/properties-tasks.md](bids/properties-tasks.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction

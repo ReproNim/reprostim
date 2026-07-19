@@ -47,7 +47,7 @@ and are tracked there, not below.
 - [x] `AudioInfo`/`VideoInfo` -> BIDS-dict mapping helper — implemented as
       `bids_properties_from_audio_video_info` in `bids/properties.py`, not here; see
       [properties-tasks.md](properties-tasks.md)
-- [ ] Factor `split_video.py::_to_bids_model` to use `bids/properties.py` (no behavior change) —
+- [ ] Factor `split.py::_to_bids_model` to use `bids/properties.py` (no behavior change) —
       naming is already reconciled (`_to_bids_model` writes `ImageWidth`/`ImageHeight`/
       `ImagePixelFormat`/`ImageBitDepth` via `BidsMediaProperty.*.value`); this item is now just
       about sharing the mapping code, not field names
@@ -136,7 +136,7 @@ be listed here was misplaced — that behavior belongs to `bids/properties.py`, 
       [properties-tasks.md](properties-tasks.md), not here
 - [ ] Declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member
 - [ ] `BidsMediaType` vs. `bids_inject.py::MediaSuffix` reconciliation
-- [x] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`'s output — resolved,
+- [x] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split.py`'s output — resolved,
       `_to_bids_model` now writes `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth`
 - [ ] `MEDIA_TYPE_MISMATCH` detection — `parse_bids_media_info` never produces it yet; decide
       whether/how (see spec Open Questions)

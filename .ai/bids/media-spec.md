@@ -25,9 +25,9 @@ Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
 ## Motivation
 
-Both `split_video.py` (`_to_bids_model`) and the proposed `bids-inject-sidecar` command need the
+Both `split.py` (`_to_bids_model`) and the proposed `bids-inject-sidecar` command need the
 same BIDS media-file field names, types, and `ffprobe`-derived-info mappings. Today that logic
-lives inline in `split_video.py`. `bids_media.py` is meant to become the single source of truth
+lives inline in `split.py`. `bids_media.py` is meant to become the single source of truth
 both consumers share, instead of duplicating/drifting field tables.
 
 See [inject-sidecar-spec.md § File / Module
@@ -43,7 +43,7 @@ for where this module was first proposed.
       `BidsMediaProperty`, see below.
 - [ ] Declared value types (`integer`/`number`/`string`) per property — not yet carried on
       `BidsMediaProperty`; see Open Questions.
-- [x] Mapping helpers from `video_audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts — live
+- [x] Mapping helpers from `audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts — live
       in a separate module, `bids/properties.py`, not here (see
       [properties-spec.md](properties-spec.md)), to keep this module spec-close.
 
@@ -146,7 +146,7 @@ returns the list of properties applicable to a given `BidsMediaType`.
 >    not itself change `bids-inject-sidecar`'s behavior — that command doesn't consume
 >    `bids_media.py` yet — but it does mean the naming reconciliation those Open Questions
 >    anticipate is effectively pre-decided in favor of the `Image*`-prefixed names once/if
->    `bids-inject-sidecar` or `split_video.py` adopt this module.
+>    `bids-inject-sidecar` or `split.py` adopt this module.
 > 2. **`RecordingDuration` categories**: the live draft scopes it to audio/video/audiovideo only
 >    (no `image`), whereas `inject-sidecar-spec.md`'s table listed audio/video/image.
 >
@@ -306,13 +306,13 @@ Example resolutions:
       implemented there; `VaRecord`-based and path-orchestrating entry points still TBD.
 - [x] Field-naming convention for `BidsMediaProperty` decided: `Image*`-prefixed, matching the
       live BEP044 draft (see note above). **Fully reconciled** with
-      `bids_properties_from_split_result`'s output (formerly `split_video.py::_to_bids_model`):
+      `bids_properties_from_split_result`'s output (formerly `split.py::_to_bids_model`):
       `PixelFormat`/`BitDepth`/`Width`/`Height` were all renamed to
       `ImagePixelFormat`/`ImageBitDepth`/`ImageWidth`/`ImageHeight` to match (see
       [inject-sidecar-spec.md Open Questions
       #4](inject-sidecar-spec.md#open-questions--todos)).
-- [x] `split_video.py::_to_bids_model` moved to `bids/properties.py::bids_properties_from_split_result`
-      — `split_video.py` no longer has any BIDS-mapping logic of its own, resolving the "factor
+- [x] `split.py::_to_bids_model` moved to `bids/properties.py::bids_properties_from_split_result`
+      — `split.py` no longer has any BIDS-mapping logic of its own, resolving the "factor
       out" item this used to track. See [properties-spec.md](properties-spec.md).
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see note above) — decide
       whether `bids_inject.py` should adopt `BidsMediaType` instead of its own enum.

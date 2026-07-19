@@ -19,7 +19,7 @@ import isodate
 from pydantic import BaseModel, Field
 
 from reprostim.bids.properties import bids_properties_from_split_result
-from reprostim.qr.video_audit import (
+from reprostim.video.audit import (
     VaRecord,
     find_metadata_json,
     get_file_video_audit,

@@ -219,7 +219,7 @@ results from separate runs to coexist correctly.
 
 ## Python API
 
-Key public symbols in `reprostim.qr.video_audit`:
+Key public symbols in `reprostim.video.audit`:
 
 | Symbol | Type | Description |
 |--------|------|-------------|

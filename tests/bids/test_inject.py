@@ -50,8 +50,8 @@ from reprostim.bids.inject import (
     dt_utc_to_bids,
     dt_utc_to_reprostim,
 )
-from reprostim.qr.split_video import SplitResult
-from reprostim.qr.video_audit import AudioInfo, VideoInfo
+from reprostim.video.audit import AudioInfo, VideoInfo
+from reprostim.video.split import SplitResult
 
 # ---------------------------------------------------------------------------
 # Shared fixtures / helpers
@@ -1103,7 +1103,7 @@ def test_call_split_video_passes_task_name_in_sidecar_metadata(tmp_path):
         captured.update(kwargs)
         return 0, []
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split_video_main):
         ret, _ = _run(
             [str(scans_tsv)],
             videos_tsv,
@@ -1136,7 +1136,7 @@ def test_call_split_video_empty_sidecar_metadata_when_no_task_name(tmp_path):
         captured.update(kwargs)
         return 0, []
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split_video_main):
         ret, _ = _run(
             [str(scans_tsv)],
             videos_tsv,
@@ -1165,7 +1165,7 @@ def test_call_split_video_passes_rfc6381_in_sidecar_metadata(tmp_path):
     fake_ai = AudioInfo(codec="aac", codec_rfc6381="mp4a.40.2")
     fake_vi = VideoInfo(codec="h264", codec_rfc6381="avc1.640028")
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split_video_main):
         with patch(
             "reprostim.bids.properties.get_audio_video_info_ffprobe",
             return_value=(fake_ai, fake_vi),
@@ -1201,7 +1201,7 @@ def test_call_split_video_passes_bit_depth_and_pixel_format_in_sidecar_metadata(
     fake_ai = AudioInfo()
     fake_vi = VideoInfo(codec="h264", bit_depth=10, pix_fmt="yuv420p10le")
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split_video_main):
         with patch(
             "reprostim.bids.properties.get_audio_video_info_ffprobe",
             return_value=(fake_ai, fake_vi),
@@ -1231,7 +1231,7 @@ def test_call_split_video_rfc6381_ffprobe_error_continues(tmp_path):
         captured.update(kwargs)
         return 0, []
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split_video_main):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split_video_main):
         with patch(
             "reprostim.bids.properties.get_audio_video_info_ffprobe",
             side_effect=RuntimeError("ffprobe not found"),
@@ -1543,7 +1543,7 @@ def test_scans_tsv_successful_injection_writes_reprostim_cols(tmp_path):
     def _fake_split(**kwargs):
         return 0, [sr]
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
         _run(
             [str(scans_tsv)],
             videos_tsv,
@@ -1582,7 +1582,7 @@ def test_scans_tsv_failed_split_clears_stale_reprostim_cols(tmp_path):
     def _fake_split(**kwargs):
         return 1, []  # failure
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
         _run(
             [str(scans_tsv)],
             videos_tsv,
@@ -1621,7 +1621,7 @@ def test_scans_tsv_rerun_updates_in_place_no_duplication(tmp_path):
     def _fake_split(**kwargs):
         return 0, [sr]
 
-    with patch("reprostim.qr.split_video.do_main", side_effect=_fake_split):
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
         _run(
             [str(scans_tsv)],
             videos_tsv,

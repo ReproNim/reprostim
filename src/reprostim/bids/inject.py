@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, Field
 
 from reprostim.bids.properties import bids_properties_from_ffprobe
-from reprostim.qr.video_audit import find_video_audit_by_timerange
+from reprostim.video.audit import find_video_audit_by_timerange
 
 # initialize the logger
 logger = logging.getLogger(__name__)
@@ -945,8 +945,8 @@ def _call_split_video(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    from reprostim.qr.split_video import SidecarFormat
-    from reprostim.qr.split_video import do_main as split_video_main
+    from reprostim.video.split import SidecarFormat
+    from reprostim.video.split import do_main as split_video_main
 
     captured_errors: List[str] = []
 

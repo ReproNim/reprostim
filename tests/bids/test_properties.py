@@ -15,8 +15,8 @@ from reprostim.bids.properties import (
     bids_properties_from_split_result,
     bids_properties_from_video_audit,
 )
-from reprostim.qr.split_video import SplitResult
-from reprostim.qr.video_audit import AudioInfo, VaRecord, VideoInfo
+from reprostim.video.audit import AudioInfo, VaRecord, VideoInfo
+from reprostim.video.split import SplitResult
 
 # ===========================================================================
 # bids_properties_from_audio_video_info

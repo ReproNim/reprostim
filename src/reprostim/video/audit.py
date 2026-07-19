@@ -381,7 +381,7 @@ def parse_audio_sr(audio_sr: Optional[str]) -> dict:
     the composite string assembled in :func:`do_audit_file` for
     ``VaRecord.audio_sr`` (``f"{ai.sample_rate}Hz {ai.bits_per_sample}b
     {ai.channels}ch {ai.codec}"``); shared by any caller that needs to
-    recover typed fields from that string (e.g. ``qr.split_video``,
+    recover typed fields from that string (e.g. ``video.split``,
     ``bids.properties``).
 
     :param audio_sr: Composite audio-info string (e.g., ``'48000Hz 2ch

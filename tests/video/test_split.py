@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 """Tests for timestamp/interval parsing, spec parsing, and CLI in
-reprostim.qr.split_video and reprostim.cli.cmd_split_video."""
+reprostim.video.split and reprostim.cli.cmd_split_video."""
 
 import json
 import os
@@ -16,7 +16,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from reprostim.qr.split_video import (
+from reprostim.video.audit import VaRecord
+from reprostim.video.split import (
     BufferPolicy,
     SidecarFormat,
     SpecEntry,
@@ -35,7 +36,6 @@ from reprostim.qr.split_video import (
     _write_sidecar,
     do_main,
 )
-from reprostim.qr.video_audit import VaRecord
 
 # ===========================================================================
 # _parse_ts
@@ -341,8 +341,8 @@ def _make_va_record():
 # ===========================================================================
 
 
-@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
-@patch("reprostim.qr.split_video.get_file_video_audit")
+@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_basic(mock_gfva, _mock_fmj):
     """Basic: start + duration within video → correct SplitData."""
     mock_gfva.return_value = _make_va_record()
@@ -366,8 +366,8 @@ def test_calc_split_data_basic(mock_gfva, _mock_fmj):
     assert sd.full_seg.end_ts == _VIDEO_END
 
 
-@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
-@patch("reprostim.qr.split_video.get_file_video_audit")
+@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_buffer_trim_at_start_flexible(mock_gfva, _mock_fmj):
     """Flexible policy: buffer before trimmed when it extends before video start."""
     mock_gfva.return_value = _make_va_record()
@@ -389,8 +389,8 @@ def test_calc_split_data_buffer_trim_at_start_flexible(mock_gfva, _mock_fmj):
     assert sd.buf_seg.offset_sec == pytest.approx(0.0)
 
 
-@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
-@patch("reprostim.qr.split_video.get_file_video_audit")
+@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_buffer_trim_at_end_flexible(mock_gfva, _mock_fmj):
     """Flexible policy: buffer after trimmed when it extends past video end."""
     mock_gfva.return_value = _make_va_record()
@@ -411,8 +411,8 @@ def test_calc_split_data_buffer_trim_at_end_flexible(mock_gfva, _mock_fmj):
     assert sd.buf_seg.end_ts == _VIDEO_END
 
 
-@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
-@patch("reprostim.qr.split_video.get_file_video_audit")
+@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_buffer_overflow_strict_raises(mock_gfva, _mock_fmj):
     """Strict policy: buffer overflow before video start raises ValueError."""
     mock_gfva.return_value = _make_va_record()
@@ -429,8 +429,8 @@ def test_calc_split_data_buffer_overflow_strict_raises(mock_gfva, _mock_fmj):
         )
 
 
-@patch("reprostim.qr.split_video.find_metadata_json", return_value=None)
-@patch("reprostim.qr.split_video.get_file_video_audit")
+@patch("reprostim.video.split.find_metadata_json", return_value=None)
+@patch("reprostim.video.split.get_file_video_audit")
 def test_calc_split_data_no_overlap_raises(mock_gfva, _mock_fmj):
     """Selected segment starting before video start raises ValueError."""
     mock_gfva.return_value = _make_va_record()
@@ -728,8 +728,8 @@ def _make_sr_ms(output_path: str = "/fake/output.mkv") -> SplitResult:
     )
 
 
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_single_spec_output_used_as_is(mock_csd, mock_sv):
     """Single --spec: output path used as-is (no template expansion applied)."""
     mock_csd.return_value = _make_sd()
@@ -755,8 +755,8 @@ def test_do_main_specs_single_spec_output_used_as_is(mock_csd, mock_sv):
     assert mock_sv.call_args[0][1] == "/out/clip.mkv"
 
 
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_multiple_specs_unique_output_files(mock_csd, mock_sv):
     """Multiple --spec with {n} token produces unique, indexed output paths."""
     mock_csd.side_effect = [_make_sd(17, 30), _make_sd(17, 40)]
@@ -803,8 +803,8 @@ def test_do_main_specs_multiple_specs_no_template_token_raises():
         )
 
 
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_per_spec_failure_continues_processing(mock_csd, mock_sv):
     """Per-spec failure: remaining specs continue; return value
     reflects failure count."""
@@ -920,7 +920,7 @@ def test_cli_neither_spec_nor_start_raises(input_video):
 
 def test_cli_lock_yes_passed_to_do_main(input_video):
     """--lock yes results in lock=True passed to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -940,7 +940,7 @@ def test_cli_lock_yes_passed_to_do_main(input_video):
 
 def test_cli_lock_no_passed_to_do_main(input_video):
     """--lock no results in lock=False passed to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -960,7 +960,7 @@ def test_cli_lock_no_passed_to_do_main(input_video):
 
 def test_cli_raw_flag_passed_to_do_main(input_video):
     """--raw flag results in raw=True passed to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -979,7 +979,7 @@ def test_cli_raw_flag_passed_to_do_main(input_video):
 
 def test_cli_sidecar_format_bids_passed_to_do_main(input_video):
     """--sidecar-format bids passes sidecar_format='bids' to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -999,7 +999,7 @@ def test_cli_sidecar_format_bids_passed_to_do_main(input_video):
 
 def test_cli_sidecar_format_raw_passed_to_do_main(input_video):
     """--sidecar-format raw passes sidecar_format='raw' to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1094,7 +1094,7 @@ def test_split_video_resolution_none_gives_na_dimensions():
 def test_do_main_start_duration_builds_spec():
     """do_main with start_time+duration builds a START/DURATION spec."""
     with patch(
-        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+        "reprostim.video.split._do_main_specs", return_value=(0, [])
     ) as mock_dms:
         ret, results = do_main(
             input_path="/fake/video.mkv",
@@ -1110,7 +1110,7 @@ def test_do_main_start_duration_builds_spec():
 def test_do_main_start_end_builds_spec():
     """do_main with start_time+end_time builds a START//END spec."""
     with patch(
-        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+        "reprostim.video.split._do_main_specs", return_value=(0, [])
     ) as mock_dms:
         ret, results = do_main(
             input_path="/fake/video.mkv",
@@ -1128,7 +1128,7 @@ def test_do_main_start_end_builds_spec():
 def test_do_main_specs_provided_directly():
     """do_main with specs tuple passes them straight to _do_main_specs."""
     with patch(
-        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+        "reprostim.video.split._do_main_specs", return_value=(0, [])
     ) as mock_dms:
         ret, results = do_main(
             input_path="/fake/video.mkv",
@@ -1154,7 +1154,7 @@ def test_do_main_value_error_from_specs_returns_5():
     """do_main returns 5 and emits ERROR when _do_main_specs raises ValueError."""
     messages = []
     with patch(
-        "reprostim.qr.split_video._do_main_specs",
+        "reprostim.video.split._do_main_specs",
         side_effect=ValueError("bad template"),
     ):
         ret, results = do_main(
@@ -1172,7 +1172,7 @@ def test_do_main_sidecar_metadata_passed_to_do_main_specs():
     """do_main forwards sidecar_metadata to _do_main_specs."""
     meta = {"TaskName": "nback"}
     with patch(
-        "reprostim.qr.split_video._do_main_specs", return_value=(0, [])
+        "reprostim.video.split._do_main_specs", return_value=(0, [])
     ) as mock_dms:
         do_main(
             input_path="/fake/video.mkv",
@@ -1189,8 +1189,8 @@ def test_do_main_sidecar_metadata_passed_to_do_main_specs():
 # ===========================================================================
 
 
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_sd_success_false_counts_as_failure(mock_csd, mock_sv):
     """_calc_split_data returning success=False increments failure count."""
     sd = _make_sd()
@@ -1215,8 +1215,8 @@ def test_do_main_specs_sd_success_false_counts_as_failure(mock_csd, mock_sv):
     mock_sv.assert_not_called()
 
 
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_split_video_failure_counts(mock_csd, mock_sv):
     """_split_video returning success=False increments failure count."""
     mock_csd.return_value = _make_sd()
@@ -1241,8 +1241,8 @@ def test_do_main_specs_split_video_failure_counts(mock_csd, mock_sv):
     assert results == []
 
 
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_verbose_emits_output(mock_csd, mock_sv):
     """verbose=True causes spec progress lines to be emitted."""
     mock_csd.return_value = _make_sd()
@@ -1267,9 +1267,9 @@ def test_do_main_specs_verbose_emits_output(mock_csd, mock_sv):
     assert any("Input path" in line or "Output path" in line for line in output)
 
 
-@patch("reprostim.qr.split_video._write_sidecar")
-@patch("reprostim.qr.split_video._split_video")
-@patch("reprostim.qr.split_video._calc_split_data")
+@patch("reprostim.video.split._write_sidecar")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
 def test_do_main_specs_sidecar_auto_written(mock_csd, mock_sv, mock_ws):
     """sidecar_json='auto' triggers _write_sidecar with a .split-video.json path."""
     mock_csd.return_value = _make_sd()
@@ -1328,7 +1328,7 @@ def test_cli_start_without_duration_or_end_raises(input_video):
 
 def test_cli_sidecar_json_auto_passed_to_do_main(input_video):
     """--sidecar-json auto passes sidecar_json='auto' to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1348,7 +1348,7 @@ def test_cli_sidecar_json_auto_passed_to_do_main(input_video):
 
 def test_cli_sidecar_json_explicit_path_passed_to_do_main(input_video):
     """Explicit --sidecar-json path is forwarded unchanged to do_main."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])) as mock_dm:
+    with patch("reprostim.video.split.do_main", return_value=(0, [])) as mock_dm:
         CliRunner().invoke(
             split_video,
             [
@@ -1368,7 +1368,7 @@ def test_cli_sidecar_json_explicit_path_passed_to_do_main(input_video):
 
 def test_cli_verbose_emits_completed_message(input_video):
     """--verbose causes the 'completed' elapsed-time line to be echoed."""
-    with patch("reprostim.qr.split_video.do_main", return_value=(0, [])):
+    with patch("reprostim.video.split.do_main", return_value=(0, [])):
         result = CliRunner().invoke(
             split_video,
             [

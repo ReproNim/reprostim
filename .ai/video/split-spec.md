@@ -60,10 +60,10 @@ here:**
 
 The BIDS-dict conversion previously implemented in this file as `_to_bids_model` was **moved to
 `src/reprostim/bids/properties.py` as `bids_properties_from_split_result`** — see
-[bids/properties-spec.md § `bids_properties_from_split_result`](bids/properties-spec.md#bids_properties_from_split_result-implemented)
+[../bids/properties-spec.md § `bids_properties_from_split_result`](../bids/properties-spec.md#bids_properties_from_split_result-implemented)
 for the function itself (signature, the untyped-`sr`/circular-import rationale, `sidecar_metadata`
-semantics). `split_video.py::_write_sidecar` imports and calls it for `SidecarFormat.BIDS` output;
-`split_video.py` has no BIDS-mapping logic of its own anymore.
+semantics). `split.py::_write_sidecar` imports and calls it for `SidecarFormat.BIDS` output;
+`split.py` has no BIDS-mapping logic of its own anymore.
 
 ```python
 def bids_properties_from_split_result(sr, sidecar_metadata: dict | None = None) -> dict
@@ -78,14 +78,14 @@ e.g. `AudioCodec`/`RecordingDuration` — those come from `SplitResult` fields i
 below; the ffprobe-derived duplicates are harmlessly unused).
 
 **BIDS field name constants:** every dict key below that has a
-[`BidsMediaProperty`](bids/media-spec.md) member (`RecordingDuration`, `VideoCodec`,
+[`BidsMediaProperty`](../bids/media-spec.md) member (`RecordingDuration`, `VideoCodec`,
 `VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
 `ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`, `AudioSampleRate`,
 `AudioBitDepth`, `AudioChannelCount`) is written via `BidsMediaProperty.*.value`
 (`from reprostim.bids.media import BidsMediaProperty`, imported in `bids/properties.py`, not
-`split_video.py`) — this is every field in the table below except the three ReproStim/non-BEP044
+`split.py`) — this is every field in the table below except the three ReproStim/non-BEP044
 extras (`TaskName`/`Device`/`DeviceSerialNumber`, which have no `BidsMediaProperty` member since
-they're outside BEP044's media-file property table; see [bids/media-spec.md](bids/media-spec.md)).
+they're outside BEP044's media-file property table; see [../bids/media-spec.md](../bids/media-spec.md)).
 
 **`bids_properties_from_split_result` field mapping (in output order):**
 

@@ -1,6 +1,6 @@
 # `video-audit` Task List
 
-Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md).
+Tracks implementation progress against [audit-spec.md](audit-spec.md).
 
 ---
 
@@ -109,11 +109,11 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 - [x] `parse_audio_sr` — parse a composite `'48000Hz 16b 2ch aac'`-style string (the format
       `do_audit_file` assembles for `VaRecord.audio_sr`) into typed-ish string fields
       (`audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/`audio_codec`, `"n/a"` when
-      absent). Moved here (public) from `qr/split_video.py::_parse_audio_info` (private, same
-      implementation) so both `qr/split_video.py` and `bids/properties.py`
+      absent). Moved here (public) from `video/split.py::_parse_audio_info` (private, same
+      implementation) so both `video/split.py` and `bids/properties.py`
       (`bids_properties_from_video_audit`) can share one implementation instead of duplicating it
-      — see [bids/properties-spec.md](bids/properties-spec.md). Tests moved from
-      `tests/qr/test_split_video.py` to `tests/qr/test_video_audit.py` accordingly.
+      — see [../bids/properties-spec.md](../bids/properties-spec.md). Tests moved from
+      `tests/video/test_split.py` to `tests/video/test_audit.py` accordingly.
 
 ---
 
@@ -127,7 +127,7 @@ Tracks implementation progress against [spec-video-audit.md](spec-video-audit.md
 
 ## Tests and Code Coverage
 
-Test file location: `tests/qr/test_video_audit.py`
+Test file location: `tests/video/test_audit.py`
 
 ### Unit tests
 
@@ -144,9 +144,9 @@ Test file location: `tests/qr/test_video_audit.py`
 - [x] Empty string input → all `"n/a"`
 - [x] Sample-rate-only string → sample rate set, bit depth defaults to `"16"`, others `"n/a"`
 
-(Moved verbatim from `tests/qr/test_split_video.py`'s `_parse_audio_info` tests, renamed
+(Moved verbatim from `tests/video/test_split.py`'s `_parse_audio_info` tests, renamed
 `test_parse_audio_info_*` → `test_parse_audio_sr_*`, when the function itself moved — see
-[bids/properties-spec.md](bids/properties-spec.md) Layering section.)
+[../bids/properties-spec.md](../bids/properties-spec.md) Layering section.)
 
 #### `check_coherent`
 - [x] All fields valid and matching → `True`
@@ -339,7 +339,7 @@ Test file location: `tests/qr/test_video_audit.py`
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/video_audit.py` — overall | ≥ 80% | 93% |
+| `video/audit.py` — overall | ≥ 80% | 93% |
 | `cli/cmd_video_audit.py` | ≥ 80% | 94% |
 
 _Updated for issue #253: 12 new tests added (164 total), covering non-existing video handling for all 3 audit sources and CLI layer._

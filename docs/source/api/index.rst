@@ -16,9 +16,9 @@ API Reference
    bids.properties
    capture.nosignal
    qr.disp_mon
-   qr.psychopy
    qr.parse
-   qr.split_video
+   qr.psychopy
    qr.timesync_stimuli
    qr.timing
-   qr.video_audit
+   video.audit
+   video.split

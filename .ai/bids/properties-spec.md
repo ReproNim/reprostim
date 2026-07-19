@@ -46,45 +46,45 @@ exactly this reason.
 ## Layering
 
 `properties.py` depends on `bids/media.py` (for `BidsMediaProperty`) and on
-`reprostim.qr.video_audit` (for `AudioInfo`/`VideoInfo`, `VaRecord`, `get_audio_video_info_ffprobe`,
+`reprostim.video.audit` (for `AudioInfo`/`VideoInfo`, `VaRecord`, `get_audio_video_info_ffprobe`,
 `get_file_video_audit`, `parse_audio_sr`) — not the reverse.
-`bids/inject_sidecar.py`/`bids/inject.py`/`qr/split_video.py` are expected to depend on
-`properties.py` rather than reaching into `qr.video_audit` directly or reimplementing the
-mapping. **`bids/inject.py` and `qr/split_video.py` both do this already**
+`bids/inject_sidecar.py`/`bids/inject.py`/`video/split.py` are expected to depend on
+`properties.py` rather than reaching into `video.audit` directly or reimplementing the
+mapping. **`bids/inject.py` and `video/split.py` both do this already**
 (`_call_split_video` imports `bids_properties_from_ffprobe`, not `get_audio_video_info_ffprobe`;
-`_write_sidecar` imports `bids_properties_from_split_result`); `qr/split_video.py` separately
-imports `parse_audio_sr` directly from `qr.video_audit` (not via `properties.py`) in `_split_video`,
+`_write_sidecar` imports `bids_properties_from_split_result`); `video/split.py` separately
+imports `parse_audio_sr` directly from `video.audit` (not via `properties.py`) in `_split_video`,
 to populate `SplitResult`'s own `audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/
 `audio_codec` fields from a `SplitDevice.audio_sr` string — that use is *not* mediated by
 `properties.py`, since it produces `SplitResult` fields, not a BIDS properties dict.
 `bids/inject_sidecar.py` still imports `parse_bids_media_info` from `bids/media.py` only, not
 `bids_properties_from_video_audit` from `properties.py`.
 
-> **`parse_audio_sr`** (`reprostim.qr.video_audit.parse_audio_sr`) parses the composite
+> **`parse_audio_sr`** (`reprostim.video.audit.parse_audio_sr`) parses the composite
 > `'48000Hz 16b 2ch aac'`-style string used by both `VaRecord.audio_sr` and `SplitDevice.audio_sr`
 > into typed-ish string fields (`audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/
 > `audio_codec`, `"n/a"` when absent). It lives in `video_audit.py` (not `properties.py`) since
 > that's where the composite string format originates (`do_audit_file` assembles
-> `VaRecord.audio_sr` from `AudioInfo`) and where `qr/split_video.py` already depended on it before
+> `VaRecord.audio_sr` from `AudioInfo`) and where `video/split.py` already depended on it before
 > this session (as the now-removed `split_video._parse_audio_info`) — moving it to `properties.py`
-> would have made `qr/split_video.py`'s existing, unrelated use of it depend on `bids/properties.py`
+> would have made `video/split.py`'s existing, unrelated use of it depend on `bids/properties.py`
 > for no reason. `bids_properties_from_video_audit` (below) is the only place in `properties.py`
 > that calls it.
 
-`qr/split_video.py` importing from `bids/properties.py` — `qr/` depending on `bids/` — mirrors
+`video/split.py` importing from `bids/properties.py` — `qr/` depending on `bids/` — mirrors
 the same direction already established for `bids/media.py` (`BidsMediaProperty` is a leaf
 taxonomy module anything can depend on); see the broader package-reorganization discussion this
 session.
 
 > **Circularity constraint**: `bids_properties_from_split_result`'s first parameter (`sr`) is
-> deliberately **untyped**, not annotated `reprostim.qr.split_video.SplitResult`. Since
+> deliberately **untyped**, not annotated `reprostim.video.split.SplitResult`. Since
 > `split_video.py` calls into `properties.py`, having `properties.py` import `SplitResult` back
 > from `split_video.py` would be circular. `sr` is documented as duck-typed instead — any object
 > exposing the same attribute names as `SplitResult` works.
 
-> `AudioInfo`/`VideoInfo`/`VaRecord` currently live in `reprostim/qr/video_audit.py`, not yet
+> `AudioInfo`/`VideoInfo`/`VaRecord` currently live in `reprostim/video/audit.py`, not yet
 > moved to a `reprostim.media` package (see the broader package-reorganization discussion this
-> session). `properties.py` importing from `reprostim.qr.video_audit` reflects today's layout;
+> session). `properties.py` importing from `reprostim.video.audit` reflects today's layout;
 > only that one import line needs updating if/when `video_audit.py` moves.
 
 ---
@@ -100,7 +100,7 @@ def bids_properties_from_audio_video_info(
 ```
 
 Maps `ffprobe`-derived `AudioInfo`/`VideoInfo` (from
-`reprostim.qr.video_audit.get_audio_video_info_ffprobe`) to a **plain `Dict[str, Any]`** keyed by
+`reprostim.video.audit.get_audio_video_info_ffprobe`) to a **plain `Dict[str, Any]`** keyed by
 the exact BIDS sidecar JSON key (`BidsMediaProperty.value`, e.g. `"AudioCodec"`) — not by the
 enum member itself, so the result can be merged/serialized directly without an extra
 `.value` step at every call site.
@@ -165,7 +165,7 @@ def bids_properties_from_ffprobe(
 ) -> Dict[str, Any]: ...
 ```
 
-Convenience wrapper: calls `reprostim.qr.video_audit.get_audio_video_info_ffprobe(path)` to get
+Convenience wrapper: calls `reprostim.video.audit.get_audio_video_info_ffprobe(path)` to get
 `(AudioInfo, VideoInfo)`, then passes them (plus `props`, unchanged) straight through to
 `bids_properties_from_audio_video_info` — see [Shared `props`
 accumulation](#shared-props-accumulation) above.
@@ -206,8 +206,8 @@ output.
   currently accept a `props` accumulation parameter (see [Shared `props`
   accumulation](#shared-props-accumulation) above) — it always builds and returns a fresh dict.
   Adding one for consistency is an open question below.
-- Field mapping: see [spec-split-video.md § BIDS Sidecar
-  Format](../spec-split-video.md#bids-sidecar-format---sidecar-format-implemented) for the full
+- Field mapping: see [video/split-spec.md § BIDS Sidecar
+  Format](../video/split-spec.md#bids-sidecar-format---sidecar-format-implemented) for the full
   source → BIDS-field table (kept there since it documents `SplitResult`'s own field semantics,
   which this function's docstring can't reference directly due to the circularity constraint
   above).
@@ -258,14 +258,14 @@ and maps it to BIDS media-file properties — the cache-based counterpart to
   those two conversions are **not** wrapped in `try/except` — unlike `RecordingDuration`/
   `ImageWidth`/`ImageHeight`/`VideoFrameRate`/`AudioSampleRate`, which are.
 - No image (`ImagePixelFormat`/`ImageBitDepth`) or codec-RFC6381 fields — `VaRecord` doesn't carry
-  them at all (see its field list in `qr/video_audit.py`).
+  them at all (see its field list in `video/audit.py`).
 - Accepts the standard `props` accumulation parameter (see [Shared `props`
   accumulation](#shared-props-accumulation) above), unlike `bids_properties_from_split_result`.
 - **Not yet wired up** to any consumer — `bids-inject-sidecar`'s `--videos` cache-lookup path
   (`ctx.videos_tsv`) is accepted but not consulted at all yet; see
   [inject-sidecar-spec.md](inject-sidecar-spec.md) Open Questions.
 
-### `parse_audio_sr` (implemented, lives in `qr/video_audit.py`)
+### `parse_audio_sr` (implemented, lives in `video/audit.py`)
 
 ```python
 def parse_audio_sr(audio_sr: Optional[str]) -> dict: ...
@@ -277,14 +277,14 @@ Parses a composite `'48000Hz 16b 2ch aac'`-style string (the format `do_audit_fi
 `"n/a"` when a field can't be determined. Defaults `audio_bit_depth` to `"16"` when not present in
 the string (a pre-existing quirk carried over unchanged from its previous home).
 
-Moved from `qr/split_video.py::_parse_audio_info` (private) to `qr/video_audit.py::parse_audio_sr`
+Moved from `video/split.py::_parse_audio_info` (private) to `video/audit.py::parse_audio_sr`
 (public) this session, since `video_audit.py` is where the string format originates and where
-both `qr/split_video.py` (building `SplitResult` fields) and `bids/properties.py` (building BIDS
+both `video/split.py` (building `SplitResult` fields) and `bids/properties.py` (building BIDS
 properties, via `bids_properties_from_video_audit`) need to consume it — a single shared
 implementation instead of `properties.py` reimplementing the same parsing rules locally (which
 would also have meant either duplicating the logic or `properties.py` importing from
-`qr/split_video.py`, circular per the Layering section above). Tests moved from
-`tests/qr/test_split_video.py` to `tests/qr/test_video_audit.py` accordingly.
+`video/split.py`, circular per the Layering section above). Tests moved from
+`tests/qr/test_split_video.py` to `tests/video/test_audit.py` accordingly.
 
 ---
 
