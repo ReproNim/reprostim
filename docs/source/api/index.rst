@@ -17,7 +17,7 @@ API Reference
    capture.nosignal
    qr.disp_mon
    qr.psychopy
-   qr.qr_parse
+   qr.parse
    qr.split_video
    qr.timesync_stimuli
    qr.timing
