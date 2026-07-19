@@ -8,9 +8,11 @@ import json
 import pathlib
 
 from reprostim.capture.metadata import (
+    MetadataBase,
     MetadataCaptureStop,
     MetadataSessionBegin,
     MetadataSessionEnd,
+    find_metadata_by_class,
     find_metadata_json,
     iter_metadata_json,
 )
@@ -122,3 +124,43 @@ def test_metadata_base_fields_are_optional():
     assert MetadataSessionBegin().type is None
     assert MetadataCaptureStop().message is None
     assert MetadataSessionEnd().cap_isotime_start is None
+
+
+# ===========================================================================
+# find_metadata_by_class
+# ===========================================================================
+
+
+def test_find_metadata_by_class_session_begin():
+    sb = find_metadata_by_class(str(_SAMPLE_LOG), MetadataSessionBegin)
+    assert isinstance(sb, MetadataSessionBegin)
+    assert sb.type == "session_begin"
+    assert sb.serial == "TESTSERIAL0001"
+    assert sb.cx == "1920"
+
+
+def test_find_metadata_by_class_capture_stop():
+    cs = find_metadata_by_class(str(_SAMPLE_LOG), MetadataCaptureStop)
+    assert isinstance(cs, MetadataCaptureStop)
+    assert cs.type == "capture_stop"
+    assert "Whack resolution" in cs.message
+
+
+def test_find_metadata_by_class_session_end():
+    se = find_metadata_by_class(str(_SAMPLE_LOG), MetadataSessionEnd)
+    assert isinstance(se, MetadataSessionEnd)
+    assert se.type == "session_end"
+    assert se.message == "ffmpeg thread terminated"
+
+
+def test_find_metadata_by_class_not_found(tmp_path):
+    log = tmp_path / "empty.log"
+    log.write_text("no metadata here\n")
+    assert find_metadata_by_class(str(log), MetadataSessionBegin) is None
+
+
+def test_find_metadata_by_class_unknown_class_logs_error_and_returns_none(caplog):
+    with caplog.at_level("ERROR"):
+        result = find_metadata_by_class(str(_SAMPLE_LOG), MetadataBase)
+    assert result is None
+    assert "No MetadataType found" in caplog.text

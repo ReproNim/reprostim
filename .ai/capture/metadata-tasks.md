@@ -33,8 +33,17 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
 - [x] Shared `field_validator("*", mode="before")` on `MetadataBase` stringifies any non-`str`
       input so int/bool JSON values coerce to `str` instead of raising a pydantic validation error
       — verified the wildcard validator is inherited by subclass-only fields too
-- [ ] `iter_metadata_json`/`find_metadata_json` still return raw `dict`s — no call site constructs
-      these models yet (see spec Open Questions)
+- [x] `find_metadata_by_class(path, cls) -> Optional[T]` added — finds the first metadata entry
+      matching `cls`'s `MetadataType` and constructs `cls(**msg)`
+- [x] `_METADATA_TYPE_BY_CLASS` dict + private `_find_metadata_type_by_class(cls)` helper added —
+      maps each typed subclass to its `MetadataType`, kept as a standalone lookup table rather than
+      a class attribute on the models (deliberate choice — keeps the model classes themselves free
+      of anything beyond their raw JSON fields)
+- [x] `find_metadata_by_class` returns `None` and logs an error when `cls` has no corresponding
+      `MetadataType` (e.g. called with `MetadataBase` itself, or any unregistered subclass) — no
+      silent fallback to an untyped/best-effort result
+- [ ] `iter_metadata_json`/`find_metadata_json` still return raw `dict`s (unchanged, expected) —
+      `find_metadata_by_class` is the only entry point that constructs typed models
 
 ---
 
@@ -58,6 +67,11 @@ Tracks implementation progress against [metadata-spec.md](metadata-spec.md).
       sample log via `find_metadata_json`, verifying `cx`/`cy`/`autoRecovery` coerce to `str`
 - [x] `test_metadata_base_fields_are_optional` — all three models construct with zero args (every
       field defaults to `None`)
+- [x] `test_find_metadata_by_class_session_begin` / `_capture_stop` / `_session_end` — each against
+      the real sample log
+- [x] `test_find_metadata_by_class_not_found` — no matching entry → `None`
+- [x] `test_find_metadata_by_class_unknown_class_logs_error_and_returns_none` — `MetadataBase` (no
+      registered `MetadataType`) → `None`, error logged (asserted via `caplog`)
 
 ---
 

@@ -14,7 +14,7 @@ import logging
 import os
 import re
 from enum import Enum
-from typing import Dict, Generator, Optional
+from typing import Dict, Generator, Optional, Type, TypeVar
 
 from pydantic import BaseModel, field_validator
 
@@ -25,6 +25,8 @@ logger.debug(f"name={__name__}")
 
 # Global REPROSTIM-METADATA-JSON regex pattern
 JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
+
+T = TypeVar("T", bound="MetadataBase")
 
 
 class MetadataType(str, Enum):
@@ -103,6 +105,31 @@ class MetadataSessionEnd(MetadataBase):
     message: Optional[str] = None  # Reason the session ended
 
 
+# Maps each typed MetadataBase subclass to the MetadataType it corresponds
+# to, so find_metadata_by_class can look up "type" without the caller
+# having to pass it separately. Keep in sync with the MetadataType enum and
+# the Metadata* classes above.
+_METADATA_TYPE_BY_CLASS: Dict[Type[MetadataBase], MetadataType] = {
+    MetadataSessionBegin: MetadataType.SESSION_BEGIN,
+    MetadataCaptureStop: MetadataType.CAPTURE_STOP,
+    MetadataSessionEnd: MetadataType.SESSION_END,
+}
+
+
+def _find_metadata_type_by_class(cls: Type[MetadataBase]) -> Optional[MetadataType]:
+    """Look up the :class:`MetadataType` a `MetadataBase` subclass
+    corresponds to.
+
+    :param cls: `MetadataBase` subclass to look up
+    :type cls: Type[MetadataBase]
+
+    :return: The corresponding `MetadataType`, or ``None`` if ``cls`` isn't
+        one of the known typed subclasses (e.g. `MetadataBase` itself)
+    :rtype: Optional[MetadataType]
+    """
+    return _METADATA_TYPE_BY_CLASS.get(cls)
+
+
 def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
     """
     Iterate over all REPROSTIM-METADATA-JSON lines in the log file.
@@ -148,3 +175,31 @@ def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
     return next(
         (msg for msg in iter_metadata_json(path) if msg.get(key) == value), None
     )
+
+
+def find_metadata_by_class(path: str, cls: Type[T]) -> Optional[T]:
+    """Find the first metadata entry for ``cls``'s :class:`MetadataType` and
+    parse it as ``cls``.
+
+    Looks up ``cls``'s corresponding `MetadataType` (via
+    :func:`_find_metadata_type_by_class`) and calls
+    ``find_metadata_json(path, "type", metadata_type.value)``.
+
+    :param path: Path to the log file
+    :type path: str
+
+    :param cls: `MetadataBase` subclass to search for and parse the result
+        into, e.g. `MetadataSessionBegin`
+    :type cls: Type[T]
+
+    :return: An instance of ``cls`` for the first matching entry, or
+        ``None`` if ``cls`` has no corresponding `MetadataType` (logged as
+        an error) or no matching metadata entry exists in the log
+    :rtype: Optional[T]
+    """
+    metadata_type = _find_metadata_type_by_class(cls)
+    if metadata_type is None:
+        logger.error(f"No MetadataType found for class: {cls}")
+        return None
+    msg = find_metadata_json(path, "type", metadata_type.value)
+    return None if msg is None else cls(**msg)

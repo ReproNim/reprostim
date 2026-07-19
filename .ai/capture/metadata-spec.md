@@ -103,10 +103,33 @@ call site writes them): `type`, `version`, `json_ts`, `json_isotime`,
 | `MetadataCaptureStop`  | `capture_stop`    | `message`, `cap_ts_stop`, `cap_isotime_stop`                                       |
 | `MetadataSessionEnd`   | `session_end`     | `message`                                                                          |
 
-None of `iter_metadata_json`/`find_metadata_json` construct these models —
-callers still get raw `dict`s. The models exist for callers that want typed
-attribute access instead of `.get(key)`; wiring them into `video/audit.py`,
-`video/split.py`, `bids/properties.py` is a follow-up (see Open Questions).
+Neither `iter_metadata_json` nor `find_metadata_json` construct these models
+— they still return raw `dict`s. `find_metadata_by_class` (below) is what
+constructs them.
+
+### `find_metadata_by_class(path: str, cls: Type[T]) -> Optional[T]`
+
+Find the first metadata entry matching `cls`'s `MetadataType` and parse it
+as `cls` — e.g. `find_metadata_by_class(path, MetadataSessionBegin)` returns
+a `MetadataSessionBegin` (or `None`).
+
+Internally: looks up `cls`'s corresponding `MetadataType` via the private
+`_find_metadata_type_by_class(cls)` helper (a lookup against the
+module-level `_METADATA_TYPE_BY_CLASS` dict — `MetadataSessionBegin` →
+`MetadataType.SESSION_BEGIN`, etc. — kept separate from the model classes
+themselves rather than a class attribute on `MetadataBase`), then calls
+`find_metadata_json(path, "type", metadata_type.value)` and constructs
+`cls(**msg)`.
+
+If `cls` isn't one of the three known typed subclasses (e.g. `MetadataBase`
+itself, or any custom subclass not in `_METADATA_TYPE_BY_CLASS`), there's no
+`"type"` to search for — logs an error (`"No MetadataType found for
+class: ..."`) and returns `None` rather than guessing or falling back to an
+untyped result.
+
+Wiring this into `video/audit.py`, `video/split.py`, `bids/properties.py`
+(which still call `find_metadata_json(..., "type", "session_begin")`
+directly and work with raw dicts) is a follow-up — see Open Questions.
 
 ---
 
@@ -137,7 +160,7 @@ multi-line ffmpeg banners) interleaved between them.
   above) — they still use the raw string literal.
 - `video/audit.py`, `video/split.py`, `bids/properties.py` still work with
   raw `dict`/`.get(key)` results from `find_metadata_json` — none of them
-  construct `MetadataSessionBegin`/etc. yet.
+  use `find_metadata_by_class`/construct `MetadataSessionBegin`/etc. yet.
 - `find_metadata_json` rescans the whole file on every call with no
   caching; fine for today's call sites (one lookup per video), would need
   revisiting if a caller starts looking up many keys from the same file.
