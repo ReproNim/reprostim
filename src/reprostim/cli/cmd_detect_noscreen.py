@@ -113,7 +113,7 @@ def detect_noscreen(
 
     import json
 
-    from ..capture.nosignal import auto_fix_video, find_no_signal, init_grid_colors
+    from ..video.nosignal import auto_fix_video, find_no_signal, init_grid_colors
 
     logger.debug("detect_noscreen(...)")
     logger.debug(f"path={path}")

@@ -16,10 +16,10 @@ API Reference
    bids.properties
    capture.disp_mon
    capture.metadata
-   capture.nosignal
    qr.parse
    qr.psychopy
    qr.timesync_stimuli
    qr.timing
    video.audit
+   video.nosignal
    video.split

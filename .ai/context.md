@@ -53,6 +53,10 @@ Main Python package with CLI tools and analysis utilities.
   package reorganization)
   - `audit.py` - Comprehensive video analysis with multiple audit sources (see [video/audit-spec.md](video/audit-spec.md), [video/audit-tasks.md](video/audit-tasks.md))
   - `split.py` - Video slicing/splitting functionality (see [video/split-spec.md](video/split-spec.md))
+  - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2);
+    `NsVideoInfo` (renamed from `VideoInfo` to avoid a name collision with `video/audit.py`'s own
+    `VideoInfo`) holds scan results. Moved out of `capture/` since it analyzes already-recorded
+    `.mkv` files, not the live capture process — no dedicated `.ai/video/nosignal-*.md` docs yet
 
 - **bids/** - BIDS dataset injection and media-file metadata/sidecar helpers (split out of `qr/`
   as an ongoing package reorganization)
@@ -70,7 +74,6 @@ Main Python package with CLI tools and analysis utilities.
   - CRC8 checksum implementation for data validation
 
 - **capture/** - Video capture utilities
-  - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2)
   - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows) (moved out of `qr/`
     as part of the ongoing package reorganization; no dedicated `.ai/capture/` spec/task docs yet)
   - `metadata.py` - Parse `REPROSTIM-METADATA-JSON` entries from reprostim-videocapture log files
@@ -303,7 +306,7 @@ Integrated with BIDS datasets for archival
 | `src/reprostim/cli/entrypoint.py` | Main CLI dispatcher |
 | `src/reprostim/qr/parse.py` | Video QR code extraction (JSONL output) |
 | `src/reprostim/audio/audiocodes.py` | FSK/NFE audio codec generation |
-| `src/reprostim/capture/nosignal.py` | No-signal frame detection algorithm |
+| `src/reprostim/video/nosignal.py` | No-signal frame detection algorithm |
 | `.readthedocs.yaml` | Read the Docs build configuration |
 | `.github/workflows/` | GitHub Actions CI/CD pipeline definitions |
 
