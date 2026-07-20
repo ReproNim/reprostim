@@ -1,3 +1,19 @@
+# 0.7.34 (Mon Jul 20 2026)
+
+#### 🐛 Bug Fix
+
+- Refactor `reprostim.qr` package [#262](https://github.com/ReproNim/reprostim/pull/262) ([@vmdocua](https://github.com/vmdocua))
+- Implement `bids-inject-sidecar` command [#260](https://github.com/ReproNim/reprostim/pull/260) ([@vmdocua](https://github.com/vmdocua))
+- Add `timing` module and `TMapService` to support multi-clock synchronization in ReproNim ReproFlow [#258](https://github.com/ReproNim/reprostim/pull/258) ([@vmdocua](https://github.com/vmdocua))
+- Access annexed dataset files remotely with `datalad-fuse` `FsspecAdapter` in `bids-inject` [#257](https://github.com/ReproNim/reprostim/pull/257) ([@vmdocua](https://github.com/vmdocua))
+- Update `video-audit` to handle non-existent paths gracefully [#256](https://github.com/ReproNim/reprostim/pull/256) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.33 (Mon Jun 08 2026)
 
 #### 🐛 Bug Fix
