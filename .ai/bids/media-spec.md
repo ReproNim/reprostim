@@ -8,16 +8,16 @@ logic, per the BEP044/media-files proposal ([bids-standard/bids-specification PR
 #2367](https://bids-specification--2367.org.readthedocs.build/en/2367/appendices/media-files.html)).
 
 It lives under the `reprostim.bids` package (`src/reprostim/bids/`) alongside `inject_sidecar.py`
-— see [spec-bids-inject-sidecar.md § File / Module
-Structure](spec-bids-inject-sidecar.md#file--module-structure).
+— see [inject-sidecar-spec.md § File / Module
+Structure](inject-sidecar-spec.md#file--module-structure).
 
 **Status: implemented and fully tested.** The enums (`BidsMediaType`, `AudioFormat`,
 `VideoFormat`, `ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), the data models
 (`BidsMediaInfo`, `BidsMediaInfoError`, `BidsMediaErrorCode`), and the path-parsing function
 (`parse_bids_media_info`) are all implemented, with 100% automated test coverage
-(`tests/bids/test_media.py`; see [task-bids-media.md](task-bids-media.md)). The
+(`tests/bids/test_media.py`; see [media-tasks.md](media-tasks.md)). The
 `AudioInfo`/`VideoInfo` -> BIDS-dict mapping helpers this module originally described live in a
-separate module, `bids/properties.py` — see [spec-bids-properties.md](spec-bids-properties.md).
+separate module, `bids/properties.py` — see [properties-spec.md](properties-spec.md).
 
 Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
@@ -25,14 +25,14 @@ Relevant to: https://github.com/ReproNim/reprostim/issues/14
 
 ## Motivation
 
-Both `split_video.py` (`_to_bids_model`) and the proposed `bids-inject-sidecar` command need the
+Both `split.py` (`_to_bids_model`) and the proposed `bids-inject-sidecar` command need the
 same BIDS media-file field names, types, and `ffprobe`-derived-info mappings. Today that logic
-lives inline in `split_video.py`. `bids_media.py` is meant to become the single source of truth
+lives inline in `split.py`. `bids_media.py` is meant to become the single source of truth
 both consumers share, instead of duplicating/drifting field tables.
 
-See [spec-bids-inject-sidecar.md § File / Module
-Structure](spec-bids-inject-sidecar.md#file--module-structure) and [§ Relationship to
-`bids-inject` / `split-video`](spec-bids-inject-sidecar.md#relationship-to-bids-inject--split-video)
+See [inject-sidecar-spec.md § File / Module
+Structure](inject-sidecar-spec.md#file--module-structure) and [§ Relationship to
+`bids-inject` / `split-video`](inject-sidecar-spec.md#relationship-to-bids-inject--split-video)
 for where this module was first proposed.
 
 ---
@@ -43,9 +43,9 @@ for where this module was first proposed.
       `BidsMediaProperty`, see below.
 - [ ] Declared value types (`integer`/`number`/`string`) per property — not yet carried on
       `BidsMediaProperty`; see Open Questions.
-- [x] Mapping helpers from `video_audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts — live
+- [x] Mapping helpers from `audit.py`'s `AudioInfo`/`VideoInfo` to BIDS-field dicts — live
       in a separate module, `bids/properties.py`, not here (see
-      [spec-bids-properties.md](spec-bids-properties.md)), to keep this module spec-close.
+      [properties-spec.md](properties-spec.md)), to keep this module spec-close.
 
 ---
 
@@ -137,21 +137,21 @@ returns the list of properties applicable to a given `BidsMediaType`.
 | `VIDEO_FRAME_COUNT`      | `VideoFrameCount`    | video, audiovideo              | RECOMMENDED          | Total number of frames in the video stream.                        |
 | `VIDEO_CODEC_RFC6381`    | `VideoCodecRFC6381`  | video, audiovideo              | OPTIONAL             | Video codec as an RFC 6381 string (e.g. `"avc1.640028"` for H.264).|
 
-> **This table supersedes `spec-bids-inject-sidecar.md`'s field table in two ways**, since it was
+> **This table supersedes `inject-sidecar-spec.md`'s field table in two ways**, since it was
 > pulled from the live draft rather than transcribed by hand:
 > 1. **Field naming**: uses the draft's actual `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/
 >    `ImageBitDepth` names, not the unprefixed `Width`/`Height`/`PixelFormat`/`BitDepth` that
->    `spec-bids-inject-sidecar.md` documents as its *initial-implementation* choice (see that
->    spec's [Open Questions #4](spec-bids-inject-sidecar.md#open-questions--todos)). This does
+>    `inject-sidecar-spec.md` documents as its *initial-implementation* choice (see that
+>    spec's [Open Questions #4](inject-sidecar-spec.md#open-questions--todos)). This does
 >    not itself change `bids-inject-sidecar`'s behavior — that command doesn't consume
 >    `bids_media.py` yet — but it does mean the naming reconciliation those Open Questions
 >    anticipate is effectively pre-decided in favor of the `Image*`-prefixed names once/if
->    `bids-inject-sidecar` or `split_video.py` adopt this module.
+>    `bids-inject-sidecar` or `split.py` adopt this module.
 > 2. **`RecordingDuration` categories**: the live draft scopes it to audio/video/audiovideo only
->    (no `image`), whereas `spec-bids-inject-sidecar.md`'s table listed audio/video/image.
+>    (no `image`), whereas `inject-sidecar-spec.md`'s table listed audio/video/image.
 >
 > The ReproStim-specific extras `Device`, `DeviceSerialNumber`, `TaskName` (not part of BEP044,
-> only listed in `spec-bids-inject-sidecar.md`) are intentionally **not** included in
+> only listed in `inject-sidecar-spec.md`) are intentionally **not** included in
 > `BidsMediaProperty`, since this enum tracks the BEP044 draft itself.
 
 ---
@@ -302,18 +302,18 @@ Example resolutions:
       `--add META=VALUE` casting in `bids-inject-sidecar` — not yet carried on the enum.
 - [x] Scope/API surface for the `AudioInfo`/`VideoInfo` mapping helpers decided: a separate
       module, `bids/properties.py` (not `media.py` itself, to keep this module spec-close) — see
-      [spec-bids-properties.md](spec-bids-properties.md). `bids_properties_from_audio_video_info`
+      [properties-spec.md](properties-spec.md). `bids_properties_from_audio_video_info`
       implemented there; `VaRecord`-based and path-orchestrating entry points still TBD.
 - [x] Field-naming convention for `BidsMediaProperty` decided: `Image*`-prefixed, matching the
       live BEP044 draft (see note above). **Fully reconciled** with
-      `bids_properties_from_split_result`'s output (formerly `split_video.py::_to_bids_model`):
+      `bids_properties_from_split_result`'s output (formerly `split.py::_to_bids_model`):
       `PixelFormat`/`BitDepth`/`Width`/`Height` were all renamed to
       `ImagePixelFormat`/`ImageBitDepth`/`ImageWidth`/`ImageHeight` to match (see
-      [spec-bids-inject-sidecar.md Open Questions
-      #4](spec-bids-inject-sidecar.md#open-questions--todos)).
-- [x] `split_video.py::_to_bids_model` moved to `bids/properties.py::bids_properties_from_split_result`
-      — `split_video.py` no longer has any BIDS-mapping logic of its own, resolving the "factor
-      out" item this used to track. See [spec-bids-properties.md](spec-bids-properties.md).
+      [inject-sidecar-spec.md Open Questions
+      #4](inject-sidecar-spec.md#open-questions--todos)).
+- [x] `split.py::_to_bids_model` moved to `bids/properties.py::bids_properties_from_split_result`
+      — `split.py` no longer has any BIDS-mapping logic of its own, resolving the "factor
+      out" item this used to track. See [properties-spec.md](properties-spec.md).
 - [ ] Reconcile `BidsMediaType` with `bids_inject.py::MediaSuffix` (see note above) — decide
       whether `bids_inject.py` should adopt `BidsMediaType` instead of its own enum.
 - [x] `BidsMediaInfo` / `BidsMediaInfoError` / `BidsMediaErrorCode` implemented as pure data

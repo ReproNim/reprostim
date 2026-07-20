@@ -1,13 +1,13 @@
 # `bids/media.py` Task List
 
-Tracks implementation progress against [spec-bids-media.md](spec-bids-media.md).
+Tracks implementation progress against [media-spec.md](media-spec.md).
 
 **Status: implemented, 100% tested.** The enums (`BidsMediaType`, `AudioFormat`, `VideoFormat`,
 `ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`, `BidsMediaErrorCode`), data models
 (`BidsMediaInfo`, `BidsMediaInfoError`), and the path-parsing function
 (`parse_bids_media_info`) are all implemented in `src/reprostim/bids/media.py`, with full
 automated test coverage in `tests/bids/test_media.py`. The `AudioInfo`/`VideoInfo` mapping
-helpers moved to a separate module — see [task-bids-properties.md](task-bids-properties.md) —
+helpers moved to a separate module — see [properties-tasks.md](properties-tasks.md) —
 and are tracked there, not below.
 
 ---
@@ -46,8 +46,8 @@ and are tracked there, not below.
       `parse_bids_media_info` never produces this error code yet
 - [x] `AudioInfo`/`VideoInfo` -> BIDS-dict mapping helper — implemented as
       `bids_properties_from_audio_video_info` in `bids/properties.py`, not here; see
-      [task-bids-properties.md](task-bids-properties.md)
-- [ ] Factor `split_video.py::_to_bids_model` to use `bids/properties.py` (no behavior change) —
+      [properties-tasks.md](properties-tasks.md)
+- [ ] Factor `split.py::_to_bids_model` to use `bids/properties.py` (no behavior change) —
       naming is already reconciled (`_to_bids_model` writes `ImageWidth`/`ImageHeight`/
       `ImagePixelFormat`/`ImageBitDepth` via `BidsMediaProperty.*.value`); this item is now just
       about sharing the mapping code, not field names
@@ -120,7 +120,7 @@ Test file: `tests/bids/test_media.py` — **51 tests, 100% statement coverage of
 Note: the "mapping helper: fields absent from `AudioInfo`/`VideoInfo` omitted" item that used to
 be listed here was misplaced — that behavior belongs to `bids/properties.py`, not `bids/media.py`
 (`bids/media.py` has no `AudioInfo`/`VideoInfo` dependency at all); it's tracked in
-[task-bids-properties.md](task-bids-properties.md) instead.
+[properties-tasks.md](properties-tasks.md) instead.
 
 ### Coverage targets
 
@@ -133,10 +133,10 @@ be listed here was misplaced — that behavior belongs to `bids/properties.py`, 
 ## Open Questions / Future Work
 
 - [ ] `AudioInfo`/`VideoInfo` mapping helper follow-ups now tracked in
-      [task-bids-properties.md](task-bids-properties.md), not here
+      [properties-tasks.md](properties-tasks.md), not here
 - [ ] Declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member
 - [ ] `BidsMediaType` vs. `bids_inject.py::MediaSuffix` reconciliation
-- [x] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split_video.py`'s output — resolved,
+- [x] `BidsMediaProperty`'s `Image*`-prefixed names vs. `split.py`'s output — resolved,
       `_to_bids_model` now writes `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth`
 - [ ] `MEDIA_TYPE_MISMATCH` detection — `parse_bids_media_info` never produces it yet; decide
       whether/how (see spec Open Questions)

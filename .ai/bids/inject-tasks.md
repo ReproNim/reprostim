@@ -1,6 +1,6 @@
 # `bids-inject` Task List
 
-Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md).
+Tracks implementation progress against [inject-spec.md](inject-spec.md).
 
 ---
 
@@ -83,9 +83,9 @@ Tracks implementation progress against [spec-bids-inject.md](spec-bids-inject.md
 - [x] Build `sidecar_metadata` dict from `record.metadata.TaskName` and pass to `do_main`
 - [x] Populate `sidecar_metadata` via `bids/properties.py::bids_properties_from_ffprobe(input_path,
       props=sidecar_metadata)` (replaced the earlier direct `get_audio_video_info_ffprobe` call +
-      manual field selection; see [task-bids-properties.md](task-bids-properties.md)) — adds
+      manual field selection; see [properties-tasks.md](properties-tasks.md)) — adds
       `VideoCodecRFC6381` / `AudioCodecRFC6381` / `ImageBitDepth` / `ImagePixelFormat` (now
-      `Image*`-prefixed, per [spec-bids-media.md](spec-bids-media.md)) plus other mappable
+      `Image*`-prefixed, per [media-spec.md](media-spec.md)) plus other mappable
       properties (`AudioCodec`, `AudioSampleRate`, `RecordingDuration`, etc.) that
       `bids_properties_from_split_result` doesn't currently read from `sidecar_metadata`
       (harmlessly unused for now)
@@ -248,7 +248,7 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       `sidecar_metadata`
 - [x] `bids_properties_from_split_result` writes `VideoFrameCount` (int) from `sidecar_metadata` when present, omits
       when absent — new field, populated via `video.frame_count` (see
-      [task-bids-properties.md](task-bids-properties.md))
+      [properties-tasks.md](properties-tasks.md))
 - [x] `bids_properties_from_split_result`'s BIDS-field-name dict keys (`RecordingDuration`, `VideoCodec`,
       `VideoCodecRFC6381`, `VideoFrameRate`, `ImageWidth`, `ImageHeight`, `ImageBitDepth`,
       `ImagePixelFormat`, `VideoFrameCount`, `AudioCodec`, `AudioCodecRFC6381`,

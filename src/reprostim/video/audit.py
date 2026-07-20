@@ -14,7 +14,6 @@ import fnmatch
 import json
 import logging
 import os
-import re
 import shlex
 import subprocess
 import tempfile
@@ -27,7 +26,8 @@ from typing import Dict, Generator, List, Optional, Set, Tuple
 from filelock import FileLock, Timeout
 from pydantic import BaseModel
 
-from reprostim.qr.qr_parse import (
+from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
+from reprostim.qr.parse import (
     InfoSummary,
     ParseContext,
     ParseSummary,
@@ -47,9 +47,6 @@ logger.debug(f"name={__name__}")
 
 # User@Host string
 # UPDATED_BY = f"{getpass.getuser()}@{socket.gethostname()}"
-
-# Global REPROSTIM-METADATA-JSON regex pattern
-JSON_PATTERN = re.compile(r"REPROSTIM-METADATA-JSON: (.*) :REPROSTIM-METADATA-JSON")
 
 
 # NB: move in future to audio package or tool?
@@ -381,7 +378,7 @@ def parse_audio_sr(audio_sr: Optional[str]) -> dict:
     the composite string assembled in :func:`do_audit_file` for
     ``VaRecord.audio_sr`` (``f"{ai.sample_rate}Hz {ai.bits_per_sample}b
     {ai.channels}ch {ai.codec}"``); shared by any caller that needs to
-    recover typed fields from that string (e.g. ``qr.split_video``,
+    recover typed fields from that string (e.g. ``video.split``,
     ``bids.properties``).
 
     :param audio_sr: Composite audio-info string (e.g., ``'48000Hz 2ch
@@ -419,56 +416,6 @@ def parse_audio_sr(audio_sr: Optional[str]) -> dict:
         return result
     except Exception:
         return na
-
-
-def iter_metadata_json(log_path: str) -> Generator[Dict, None, None]:
-    """
-    Iterate over all REPROSTIM-METADATA-JSON lines in the log file.
-    Yields parsed JSON dictionaries.
-
-    :param log_path: Path to the log file
-    :type log_path: str
-
-    :return: Generator of parsed JSON dictionaries
-    :rtype: Generator[Dict, None, None]
-    """
-    if not os.path.exists(log_path):
-        logger.error(f"Log file does not exist: {log_path}")
-        return  # file missing, generator yields nothing
-
-    with open(log_path, "r", encoding="utf-8") as f:
-        for line in f:
-            match = JSON_PATTERN.search(line)
-            if match:
-                try:
-                    data = json.loads(match.group(1))
-                    yield data
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to parse JSON in line: {line}")
-                    continue
-
-
-# Note: refactor and move this API to separate module like capture.metadata or
-# similar, also define data classes for parsed reprostim-videocapture metadata
-# there and use it in split_video/bids.properties modules
-def find_metadata_json(path: str, key: str, value) -> Optional[Dict]:
-    """Find the first metadata JSON entry with a specific key-value pair.
-
-    :param path: Path to the log file
-    :type path: str
-
-    :param key: Key to search for
-    :type key: str
-
-    :param value: Value to match
-    :type value: Any
-
-    :return: The first matching dictionary or None if not found
-    :rtype: Optional[Dict]
-    """
-    return next(
-        (msg for msg in iter_metadata_json(path) if msg.get(key) == value), None
-    )
 
 
 def audio_codec_to_rfc6381(codec: str, profile: Optional[str]) -> Optional[str]:
@@ -950,11 +897,11 @@ def do_audit_file(ctx: VaContext, path: str) -> Generator[VaRecord, None, None]:
                 return
 
             # try to find session_begin in log file
-            sb = find_metadata_json(path + ".log", "type", "session_begin")
+            sb = find_metadata_by_class(path + ".log", MetadataSessionBegin)
             if sb is not None:
                 logger.debug(f"sb: {sb}")
-                vr.video_fps_detected = sb["frameRate"]
-                vr.video_res_detected = f"{sb['cx']}x{sb['cy']}"
+                vr.video_fps_detected = sb.frameRate
+                vr.video_res_detected = f"{sb.cx}x{sb.cy}"
 
             vi: InfoSummary
             vti: VideoTimeInfo

@@ -19,12 +19,8 @@ import isodate
 from pydantic import BaseModel, Field
 
 from reprostim.bids.properties import bids_properties_from_split_result
-from reprostim.qr.video_audit import (
-    VaRecord,
-    find_metadata_json,
-    get_file_video_audit,
-    parse_audio_sr,
-)
+from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
+from reprostim.video.audit import VaRecord, get_file_video_audit, parse_audio_sr
 
 # initialize the logger
 # Note: all logs out to stderr
@@ -389,10 +385,10 @@ def _calc_split_data(
     # Extract device info from log file session_begin metadata
     # NOTE: in future we may include these columns in videos.tsv audit file
     #       and in this case it can be used directly from VaRecord.
-    sb = find_metadata_json(path + ".log", "type", "session_begin")
+    sb = find_metadata_by_class(path + ".log", MetadataSessionBegin)
     if sb is not None:
-        sd.device = sb.get("vDev", "n/a") or "n/a"
-        sd.device_serial_number = sb.get("serial", "n/a") or "n/a"
+        sd.device = sb.vDev or "n/a"
+        sd.device_serial_number = sb.serial or "n/a"
 
     duration_sec: float = _parse_interval_sec(vr.duration)
     if duration_sec <= 0:

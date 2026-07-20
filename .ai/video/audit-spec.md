@@ -148,9 +148,9 @@ Tab-separated file. One row per video file, columns defined by `VaRecord`:
 | `video_res_detected` | Resolution from `session_begin` log entry, e.g. `1920x1080` |
 | `video_fps_detected` | FPS from `session_begin` log entry |
 | `video_dur_detected` | Duration from mediainfo (seconds) |
-| `video_res_recorded` | Resolution from `qr_parse.do_parse` |
-| `video_fps_recorded` | FPS from `qr_parse.do_parse` |
-| `video_dur_recorded` | Duration from `qr_parse.do_parse` (seconds) |
+| `video_res_recorded` | Resolution from `parse.do_parse` |
+| `video_fps_recorded` | FPS from `parse.do_parse` |
+| `video_dur_recorded` | Duration from `parse.do_parse` (seconds) |
 | `video_size_mb` | File size in MB |
 | `video_rate_mbpm` | Bitrate in MB/min |
 | `audio_sr` | Audio sample rate + bit depth + channels + codec |
@@ -219,7 +219,7 @@ results from separate runs to coexist correctly.
 
 ## Python API
 
-Key public symbols in `reprostim.qr.video_audit`:
+Key public symbols in `reprostim.video.audit`:
 
 | Symbol | Type | Description |
 |--------|------|-------------|
@@ -240,7 +240,7 @@ Key public symbols in `reprostim.qr.video_audit`:
 ## Dependencies
 
 - **ffprobe** (`ffmpeg` package) — required for audio stream extraction
-- **mediainfo** — used internally via `qr_parse.do_info_file`
+- **mediainfo** — used internally via `parse.do_info_file`
 - **reprostim detect-noscreen** — required for NOSIGNAL source
 - **reprostim qr-parse** — required for QR source
 - **ffmpeg** — required for QR source (audio stripping before qr-parse)

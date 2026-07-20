@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Tests for CLI option handling in ``reprostim.qr.qr_parse``.
+"""Tests for CLI option handling in ``reprostim.qr.parse``.
 
 Covers: --grayscale, --std-threshold, --scale, --skip, --qr-decoder,
 --video-decoder, --qrdet, --qrdet-model-size, --qr-decoder-workers.
@@ -18,9 +18,9 @@ import cv2
 import numpy as np
 import pytest
 
-import reprostim.qr.qr_parse as qp_mod
+import reprostim.qr.parse as qp_mod
 from reprostim.cli.cmd_qr_parse import qr_parse as qr_parse_cmd
-from reprostim.qr.qr_parse import (
+from reprostim.qr.parse import (
     Grayscale,
     InfoSummary,
     ParseContext,
@@ -106,7 +106,7 @@ def test_grayscale_opencv_calls_cvtcolor(tmp_path):
     ctx = ParseContext(
         grayscale=Grayscale.OPENCV, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
     )
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]), patch(
+    with patch("reprostim.qr.parse.decode", return_value=[]), patch(
         "cv2.cvtColor", wraps=cv2.cvtColor
     ) as mock_cvt:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
@@ -123,7 +123,7 @@ def test_grayscale_numpy_skips_cvtcolor(tmp_path):
     ctx = ParseContext(
         grayscale=Grayscale.NUMPY, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
     )
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]), patch(
+    with patch("reprostim.qr.parse.decode", return_value=[]), patch(
         "cv2.cvtColor"
     ) as mock_cvt:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
@@ -135,7 +135,7 @@ def test_grayscale_none_skips_cvtcolor(tmp_path):
     ctx = ParseContext(
         grayscale=Grayscale.NONE, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
     )
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]), patch(
+    with patch("reprostim.qr.parse.decode", return_value=[]), patch(
         "cv2.cvtColor"
     ) as mock_cvt:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
@@ -150,7 +150,7 @@ def test_grayscale_none_skips_cvtcolor(tmp_path):
 def test_std_threshold_zero_disables_filter(tmp_path):
     """--std-threshold 0: cv2.meanStdDev is not called; all frames reach decoder."""
     ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]), patch(
+    with patch("reprostim.qr.parse.decode", return_value=[]), patch(
         "cv2.meanStdDev"
     ) as mock_std:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
@@ -162,7 +162,7 @@ def test_std_threshold_skips_low_std_frames(tmp_path):
     ctx = ParseContext(std_threshold=40.0, qr_decoder=QrDecoder.PYZBAR)
     low_std = (np.array([[0.0]]), np.array([[5.0]]))  # 5.0 < 40.0
     with patch("cv2.meanStdDev", return_value=low_std), patch(
-        "reprostim.qr.qr_parse._decode_qr"
+        "reprostim.qr.parse._decode_qr"
     ) as mock_decode:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_decode.assert_not_called()
@@ -173,7 +173,7 @@ def test_std_threshold_passes_high_std_frames(tmp_path):
     ctx = ParseContext(std_threshold=40.0, qr_decoder=QrDecoder.PYZBAR)
     high_std = (np.array([[0.0]]), np.array([[50.0]]))  # 50.0 >= 40.0
     with patch("cv2.meanStdDev", return_value=high_std), patch(
-        "reprostim.qr.qr_parse._decode_qr", return_value=None
+        "reprostim.qr.parse._decode_qr", return_value=None
     ) as mock_decode:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_decode.assert_called_once()
@@ -187,7 +187,7 @@ def test_std_threshold_passes_high_std_frames(tmp_path):
 def test_scale_half_calls_resize(tmp_path):
     """--scale 0.5: cv2.resize is called with fx=0.5, fy=0.5."""
     ctx = ParseContext(scale=0.5, std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]), patch(
+    with patch("reprostim.qr.parse.decode", return_value=[]), patch(
         "cv2.resize", wraps=cv2.resize
     ) as mock_resize:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
@@ -199,7 +199,7 @@ def test_scale_half_calls_resize(tmp_path):
 def test_scale_one_skips_resize(tmp_path):
     """--scale 1.0 (default): cv2.resize is not called."""
     ctx = ParseContext(scale=1.0, std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]), patch(
+    with patch("reprostim.qr.parse.decode", return_value=[]), patch(
         "cv2.resize"
     ) as mock_resize:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
@@ -214,7 +214,7 @@ def test_scale_one_skips_resize(tmp_path):
 def test_skip_zero_processes_all_frames(tmp_path):
     """--skip 0: every frame reaches _decode_qr."""
     ctx = ParseContext(skip=0, std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse._decode_qr", return_value=None) as mock_decode:
+    with patch("reprostim.qr.parse._decode_qr", return_value=None) as mock_decode:
         _run_parse(ctx, [_blank_frame()] * 3, _video(tmp_path))
     assert mock_decode.call_count == 3
 
@@ -222,7 +222,7 @@ def test_skip_zero_processes_all_frames(tmp_path):
 def test_skip_two_processes_every_third_frame(tmp_path):
     """--skip 2: 1 of every 3 frames reaches _decode_qr (2 out of 6)."""
     ctx = ParseContext(skip=2, std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse._decode_qr", return_value=None) as mock_decode:
+    with patch("reprostim.qr.parse._decode_qr", return_value=None) as mock_decode:
         _run_parse(ctx, [_blank_frame()] * 6, _video(tmp_path))
     assert mock_decode.call_count == 2
 
@@ -235,7 +235,7 @@ def test_skip_two_processes_every_third_frame(tmp_path):
 def test_qr_decoder_none_skips_decode(tmp_path):
     """--qr-decoder none: _decode_qr is never called."""
     ctx = ParseContext(qr_decoder=QrDecoder.NONE, std_threshold=0)
-    with patch("reprostim.qr.qr_parse._decode_qr") as mock_decode:
+    with patch("reprostim.qr.parse._decode_qr") as mock_decode:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_decode.assert_not_called()
 
@@ -243,7 +243,7 @@ def test_qr_decoder_none_skips_decode(tmp_path):
 def test_qr_decoder_pyzbar_calls_pyzbar_decode(tmp_path):
     """--qr-decoder pyzbar: pyzbar.decode is called (default backend)."""
     ctx = ParseContext(qr_decoder=QrDecoder.PYZBAR, std_threshold=0)
-    with patch("reprostim.qr.qr_parse.decode", return_value=[]) as mock_decode:
+    with patch("reprostim.qr.parse.decode", return_value=[]) as mock_decode:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_decode.assert_called()
 
@@ -358,7 +358,7 @@ def test_qr_decoder_workers_default_is_zero():
 def test_qr_decoder_workers_zero_does_not_use_thread_pool(tmp_path):
     """--qr-decoder-workers 0: ThreadPoolExecutor is not instantiated."""
     ctx = ParseContext(qr_decoder_workers=0, std_threshold=0, qr_decoder=QrDecoder.NONE)
-    with patch("reprostim.qr.qr_parse.ThreadPoolExecutor") as mock_pool:
+    with patch("reprostim.qr.parse.ThreadPoolExecutor") as mock_pool:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_pool.assert_not_called()
 
@@ -367,7 +367,7 @@ def test_qr_decoder_workers_one_does_not_use_thread_pool(tmp_path):
     """--qr-decoder-workers 1: ThreadPoolExecutor is not instantiated
     (threshold is > 1)."""
     ctx = ParseContext(qr_decoder_workers=1, std_threshold=0, qr_decoder=QrDecoder.NONE)
-    with patch("reprostim.qr.qr_parse.ThreadPoolExecutor") as mock_pool:
+    with patch("reprostim.qr.parse.ThreadPoolExecutor") as mock_pool:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_pool.assert_not_called()
 
@@ -376,7 +376,7 @@ def test_qr_decoder_workers_parallel_uses_thread_pool(tmp_path):
     """--qr-decoder-workers 4: ThreadPoolExecutor is instantiated with max_workers=4."""
     ctx = ParseContext(qr_decoder_workers=4, std_threshold=0, qr_decoder=QrDecoder.NONE)
     with patch(
-        "reprostim.qr.qr_parse.ThreadPoolExecutor", wraps=ThreadPoolExecutor
+        "reprostim.qr.parse.ThreadPoolExecutor", wraps=ThreadPoolExecutor
     ) as mock_pool:
         _run_parse(ctx, [_blank_frame()], _video(tmp_path))
     mock_pool.assert_called_once_with(max_workers=4)
@@ -388,7 +388,7 @@ def test_qr_decoder_workers_parallel_processes_all_frames(tmp_path):
     ctx = ParseContext(
         qr_decoder_workers=4, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
     )
-    with patch("reprostim.qr.qr_parse._process_frame", return_value=None) as mock_pf:
+    with patch("reprostim.qr.parse._process_frame", return_value=None) as mock_pf:
         _run_parse(ctx, frames, _video(tmp_path))
     assert mock_pf.call_count == len(frames)
 
@@ -412,10 +412,10 @@ def test_qr_decoder_workers_parallel_output_matches_sequential(tmp_path):
         qr_decoder_workers=4, std_threshold=0, qr_decoder=QrDecoder.PYZBAR
     )
 
-    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+    with patch("reprostim.qr.parse._process_frame", side_effect=list(per_frame)):
         seq_items = _run_parse(ctx_seq, frames, _video(tmp_path))
 
-    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+    with patch("reprostim.qr.parse._process_frame", side_effect=list(per_frame)):
         par_items = _run_parse(ctx_par, frames, _video(tmp_path))
 
     seq_records = [i for i in seq_items if not isinstance(i, ParseSummary)]
@@ -477,7 +477,7 @@ def test_decode_qr_pyzbar_returns_dict_when_found():
     # Use a simpler mock: data bytes that eval correctly
     encoded = repr(payload).encode("utf-8")
     mock_result.data = encoded
-    with patch("reprostim.qr.qr_parse.decode", return_value=[mock_result]):
+    with patch("reprostim.qr.parse.decode", return_value=[mock_result]):
         result = _decode_qr_pyzbar(_blank_frame())
     assert result == payload
 
@@ -516,7 +516,7 @@ def test_qr_state_machine_two_different_qr_codes(tmp_path):
     # frames: [a, a, b, b, None]
     per_frame = [qr_a, qr_a, qr_b, qr_b, None]
     ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+    with patch("reprostim.qr.parse._process_frame", side_effect=list(per_frame)):
         items = _run_parse(ctx, [_blank_frame()] * len(per_frame), _video(tmp_path))
     records = [i for i in items if not isinstance(i, ParseSummary)]
     assert len(records) == 2
@@ -528,7 +528,7 @@ def test_qr_state_machine_qr_at_end_of_video(tmp_path):
     """A QR code that runs to the last frame is still yielded."""
     per_frame = [None, _QR_DATA, _QR_DATA]
     ctx = ParseContext(std_threshold=0, qr_decoder=QrDecoder.PYZBAR)
-    with patch("reprostim.qr.qr_parse._process_frame", side_effect=list(per_frame)):
+    with patch("reprostim.qr.parse._process_frame", side_effect=list(per_frame)):
         items = _run_parse(ctx, [_blank_frame()] * len(per_frame), _video(tmp_path))
     records = [i for i in items if not isinstance(i, ParseSummary)]
     assert len(records) == 1
@@ -654,7 +654,7 @@ def test_do_main_parse_mode_success(tmp_path):
         ps.exit_code = 0
         yield ps
 
-    with patch("reprostim.qr.qr_parse.do_parse", side_effect=fake_do_parse):
+    with patch("reprostim.qr.parse.do_parse", side_effect=fake_do_parse):
         result = do_main(path=_video(tmp_path), mode="PARSE", out_func=out.append)
     assert result == 0
     assert len(out) == 1
@@ -673,7 +673,7 @@ def cli_runner():
 def test_cli_parse_mode_success(cli_runner, tmp_path):
     """CLI PARSE mode exits 0 when do_main succeeds."""
     video = _video(tmp_path)
-    with patch("reprostim.qr.qr_parse.do_main", return_value=0):
+    with patch("reprostim.qr.parse.do_main", return_value=0):
         result = cli_runner.invoke(qr_parse_cmd, [str(video)])
     assert result.exit_code == 0
 
@@ -681,7 +681,7 @@ def test_cli_parse_mode_success(cli_runner, tmp_path):
 def test_cli_info_mode(cli_runner, tmp_path):
     """CLI --mode INFO is forwarded to do_main."""
     video = _video(tmp_path)
-    with patch("reprostim.qr.qr_parse.do_main", return_value=0) as mock_main:
+    with patch("reprostim.qr.parse.do_main", return_value=0) as mock_main:
         cli_runner.invoke(qr_parse_cmd, ["--mode", "INFO", str(video)])
     assert mock_main.call_args.kwargs["mode"] == "INFO"
 
@@ -689,7 +689,7 @@ def test_cli_info_mode(cli_runner, tmp_path):
 def test_cli_options_forwarded(cli_runner, tmp_path):
     """CLI options are forwarded correctly to do_main."""
     video = _video(tmp_path)
-    with patch("reprostim.qr.qr_parse.do_main", return_value=0) as mock_main:
+    with patch("reprostim.qr.parse.do_main", return_value=0) as mock_main:
         cli_runner.invoke(
             qr_parse_cmd,
             [

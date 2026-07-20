@@ -32,35 +32,41 @@ Main Python package with CLI tools and analysis utilities.
 **Key Modules:**
 - **cli/** - Command-line interface (Click-based with DYMGroup for suggestions)
   - `entrypoint.py` - Main CLI dispatcher
-  - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [spec-qr-parse.md](.ai/spec-qr-parse.md))
+  - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [qr/parse-spec.md](qr/parse-spec.md))
   - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
   - `cmd_monitor_displays.py` - Monitor display connection status with callbacks
-  - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
-  - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [spec-split-video.md](.ai/spec-split-video.md))
-  - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
-  - `cmd_bids_inject_sidecar.py` - *(basic logic implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
+  - `cmd_video_audit.py` - Comprehensive video analysis (incremental/full/force modes) (see [video/audit-spec.md](video/audit-spec.md), [video/audit-tasks.md](video/audit-tasks.md))
+  - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [video/split-spec.md](video/split-spec.md))
+  - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [bids/inject-spec.md](bids/inject-spec.md))
+  - `cmd_bids_inject_sidecar.py` - *(basic logic implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
   - `cmd_echo.py` - Simple echo command for testing
 
 - **qr/** - QR code processing and time synchronization
-  - `qr_parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [spec-qr-parse.md](.ai/spec-qr-parse.md))
+  - `parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [qr/parse-spec.md](qr/parse-spec.md))
   - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
-  - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows)
   - `psychopy.py` - PsychoPy framework integration utilities
-  - `video_audit.py` - Comprehensive video analysis with multiple audit sources (see [spec-video-audit.md](spec-video-audit.md), [task-video-audit.md](task-video-audit.md))
-  - `split_video.py` - Video slicing/splitting functionality (see [spec-split-video.md](.ai/spec-split-video.md))
   - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [spec-timing.md](.ai/spec-timing.md), [task-timing.md](.ai/task-timing.md))
+
+- **video/** - Recorded-video analysis and slicing (split out of `qr/` as part of the ongoing
+  package reorganization)
+  - `audit.py` - Comprehensive video analysis with multiple audit sources (see [video/audit-spec.md](video/audit-spec.md), [video/audit-tasks.md](video/audit-tasks.md))
+  - `split.py` - Video slicing/splitting functionality (see [video/split-spec.md](video/split-spec.md))
+  - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2);
+    `NsVideoInfo` (renamed from `VideoInfo` to avoid a name collision with `video/audit.py`'s own
+    `VideoInfo`) holds scan results. Moved out of `capture/` since it analyzes already-recorded
+    `.mkv` files, not the live capture process — no dedicated `.ai/video/nosignal-*.md` docs yet
 
 - **bids/** - BIDS dataset injection and media-file metadata/sidecar helpers (split out of `qr/`
   as an ongoing package reorganization)
-  - `inject.py` - BIDS dataset injection logic (see [spec-bids-inject.md](.ai/spec-bids-inject.md))
+  - `inject.py` - BIDS dataset injection logic (see [bids/inject-spec.md](bids/inject-spec.md))
   - `inject_sidecar.py` - Standalone BIDS media-file sidecar extraction/write engine; basic
     per-file logic implemented (`ffprobe`-only extraction, `--add` merge, `update`/`replace`
     modes, conflict resolution, `--dry-run`, summary) — `--videos`/`videos.tsv` cache lookup and
-    `--add` declared-type casting still not implemented (see [spec-bids-inject-sidecar.md](.ai/spec-bids-inject-sidecar.md), [task-bids-inject-sidecar.md](.ai/task-bids-inject-sidecar.md))
-  - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files (see [spec-bids-media.md](.ai/spec-bids-media.md), [task-bids-media.md](.ai/task-bids-media.md))
-  - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `qr/split_video.py::_to_bids_model`); wired into both `bids/inject.py` and `bids/inject_sidecar.py`. `VaRecord`-based/path-orchestrating entry points still TBD (see [spec-bids-properties.md](.ai/spec-bids-properties.md), [task-bids-properties.md](.ai/task-bids-properties.md))
+    `--add` declared-type casting still not implemented (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
+  - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files (see [bids/media-spec.md](bids/media-spec.md), [bids/media-tasks.md](bids/media-tasks.md))
+  - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `video/split.py::_to_bids_model`); wired into both `bids/inject.py` and `bids/inject_sidecar.py`. `VaRecord`-based/path-orchestrating entry points still TBD (see [bids/properties-spec.md](bids/properties-spec.md), [bids/properties-tasks.md](bids/properties-tasks.md))
 
 - **audio/** - Audio codec generation
   - `audiocodes.py` - FSK/NFE codecs with Reed-Solomon error correction
@@ -68,7 +74,21 @@ Main Python package with CLI tools and analysis utilities.
   - CRC8 checksum implementation for data validation
 
 - **capture/** - Video capture utilities
-  - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2)
+  - `disp_mon.py` - Cross-platform display monitoring (Linux/macOS/Windows) (moved out of `qr/`
+    as part of the ongoing package reorganization; no dedicated `.ai/capture/` spec/task docs yet)
+  - `metadata.py` - Parse `REPROSTIM-METADATA-JSON` entries from reprostim-videocapture log files
+    (`iter_metadata_json`, `find_metadata_json`); also defines `MetadataType` enum
+    (`SESSION_BEGIN`/`CAPTURE_STOP`/`SESSION_END`) mirroring the `"type"` values `_METADATA_LOG`
+    writes in `VideoCapture.cpp`, the matching
+    `MetadataBase`/`MetadataSessionBegin`/`MetadataCaptureStop`/`MetadataSessionEnd` pydantic
+    models (all-`str`, weakly typed for now), and `find_metadata_by_class(path, cls)` to look up +
+    construct one by class — all three `video/audit.py`/`video/split.py`/`bids/properties.py` call
+    sites now use `find_metadata_by_class(path, MetadataSessionBegin)` with typed attribute access
+    instead of raw `dict`/`.get()`. Moved out of `video/audit.py` since it's capture-tool log
+    parsing, not video-file analysis — used by
+    `video/audit.py`, `video/split.py`, and `bids/properties.py` (see
+    [capture/metadata-spec.md](capture/metadata-spec.md),
+    [capture/metadata-tasks.md](capture/metadata-tasks.md))
   - VideoInfo Pydantic model for structured metadata
   - Video fixup capabilities using ffmpeg for truncated/invalid-timing videos
 
@@ -284,9 +304,9 @@ Integrated with BIDS datasets for archival
 | `overview.md` | Detailed project scope and architecture |
 | `src/reprostim/__init__.py` | Logger initialization, package entry point |
 | `src/reprostim/cli/entrypoint.py` | Main CLI dispatcher |
-| `src/reprostim/qr/qr_parse.py` | Video QR code extraction (JSONL output) |
+| `src/reprostim/qr/parse.py` | Video QR code extraction (JSONL output) |
 | `src/reprostim/audio/audiocodes.py` | FSK/NFE audio codec generation |
-| `src/reprostim/capture/nosignal.py` | No-signal frame detection algorithm |
+| `src/reprostim/video/nosignal.py` | No-signal frame detection algorithm |
 | `.readthedocs.yaml` | Read the Docs build configuration |
 | `.github/workflows/` | GitHub Actions CI/CD pipeline definitions |
 

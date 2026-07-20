@@ -137,7 +137,7 @@ def qr_parse(
 ):
     """Parse QR codes in captured videos."""
 
-    from ..qr.qr_parse import do_main
+    from ..qr.parse import do_main
 
     logger.debug("qr_parse(...)")
 

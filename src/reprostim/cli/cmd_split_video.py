@@ -165,7 +165,7 @@ def split_video(
 ):
     """Split recorded video files to a specific time range."""
 
-    from ..qr.split_video import do_main
+    from ..video.split import do_main
 
     # Validate --spec vs --start/--duration/--end mutual exclusion
     has_spec = len(spec) > 0

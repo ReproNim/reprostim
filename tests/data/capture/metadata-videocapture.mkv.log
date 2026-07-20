@@ -1,0 +1,34 @@
+2025-11-05 14:03:28.837 [INFO] [3774603] Session logging begin   : reprostim-videocapture 1.11.0.347, session_logger_2025.11.05-14.03.28.837, start_ts=2025.11.05-14.03.28.837
+2025-11-05 14:03:28.837 [INFO] [3774603]         Video device    : /dev/video4, S/N: TESTSERIAL0001, USB Capture HDMI, bus info: usb-0000:00:14.0-2
+2025-11-05 14:03:28.837 [INFO] [3774603]                         : 1920x1080, 60 fps
+2025-11-05 14:03:28.837 [INFO] [3774603]         Audio-in device : hw:3,0
+2025-11-05 14:03:28.837 [INFO] [3774603]                         : hdmi/HDMI Capture Volume=95%
+2025-11-05 14:03:28.837 [INFO] [3774603]                         : line-in/Line In Capture Volume=95%
+2025-11-05 14:03:28.837 [INFO] [3774603] REPROSTIM-METADATA-JSON: {"aDev":"hw:3,0","appName":"reprostim-videocapture","autoRecovery":false,"cap_isotime_start":"2025-11-05T14:03:28.837026","cap_ts_start":"2025.11.05-14.03.28.837","cx":1920,"cy":1080,"frameRate":"60","json_isotime":"2025-11-05T14:03:28.837431","json_ts":"2025.11.05-14.03.28.837","serial":"TESTSERIAL0001","type":"session_begin","vDev":"USB Capture HDMI","version":"1.11.0.347"} :REPROSTIM-METADATA-JSON
+2025-11-05 14:03:28.837 [INFO] [3774603] Con/duct command: duct -l NONE -p /data/reprostim/Videos/2025/11/2025.11.05-14.03.28.837--.mkv.duct_ -c none --sample-interval 10 --report-interval 60 ffmpeg -f alsa -ac 2 -thread_queue_size 4096 -i hw:3,0 -f v4l2 -input_format yuyv422 -framerate 60 -video_size 1920x1080 -thread_queue_size 4096 -i /dev/video4 -vaapi_device /dev/dri/renderD128 -vf 'format=nv12,hwupload,setpts=PTS-STARTPTS' -c:v h264_vaapi   -acodec aac -af asetpts=PTS-STARTPTS /data/reprostim/Videos/2025/11/2025.11.05-14.03.28.837--.mkv 2>&1
+2025-11-05 14:03:28.838 [INFO] [3788033] ffmpeg_cmd: ffmpeg -f alsa -ac 2 -thread_queue_size 4096 -i hw:3,0 -f v4l2 -input_format yuyv422 -framerate 60 -video_size 1920x1080 -thread_queue_size 4096 -i /dev/video4 -vaapi_device /dev/dri/renderD128 -vf 'format=nv12,hwupload,setpts=PTS-STARTPTS' -c:v h264_vaapi   -acodec aac -af asetpts=PTS-STARTPTS /data/reprostim/Videos/2025/11/2025.11.05-14.03.28.837--.mkv 2>&1
+2025-11-05 14:03:28.838 [INFO] [3788033] 2025.11.05-14.03.28.837: <SYSTEMCALL> duct -l NONE -p /data/reprostim/Videos/2025/11/2025.11.05-14.03.28.837--.mkv.duct_ -c none --sample-interval 10 --report-interval 60 ffmpeg -f alsa -ac 2 -thread_queue_size 4096 -i hw:3,0 -f v4l2 -input_format yuyv422 -framerate 60 -video_size 1920x1080 -thread_queue_size 4096 -i /dev/video4 -vaapi_device /dev/dri/renderD128 -vf 'format=nv12,hwupload,setpts=PTS-STARTPTS' -c:v h264_vaapi   -acodec aac -af asetpts=PTS-STARTPTS /data/reprostim/Videos/2025/11/2025.11.05-14.03.28.837--.mkv 2>&1
+2025-11-05 14:03:28.938 [INFO] [3788043] Sleeping status delay...
+2025-11-05 14:03:29.002 [INFO] [3788033] ffmpeg version 5.1.6-0+deb12u1 Copyright (c) 2000-2024 the FFmpeg developers
+
+2025-11-05 14:03:29.002 [INFO] [3788033]   built with gcc 12 (Debian 12.2.0-14)
+
+2025-11-05 14:03:29.002 [INFO] [3788033]   configuration: --prefix=/usr --extra-version=0+deb12u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/
+2025-11-05 14:03:29.002 [INFO] [3788033] include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --enable-gnutls --enable-ladspa --enable-libaom --enable
+2025-11-05 14:03:29.002 [INFO] [3788033] -libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-lib
+2025-11-05 14:03:29.002 [INFO] [3788033] flite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --ena
+2025-11-05 14:03:29.002 [INFO] [3788033] ble-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse
+2025-11-05 14:03:29.002 [INFO] [3788033] --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-lib
+2025-11-05 14:03:29.002 [INFO] [3788033] speex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-li
+
+frame=37063 fps= 60 q=-0.0 size=  148736kB time=00:10:17.64 bitrate=1972.7kbits/s speed=   1x
+frame=37093 fps= 6
+2025-11-05 14:13:47.677 [INFO] [3774603] REPROSTIM-METADATA-JSON: {"cap_isotime_start":"2025-11-05T14:03:28.837026","cap_isotime_stop":"2025-11-05T14:13:47.677351","cap_ts_start":"2025.11.05-14.03.28.837","cap_ts_stop":"2025.11.05-14.13.47.677","json_isotime":"2025-11-05T14:13:47.677379","json_ts":"2025.11.05-14.13.47.677","message":":\tWhack resolution: 1074059016x790536. Stopped recording","type":"capture_stop","version":"1.11.0.347"} :REPROSTIM-METADATA-JSON
+2025-11-05 14:13:47.677 [INFO] [3774603] stop record says: terminating ffmpeg with SIGINT
+2025-11-05 14:13:47.687 [INFO] [3774603] ffmpeg pid: 3788038
+
+2025-11-05 14:13:47.742 [INFO] [3788033] Exiting normally, received signal 2.
+
+2025-11-05 14:13:47.757 [INFO] [3788033] :	Ffmpeg thread terminated. Saving video /data/reprostim/Videos/2025/11/2025.11.05-14.03.28.837--2025.11.05-14.13.47.757.mkv
+2025-11-05 14:13:47.757 [INFO] [3788033] REPROSTIM-METADATA-JSON: {"cap_isotime_start":"2025-11-05T14:03:28.837026","cap_ts_start":"2025.11.05-14.03.28.837","json_isotime":"2025-11-05T14:13:47.757523","json_ts":"2025.11.05-14.13.47.757","message":"ffmpeg thread terminated","type":"session_end","version":"1.11.0.347"} :REPROSTIM-METADATA-JSON
+2025-11-05 14:13:47.757 [INFO] [3788033] Session logging end: session_logger_2025.11.05-14.03.28.837

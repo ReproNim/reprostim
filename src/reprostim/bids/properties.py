@@ -11,17 +11,17 @@ properties from, instead of each reimplementing the
 AudioInfo/VideoInfo/SplitResult/VaRecord -> BIDS-dict mapping
 independently.
 
-See .ai/spec-bids-properties.md for the full specification.
+See .ai/bids/properties-spec.md for the full specification.
 """
 import logging
 from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
-from reprostim.qr.video_audit import (
+from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
+from reprostim.video.audit import (
     AudioInfo,
     VaRecord,
     VideoInfo,
-    find_metadata_json,
     get_audio_video_info_ffprobe,
     get_file_video_audit,
     parse_audio_sr,
@@ -53,14 +53,14 @@ def bids_properties_from_audio_video_info(
     Fields that cannot be determined (no matching stream, field absent from
     ffprobe output) are simply omitted from the result rather than written
     as ``"n/a"`` or ``None``, matching the BEP044 sidecar convention (see
-    spec-bids-media.md).
+    .ai/bids/media-spec.md).
 
     :param audio: Audio stream info from ``get_audio_video_info_ffprobe``,
         or ``None`` if the file has no audio stream.
     :type audio: Optional[AudioInfo]
     :param video: Video stream info from ``get_audio_video_info_ffprobe``,
         or ``None`` if the file has no video stream.
-    :type video: Optional[~reprostim.qr.video_audit.VideoInfo]
+    :type video: Optional[~reprostim.video.audit.VideoInfo]
     :param props: Optional dict to populate/merge into instead of creating a
         fresh one — lets a caller accumulate properties from several
         ``bids_properties_from_*`` calls into one shared dict. Existing keys
@@ -137,8 +137,8 @@ def bids_properties_from_split_result(
     (bids-standard/bids-specification PR #2367).
 
     *sr* is intentionally **untyped**: annotating it as
-    ``reprostim.qr.split_video.SplitResult`` would make this module import
-    from ``qr.split_video`` — but ``split_video.py`` is the caller of this
+    ``reprostim.video.split.SplitResult`` would make this module import
+    from ``video.split`` — but ``split.py`` is the caller of this
     function, so that import would be circular. *sr* is expected to expose
     the same attributes as ``SplitResult``: ``orig_device``,
     ``orig_device_serial_number``, ``buffer_duration``, ``video_codec``,
@@ -257,7 +257,7 @@ def bids_properties_from_video_audit(
     rather than the ``video-audit`` writer itself. Falls back to auditing
     the file directly when *path* has no matching row in *path_tsv*, or
     *path_tsv* is not given/found — see
-    :func:`reprostim.qr.video_audit.get_file_video_audit`.
+    :func:`reprostim.video.audit.get_file_video_audit`.
 
     Uses the ``VaRecord``'s ``duration``/``video_res_recorded``/
     ``video_fps_recorded``/``audio_sr`` fields (derived from the media
@@ -269,9 +269,9 @@ def bids_properties_from_video_audit(
 
     ``VaRecord``/``videos.tsv`` has no ``Device``/``DeviceSerialNumber``
     columns yet, so those two are instead recovered the same way
-    ``qr.split_video`` does: by looking for a ``session_begin``
+    ``video.split`` does: by looking for a ``session_begin``
     REPROSTIM-METADATA-JSON entry in ``<path>.log`` (see
-    :func:`reprostim.qr.video_audit.find_metadata_json`) and reading its
+    :func:`reprostim.capture.metadata.find_metadata_by_class`) and reading its
     ``vDev``/``serial`` fields. Omitted if ``<path>.log`` doesn't exist, has
     no ``session_begin`` entry, or that entry lacks the field.
 
@@ -315,7 +315,7 @@ def bids_properties_from_video_audit(
 
         # VaRecord has no codec column; reprostim-videocapture always encodes
         # with -c:v libx264, so h264 is inferred whenever a resolution is
-        # present, matching split_video.py's SplitResult.video_codec.
+        # present, matching split.py's SplitResult.video_codec.
         _set_prop(props, BidsMediaProperty.VIDEO_CODEC, "h264")
 
     if va.video_fps_recorded and va.video_fps_recorded != "n/a":
@@ -359,13 +359,13 @@ def bids_properties_from_video_audit(
 
     # Device/DeviceSerialNumber aren't part of VaRecord (see docstring); recover
     # them from the recording log's session_begin metadata, if present.
-    sb = find_metadata_json(path + ".log", "type", "session_begin")
+    sb = find_metadata_by_class(path + ".log", MetadataSessionBegin)
     if sb is not None:
-        device = sb.get("vDev", "n/a") or "n/a"
+        device = sb.vDev or "n/a"
         if device != "n/a":
             props["Device"] = device
 
-        device_serial_number = sb.get("serial", "n/a") or "n/a"
+        device_serial_number = sb.serial or "n/a"
         if device_serial_number != "n/a":
             props["DeviceSerialNumber"] = device_serial_number
 

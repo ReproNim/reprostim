@@ -1,6 +1,6 @@
 # `split-video` Task List
 
-Tracks implementation progress against [spec-split-video.md](spec-split-video.md).
+Tracks implementation progress against [split-spec.md](split-spec.md).
 
 ---
 
@@ -31,13 +31,13 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] `_parse_interval_sec` — seconds float or ISO 8601 duration → float seconds
 - [x] `_parse_date_time` — `date_str` + `time_str` → naive `datetime`
 - [x] `_parse_fps` — fps string → float
-- [x] `parse_audio_sr` (`qr.video_audit`) — audio info string → dict; used here to build
+- [x] `parse_audio_sr` (`video.audit`) — audio info string → dict; used here to build
       `SplitResult`'s `audio_sample_rate`/`audio_bit_depth`/`audio_channel_count`/`audio_codec`
       fields from `SplitDevice.audio_sr`. Moved from this module's own private
-      `_parse_audio_info` to `qr/video_audit.py` (public) so `bids/properties.py` could reuse the
+      `_parse_audio_info` to `video/audit.py` (public) so `bids/properties.py` could reuse the
       same implementation instead of duplicating it — see
-      [spec-bids-properties.md](spec-bids-properties.md). Its tests moved to
-      `tests/qr/test_video_audit.py` accordingly (see [task-video-audit.md](task-video-audit.md)).
+      [../bids/properties-spec.md](../bids/properties-spec.md). Its tests moved to
+      `tests/video/test_audit.py` accordingly (see [audit-tasks.md](audit-tasks.md)).
 
 ### Spec parsing and output templates
 - [x] `_parse_spec` — `START/DURATION` and `START//END` formats parsed to `SpecEntry`
@@ -70,8 +70,8 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 - [x] `SidecarFormat` enum — `bids` (default) / `raw`
 - [x] BIDS-dict conversion — **moved to `bids/properties.py::bids_properties_from_split_result`**
       (was `_to_bids_model`, defined in this file; no BIDS-mapping logic remains in
-      `split_video.py` itself). Full checklist now tracked in
-      [task-bids-properties.md](task-bids-properties.md), not here — the entries below are kept
+      `split.py` itself). Full checklist now tracked in
+      [../bids/properties-tasks.md](../bids/properties-tasks.md), not here — the entries below are kept
       only as a historical record of what was verified before the move.
 - [x] `_to_bids_model` *(historical, pre-move)* — convert `SplitResult` to BEP044/BEP047 BIDS
       sidecar dict
@@ -117,7 +117,7 @@ Tracks implementation progress against [spec-split-video.md](spec-split-video.md
 
 ## Tests and Code Coverage
 
-Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_inject.py` pattern).
+Test file location: `tests/video/test_split.py` (mirrors `tests/qr/test_bids_inject.py` pattern).
 
 ### Timestamp / interval parsing
 
@@ -165,7 +165,7 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
       `VideoCodecRFC6381`/`AudioCodecRFC6381`/`ImageBitDepth`/`ImagePixelFormat`/
       `VideoFrameCount` from `sidecar_metadata`, `BidsMediaProperty.*.value` constant usage,
       `Image*`-prefixed naming) now lives in
-      [task-bids-properties.md](task-bids-properties.md), not here. All 17 tests moved verbatim
+      [../bids/properties-tasks.md](../bids/properties-tasks.md), not here. All 17 tests moved verbatim
       from this file to `tests/bids/test_properties.py` (renamed `test_to_bids_model_*` →
       `test_bids_properties_from_split_result_*`); `_write_sidecar`'s own integration tests above
       stayed here since they test `_write_sidecar`, not the mapping function directly.**
@@ -202,13 +202,13 @@ Test file location: `tests/qr/test_split_video.py` (mirrors `tests/qr/test_bids_
 
 | Module | Target | Current |
 |---|---|---|
-| `qr/split_video.py` — parsing helpers | ≥ 90% | **90%** ✓ |
-| `qr/split_video.py` — overall | ≥ 80% | **90%** ✓ |
+| `video/split.py` — parsing helpers | ≥ 90% | **90%** ✓ |
+| `video/split.py` — overall | ≥ 80% | **90%** ✓ |
 | `cli/cmd_split_video.py` | ≥ 80% | **99%** ✓ |
 
 ### Test infrastructure
 
-- [x] Create `tests/qr/test_split_video.py`
+- [x] Create `tests/video/test_split.py`
 - [x] Mock `ffmpeg` calls in unit tests (no real video fixture needed for coverage)
 - [ ] Provide a small synthetic video fixture under `tests/data/split_video/` (for integration tests)
 - [ ] Configure `pytest-cov` reporting for `split_video` modules

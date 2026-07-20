@@ -14,11 +14,12 @@ API Reference
    bids.inject_sidecar
    bids.media
    bids.properties
-   capture.nosignal
-   qr.disp_mon
+   capture.disp_mon
+   capture.metadata
+   qr.parse
    qr.psychopy
-   qr.qr_parse
-   qr.split_video
    qr.timesync_stimuli
    qr.timing
-   qr.video_audit
+   video.audit
+   video.nosignal
+   video.split

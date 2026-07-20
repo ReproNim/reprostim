@@ -21,9 +21,11 @@ logger = logging.getLogger(__name__)
 logger.debug(f"name={__name__}")
 
 
-class VideoInfo(BaseModel):
+class NsVideoInfo(BaseModel):
     """
-    Class representing information about a video file.
+    Result of a no-signal/rainbow frame scan of a video file: basic video
+    info (fps/width/height) plus scan statistics (frames/nosignal counts
+    and rate) and truncation/timing flags.
     """
 
     error: str = Field(None, description="Error message")
@@ -56,7 +58,7 @@ class VideoInfo(BaseModel):
 
     def __str__(self):
         return (
-            f"VideoInfo({self.width}x{self.height}, fps={self.fps}, "
+            f"NsVideoInfo({self.width}x{self.height}, fps={self.fps}, "
             f"is_truncated={self.is_truncated}, "
             f"frames_count={self.frames_count}, "
             f"scanned_count={self.scanned_count}, "
@@ -243,7 +245,7 @@ def find_no_signal(
     number_of_checks: int = 0,
     show_progress_sec: float = 0.0,
     check_first_frames: int = 0,
-) -> VideoInfo:
+) -> NsVideoInfo:
     """
     Scans a video `*.mkv` file to detect frames that contain a rainbow pattern
     (no signal frames).
@@ -265,7 +267,7 @@ def find_no_signal(
                                the video. If greater than 0, the scan will stop
                                right after analyzing these frames.
 
-    :return: A `VideoInfo` object with scan details.
+    :return: A `NsVideoInfo` object with scan details.
 
     Example
     -------
@@ -274,7 +276,7 @@ def find_no_signal(
        video_info = find_no_signal("path/to/video.mp4", number_of_checks=5)
        print(video_info.nosignal_rate)
     """
-    vi: VideoInfo = VideoInfo(
+    vi: NsVideoInfo = NsVideoInfo(
         fps=0,
         width=0,
         height=0,
