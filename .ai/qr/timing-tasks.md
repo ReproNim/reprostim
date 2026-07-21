@@ -1,6 +1,6 @@
 # `timing` Task List
 
-Tracks implementation and documentation progress against [spec-timing.md](spec-timing.md).
+Tracks implementation and documentation progress against [timing-spec.md](timing-spec.md).
 
 ---
 
