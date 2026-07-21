@@ -33,7 +33,7 @@ Main Python package with CLI tools and analysis utilities.
 - **cli/** - Command-line interface (Click-based with DYMGroup for suggestions)
   - `entrypoint.py` - Main CLI dispatcher
   - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [qr/parse-spec.md](qr/parse-spec.md))
-  - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation
+  - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation (see [qr/timesync-stimuli-tasks.md](qr/timesync-stimuli-tasks.md))
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
   - `cmd_list_displays.py` - List available GUI displays (cross-platform)
   - `cmd_monitor_displays.py` - Monitor display connection status with callbacks
@@ -45,9 +45,9 @@ Main Python package with CLI tools and analysis utilities.
 
 - **qr/** - QR code processing and time synchronization
   - `parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [qr/parse-spec.md](qr/parse-spec.md))
-  - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization
+  - `timesync_stimuli.py` - PsychoPy-based MRI/BIRCH/Magewell synchronization (see [qr/timesync-stimuli-tasks.md](qr/timesync-stimuli-tasks.md))
   - `psychopy.py` - PsychoPy framework integration utilities
-  - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [spec-timing.md](.ai/spec-timing.md), [task-timing.md](.ai/task-timing.md))
+  - `timing.py` - ReproNim timing-map (tmap) subsystem for multi-clock synchronisation, consumed by `qr-parse` (see [qr/timing-spec.md](qr/timing-spec.md), [qr/timing-tasks.md](qr/timing-tasks.md))
 
 - **video/** - Recorded-video analysis and slicing (split out of `qr/` as part of the ongoing
   package reorganization)
@@ -156,7 +156,7 @@ docs/source/
 - Platform-specific notes (Linux, macOS, Windows)
 
 #### `containers/` - Container Definitions
-Docker and Singularity container support for deployment.
+Docker and Singularity container support for deployment (see [containers/repronim-reprostim-tasks.md](containers/repronim-reprostim-tasks.md)).
 
 **Structure:**
 ```
