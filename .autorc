@@ -1,7 +1,7 @@
 {
     "onlyPublishWithReleaseLabel": true,
     "baseBranch": "master",
-    "author": "ReproNim Team[bot] <info@repronim.org>",
+    "author": "ReproNim ReproStim Team[bot] <reprostim@repronim.org>",
     "noVersionPrefix": true,
     "plugins": [
         "git-tag",

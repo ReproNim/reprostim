@@ -19,7 +19,7 @@ keywords = [
   "reprostim-screncapture",
 ]
 authors = [
-  { name = "ReproNim Team", email = "info@repronim.org" },
+  { name = "ReproNim ReproStim Team", email = "reprostim@repronim.org" },
   { name = "Yaroslav Halchenko", email = "yoh@dartmouth.edu" },
   { name = "Andy Connolly", email = "andrew.c.connolly@dartmouth.edu" },
   { name = "Horea Christian", email = "chr@chymera.eu" },

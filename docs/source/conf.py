@@ -20,8 +20,8 @@ from sphinx.transforms import SphinxTransform
 import reprostim.__about__
 
 project = "ReproStim"
-copyright = "2020-%Y, ReproNim Team"  # noqa: A001
-author = "ReproNim Team"
+copyright = "2020-%Y, ReproNim ReproStim Team (reprostim@repronim.org)"  # noqa: A001
+author = "ReproNim ReproStim Team"
 
 # The full version, including alpha/beta/rc tags
 version = reprostim.__about__.__version__
