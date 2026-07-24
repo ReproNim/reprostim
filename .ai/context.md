@@ -112,7 +112,7 @@ src/reprostim-capture/
 **Key Components:**
 - **CaptureLib**: Core library with threading, REST API, ReproMon integration, logging
 - **ScreenCapture**: Desktop/screen recording utility
-- **VideoCapture**: Magewell USB device capture with configuration support
+- **VideoCapture**: Magewell USB device capture with configuration support (see [reprostim-capture/videocapture-spec.md](reprostim-capture/videocapture-spec.md), [reprostim-capture/videocapture-tasks.md](reprostim-capture/videocapture-tasks.md) — currently covers only the `usb_scan_mode` (poll/hotplug) config option)
 - **Dependencies**: libMWCapture (Magewell SDK), libusb, wxWidgets, portaudio
 
 #### `tests/` - Test Suite

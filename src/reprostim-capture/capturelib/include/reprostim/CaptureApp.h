@@ -20,6 +20,14 @@ namespace reprostim {
 	}
 	#endif // _NOTIFY_REPROMON
 
+	// enums
+	enum class UsbScanMode : int {
+		UNKNOWN     = 0,
+		POLL        = 1,
+		HOTPLUG     = 2,
+		DEFAULT     = 1, // default to POLL
+	};
+
 	// optional con/duct options
 	struct ConductOpts {
 		bool         enabled = false;
@@ -68,6 +76,7 @@ namespace reprostim {
 		LogLevel     session_logger_level = LogLevel::OFF;
 		std::string  session_logger_pattern;
 		std::string  video_device_path_pattern;
+		UsbScanMode  usb_scan_mode = UsbScanMode::DEFAULT;
 		ConductOpts  conduct_opts;
 		ExtProcOpts  ext_proc_opts;
 		RepromonOpts repromon_opts;
@@ -148,6 +157,7 @@ namespace reprostim {
 
 	// methods
 	int checkConduct(const ConductOpts& opts);
+	UsbScanMode parseUsbScanMode(const std::string &usm);
 
 	// inline methods
 
