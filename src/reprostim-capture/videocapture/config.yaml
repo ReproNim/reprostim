@@ -26,6 +26,9 @@ video_device_path_pattern: "/dev/video*"
 # unique string value should be provided explicitly.
 instance_tag: "auto"
 
+# specify USB scan mode, can be "poll" or "hotplug" or not specified (default is "poll")
+usb_scan_mode: "poll"
+
 # Specify capture session file logger settings
 # it is used to log capture session related information to file
 # located in output directory and named like output file

@@ -43,6 +43,18 @@ namespace reprostim {
 		return oss.str();
 	}
 
+	UsbScanMode parseUsbScanMode(const std::string &usm) {
+		if (usm.empty()) {
+			return UsbScanMode::DEFAULT;
+		} else if (usm == "poll") {
+			return UsbScanMode::POLL;
+		} else if (usm == "hotplug") {
+			return UsbScanMode::HOTPLUG;
+		} else {
+			return UsbScanMode::UNKNOWN;
+		}
+	}
+
 	void signalHandler(int signum) {
 		//_INFO("Signal received: " << signum);
 		if (signum == SIGINT) {
@@ -182,6 +194,16 @@ namespace reprostim {
 			cfg.session_logger_enabled = getYamlProp<bool>(doc, "session_logger_enabled");
 			cfg.session_logger_level = parseLogLevel(getYamlProp<std::string>(doc, "session_logger_level"));
 			cfg.session_logger_pattern = getYamlProp<std::string>(doc, "session_logger_pattern");
+		}
+
+		if( doc["usb_scan_mode"] ) {
+			std::string usm = getYamlProp<std::string>(doc, "usb_scan_mode");
+			cfg.usb_scan_mode = parseUsbScanMode(usm);
+			if( cfg.usb_scan_mode == UsbScanMode::UNKNOWN ) {
+				_ERROR("Invalid usb_scan_mode in config.yaml: " << usm
+					   << ", must be 'hotplug', 'poll' or not set (default)");
+				return false;
+			}
 		}
 
 		if( doc["ffm_opts"] ) {

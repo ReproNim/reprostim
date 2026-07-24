@@ -11,7 +11,7 @@ logging, etc.) isn't written up here yet — to be added incrementally as it's t
 
 ---
 
-## USB Scan Mode (`--usb-scan-mode`)
+## USB Scan Mode (`usb_scan_mode`)
 
 ### Problem
 
@@ -30,34 +30,44 @@ already fires on real USB arrival/removal events reported by the Magewell SDK. T
 only used to track a "recently disconnected" device set (`disconnDevAdd`/`disconnDevRemove`)
 for the poll loop's own bookkeeping — it doesn't drive detection/refresh itself.
 
-### New CLI option: `--usb-scan-mode <mode>`
+### `config.yaml` key: `usb_scan_mode` *(implemented)*
+
+Config-only — no CLI flag. Settable as a top-level scalar, alongside
+`device_serial_number`/`instance_tag` (placed right after `instance_tag` in
+`config.yaml`):
+
+```yaml
+# specify USB scan mode, can be "poll" or "hotplug" or not specified (default is "poll")
+usb_scan_mode: "poll"
+```
 
 | Value     | Behavior                                                                                                                                                    |
 |-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `poll`    | **(default)** Unconditional 1-second poll loop calls `MWRefreshDevice()`/`findTargetVideoDevice()` every tick — matches today's behavior, unchanged.          |
 | `hotplug` | Detection is driven by the `MWUSBRegisterHotPlug` callback instead — `MWRefreshDevice()`/`findTargetVideoDevice()` is only invoked in response to an actual `USBHOT_PLUG_EVENT_DEVICE_ARRIVED`/`_LEFT` event, not on every loop tick. |
 
-Shape follows the existing `-e/--ext-proc <mode>` (`all|status|exec`, default `status`) and
-`-l/--list-devices <devices>` (`all|audio|video`, default `all`) options already in
-`VideoCapture.cpp::parseOpts` — same `--<name> <mode>`/documented-default style.
+Backed by `UsbScanMode` (`enum class UsbScanMode : int { UNKNOWN = 0, POLL = 1, HOTPLUG =
+2, DEFAULT = 1 }`) in `CaptureApp.h`, and parsed via the `parseUsbScanMode(const
+std::string&)` helper (declared in `CaptureApp.h`, defined in `CaptureApp.cpp`) — mirrors
+the existing `parseLogLevel()` pattern used for `session_logger_level`. An empty/missing
+value resolves to `DEFAULT` (`== POLL`); any string other than `"poll"`/`"hotplug"`
+(including the redundant literal `"default"`) resolves to `UNKNOWN` and fails
+`loadConfig()` with an error — omit the key entirely to get the default instead of
+writing it out.
 
 ### Affected files
 
 | File | Role |
 |------|------|
-| `src/reprostim-capture/videocapture/src/VideoCapture.cpp` | `parseOpts` — add `--usb-scan-mode` to `longOpts`/short-opts string/`HELP_STR`; `AppOpts`/`AppConfig` gets the new field carrying the selected mode |
-| `src/reprostim-capture/capturelib/src/CaptureApp.cpp` | Main detection loop (`do { SLEEP_SEC(1); ... }`) — gate the `findTargetVideoDevice()` call on scan mode; `usbHotplugCallback`/`onUsbDevArrived`/`onUsbDevLeft` — in `hotplug` mode, trigger detection from here instead of (or in addition to) today's bookkeeping-only role |
-| `src/reprostim-capture/capturelib/src/CaptureLib.cpp` | `findTargetVideoDevice()` — unchanged; still the function that calls `MWRefreshDevice()` and looks up the channel, just invoked from a different trigger depending on mode |
-| `src/reprostim-capture/videocapture/config.yaml` | Possible YAML config key (e.g. top-level `usb_scan_mode: "poll"`, alongside `device_serial_number`/`instance_tag`) — not yet decided, see Open Questions |
+| `src/reprostim-capture/capturelib/include/reprostim/CaptureApp.h` | *(done)* `UsbScanMode` enum, `AppConfig::usb_scan_mode` field, `parseUsbScanMode()` declaration |
+| `src/reprostim-capture/capturelib/src/CaptureApp.cpp` | *(config parsing done, loop-gating not started)* `loadConfig()` parses `usb_scan_mode` into `AppConfig::usb_scan_mode` via `parseUsbScanMode()`. Still TODO: gate the main loop's `findTargetVideoDevice()` call on scan mode; wire `hotplug` mode through `usbHotplugCallback`/`onUsbDevArrived`/`onUsbDevLeft` instead of (or in addition to) today's bookkeeping-only role |
+| `src/reprostim-capture/capturelib/src/CaptureLib.cpp` | *(not started)* `findTargetVideoDevice()` — unchanged so far; still the function that calls `MWRefreshDevice()` and looks up the channel, will just be invoked from a different trigger depending on mode |
+| `src/reprostim-capture/videocapture/config.yaml` | *(done)* top-level `usb_scan_mode: "poll"` key, documented above |
 
 ---
 
 ## Open Questions / Future Work
 
-- Whether `usb_scan_mode` should also be settable via `config.yaml`. Most top-level CLI
-  options here (`-o`/`-d`/`-c`) are process-invocation-only with no YAML equivalent, but
-  some features (`ext_proc_opts`, `repromon_opts`) do have a dedicated YAML section — TBD
-  which pattern this follows.
 - In `hotplug` mode, does the `do { SLEEP_SEC(1); ... }` loop still need to run every
   second for its other duties (`isSysBreakExec()`, `fConfigChanged`, the
   `disconnDevContains` stop-check), or does something else change there too? Not decided.
