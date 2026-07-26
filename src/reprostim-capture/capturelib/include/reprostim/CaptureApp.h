@@ -20,6 +20,9 @@ namespace reprostim {
 	}
 	#endif // _NOTIFY_REPROMON
 
+	inline constexpr int       USB_SCAN_HOTPLUG_RETRY_COUNT = 3;
+	inline constexpr long long USB_SCAN_HOTPLUG_INTERVAL_MS = 30LL * 60 * 1000; // 30 minutes
+
 	// enums
 	enum class UsbScanMode : int {
 		UNKNOWN     = 0,
@@ -133,6 +136,8 @@ namespace reprostim {
 		std::string               targetMwDevPath;
 		std::string               targetVideoDevPath;
 		std::string               targetAudioInDevPath;
+		long long                 lastUsbScanTime;
+		std::atomic<int>          usbScanCount;
 
 		static void usbHotplugCallback(MWUSBHOT_PLUG_EVETN event, const char *pszDevicePath, void* pParam);
 
@@ -140,6 +145,7 @@ namespace reprostim {
 		CaptureApp();
 		~CaptureApp();
 
+		bool checkUsbScan();
 		std::string createOutPath(const std::optional<Timestamp> &ts = std::nullopt, bool fCreateDir = true);
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
 		void listDevices(const std::string& devices);

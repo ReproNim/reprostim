@@ -89,6 +89,31 @@ namespace reprostim {
 		setLogPattern(LogPattern::SIMPLE);
 	}
 
+	bool CaptureApp::checkUsbScan() {
+		if( cfg.usb_scan_mode == UsbScanMode::POLL ) {
+			return true;
+		}
+
+		if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG ) {
+			// check if retry count is exceeded
+			if (usbScanCount <= USB_SCAN_HOTPLUG_RETRY_COUNT) {
+				_VERBOSE("USB hotplug scan retry count below threshold: " << usbScanCount << " <= " << USB_SCAN_HOTPLUG_RETRY_COUNT);
+				return true;
+			}
+
+			// check if enough time has passed since the last scan
+			long long now = currentTimeMs();
+			if (now - lastUsbScanTime >= USB_SCAN_HOTPLUG_INTERVAL_MS) {
+				_VERBOSE("USB hotplug scan interval exceeded: " << (now - lastUsbScanTime) << " ms");
+				return true;
+			}
+
+			// no scans needed
+			return false;
+		}
+		return false;
+	}
+
 	std::string CaptureApp::createOutPath(const std::optional<Timestamp> &ts, bool fCreateDir) {
 		const Timestamp &ts2 = ts.value_or(tsStart);
 
@@ -326,6 +351,8 @@ namespace reprostim {
 			REPROMON_INFO,
 			appName + " USB device connected: " + devPath
 		);
+		// reset usb scan retry count
+		usbScanCount = 0;
 	}
 
 	void CaptureApp::onUsbDevLeft(const std::string& devPath) {
@@ -335,6 +362,8 @@ namespace reprostim {
 			REPROMON_INFO,
 			appName + " USB device disconnected: " + devPath
 		);
+		// reset usb scan retry count
+		usbScanCount = 0;
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -435,6 +464,8 @@ namespace reprostim {
 
 		tsInit = CURRENT_TIMESTAMP();
 		init_ts = getTimeStr(tsInit);
+		lastUsbScanTime = currentTimeMs();
+		usbScanCount = 0;
 		_INFO(init_ts << ": <><><> Starting " << appName << " " << CAPTURE_VERSION_STRING << " <><><>");
 		_INFO("    <> Saving output to            ===> " << opts.outPathTempl);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
@@ -474,6 +505,14 @@ namespace reprostim {
 				targetMwDevPath = "";
 				continue;
 			}
+
+			if( !checkUsbScan() ) {
+				_VERBOSE("Skip USB devices scan, last scan was " << (currentTimeMs() - lastUsbScanTime) << " ms ago, scan count=" << usbScanCount);
+				continue;
+			}
+
+			++usbScanCount;
+			lastUsbScanTime = currentTimeMs();
 
 			HCHANNEL hChannel = NULL;
 			if( !findTargetVideoDevice(cfg.has_device_serial_number?cfg.device_serial_number:"",
