@@ -142,12 +142,16 @@ namespace reprostim {
 	}
 
 	bool findTargetVideoDevice(const std::string &serialNumber,
-							   VideoDevice &vd) {
+							   VideoDevice &vd, bool refreshDev) {
 		vd.channelIndex = -1;
-		MW_RESULT mwRes = MWRefreshDevice();
-		if (mwRes != MW_SUCCEEDED) {
-			_ERROR("ERROR[004]: Failed MWRefreshDevice: " << mwRes);
-			return false;
+		MW_RESULT mwRes = MW_SUCCEEDED;
+		if( refreshDev ) {
+			_VERBOSE("Refresh USB devices list with MWRefreshDevice() ...");
+			mwRes = MWRefreshDevice();
+			if (mwRes != MW_SUCCEEDED) {
+				_ERROR("ERROR[004]: Failed MWRefreshDevice: " << mwRes);
+				return false;
+			}
 		}
 		int nCount = MWGetChannelCount();
 

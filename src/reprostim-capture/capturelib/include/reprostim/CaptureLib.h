@@ -117,7 +117,7 @@ namespace reprostim {
 
 	std::string expandMacros(const std::string &text, const SDict &dict);
 
-	bool findTargetVideoDevice(const std::string &serialNumber, VideoDevice &vd);
+	bool findTargetVideoDevice(const std::string &serialNumber, VideoDevice &vd, bool refreshDev=true);
 
 	// returns audio device ALSA path and sound card ALSA name
 	AudioInDevice getAudioInDevice(const std::string &busInfo,

@@ -506,7 +506,8 @@ namespace reprostim {
 				continue;
 			}
 
-			if( !checkUsbScan() ) {
+			bool fRefreshDev = checkUsbScan();
+			if( !fRefreshDev ) {
 				_VERBOSE("Skip USB devices scan, last scan was " << (currentTimeMs() - lastUsbScanTime) << " ms ago, scan count=" << usbScanCount);
 				continue;
 			}
@@ -516,7 +517,7 @@ namespace reprostim {
 
 			HCHANNEL hChannel = NULL;
 			if( !findTargetVideoDevice(cfg.has_device_serial_number?cfg.device_serial_number:"",
-									   targetVideoDev) ) {
+									   targetVideoDev, fRefreshDev) ) {
 				onCaptureStop(":\tStopped recording. No channels!");
 				_VERBOSE("Wait, no channels found");
 				continue;
