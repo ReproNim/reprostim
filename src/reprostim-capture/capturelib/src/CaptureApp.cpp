@@ -481,6 +481,7 @@ namespace reprostim {
 		}
 
 		_INFO("    <> Instance tag                ===> " << instanceTag);
+		_VERBOSE("    <> USB scan mode               ===> " << (cfg.usb_scan_mode==UsbScanMode::POLL?"poll":"hotplug"));
 
 		BOOL fInit = MWCaptureInitInstance();
 		if( !fInit )
