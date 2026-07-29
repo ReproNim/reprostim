@@ -173,7 +173,7 @@ namespace reprostim {
 			closeChannel();
 		}
 
-		lastChannel = MWOpenChannelByPath(devPath);
+		lastChannel = MWOpenChannelByPath(devPath.c_str());
 		lastChannelDevPath = devPath;
 		return lastChannel;
 	}
