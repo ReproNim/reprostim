@@ -164,6 +164,21 @@ namespace reprostim {
 		return nullptr;
 	}
 
+	HCHANNEL CaptureApp::getChannel(const std::string& devPath) {
+		// hotplug logic with cached channel or reset otherwise
+		if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG ) {
+			if( lastChannelDevPath==devPath )
+				return lastChannel;
+
+			closeChannel();
+		}
+
+		lastChannel = MWOpenChannelByPath(devPath);
+		lastChannelDevPath = devPath;
+		return lastChannel;
+	}
+
+
 	void CaptureApp::listDevices(const std::string& devices) {
 		printVersion();
 		if( !(devices == "all" || devices == "audio" || devices == "video") ) {
@@ -353,6 +368,7 @@ namespace reprostim {
 		);
 		// reset usb scan retry count
 		usbScanCount = 0;
+		lastChannelReset = true;
 	}
 
 	void CaptureApp::onUsbDevLeft(const std::string& devPath) {
@@ -364,6 +380,7 @@ namespace reprostim {
 		);
 		// reset usb scan retry count
 		usbScanCount = 0;
+		lastChannelReset = true;
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -380,6 +397,15 @@ namespace reprostim {
 		} else {
 			_INFO(CAPTURE_VERSION_STRING);
 		}
+	}
+
+	void CaptureApp::releaseChannel(bool forceClose) {
+		// don't release channel in hotplug mode unless forceClose is true
+		if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG && !forceClose )
+			return;
+
+		safeMWCloseChannel(lastChannel);
+		lastChannelDevPath.clear();
 	}
 
 	int CaptureApp::run(int argc, char* argv[]) {
@@ -466,6 +492,9 @@ namespace reprostim {
 		init_ts = getTimeStr(tsInit);
 		lastUsbScanTime = currentTimeMs();
 		usbScanCount = 0;
+		lastChannel = NULL;
+		lastChannelDevPath.clear();
+		lastChannelReset = false;
 		_INFO(init_ts << ": <><><> Starting " << appName << " " << CAPTURE_VERSION_STRING << " <><><>");
 		_INFO("    <> Saving output to            ===> " << opts.outPathTempl);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
@@ -500,6 +529,13 @@ namespace reprostim {
 
 		do {
 			SLEEP_SEC(1);
+
+			if( lastChannelReset ) {
+				lastChannelReset = false;
+
+				if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG )
+					closeChannel();
+			}
 
 			if( !targetMwDevPath.empty() && disconnDevContains(targetMwDevPath) ) {
 				onCaptureStop("Target USB device instance " + targetMwDevPath + " disconnected");
@@ -540,7 +576,7 @@ namespace reprostim {
 			}
 
 			// TODO: check res
-			hChannel = MWOpenChannelByPath(wPath);
+			hChannel = getChannel(wPath);
 
 			// TODO: check res
 			MWGetVideoSignalStatus(hChannel, &vssCur);
@@ -625,7 +661,7 @@ namespace reprostim {
 			}
 
 			vssPrev = vssCur;
-			safeMWCloseChannel(hChannel);
+			releaseChannel();
 
 			// check config changed
 			std::string configHash2 = getFileChangeHash(opts.configPath);
@@ -636,6 +672,8 @@ namespace reprostim {
 				fRun = false;
 			}
 		} while (fRun && !isSysBreakExec());
+
+		closeChannel(); // double check force close channel on exit
 
 		onCaptureStop("Program terminated");
 

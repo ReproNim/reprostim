@@ -136,6 +136,9 @@ namespace reprostim {
 		std::string               targetMwDevPath;
 		std::string               targetVideoDevPath;
 		std::string               targetAudioInDevPath;
+		HCHANNEL                  lastChannel;
+		std::string               lastChannelDevPath;
+		std::atomic<bool>         lastChannelReset;
 		long long                 lastUsbScanTime;
 		std::atomic<int>          usbScanCount;
 
@@ -146,8 +149,10 @@ namespace reprostim {
 		~CaptureApp();
 
 		bool checkUsbScan();
+		void closeChannel();
 		std::string createOutPath(const std::optional<Timestamp> &ts = std::nullopt, bool fCreateDir = true);
 		SessionLogger_ptr createSessionLogger(const std::string& name, const std::string& filePath);
+		HCHANNEL getChannel(const std::string& devPath);
 		void listDevices(const std::string& devices);
 		virtual bool loadConfig(AppConfig& cfg, const std::string& pathConfig);
 		virtual void onCaptureIdle();
@@ -158,6 +163,7 @@ namespace reprostim {
 		virtual void onUsbDevLeft(const std::string& devPath);
 		virtual int  parseOpts(AppOpts& opts, int argc, char* argv[]);
 		void printVersion(bool fExpanded = false);
+		void releaseChannel(bool forceClose=false);
 		int  run(int argc, char* argv[]);
 	};
 
@@ -166,6 +172,10 @@ namespace reprostim {
 	UsbScanMode parseUsbScanMode(const std::string &usm);
 
 	// inline methods
+
+	inline void CaptureApp::closeChannel() {
+		releaseChannel(true);
+	}
 
 	inline void CaptureApp::disconnDevAdd(const std::string& devPath) {
 		_SYNC();
