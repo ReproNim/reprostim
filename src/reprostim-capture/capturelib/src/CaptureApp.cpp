@@ -43,6 +43,18 @@ namespace reprostim {
 		return oss.str();
 	}
 
+	UsbScanMode parseUsbScanMode(const std::string &usm) {
+		if (usm.empty()) {
+			return UsbScanMode::DEFAULT;
+		} else if (usm == "poll") {
+			return UsbScanMode::POLL;
+		} else if (usm == "hotplug") {
+			return UsbScanMode::HOTPLUG;
+		} else {
+			return UsbScanMode::UNKNOWN;
+		}
+	}
+
 	void signalHandler(int signum) {
 		//_INFO("Signal received: " << signum);
 		if (signum == SIGINT) {
@@ -75,6 +87,31 @@ namespace reprostim {
 		pRepromonQueue = nullptr;
 		unregisterFileLogger(_FILE_LOGGER_NAME);
 		setLogPattern(LogPattern::SIMPLE);
+	}
+
+	bool CaptureApp::checkUsbScan() {
+		if( cfg.usb_scan_mode == UsbScanMode::POLL ) {
+			return true;
+		}
+
+		if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG ) {
+			// check if retry count is exceeded
+			if (usbScanCount <= USB_SCAN_HOTPLUG_RETRY_COUNT) {
+				_VERBOSE("USB hotplug scan retry count below threshold: " << usbScanCount << " <= " << USB_SCAN_HOTPLUG_RETRY_COUNT);
+				return true;
+			}
+
+			// check if enough time has passed since the last scan
+			long long now = currentTimeMs();
+			if (now - lastUsbScanTime >= USB_SCAN_HOTPLUG_INTERVAL_MS) {
+				_VERBOSE("USB hotplug scan interval exceeded: " << (now - lastUsbScanTime) << " ms");
+				return true;
+			}
+
+			// no scans needed
+			return false;
+		}
+		return false;
 	}
 
 	std::string CaptureApp::createOutPath(const std::optional<Timestamp> &ts, bool fCreateDir) {
@@ -126,6 +163,21 @@ namespace reprostim {
 		}
 		return nullptr;
 	}
+
+	HCHANNEL CaptureApp::getChannel(const std::string& devPath) {
+		// hotplug logic with cached channel or reset otherwise
+		if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG ) {
+			if( lastChannelDevPath==devPath )
+				return lastChannel;
+
+			closeChannel();
+		}
+
+		lastChannel = MWOpenChannelByPath(devPath.c_str());
+		lastChannelDevPath = devPath;
+		return lastChannel;
+	}
+
 
 	void CaptureApp::listDevices(const std::string& devices) {
 		printVersion();
@@ -182,6 +234,16 @@ namespace reprostim {
 			cfg.session_logger_enabled = getYamlProp<bool>(doc, "session_logger_enabled");
 			cfg.session_logger_level = parseLogLevel(getYamlProp<std::string>(doc, "session_logger_level"));
 			cfg.session_logger_pattern = getYamlProp<std::string>(doc, "session_logger_pattern");
+		}
+
+		if( doc["usb_scan_mode"] ) {
+			std::string usm = getYamlProp<std::string>(doc, "usb_scan_mode");
+			cfg.usb_scan_mode = parseUsbScanMode(usm);
+			if( cfg.usb_scan_mode == UsbScanMode::UNKNOWN ) {
+				_ERROR("Invalid usb_scan_mode in config.yaml: " << usm
+					   << ", must be 'hotplug', 'poll' or not set (default)");
+				return false;
+			}
 		}
 
 		if( doc["ffm_opts"] ) {
@@ -304,6 +366,9 @@ namespace reprostim {
 			REPROMON_INFO,
 			appName + " USB device connected: " + devPath
 		);
+		// reset usb scan retry count
+		usbScanCount = 0;
+		lastChannelReset = true;
 	}
 
 	void CaptureApp::onUsbDevLeft(const std::string& devPath) {
@@ -313,6 +378,9 @@ namespace reprostim {
 			REPROMON_INFO,
 			appName + " USB device disconnected: " + devPath
 		);
+		// reset usb scan retry count
+		usbScanCount = 0;
+		lastChannelReset = true;
 	}
 
 	int CaptureApp::parseOpts(AppOpts& opts, int argc, char* argv[]) {
@@ -329,6 +397,15 @@ namespace reprostim {
 		} else {
 			_INFO(CAPTURE_VERSION_STRING);
 		}
+	}
+
+	void CaptureApp::releaseChannel(bool forceClose) {
+		// don't release channel in hotplug mode unless forceClose is true
+		if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG && !forceClose )
+			return;
+
+		safeMWCloseChannel(lastChannel);
+		lastChannelDevPath.clear();
 	}
 
 	int CaptureApp::run(int argc, char* argv[]) {
@@ -413,6 +490,11 @@ namespace reprostim {
 
 		tsInit = CURRENT_TIMESTAMP();
 		init_ts = getTimeStr(tsInit);
+		lastUsbScanTime = currentTimeMs();
+		usbScanCount = 0;
+		lastChannel = NULL;
+		lastChannelDevPath.clear();
+		lastChannelReset = false;
 		_INFO(init_ts << ": <><><> Starting " << appName << " " << CAPTURE_VERSION_STRING << " <><><>");
 		_INFO("    <> Saving output to            ===> " << opts.outPathTempl);
 		_INFO("    <> Recording from Video Device ===> " << cfg.ffm_opts.v_dev
@@ -428,6 +510,7 @@ namespace reprostim {
 		}
 
 		_INFO("    <> Instance tag                ===> " << instanceTag);
+		_VERBOSE("    <> USB scan mode               ===> " << (cfg.usb_scan_mode==UsbScanMode::POLL?"poll":"hotplug"));
 
 		BOOL fInit = MWCaptureInitInstance();
 		if( !fInit )
@@ -447,15 +530,30 @@ namespace reprostim {
 		do {
 			SLEEP_SEC(1);
 
+			if( lastChannelReset ) {
+				lastChannelReset = false;
+
+				if( cfg.usb_scan_mode == UsbScanMode::HOTPLUG )
+					closeChannel();
+			}
+
 			if( !targetMwDevPath.empty() && disconnDevContains(targetMwDevPath) ) {
 				onCaptureStop("Target USB device instance " + targetMwDevPath + " disconnected");
 				targetMwDevPath = "";
 				continue;
 			}
 
+			bool fRefreshDev = checkUsbScan();
+			if( !fRefreshDev ) {
+				_VERBOSE("Skip USB devices scan, last scan was " << (currentTimeMs() - lastUsbScanTime) << " ms ago, scan count=" << usbScanCount);
+			} else {
+				++usbScanCount;
+				lastUsbScanTime = currentTimeMs();
+			}
+
 			HCHANNEL hChannel = NULL;
 			if( !findTargetVideoDevice(cfg.has_device_serial_number?cfg.device_serial_number:"",
-									   targetVideoDev) ) {
+									   targetVideoDev, fRefreshDev) ) {
 				onCaptureStop(":\tStopped recording. No channels!");
 				_VERBOSE("Wait, no channels found");
 				continue;
@@ -478,7 +576,7 @@ namespace reprostim {
 			}
 
 			// TODO: check res
-			hChannel = MWOpenChannelByPath(wPath);
+			hChannel = getChannel(wPath);
 
 			// TODO: check res
 			MWGetVideoSignalStatus(hChannel, &vssCur);
@@ -563,7 +661,7 @@ namespace reprostim {
 			}
 
 			vssPrev = vssCur;
-			safeMWCloseChannel(hChannel);
+			releaseChannel();
 
 			// check config changed
 			std::string configHash2 = getFileChangeHash(opts.configPath);
@@ -574,6 +672,8 @@ namespace reprostim {
 				fRun = false;
 			}
 		} while (fRun && !isSysBreakExec());
+
+		closeChannel(); // double check force close channel on exit
 
 		onCaptureStop("Program terminated");
 
