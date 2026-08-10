@@ -53,12 +53,12 @@ jobs:
         echo "- STEP 3"
         hatch run pip install --upgrade pip
         echo "- STEP 4"
-        hatch run pip install pytest pytest-cov reedsolo scipy psutil
+        hatch run pip install pytest pytest-cov reedsolo scipy
       shell: bash
 
     - name: Install reprostim
       run: |
-        hatch run pip install -e .
+        hatch run pip install -e ".[disp_mon]"
         hatch build
 
     - name: Run pytest
