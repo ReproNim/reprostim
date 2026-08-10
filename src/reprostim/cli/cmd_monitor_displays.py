@@ -102,4 +102,4 @@ def monitor_displays(
     logger.debug(f"reprostim monitor-displays script finished: {res}")
     logger.debug(f"Exit on   : {datetime.now()}")
     logger.debug(f"Exit code : {res}")
-    return res
+    ctx.exit(res)

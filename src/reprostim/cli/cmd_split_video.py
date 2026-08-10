@@ -245,4 +245,4 @@ def split_video(
         click.echo(
             f"Command 'split-video' completed in {elapsed_sec} sec, exit code {res}"
         )
-    return res
+    ctx.exit(res)

@@ -250,4 +250,4 @@ def bids_inject(
         click.echo(
             f"Command 'bids-inject' completed in {elapsed_sec} sec, exit code {res}"
         )
-    return res
+    ctx.exit(res)
