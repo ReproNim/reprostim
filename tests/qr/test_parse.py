@@ -721,3 +721,17 @@ def test_cli_invalid_path(cli_runner, tmp_path):
     """CLI exits non-zero for a path that does not exist."""
     result = cli_runner.invoke(qr_parse_cmd, [str(tmp_path / "missing.mkv")])
     assert result.exit_code != 0
+
+
+def test_cli_nonzero_do_main_result_propagated_to_exit_code(cli_runner, tmp_path):
+    """A non-zero do_main() result must become the process exit code.
+
+    Regression test: the command used to `return res` from the Click
+    callback, which Click's standalone-mode main() silently discards
+    (the process exits 0 no matter what `res` was, unless an exception
+    is raised or ctx.exit()/sys.exit() is called explicitly).
+    """
+    video = _video(tmp_path)
+    with patch("reprostim.qr.parse.do_main", return_value=7):
+        result = cli_runner.invoke(qr_parse_cmd, [str(video)])
+    assert result.exit_code == 7

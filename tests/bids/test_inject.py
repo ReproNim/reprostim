@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytest
+from click.testing import CliRunner
 
 from reprostim.bids.inject import (
     _REPROSTIM_COLS,
@@ -50,6 +51,7 @@ from reprostim.bids.inject import (
     dt_utc_to_bids,
     dt_utc_to_reprostim,
 )
+from reprostim.cli.cmd_bids_inject import bids_inject
 from reprostim.video.audit import AudioInfo, VideoInfo
 from reprostim.video.split import SplitResult
 
@@ -1659,3 +1661,55 @@ def test_scans_tsv_dry_run_does_not_modify_file(tmp_path):
     )
 
     assert scans_tsv.read_text(encoding="utf-8") == original_content
+
+
+# ===========================================================================
+# CLI tests (Click CliRunner) for cmd_bids_inject
+# ===========================================================================
+
+
+def test_cli_help_renders_without_error():
+    """--help exits with code 0 and produces output."""
+    result = CliRunner().invoke(bids_inject, ["--help"])
+    assert result.exit_code == 0
+    assert "Usage" in result.output
+
+
+def test_cli_missing_videos_option_nonzero_exit(tmp_path):
+    """Omitting the required -f/--videos option produces a non-zero exit."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    result = CliRunner().invoke(bids_inject, [str(scans_tsv)])
+    assert result.exit_code != 0
+
+
+def test_cli_nonzero_do_main_result_propagated_to_exit_code(tmp_path):
+    """A non-zero do_main() result must become the process exit code.
+
+    Regression test: the command used to `return res` from the Click
+    callback, which Click's standalone-mode main() silently discards
+    (the process exits 0 no matter what `res` was, unless an exception
+    is raised or ctx.exit()/sys.exit() is called explicitly). This is
+    the exact bug reported from a real Linux run of bids-inject.
+    """
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=3):
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv],
+        )
+    assert result.exit_code == 3
+
+
+def test_cli_zero_do_main_result_exits_zero(tmp_path):
+    """A zero do_main() result still exits 0 (baseline success case)."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0):
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv],
+        )
+    assert result.exit_code == 0
