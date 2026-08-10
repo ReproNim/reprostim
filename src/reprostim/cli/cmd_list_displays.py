@@ -42,4 +42,4 @@ def list_displays(ctx, provider: str, fmt: str):
     logger.debug(f"reprostim list-displays script finished: {res}")
     logger.debug(f"Exit on   : {datetime.now()}")
     logger.debug(f"Exit code : {res}")
-    return res
+    ctx.exit(res)

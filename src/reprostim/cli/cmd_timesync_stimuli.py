@@ -187,8 +187,8 @@ def timesync_stimuli(
     os.environ["REPROSTIM_AUDIO_LIB"] = audio_lib
 
     if not do_init(output):
-        logger.error()
-        return -1
+        logger.error("do_init(...) failed")
+        ctx.exit(1)
 
     res = do_main(
         mode,
@@ -220,4 +220,4 @@ def timesync_stimuli(
     logger.info(f"reprostim timesync-stimuli script finished: {res}")
     logger.info(f"Exit on   : {datetime.now()}")
     logger.info(f"Exit code : {res}")
-    return res
+    ctx.exit(res)

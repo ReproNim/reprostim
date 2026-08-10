@@ -15,7 +15,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import CliRunner
 
+from reprostim.cli.cmd_split_video import split_video
 from reprostim.video.audit import VaRecord
 from reprostim.video.split import (
     BufferPolicy,
@@ -834,10 +836,6 @@ def test_do_main_specs_per_spec_failure_continues_processing(mock_csd, mock_sv):
 # CLI tests (Click CliRunner) for cmd_split_video
 # ===========================================================================
 
-from click.testing import CliRunner  # noqa: E402
-
-from reprostim.cli.cmd_split_video import split_video  # noqa: E402
-
 
 @pytest.fixture()
 def input_video(tmp_path: Path) -> str:
@@ -1382,3 +1380,26 @@ def test_cli_verbose_emits_completed_message(input_video):
             ],
         )
     assert "completed" in result.output.lower()
+
+
+def test_cli_nonzero_do_main_result_propagated_to_exit_code(input_video):
+    """A non-zero do_main() result must become the process exit code.
+
+    Regression test: the command used to `return res` from the Click
+    callback, which Click's standalone-mode main() silently discards
+    (the process exits 0 no matter what `res` was, unless an exception
+    is raised or ctx.exit()/sys.exit() is called explicitly).
+    """
+    with patch("reprostim.video.split.do_main", return_value=(5, [])):
+        result = CliRunner().invoke(
+            split_video,
+            [
+                "-i",
+                input_video,
+                "-o",
+                "out.mkv",
+                "--spec",
+                "2024-02-02T17:30:00/PT3M",
+            ],
+        )
+    assert result.exit_code == 5

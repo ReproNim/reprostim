@@ -160,4 +160,4 @@ def qr_parse(
 
     elapsed_sec = round(time.time() - start_time_sec, 1)
     logger.debug(f"Command 'qr-parse' completed in {elapsed_sec} sec, exit code {res}")
-    return res
+    ctx.exit(res)

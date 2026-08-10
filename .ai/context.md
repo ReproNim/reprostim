@@ -30,7 +30,10 @@ BIDS Integration & Documentation
 Main Python package with CLI tools and analysis utilities.
 
 **Key Modules:**
-- **cli/** - Command-line interface (Click-based with DYMGroup for suggestions)
+- **cli/** - Command-line interface (Click-based with DYMGroup for suggestions). All command
+  callbacks must propagate their `do_main()`-style result via `ctx.exit(res)`, never a plain
+  `return res` — Click's standalone-mode `main()` silently discards a callback's return value
+  (see [cli/exit-codes-spec.md](cli/exit-codes-spec.md), [cli/exit-codes-tasks.md](cli/exit-codes-tasks.md))
   - `entrypoint.py` - Main CLI dispatcher
   - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [qr/parse-spec.md](qr/parse-spec.md))
   - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation (see [qr/timesync-stimuli-tasks.md](qr/timesync-stimuli-tasks.md))
