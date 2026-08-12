@@ -28,7 +28,7 @@ Optionally, in case `con/duct` tool is used and `conduct_opts.enabled` is set to
    - g++ (C++20)
    - CMake 3.10+
    - Packages:
-     - Magewell Capture SDK for Linux 3.3.1.1313
+     - Magewell Capture SDK for Linux 3.3.1.1515
      - libv4l2
      - libv4l-dev
      - libudev-dev

@@ -1,7 +1,7 @@
 [SDK]
 
 Current Magewell Capture SDK for Linux:
-    https://www.magewell.com/files/sdk/Magewell_Capture_SDK_Linux_3.3.1.1313.tar.gz
+    https://www.magewell.com/files/sdk/Magewell_Capture_SDK_Linux_3.3.1.1515.tar.gz
 
 [Audio device monitoring notes]
 
