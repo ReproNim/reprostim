@@ -49,7 +49,7 @@ execute_process(
 
 # ARCH:=$(shell uname -m)
 set(ARCH x64)
-set(MWCAPTURE_SDK_HOME 3rdparty/MWCapture_SDK_Linux-3_3_1_1313)
+set(MWCAPTURE_SDK_HOME 3rdparty/MWCapture_SDK_Linux-3_3_1_1515)
 
 # capture utilities installation directory
 set(CAPTURE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin)

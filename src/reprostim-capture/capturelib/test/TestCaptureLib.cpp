@@ -133,7 +133,7 @@ TEST_CASE("TestCaptureLib_mwcSdkVersion",
 		  "[capturelib][mwcSdkVersion]") {
 	std::string version = mwcSdkVersion();
 	REQUIRE(version.length() > 0);
-	REQUIRE(version == "3.3.1313");
+	REQUIRE(version == "3.3.1515");
 }
 
 // test for checkOutDir
