@@ -116,6 +116,13 @@ func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T
 > makes it possible to resume or validate a subsequent `bids-qr-sync` pass without
 > re-scanning the source video from scratch.
 
+**`scans.json` sidecar:** `src/reprostim/assets/bids/scans.json` provides a default BIDS
+data-dictionary sidecar (`LongName`/`Description`/`Units` per BIDS's tabular-file column
+metadata schema, the same shape used for `_events.json`) documenting `filename`, `acq_time`,
+and all four `reprostim_*` columns above. It's a static reference asset (not currently read
+or written by `do_main`) intended for users to copy alongside an injected `_scans.tsv` to
+document the `reprostim_*` columns per the BIDS spec.
+
 ### C) QR codes file — BIDS _events-like .tsv
 
 If QR codes were parsed from the video (`--qr` mode is not `none`), the decoded QR records

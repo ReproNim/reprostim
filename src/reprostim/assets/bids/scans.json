@@ -1,0 +1,28 @@
+{
+  "filename": {
+    "Description": "Name of the nifti file"
+  },
+  "acq_time": {
+    "LongName": "Acquisition time",
+    "Description": "Acquisition time of the particular scan"
+  },
+  "reprostim_path": {
+    "LongName": "ReproStim source video path",
+    "Description": "Path to the source .mkv file the injected recording was sliced from, relative to the videos.tsv location"
+  },
+  "reprostim_offset": {
+    "LongName": "ReproStim buffer-segment offset",
+    "Description": "Offset of the buffer-segment start into the source video",
+    "Units": "s"
+  },
+  "reprostim_buffer_before": {
+    "LongName": "ReproStim buffer before scan onset",
+    "Description": "Actual buffer prepended before scan onset",
+    "Units": "s"
+  },
+  "reprostim_buffer_after": {
+    "LongName": "ReproStim buffer after scan end",
+    "Description": "Actual buffer appended after scan end",
+    "Units": "s"
+  }
+}

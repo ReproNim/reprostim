@@ -139,6 +139,8 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] Handle re-runs: update existing `reprostim_*` columns in-place (don't duplicate)
 - [x] Skip write-back in `--dry-run` mode
 - [x] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
+- [x] `src/reprostim/assets/bids/scans.json` — default BIDS data-dictionary sidecar documenting
+      `filename`, `acq_time`, and all four `reprostim_*` columns (`LongName`/`Description`/`Units`)
 
 ---
 
