@@ -856,6 +856,74 @@ def _run(
     return ret, output
 
 
+def test_do_main_reports_error_when_dataset_home_missing(tmp_path):
+    """do_main() returns 1 and reports an error when dataset_home doesn't exist.
+
+    The CLI layer already rejects a missing --dataset path via
+    click.Path(exists=True), but do_main() is also callable directly
+    (e.g. from other code or tests), so it must not silently accept an
+    invalid dataset_home. Reported as a normal error result (matching the
+    rest of do_main's error handling) rather than an exception, so it
+    propagates as a non-zero CLI exit code via the usual do_main -> ctx.exit()
+    path instead of an uncaught traceback.
+    """
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    out = []
+    ret = do_main(
+        paths=[_SCANS_TSV],
+        videos_tsv=videos_tsv,
+        dataset_home=str(tmp_path / "does-not-exist"),
+        recursive=False,
+        match=".*",
+        buffer_before="0",
+        buffer_after="0",
+        buffer_policy="flexible",
+        time_offset=0.0,
+        qr="none",
+        layout="nearby",
+        reprostim_timezone="UTC",
+        bids_timezone="UTC",
+        dry_run=True,
+        overwrite="skip",
+        lock=False,
+        verbose=False,
+        out_func=out.append,
+    )
+    assert ret == 1
+    assert any("does-not-exist" in line for line in out)
+
+
+def test_do_main_reports_error_when_dataset_home_is_file(tmp_path):
+    """do_main() returns 1 and reports an error when dataset_home is a file,
+    not a directory."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    not_a_dir = tmp_path / "not-a-dir.txt"
+    not_a_dir.write_text("")
+    out = []
+    ret = do_main(
+        paths=[_SCANS_TSV],
+        videos_tsv=videos_tsv,
+        dataset_home=str(not_a_dir),
+        recursive=False,
+        match=".*",
+        buffer_before="0",
+        buffer_after="0",
+        buffer_policy="flexible",
+        time_offset=0.0,
+        qr="none",
+        layout="nearby",
+        reprostim_timezone="UTC",
+        bids_timezone="UTC",
+        dry_run=True,
+        overwrite="skip",
+        lock=False,
+        verbose=False,
+        out_func=out.append,
+    )
+    assert ret == 1
+    assert any("not-a-dir.txt" in line for line in out)
+
+
 def test_integration_dry_run_two_matching_videos(tmp_path):
     """Two functional scans each matched by a distinct video → 2 injected,
     1 skipped (anat)."""

@@ -9,6 +9,10 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `PATHS` argument — one or more `_scans.tsv` files or directories
 - [x] `-f / --videos` — path to `videos.tsv`
 - [x] `-d / --dataset` — BIDS dataset home directory, default `.`.
+- [x] `do_main` re-validates `dataset_home` exists and is a directory, independent of the
+      CLI's own `click.Path(exists=True)` check (covers direct callers that bypass the CLI) —
+      reports via `out_func`/`logger.error` and returns `1`, not an exception, so it surfaces
+      as a normal non-zero CLI exit code
 - [x] `-r / --recursive` — recurse into subdirectories
 - [x] `-b / --buffer-before` — extra video before scan onset
 - [x] `-a / --buffer-after` — extra video after scan end

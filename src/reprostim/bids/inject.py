@@ -1462,6 +1462,15 @@ def do_main(
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
+    if not os.path.isdir(dataset_home):
+        err_msg = (
+            f"--dataset path does not exist or is not a directory: {dataset_home!r}"
+        )
+        logger.error(err_msg)
+        if out_func:
+            out_func(f"ERROR: {err_msg}")
+        return 1
+
     ctx: BiContext = BiContext(
         dataset_home=dataset_home,
         dry_run=dry_run,
