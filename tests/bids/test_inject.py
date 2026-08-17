@@ -1713,3 +1713,22 @@ def test_cli_zero_do_main_result_exits_zero(tmp_path):
             [str(scans_tsv), "-f", videos_tsv],
         )
     assert result.exit_code == 0
+
+
+def test_cli_dry_run_short_flag_is_n(tmp_path):
+    """`-n` is the --dry-run short flag; forwarded to do_main as dry_run=True.
+
+    Regression test: `--dry-run`'s short flag was changed from `-d` to `-n`
+    (rsync/make "no-op" convention) to free up `-d` for a planned
+    `--dataset` option.
+    """
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv, "-n"],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["dry_run"] is True

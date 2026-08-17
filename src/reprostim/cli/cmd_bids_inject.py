@@ -133,7 +133,7 @@ logger = logging.getLogger(__name__)
     "functional scans only.",
 )
 @click.option(
-    "-d",
+    "-n",
     "--dry-run",
     is_flag=True,
     default=False,

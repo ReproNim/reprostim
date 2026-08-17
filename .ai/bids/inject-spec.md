@@ -179,7 +179,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-z / --reprostim-timezone TIMEZONE`            | String          | `local`    | Timezone of the ReproStim capture machine, applied to naive `videos.tsv` timestamps (see Timezone Handling below).                                                                                                                                  |
 | `-Z / --bids-timezone TIMEZONE`                 | String          | `local`    | Timezone assumed for naive BIDS `acq_time` values. When omitted, defaults to the value of `--reprostim-timezone` (see Timezone Handling below).                                                                                                    |
 | `-m / --match REGEX`                            | String          | `.*`       | Regular expression matched against the `filename` field of each scan record. Only records whose `filename` matches are processed; all others are skipped. Default `.*` matches every record. Example: `func/` to restrict to functional scans only. |
-| `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
+| `-n / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
 | `-w / --overwrite [skip\|force\|always\|error]` | Choice          | `skip`     | Policy for handling existing output files (see Overwrite Mode below).                                                                                                                                                                               |
 | `-k / --lock [yes\|no]`                         | Choice          | `yes`      | Whether to acquire a file lock (`videos.tsv.lock`) before reading `videos.tsv`. Use `no` for dirty-read mode when the lock is held by another user (see Lock / Dirty-read Mode below).                                                              |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                                                                                                                                                 |
@@ -284,6 +284,10 @@ reprostim bids-inject \
 ---
 
 ## Dry-Run Mode
+
+`--dry-run`'s short flag is `-n` (not `-d`), matching the `rsync`/`make` "no-op" convention —
+`-d` is reserved for a planned `--dataset` option (BIDS dataset root, default `.`, home of
+`scans.json`) that will be used more frequently and deserves the more obvious mnemonic letter.
 
 When `--dry-run` is set, `bids-inject` performs all analysis steps — loading `videos.tsv`,
 discovering `*_scans.tsv` files, resolving scan durations, matching videos, determining output

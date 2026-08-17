@@ -18,7 +18,8 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `-z / --reprostim-timezone` — timezone for `videos.tsv` timestamps
 - [x] `-Z / --bids-timezone` — timezone for BIDS `acq_time` values
 - [x] `-m / --match REGEX` — filter scan records by filename
-- [x] `-d / --dry-run`
+- [x] `-n / --dry-run` — short flag changed from `-d` to `-n` (rsync/make "no-op" convention);
+      `-d` reserved for a planned `--dataset` option
 - [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
 - [x] `-v / --verbose`
