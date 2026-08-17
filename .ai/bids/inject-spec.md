@@ -119,9 +119,11 @@ func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T
 **`scans.json` sidecar:** `src/reprostim/assets/bids/scans.json` provides a default BIDS
 data-dictionary sidecar (`LongName`/`Description`/`Units` per BIDS's tabular-file column
 metadata schema, the same shape used for `_events.json`) documenting `filename`, `acq_time`,
-and all four `reprostim_*` columns above. It's a static reference asset (not currently read
-or written by `do_main`) intended for users to copy alongside an injected `_scans.tsv` to
-document the `reprostim_*` columns per the BIDS spec.
+and all four `reprostim_*` columns above. It's a static reference asset — `do_main` receives
+the dataset root via `--dataset`/`-d` (`BiContext.dataset_home`, default `.`) but does not yet
+read or write a `scans.json` there; wiring `do_main` to create/update it at
+`<dataset_home>/scans.json` from this default (creating if missing, merging in any missing
+`reprostim_*` entries if present) is tracked as follow-up work.
 
 ### C) QR codes file — BIDS _events-like .tsv
 
@@ -169,6 +171,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | Option                                          | Type            | Default    | Description                                                                                                                                                                                                                                         |
 |-------------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-f / --videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location.                                                                                                                          |
+| `-d / --dataset PATH`                           | Path (dir)      | `.`        | Home directory of the BIDS dataset being injected into (e.g. contains `scans.json`). Propagated into `BiContext.dataset_home`; not yet read or written by `do_main` (see `scans.json` sidecar note below).                                       |
 | `-r / --recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                                                                                                                                                    |
 | `-b / --buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                                                                                                                                                      |
 | `-a / --buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                                                                                                                                         |
@@ -286,8 +289,8 @@ reprostim bids-inject \
 ## Dry-Run Mode
 
 `--dry-run`'s short flag is `-n` (not `-d`), matching the `rsync`/`make` "no-op" convention —
-`-d` is reserved for a planned `--dataset` option (BIDS dataset root, default `.`, home of
-`scans.json`) that will be used more frequently and deserves the more obvious mnemonic letter.
+`-d` is used for the `--dataset` option instead (BIDS dataset root, default `.`, home of
+`scans.json`), which is used more frequently and deserves the more obvious mnemonic letter.
 
 When `--dry-run` is set, `bids-inject` performs all analysis steps — loading `videos.tsv`,
 discovering `*_scans.tsv` files, resolving scan durations, matching videos, determining output

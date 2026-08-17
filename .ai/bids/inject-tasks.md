@@ -8,6 +8,7 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 
 - [x] `PATHS` argument — one or more `_scans.tsv` files or directories
 - [x] `-f / --videos` — path to `videos.tsv`
+- [x] `-d / --dataset` — BIDS dataset home directory, default `.`.
 - [x] `-r / --recursive` — recurse into subdirectories
 - [x] `-b / --buffer-before` — extra video before scan onset
 - [x] `-a / --buffer-after` — extra video after scan end
@@ -19,7 +20,7 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `-Z / --bids-timezone` — timezone for BIDS `acq_time` values
 - [x] `-m / --match REGEX` — filter scan records by filename
 - [x] `-n / --dry-run` — short flag changed from `-d` to `-n` (rsync/make "no-op" convention);
-      `-d` reserved for a planned `--dataset` option
+      `-d` now used for `--dataset` above
 - [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
 - [x] `-v / --verbose`

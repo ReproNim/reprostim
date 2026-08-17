@@ -127,6 +127,11 @@ class BiSummary(BaseModel):
 class BiContext(BaseModel):
     """Context for bids-inject processing of scan records."""
 
+    dataset_home: str = Field(
+        default=".",
+        description="Home directory of the BIDS dataset being injected into "
+        "(e.g. contains scans.json). Defaults to the current directory.",
+    )
     dry_run: bool = Field(
         ..., description="Whether to skip actual file writes and print planned actions"
     )
@@ -1371,6 +1376,7 @@ def dt_bids_to_reprostim(
 def do_main(
     paths: List[str],
     videos_tsv: str,
+    dataset_home: str,
     recursive: bool,
     match: str,
     buffer_before: str,
@@ -1397,6 +1403,9 @@ def do_main(
     :param videos_tsv: Path to ``videos.tsv`` produced by ``video-audit``.
         Video file paths inside the TSV are resolved relative to this file's location.
     :type videos_tsv: str
+    :param dataset_home: Home directory of the BIDS dataset being injected into
+        (e.g. contains ``scans.json``). Defaults to the current directory.
+    :type dataset_home: str
     :param recursive: When ``True``, recurse into subdirectories when searching
         for ``*_scans.tsv`` files.
     :type recursive: bool
@@ -1454,6 +1463,7 @@ def do_main(
     :rtype: int
     """
     ctx: BiContext = BiContext(
+        dataset_home=dataset_home,
         dry_run=dry_run,
         recursive=recursive,
         match=match,

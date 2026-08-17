@@ -31,6 +31,15 @@ logger = logging.getLogger(__name__)
     "are resolved relative to this file's location.",
 )
 @click.option(
+    "-d",
+    "--dataset",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=".",
+    show_default=True,
+    help="Home directory of the BIDS dataset being injected into "
+    "(e.g. contains scans.json). Defaults to the current directory.",
+)
+@click.option(
     "-r",
     "--recursive",
     is_flag=True,
@@ -174,6 +183,7 @@ def bids_inject(
     ctx,
     paths: tuple,
     videos: str,
+    dataset: str,
     recursive: bool,
     buffer_before: str,
     buffer_after: str,
@@ -203,6 +213,7 @@ def bids_inject(
     logger.debug(f"Working dir    : {os.getcwd()}")
     logger.info(f"PATHS          : {paths}")
     logger.info(f"videos.tsv     : {videos}")
+    logger.info(f"Dataset home   : {dataset}")
     logger.info(f"Recursive      : {recursive}")
     logger.info(f"Buffer before  : {buffer_before}")
     logger.info(f"Buffer after   : {buffer_after}")
@@ -225,6 +236,7 @@ def bids_inject(
     res = do_main(
         paths=list(paths),
         videos_tsv=videos,
+        dataset_home=dataset,
         recursive=recursive,
         match=match,
         buffer_before=buffer_before,

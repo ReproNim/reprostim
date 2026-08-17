@@ -836,6 +836,7 @@ def _run(
     ret = do_main(
         paths=paths,
         videos_tsv=videos_tsv,
+        dataset_home=".",
         recursive=False,
         match=match,
         buffer_before="0",
@@ -1732,3 +1733,45 @@ def test_cli_dry_run_short_flag_is_n(tmp_path):
         )
     assert result.exit_code == 0
     assert mock_dm.call_args.kwargs["dry_run"] is True
+
+
+def test_cli_dataset_defaults_to_current_directory(tmp_path):
+    """--dataset defaults to '.' when not specified."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["dataset_home"] == "."
+
+
+def test_cli_dataset_short_flag_forwarded(tmp_path):
+    """-d/--dataset is forwarded to do_main as dataset_home."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    dataset_dir = tmp_path / "dataset"
+    dataset_dir.mkdir()
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv, "-d", str(dataset_dir)],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["dataset_home"] == str(dataset_dir)
+
+
+def test_cli_dataset_nonexistent_dir_nonzero_exit(tmp_path):
+    """A --dataset path that doesn't exist is rejected by Click's Path(exists=True)."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    result = CliRunner().invoke(
+        bids_inject,
+        [str(scans_tsv), "-f", videos_tsv, "-d", str(tmp_path / "missing")],
+    )
+    assert result.exit_code != 0
