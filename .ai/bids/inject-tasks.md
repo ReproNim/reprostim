@@ -148,6 +148,20 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `src/reprostim/assets/bids/scans.json` — default BIDS data-dictionary sidecar documenting
       `filename`, `acq_time`, and all four `reprostim_*` columns (`LongName`/`Description`/`Units`)
 
+### E) scans.json data-dictionary sync
+- [x] `_load_default_scans_json()` — reads the packaged default sample via `importlib.resources`
+- [x] `_do_inject_scans_json(ctx)` — called by `_do_inject_all` as its first step, before any
+      path in `paths` is processed
+- [x] Creates `<dataset_home>/scans.json` verbatim from the default sample when missing
+- [x] No-op (no rewrite) when the existing file already has every default field
+- [x] Appends only the missing default fields when the existing file has some but not all;
+      existing fields (default or custom, e.g. a hand-added `operator` entry) are never
+      overwritten
+- [x] Invalid/unparseable existing `scans.json` → reported via `ctx.summary.errors`/`n_errors`
+      and `out_func`/`logger.error`, file left untouched, does not raise and does not abort
+      the rest of `_do_inject_all`
+- [x] Honours `--dry-run` — logs/reports what would change, writes nothing
+
 ---
 
 ## QR Modes
@@ -311,6 +325,20 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] Failed split → four columns written as `n/a` (stale values cleared)
 - [x] Re-run (columns already present) → columns updated in-place, no duplication
 - [x] `--dry-run` → `_scans.tsv` not modified
+
+### scans.json data-dictionary sync tests (`_do_inject_scans_json`)
+- [x] Missing `scans.json` → created verbatim from `_load_default_scans_json()`
+- [x] Existing `scans.json` with every default field (plus a custom field) → byte-for-byte
+      untouched (no-op)
+- [x] Existing `scans.json` missing some default fields → only those appended; existing
+      default and custom fields preserved untouched
+- [x] `--dry-run`, missing file → nothing written, `[DRY-RUN] Would create ...` reported
+- [x] `--dry-run`, incomplete file → nothing written, `[DRY-RUN] Would add missing field ...`
+      reported
+- [x] Invalid JSON in existing `scans.json` → reported via `ctx.summary`/`out_func`, file left
+      untouched, no exception raised
+- [x] `do_main` end-to-end (`dry_run=False`) → `<dataset_home>/scans.json` created as the
+      pipeline's first step, before any `_scans.tsv` is processed
 
 ### Overwrite mode tests
 

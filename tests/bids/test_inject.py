@@ -6,6 +6,7 @@
 
 import csv
 import io
+import json
 import re
 import shutil
 from datetime import datetime, time, timezone
@@ -20,6 +21,7 @@ from click.testing import CliRunner
 from reprostim.bids.inject import (
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
+    BiContext,
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
@@ -28,9 +30,11 @@ from reprostim.bids.inject import (
     _calc_media_suffix,
     _calc_scan_duration_sec,
     _calc_scan_start_end_ts,
+    _do_inject_scans_json,
     _find_bids_root,
     _format_bids_str,
     _is_scans_file,
+    _load_default_scans_json,
     _open_dataset_file,
     _parse_bids_float,
     _parse_bids_str,
@@ -836,7 +840,11 @@ def _run(
     ret = do_main(
         paths=paths,
         videos_tsv=videos_tsv,
-        dataset_home=".",
+        # videos_tsv is always written under the test's tmp_path (see
+        # _write_videos_tsv); anchoring dataset_home to its directory keeps
+        # any scans.json writes inside tmp_path instead of polluting the
+        # real CWD when a test calls _run with dry_run=False.
+        dataset_home=str(Path(videos_tsv).parent),
         recursive=False,
         match=match,
         buffer_before="0",
@@ -854,6 +862,128 @@ def _run(
         out_func=output.append,
     )
     return ret, output
+
+
+# ===========================================================================
+# _do_inject_scans_json
+# ===========================================================================
+
+
+def _bi_context(dataset_home: str, dry_run: bool = False, out_func=None) -> BiContext:
+    """Minimal BiContext for unit-testing _do_inject_scans_json directly."""
+    return BiContext(
+        dataset_home=dataset_home,
+        dry_run=dry_run,
+        recursive=False,
+        out_func=out_func,
+    )
+
+
+def test_do_inject_scans_json_creates_when_missing(tmp_path):
+    """scans.json doesn't exist yet -> created verbatim from the default sample."""
+    out = []
+    ctx = _bi_context(str(tmp_path), out_func=out.append)
+
+    _do_inject_scans_json(ctx)
+
+    scans_json = tmp_path / "scans.json"
+    assert scans_json.is_file()
+    assert json.loads(scans_json.read_text()) == _load_default_scans_json()
+    assert any("Created" in line for line in out)
+
+
+def test_do_inject_scans_json_noop_when_all_fields_present(tmp_path):
+    """scans.json already has every default field -> left byte-for-byte untouched."""
+    scans_json = tmp_path / "scans.json"
+    default = _load_default_scans_json()
+    # Extra custom field alongside every default field.
+    content = {**default, "operator": {"Description": "Custom, non-default field"}}
+    original_text = json.dumps(content, indent=2)
+    scans_json.write_text(original_text)
+
+    ctx = _bi_context(str(tmp_path))
+    _do_inject_scans_json(ctx)
+
+    assert scans_json.read_text() == original_text
+
+
+def test_do_inject_scans_json_appends_missing_fields(tmp_path):
+    """scans.json is missing some default fields -> only those are appended."""
+    scans_json = tmp_path / "scans.json"
+    default = _load_default_scans_json()
+    assert "reprostim_path" in default and "reprostim_offset" in default
+    existing_content = {
+        "filename": default["filename"],
+        "operator": {"Description": "Custom, non-default field"},
+    }
+    scans_json.write_text(json.dumps(existing_content, indent=2))
+
+    out = []
+    ctx = _bi_context(str(tmp_path), out_func=out.append)
+    _do_inject_scans_json(ctx)
+
+    updated = json.loads(scans_json.read_text())
+    # Existing (default and custom) fields preserved untouched.
+    assert updated["filename"] == default["filename"]
+    assert updated["operator"] == {"Description": "Custom, non-default field"}
+    # Missing default fields appended.
+    for key in default:
+        assert updated[key] == default[key]
+    assert any("Added missing field" in line for line in out)
+
+
+def test_do_inject_scans_json_dry_run_does_not_write(tmp_path):
+    """--dry-run: reports what would happen but writes nothing."""
+    out = []
+    ctx = _bi_context(str(tmp_path), dry_run=True, out_func=out.append)
+
+    _do_inject_scans_json(ctx)
+
+    assert not (tmp_path / "scans.json").is_file()
+    assert any("[DRY-RUN]" in line and "Would create" in line for line in out)
+
+
+def test_do_inject_scans_json_dry_run_does_not_write_missing_fields(tmp_path):
+    """--dry-run with an existing but incomplete scans.json: reports, doesn't write."""
+    scans_json = tmp_path / "scans.json"
+    original_text = json.dumps({"filename": _load_default_scans_json()["filename"]})
+    scans_json.write_text(original_text)
+
+    out = []
+    ctx = _bi_context(str(tmp_path), dry_run=True, out_func=out.append)
+    _do_inject_scans_json(ctx)
+
+    assert scans_json.read_text() == original_text
+    assert any(
+        "[DRY-RUN]" in line and "Would add missing field" in line for line in out
+    )
+
+
+def test_do_inject_scans_json_invalid_json_reports_error_and_leaves_file(tmp_path):
+    """A scans.json that fails to parse is reported as an error,
+    not overwritten/raised."""
+    scans_json = tmp_path / "scans.json"
+    scans_json.write_text("{not valid json")
+
+    out = []
+    ctx = _bi_context(str(tmp_path), out_func=out.append)
+    _do_inject_scans_json(ctx)
+
+    assert scans_json.read_text() == "{not valid json"
+    assert ctx.summary.n_errors == 1
+    assert len(ctx.summary.errors) == 1
+    assert any("ERROR" in line for line in out)
+
+
+def test_do_main_invokes_scans_json_step_first(tmp_path):
+    """do_main's real pipeline creates <dataset_home>/scans.json as its first step."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    ret, _output = _run([str(scans_tsv)], videos_tsv, dry_run=False, overwrite="always")
+
+    scans_json = tmp_path / "scans.json"
+    assert scans_json.is_file()
+    assert json.loads(scans_json.read_text()) == _load_default_scans_json()
 
 
 def test_do_main_reports_error_when_dataset_home_missing(tmp_path):

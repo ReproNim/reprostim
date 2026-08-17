@@ -119,11 +119,25 @@ func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T
 **`scans.json` sidecar:** `src/reprostim/assets/bids/scans.json` provides a default BIDS
 data-dictionary sidecar (`LongName`/`Description`/`Units` per BIDS's tabular-file column
 metadata schema, the same shape used for `_events.json`) documenting `filename`, `acq_time`,
-and all four `reprostim_*` columns above. It's a static reference asset — `do_main` receives
-the dataset root via `--dataset`/`-d` (`BiContext.dataset_home`, default `.`) but does not yet
-read or write a `scans.json` there; wiring `do_main` to create/update it at
-`<dataset_home>/scans.json` from this default (creating if missing, merging in any missing
-`reprostim_*` entries if present) is tracked as follow-up work.
+and all four `reprostim_*` columns above.
+
+`_do_inject_scans_json(ctx)` (called by `_do_inject_all` as its first step, before any
+`_scans.tsv` is touched) keeps `<dataset_home>/scans.json` (`--dataset`/`-d`,
+`BiContext.dataset_home`, default `.`) in sync with this default sample:
+
+- **Missing** — `scans.json` doesn't exist under `dataset_home` yet: created verbatim from
+  the default sample (`_load_default_scans_json()`, read via `importlib.resources` from
+  `assets/bids/scans.json`).
+- **Present, complete** — every top-level field from the default sample is already present
+  (regardless of value): no-op, file is not rewritten.
+- **Present, incomplete** — one or more default fields are missing: only the missing fields
+  are appended (`existing.update(missing)`); fields already present — default or custom
+  (e.g. a hand-added `operator` entry) — are left untouched, never overwritten.
+- **Invalid JSON** — `scans.json` exists but fails to parse: reported as an error
+  (`ctx.summary.errors`/`n_errors`, `logger.error`, `out_func("ERROR: ...")`) and left
+  untouched — does not raise, does not block the rest of `_do_inject_all`.
+- **`--dry-run`** — logs/reports what would change (create vs. which fields would be
+  appended) but writes nothing, consistent with Dry-Run Mode below.
 
 ### C) QR codes file — BIDS _events-like .tsv
 
@@ -171,7 +185,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | Option                                          | Type            | Default    | Description                                                                                                                                                                                                                                         |
 |-------------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-f / --videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location.                                                                                                                          |
-| `-d / --dataset PATH`                           | Path (dir)      | `.`        | Home directory of the BIDS dataset being injected into (e.g. contains `scans.json`). Propagated into `BiContext.dataset_home`; not yet read or written by `do_main` (see `scans.json` sidecar note below). `do_main` re-validates it exists and is a directory even when called directly, bypassing the CLI's own `click.Path(exists=True)` check — reports the error via `out_func`/`logger.error` and returns `1`, same as any other `do_main` error (no exception raised). |
+| `-d / --dataset PATH`                           | Path (dir)      | `.`        | Home directory of the BIDS dataset being injected into. Propagated into `BiContext.dataset_home`; `do_main` uses it to create/update `<dataset_home>/scans.json` as its first step (see `scans.json` sidecar note below). `do_main` re-validates it exists and is a directory even when called directly, bypassing the CLI's own `click.Path(exists=True)` check — reports the error via `out_func`/`logger.error` and returns `1`, same as any other `do_main` error (no exception raised). |
 | `-r / --recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                                                                                                                                                    |
 | `-b / --buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                                                                                                                                                      |
 | `-a / --buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                                                                                                                                         |
