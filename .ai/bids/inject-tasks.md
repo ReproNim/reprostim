@@ -8,6 +8,11 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 
 - [x] `PATHS` argument — one or more `_scans.tsv` files or directories
 - [x] `-f / --videos` — path to `videos.tsv`
+- [x] `-d / --dataset` — BIDS dataset home directory, default `.`.
+- [x] `do_main` re-validates `dataset_home` exists and is a directory, independent of the
+      CLI's own `click.Path(exists=True)` check (covers direct callers that bypass the CLI) —
+      reports via `out_func`/`logger.error` and returns `1`, not an exception, so it surfaces
+      as a normal non-zero CLI exit code
 - [x] `-r / --recursive` — recurse into subdirectories
 - [x] `-b / --buffer-before` — extra video before scan onset
 - [x] `-a / --buffer-after` — extra video after scan end
@@ -18,7 +23,8 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `-z / --reprostim-timezone` — timezone for `videos.tsv` timestamps
 - [x] `-Z / --bids-timezone` — timezone for BIDS `acq_time` values
 - [x] `-m / --match REGEX` — filter scan records by filename
-- [x] `-d / --dry-run`
+- [x] `-n / --dry-run` — short flag changed from `-d` to `-n` (rsync/make "no-op" convention);
+      `-d` now used for `--dataset` above
 - [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
 - [x] `-v / --verbose`
@@ -139,6 +145,22 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] Handle re-runs: update existing `reprostim_*` columns in-place (don't duplicate)
 - [x] Skip write-back in `--dry-run` mode
 - [x] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
+- [x] `src/reprostim/assets/bids/scans.json` — default BIDS data-dictionary sidecar documenting
+      `filename`, `acq_time`, and all four `reprostim_*` columns (`LongName`/`Description`/`Units`)
+
+### E) scans.json data-dictionary sync
+- [x] `_load_default_scans_json()` — reads the packaged default sample via `importlib.resources`
+- [x] `_do_inject_scans_json(ctx)` — called by `_do_inject_all` as its first step, before any
+      path in `paths` is processed
+- [x] Creates `<dataset_home>/scans.json` verbatim from the default sample when missing
+- [x] No-op (no rewrite) when the existing file already has every default field
+- [x] Appends only the missing default fields when the existing file has some but not all;
+      existing fields (default or custom, e.g. a hand-added `operator` entry) are never
+      overwritten
+- [x] Invalid/unparseable existing `scans.json` → reported via `ctx.summary.errors`/`n_errors`
+      and `out_func`/`logger.error`, file left untouched, does not raise and does not abort
+      the rest of `_do_inject_all`
+- [x] Honours `--dry-run` — logs/reports what would change, writes nothing
 
 ---
 
@@ -303,6 +325,20 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] Failed split → four columns written as `n/a` (stale values cleared)
 - [x] Re-run (columns already present) → columns updated in-place, no duplication
 - [x] `--dry-run` → `_scans.tsv` not modified
+
+### scans.json data-dictionary sync tests (`_do_inject_scans_json`)
+- [x] Missing `scans.json` → created verbatim from `_load_default_scans_json()`
+- [x] Existing `scans.json` with every default field (plus a custom field) → byte-for-byte
+      untouched (no-op)
+- [x] Existing `scans.json` missing some default fields → only those appended; existing
+      default and custom fields preserved untouched
+- [x] `--dry-run`, missing file → nothing written, `[DRY-RUN] Would create ...` reported
+- [x] `--dry-run`, incomplete file → nothing written, `[DRY-RUN] Would add missing field ...`
+      reported
+- [x] Invalid JSON in existing `scans.json` → reported via `ctx.summary`/`out_func`, file left
+      untouched, no exception raised
+- [x] `do_main` end-to-end (`dry_run=False`) → `<dataset_home>/scans.json` created as the
+      pipeline's first step, before any `_scans.tsv` is processed
 
 ### Overwrite mode tests
 

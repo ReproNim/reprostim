@@ -20,6 +20,7 @@ import re
 from datetime import datetime, time, timedelta, timezone, tzinfo
 from enum import Enum
 from functools import lru_cache
+from importlib.resources import files
 from typing import Callable, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
@@ -127,6 +128,11 @@ class BiSummary(BaseModel):
 class BiContext(BaseModel):
     """Context for bids-inject processing of scan records."""
 
+    dataset_home: str = Field(
+        default=".",
+        description="Home directory of the BIDS dataset being injected into "
+        "(e.g. contains scans.json). Defaults to the current directory.",
+    )
     dry_run: bool = Field(
         ..., description="Whether to skip actual file writes and print planned actions"
     )
@@ -1126,19 +1132,101 @@ def _do_inject_dir(ctx: BiContext, path: str):
             _do_inject_dir(ctx, entry.path)
 
 
+def _load_default_scans_json() -> dict:
+    """Load the packaged default BIDS ``scans.json`` data-dictionary sample.
+
+    :returns: Parsed contents of ``assets/bids/scans.json``.
+    :rtype: dict
+    """
+    text = (files("reprostim") / "assets" / "bids" / "scans.json").read_text()
+    return json.loads(text)
+
+
+def _do_inject_scans_json(ctx: BiContext) -> None:
+    """Ensure ``<dataset_home>/scans.json`` exists and has every default field.
+
+    Compares ``<dataset_home>/scans.json`` against the packaged default
+    sample (``assets/bids/scans.json``):
+
+    - If ``scans.json`` doesn't exist yet, it is created from the default
+      sample verbatim.
+    - If it exists and already has every top-level field from the default
+      sample, nothing is written.
+    - If it exists but is missing one or more default fields, those fields
+      (and only those — existing fields are left untouched) are appended
+      and the file is rewritten.
+
+    Honours ``ctx.dry_run``: when set, logs/reports what would change but
+    writes nothing. A ``scans.json`` that fails to parse as JSON is reported
+    as an error (via ``ctx.summary``) and left untouched rather than
+    overwritten or raised as an exception.
+
+    :param ctx: Processing context; uses ``ctx.dataset_home``, ``ctx.dry_run``,
+        ``ctx.out_func``, and ``ctx.summary``.
+    :type ctx: BiContext
+    """
+    scans_json_path = os.path.join(ctx.dataset_home, "scans.json")
+    default = _load_default_scans_json()
+
+    if not os.path.isfile(scans_json_path):
+        if ctx.dry_run:
+            msg = f"Would create {scans_json_path}"
+        else:
+            with open(scans_json_path, "w") as f:
+                json.dump(default, f, indent=2)
+                f.write("\n")
+            msg = f"Created {scans_json_path}"
+        logger.info(msg)
+        if ctx.out_func:
+            ctx.out_func(f"[DRY-RUN] {msg}" if ctx.dry_run else msg)
+        return
+
+    try:
+        with open(scans_json_path) as f:
+            existing = json.load(f)
+    except json.JSONDecodeError as e:
+        err_msg = f"Failed to parse {scans_json_path}: {e}"
+        logger.error(err_msg)
+        ctx.summary.errors.append(err_msg)
+        ctx.summary.n_errors += 1
+        if ctx.out_func:
+            ctx.out_func(f"ERROR: {err_msg}")
+        return
+
+    missing = {k: v for k, v in default.items() if k not in existing}
+    if not missing:
+        logger.debug(f"{scans_json_path} already has all default fields")
+        return
+
+    field_list = ", ".join(sorted(missing))
+    if ctx.dry_run:
+        msg = f"Would add missing field(s) to {scans_json_path}: {field_list}"
+    else:
+        existing.update(missing)
+        with open(scans_json_path, "w") as f:
+            json.dump(existing, f, indent=2)
+            f.write("\n")
+        msg = f"Added missing field(s) to {scans_json_path}: {field_list}"
+    logger.info(msg)
+    if ctx.out_func:
+        ctx.out_func(f"[DRY-RUN] {msg}" if ctx.dry_run else msg)
+
+
 def _do_inject_all(ctx: BiContext, paths: List[str]):
     """Dispatch injection across a mixed list of file and directory paths.
 
-    For each entry in *paths*: regular files are forwarded to
-    :func:`_do_inject_scans`; directories are forwarded to
-    :func:`_do_inject_dir` (which honours ``ctx.recursive``); anything else
-    is logged as a warning and skipped.
+    First ensures ``<dataset_home>/scans.json`` exists and has every default
+    field (see :func:`_do_inject_scans_json`). Then, for each entry in
+    *paths*: regular files are forwarded to :func:`_do_inject_scans`;
+    directories are forwarded to :func:`_do_inject_dir` (which honours
+    ``ctx.recursive``); anything else is logged as a warning and skipped.
 
     :param ctx: Processing context propagated to all subordinate calls.
     :type ctx: BiContext
     :param paths: Sequence of file or directory paths supplied by the caller.
     :type paths: List[str]
     """
+    _do_inject_scans_json(ctx)
 
     # iterate over paths and depending on whether it's a file or directory,
     # process accordingly
@@ -1371,6 +1459,7 @@ def dt_bids_to_reprostim(
 def do_main(
     paths: List[str],
     videos_tsv: str,
+    dataset_home: str,
     recursive: bool,
     match: str,
     buffer_before: str,
@@ -1397,6 +1486,9 @@ def do_main(
     :param videos_tsv: Path to ``videos.tsv`` produced by ``video-audit``.
         Video file paths inside the TSV are resolved relative to this file's location.
     :type videos_tsv: str
+    :param dataset_home: Home directory of the BIDS dataset being injected into
+        (e.g. contains ``scans.json``). Defaults to the current directory.
+    :type dataset_home: str
     :param recursive: When ``True``, recurse into subdirectories when searching
         for ``*_scans.tsv`` files.
     :type recursive: bool
@@ -1453,7 +1545,17 @@ def do_main(
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
+    if not os.path.isdir(dataset_home):
+        err_msg = (
+            f"--dataset path does not exist or is not a directory: {dataset_home!r}"
+        )
+        logger.error(err_msg)
+        if out_func:
+            out_func(f"ERROR: {err_msg}")
+        return 1
+
     ctx: BiContext = BiContext(
+        dataset_home=dataset_home,
         dry_run=dry_run,
         recursive=recursive,
         match=match,

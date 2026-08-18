@@ -6,6 +6,7 @@
 
 import csv
 import io
+import json
 import re
 import shutil
 from datetime import datetime, time, timezone
@@ -20,6 +21,7 @@ from click.testing import CliRunner
 from reprostim.bids.inject import (
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
+    BiContext,
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
@@ -28,9 +30,11 @@ from reprostim.bids.inject import (
     _calc_media_suffix,
     _calc_scan_duration_sec,
     _calc_scan_start_end_ts,
+    _do_inject_scans_json,
     _find_bids_root,
     _format_bids_str,
     _is_scans_file,
+    _load_default_scans_json,
     _open_dataset_file,
     _parse_bids_float,
     _parse_bids_str,
@@ -836,6 +840,11 @@ def _run(
     ret = do_main(
         paths=paths,
         videos_tsv=videos_tsv,
+        # videos_tsv is always written under the test's tmp_path (see
+        # _write_videos_tsv); anchoring dataset_home to its directory keeps
+        # any scans.json writes inside tmp_path instead of polluting the
+        # real CWD when a test calls _run with dry_run=False.
+        dataset_home=str(Path(videos_tsv).parent),
         recursive=False,
         match=match,
         buffer_before="0",
@@ -853,6 +862,196 @@ def _run(
         out_func=output.append,
     )
     return ret, output
+
+
+# ===========================================================================
+# _do_inject_scans_json
+# ===========================================================================
+
+
+def _bi_context(dataset_home: str, dry_run: bool = False, out_func=None) -> BiContext:
+    """Minimal BiContext for unit-testing _do_inject_scans_json directly."""
+    return BiContext(
+        dataset_home=dataset_home,
+        dry_run=dry_run,
+        recursive=False,
+        out_func=out_func,
+    )
+
+
+def test_do_inject_scans_json_creates_when_missing(tmp_path):
+    """scans.json doesn't exist yet -> created verbatim from the default sample."""
+    out = []
+    ctx = _bi_context(str(tmp_path), out_func=out.append)
+
+    _do_inject_scans_json(ctx)
+
+    scans_json = tmp_path / "scans.json"
+    assert scans_json.is_file()
+    assert json.loads(scans_json.read_text()) == _load_default_scans_json()
+    assert any("Created" in line for line in out)
+
+
+def test_do_inject_scans_json_noop_when_all_fields_present(tmp_path):
+    """scans.json already has every default field -> left byte-for-byte untouched."""
+    scans_json = tmp_path / "scans.json"
+    default = _load_default_scans_json()
+    # Extra custom field alongside every default field.
+    content = {**default, "operator": {"Description": "Custom, non-default field"}}
+    original_text = json.dumps(content, indent=2)
+    scans_json.write_text(original_text)
+
+    ctx = _bi_context(str(tmp_path))
+    _do_inject_scans_json(ctx)
+
+    assert scans_json.read_text() == original_text
+
+
+def test_do_inject_scans_json_appends_missing_fields(tmp_path):
+    """scans.json is missing some default fields -> only those are appended."""
+    scans_json = tmp_path / "scans.json"
+    default = _load_default_scans_json()
+    assert "reprostim_path" in default and "reprostim_offset" in default
+    existing_content = {
+        "filename": default["filename"],
+        "operator": {"Description": "Custom, non-default field"},
+    }
+    scans_json.write_text(json.dumps(existing_content, indent=2))
+
+    out = []
+    ctx = _bi_context(str(tmp_path), out_func=out.append)
+    _do_inject_scans_json(ctx)
+
+    updated = json.loads(scans_json.read_text())
+    # Existing (default and custom) fields preserved untouched.
+    assert updated["filename"] == default["filename"]
+    assert updated["operator"] == {"Description": "Custom, non-default field"}
+    # Missing default fields appended.
+    for key in default:
+        assert updated[key] == default[key]
+    assert any("Added missing field" in line for line in out)
+
+
+def test_do_inject_scans_json_dry_run_does_not_write(tmp_path):
+    """--dry-run: reports what would happen but writes nothing."""
+    out = []
+    ctx = _bi_context(str(tmp_path), dry_run=True, out_func=out.append)
+
+    _do_inject_scans_json(ctx)
+
+    assert not (tmp_path / "scans.json").is_file()
+    assert any("[DRY-RUN]" in line and "Would create" in line for line in out)
+
+
+def test_do_inject_scans_json_dry_run_does_not_write_missing_fields(tmp_path):
+    """--dry-run with an existing but incomplete scans.json: reports, doesn't write."""
+    scans_json = tmp_path / "scans.json"
+    original_text = json.dumps({"filename": _load_default_scans_json()["filename"]})
+    scans_json.write_text(original_text)
+
+    out = []
+    ctx = _bi_context(str(tmp_path), dry_run=True, out_func=out.append)
+    _do_inject_scans_json(ctx)
+
+    assert scans_json.read_text() == original_text
+    assert any(
+        "[DRY-RUN]" in line and "Would add missing field" in line for line in out
+    )
+
+
+def test_do_inject_scans_json_invalid_json_reports_error_and_leaves_file(tmp_path):
+    """A scans.json that fails to parse is reported as an error,
+    not overwritten/raised."""
+    scans_json = tmp_path / "scans.json"
+    scans_json.write_text("{not valid json")
+
+    out = []
+    ctx = _bi_context(str(tmp_path), out_func=out.append)
+    _do_inject_scans_json(ctx)
+
+    assert scans_json.read_text() == "{not valid json"
+    assert ctx.summary.n_errors == 1
+    assert len(ctx.summary.errors) == 1
+    assert any("ERROR" in line for line in out)
+
+
+def test_do_main_invokes_scans_json_step_first(tmp_path):
+    """do_main's real pipeline creates <dataset_home>/scans.json as its first step."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    ret, _output = _run([str(scans_tsv)], videos_tsv, dry_run=False, overwrite="always")
+
+    scans_json = tmp_path / "scans.json"
+    assert scans_json.is_file()
+    assert json.loads(scans_json.read_text()) == _load_default_scans_json()
+
+
+def test_do_main_reports_error_when_dataset_home_missing(tmp_path):
+    """do_main() returns 1 and reports an error when dataset_home doesn't exist.
+
+    The CLI layer already rejects a missing --dataset path via
+    click.Path(exists=True), but do_main() is also callable directly
+    (e.g. from other code or tests), so it must not silently accept an
+    invalid dataset_home. Reported as a normal error result (matching the
+    rest of do_main's error handling) rather than an exception, so it
+    propagates as a non-zero CLI exit code via the usual do_main -> ctx.exit()
+    path instead of an uncaught traceback.
+    """
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    out = []
+    ret = do_main(
+        paths=[_SCANS_TSV],
+        videos_tsv=videos_tsv,
+        dataset_home=str(tmp_path / "does-not-exist"),
+        recursive=False,
+        match=".*",
+        buffer_before="0",
+        buffer_after="0",
+        buffer_policy="flexible",
+        time_offset=0.0,
+        qr="none",
+        layout="nearby",
+        reprostim_timezone="UTC",
+        bids_timezone="UTC",
+        dry_run=True,
+        overwrite="skip",
+        lock=False,
+        verbose=False,
+        out_func=out.append,
+    )
+    assert ret == 1
+    assert any("does-not-exist" in line for line in out)
+
+
+def test_do_main_reports_error_when_dataset_home_is_file(tmp_path):
+    """do_main() returns 1 and reports an error when dataset_home is a file,
+    not a directory."""
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    not_a_dir = tmp_path / "not-a-dir.txt"
+    not_a_dir.write_text("")
+    out = []
+    ret = do_main(
+        paths=[_SCANS_TSV],
+        videos_tsv=videos_tsv,
+        dataset_home=str(not_a_dir),
+        recursive=False,
+        match=".*",
+        buffer_before="0",
+        buffer_after="0",
+        buffer_policy="flexible",
+        time_offset=0.0,
+        qr="none",
+        layout="nearby",
+        reprostim_timezone="UTC",
+        bids_timezone="UTC",
+        dry_run=True,
+        overwrite="skip",
+        lock=False,
+        verbose=False,
+        out_func=out.append,
+    )
+    assert ret == 1
+    assert any("not-a-dir.txt" in line for line in out)
 
 
 def test_integration_dry_run_two_matching_videos(tmp_path):
@@ -1713,3 +1912,64 @@ def test_cli_zero_do_main_result_exits_zero(tmp_path):
             [str(scans_tsv), "-f", videos_tsv],
         )
     assert result.exit_code == 0
+
+
+def test_cli_dry_run_short_flag_is_n(tmp_path):
+    """`-n` is the --dry-run short flag; forwarded to do_main as dry_run=True.
+
+    Regression test: `--dry-run`'s short flag was changed from `-d` to `-n`
+    (rsync/make "no-op" convention) to free up `-d` for a planned
+    `--dataset` option.
+    """
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv, "-n"],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["dry_run"] is True
+
+
+def test_cli_dataset_defaults_to_current_directory(tmp_path):
+    """--dataset defaults to '.' when not specified."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["dataset_home"] == "."
+
+
+def test_cli_dataset_short_flag_forwarded(tmp_path):
+    """-d/--dataset is forwarded to do_main as dataset_home."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    dataset_dir = tmp_path / "dataset"
+    dataset_dir.mkdir()
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv, "-d", str(dataset_dir)],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["dataset_home"] == str(dataset_dir)
+
+
+def test_cli_dataset_nonexistent_dir_nonzero_exit(tmp_path):
+    """A --dataset path that doesn't exist is rejected by Click's Path(exists=True)."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    result = CliRunner().invoke(
+        bids_inject,
+        [str(scans_tsv), "-f", videos_tsv, "-d", str(tmp_path / "missing")],
+    )
+    assert result.exit_code != 0

@@ -116,6 +116,29 @@ func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T
 > makes it possible to resume or validate a subsequent `bids-qr-sync` pass without
 > re-scanning the source video from scratch.
 
+**`scans.json` sidecar:** `src/reprostim/assets/bids/scans.json` provides a default BIDS
+data-dictionary sidecar (`LongName`/`Description`/`Units` per BIDS's tabular-file column
+metadata schema, the same shape used for `_events.json`) documenting `filename`, `acq_time`,
+and all four `reprostim_*` columns above.
+
+`_do_inject_scans_json(ctx)` (called by `_do_inject_all` as its first step, before any
+`_scans.tsv` is touched) keeps `<dataset_home>/scans.json` (`--dataset`/`-d`,
+`BiContext.dataset_home`, default `.`) in sync with this default sample:
+
+- **Missing** — `scans.json` doesn't exist under `dataset_home` yet: created verbatim from
+  the default sample (`_load_default_scans_json()`, read via `importlib.resources` from
+  `assets/bids/scans.json`).
+- **Present, complete** — every top-level field from the default sample is already present
+  (regardless of value): no-op, file is not rewritten.
+- **Present, incomplete** — one or more default fields are missing: only the missing fields
+  are appended (`existing.update(missing)`); fields already present — default or custom
+  (e.g. a hand-added `operator` entry) — are left untouched, never overwritten.
+- **Invalid JSON** — `scans.json` exists but fails to parse: reported as an error
+  (`ctx.summary.errors`/`n_errors`, `logger.error`, `out_func("ERROR: ...")`) and left
+  untouched — does not raise, does not block the rest of `_do_inject_all`.
+- **`--dry-run`** — logs/reports what would change (create vs. which fields would be
+  appended) but writes nothing, consistent with Dry-Run Mode below.
+
 ### C) QR codes file — BIDS _events-like .tsv
 
 If QR codes were parsed from the video (`--qr` mode is not `none`), the decoded QR records
@@ -162,6 +185,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | Option                                          | Type            | Default    | Description                                                                                                                                                                                                                                         |
 |-------------------------------------------------|-----------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-f / --videos PATH`                            | Path            | required   | Path to `videos.tsv` produced by `video-audit`. Video file paths in the TSV are resolved relative to this file's location.                                                                                                                          |
+| `-d / --dataset PATH`                           | Path (dir)      | `.`        | Home directory of the BIDS dataset being injected into. Propagated into `BiContext.dataset_home`; `do_main` uses it to create/update `<dataset_home>/scans.json` as its first step (see `scans.json` sidecar note below). `do_main` re-validates it exists and is a directory even when called directly, bypassing the CLI's own `click.Path(exists=True)` check — reports the error via `out_func`/`logger.error` and returns `1`, same as any other `do_main` error (no exception raised). |
 | `-r / --recursive`                              | Flag            | False      | When a directory is given in PATHS, recurse into subdirectories to find all `*_scans.tsv` files.                                                                                                                                                    |
 | `-b / --buffer-before DURATION`                 | sec or ISO 8601 | `0`        | Extra video before scan onset.                                                                                                                                                                                                                      |
 | `-a / --buffer-after DURATION`                  | sec or ISO 8601 | `0`        | Extra video after scan end.                                                                                                                                                                                                                         |
@@ -172,7 +196,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-z / --reprostim-timezone TIMEZONE`            | String          | `local`    | Timezone of the ReproStim capture machine, applied to naive `videos.tsv` timestamps (see Timezone Handling below).                                                                                                                                  |
 | `-Z / --bids-timezone TIMEZONE`                 | String          | `local`    | Timezone assumed for naive BIDS `acq_time` values. When omitted, defaults to the value of `--reprostim-timezone` (see Timezone Handling below).                                                                                                    |
 | `-m / --match REGEX`                            | String          | `.*`       | Regular expression matched against the `filename` field of each scan record. Only records whose `filename` matches are processed; all others are skipped. Default `.*` matches every record. Example: `func/` to restrict to functional scans only. |
-| `-d / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
+| `-n / --dry-run`                                | Flag            | False      | Analyse BIDS data and resolve matches but do not call `split-video` or write any output files. Prints what would be done.                                                                                                                           |
 | `-w / --overwrite [skip\|force\|always\|error]` | Choice          | `skip`     | Policy for handling existing output files (see Overwrite Mode below).                                                                                                                                                                               |
 | `-k / --lock [yes\|no]`                         | Choice          | `yes`      | Whether to acquire a file lock (`videos.tsv.lock`) before reading `videos.tsv`. Use `no` for dirty-read mode when the lock is held by another user (see Lock / Dirty-read Mode below).                                                              |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                                                                                                                                                 |
@@ -277,6 +301,10 @@ reprostim bids-inject \
 ---
 
 ## Dry-Run Mode
+
+`--dry-run`'s short flag is `-n` (not `-d`), matching the `rsync`/`make` "no-op" convention —
+`-d` is used for the `--dataset` option instead (BIDS dataset root, default `.`, home of
+`scans.json`), which is used more frequently and deserves the more obvious mnemonic letter.
 
 When `--dry-run` is set, `bids-inject` performs all analysis steps — loading `videos.tsv`,
 discovering `*_scans.tsv` files, resolving scan durations, matching videos, determining output
