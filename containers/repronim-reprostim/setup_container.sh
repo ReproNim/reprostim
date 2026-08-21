@@ -54,6 +54,9 @@ echo "Install visidata"
 echo "Install py-spy"
 "${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir py-spy
 
+echo "Install bids-validator-deno"
+"${PSYCHOPY_VENV_BIN}/pip" install --no-cache-dir bids-validator-deno==3.0.1
+
 # Extend PATH to include PsychoPy venv bin so reprostim and other
 # venv tools are accessible system-wide without individual wrappers
 echo "Extending PATH to include PsychoPy venv bin: ${PSYCHOPY_VENV_BIN}"
@@ -72,6 +75,13 @@ echo "Creating wrapper script for reprostim in /usr/local/bin..."
 b="${PSYCHOPY_VENV_BIN}/reprostim"
 echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/reprostim
 chmod a+x /usr/local/bin/reprostim
+
+# Create wrapper for bids-validator-deno in /usr/local/bin so it is usable
+# as a raw (non-python) run mode, same as the reprostim wrapper above
+echo "Creating wrapper script for bids-validator-deno in /usr/local/bin..."
+b="${PSYCHOPY_VENV_BIN}/bids-validator-deno"
+echo -e "#!/bin/sh\n$b \"\$@\"" >| /usr/local/bin/bids-validator-deno
+chmod a+x /usr/local/bin/bids-validator-deno
 
 if [[ "$REPROSTIM_CAPTURE_ENABLED" == "1" ]]; then
   # Build reprostim-capture from source
