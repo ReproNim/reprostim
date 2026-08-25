@@ -1,3 +1,15 @@
+# 0.7.36 (Tue Aug 25 2026)
+
+#### 🐛 Bug Fix
+
+- Force auto-release `v0.7.36` [#274](https://github.com/ReproNim/reprostim/pull/274) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.35 (Tue Aug 25 2026)
 
 #### 🐛 Bug Fix
