@@ -1,3 +1,21 @@
+# 0.7.35 (Tue Aug 25 2026)
+
+#### 🐛 Bug Fix
+
+- Add `bids-validator` to `repronim-reprostim` container [#273](https://github.com/ReproNim/reprostim/pull/273) ([@vmdocua](https://github.com/vmdocua))
+- Inject ReproStim-specific `bids-inject` fields into the BIDS `scans.json` data dictionary [#272](https://github.com/ReproNim/reprostim/pull/272) ([@vmdocua](https://github.com/vmdocua))
+- Migrate to MWCapture SDK Linux `v3.3.1.1515` [#271](https://github.com/ReproNim/reprostim/pull/271) ([@vmdocua](https://github.com/vmdocua))
+- Fix CLI commands silently exiting 0 on failure [#270](https://github.com/ReproNim/reprostim/pull/270) ([@vmdocua](https://github.com/vmdocua))
+- Add `usb_scan_mode` option to `reprostim-videocapture` config to avoid USB HID log flood [#268](https://github.com/ReproNim/reprostim/pull/268) ([@vmdocua](https://github.com/vmdocua))
+- Update copyright information to reflect ReproNim ReproStim Team info [#267](https://github.com/ReproNim/reprostim/pull/267) ([@vmdocua](https://github.com/vmdocua))
+- Complete `.ai` directory reorganization [#264](https://github.com/ReproNim/reprostim/pull/264) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.34 (Mon Jul 20 2026)
 
 #### 🐛 Bug Fix
