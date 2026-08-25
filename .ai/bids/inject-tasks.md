@@ -393,7 +393,6 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [ ] **Multi-video case** — scan spanning two capture files; currently errors (issue #14)
 - [ ] **QR-sync / `bids-qr-sync`** — future tool; `--qr` modes lay the groundwork
 - [ ] **Anonymized datasets** — `--time-offset` is manual; needs calibration workflow
-- [ ] **DataLad integration** — auto-add output `.mkv` to BIDS DataLad dataset
 - [ ] **Testing** — test datasets with known video-scan alignments
 - [ ] **Strict Timing Mode** — integrate `tmaps` / `reproflow-data-sync` calibration data
 - [ ] **Parallel processing** — `--jobs` option; lock protection for shared counters
