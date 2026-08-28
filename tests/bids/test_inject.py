@@ -56,7 +56,7 @@ from reprostim.bids.inject import (
     dt_utc_to_reprostim,
 )
 from reprostim.cli.cmd_bids_inject import bids_inject
-from reprostim.video.audit import AudioInfo, VideoInfo
+from reprostim.video.media_info import AudioInfo, VideoInfo
 from reprostim.video.split import SplitResult
 
 # ---------------------------------------------------------------------------

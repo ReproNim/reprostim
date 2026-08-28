@@ -56,8 +56,15 @@ Main Python package with CLI tools and analysis utilities.
   package reorganization)
   - `audit.py` - Comprehensive video analysis with multiple audit sources (see [video/audit-spec.md](video/audit-spec.md), [video/audit-tasks.md](video/audit-tasks.md))
   - `split.py` - Video slicing/splitting functionality (see [video/split-spec.md](video/split-spec.md))
+  - `media_info.py` - `AudioInfo`/`VideoInfo` models and `get_audio_video_info_ffprobe`/
+    `check_ffprobe`/`parse_audio_sr`/`audio_codec_to_rfc6381`/`video_codec_to_rfc6381` — deliberately
+    named/organized so the extraction mechanism (currently `ffprobe`) can change later without
+    forcing callers to update imports. Extracted out of `video/audit.py` (which imported from
+    `qr/parse.py`) so `qr/parse.py` can also depend on it without a circular import; consumed by
+    `video/audit.py`, `video/split.py`, and `bids/properties.py` (see
+    [video/media-info-spec.md](video/media-info-spec.md), [video/media-info-tasks.md](video/media-info-tasks.md))
   - `nosignal.py` - Rainbow/no-signal frame detection (multi-algorithm: has_rainbow, has_rainbow2);
-    `NsVideoInfo` (renamed from `VideoInfo` to avoid a name collision with `video/audit.py`'s own
+    `NsVideoInfo` (renamed from `VideoInfo` to avoid a name collision with `video/media_info.py`'s
     `VideoInfo`) holds scan results. Moved out of `capture/` since it analyzes already-recorded
     `.mkv` files, not the live capture process — no dedicated `.ai/video/nosignal-*.md` docs yet
 

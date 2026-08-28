@@ -16,7 +16,8 @@ from reprostim.bids.properties import (
     bids_properties_from_video_audit,
 )
 from reprostim.capture.metadata import MetadataSessionBegin
-from reprostim.video.audit import AudioInfo, VaRecord, VideoInfo
+from reprostim.video.audit import VaRecord
+from reprostim.video.media_info import AudioInfo, VideoInfo
 from reprostim.video.split import SplitResult
 
 # ===========================================================================
