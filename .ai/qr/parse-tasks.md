@@ -56,8 +56,16 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
   video (`ffmpeg`-generated `.mp4`): `auto`/`auto` fallback, `filename`-forced failure, explicit
   ISO 8601 both valid and inverted (validation error), malformed ISO 8601 (clean error, no
   exception) — all behaved as designed
-- [ ] Automated unit tests for `resolve_video_time_info` (deferred — CLI/plumbing only in this
-  pass; see [Tests](#tests) below)
+- [x] **Bug found in review, fixed**: an early-return guard added during a manual edit
+  (`if not vti.success and (start_time_opt == "filename" or end_time_opt == "filename"): return vti`)
+  used `get_video_time_info`'s overall `success` flag (only `True` on a *full* start+end filename
+  match) to short-circuit before the per-field `fn_start is None`/`fn_end is None` checks. This
+  broke `-S filename` (or `-E filename`) against a partial/start-only ("in-progress recording")
+  filename — a case `get_video_time_info` explicitly supports (`pattern1b`/`pattern2b`) — even
+  though the requested field (`fn_start`) was available. Removed the guard; the existing per-field
+  checks already handle both the working and failing cases correctly. Regression test:
+  `test_resolve_start_filename_partial_pattern_succeeds`.
+- [x] Automated unit tests for `resolve_video_time_info` — see [Tests](#tests) below
 
 ### INFO mode
 - [x] Enumerate `.mkv` files in directory (or single file)
@@ -88,17 +96,43 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
 - [x] `--qr-decoder-workers 4` — verify ThreadPoolExecutor instantiated with `max_workers=4`
 - [x] `--qr-decoder-workers 4` — verify `_process_frame` called once per non-skipped frame
 - [x] `--qr-decoder-workers 4` — verify output records match sequential path (data, frame_start, time_start)
-- [ ] `-S auto` / `-E auto` with a matching filename — output identical to pre-`-S/-E` behavior
-- [ ] `-S auto` / `-E auto` with a non-matching filename — falls back to mtime/duration-derived times
-- [ ] `-S filename` / `-E filename` on a non-matching filename — fails with a clear error, exit 1
-- [ ] `-S <ISO8601>` / `-E <ISO8601>` — both explicit, valid order — used verbatim
-- [ ] `-S <ISO8601>` / `-E <ISO8601>` — both explicit, inverted order — fails validation, exit 1
-- [ ] `-S <malformed>` / `-E <malformed>` — invalid ISO 8601 string — fails at `do_main`, exit 1
-- [ ] `-S <ISO8601>` alone (no `-E`) — `end_time` still resolves via its own `auto`/filename logic
-- [ ] `--mode INFO` with `-S`/`-E` set — options are accepted but have no effect (INFO mode unchanged)
-- [ ] `resolve_video_time_info` unit tests — full `{auto, filename, ISO8601}` × `{filename matches,
-  doesn't match}` matrix, plus the `check_ffprobe()`-missing and `ffprobe`-duration-unavailable
-  error paths
+- [x] `-S/-E` CLI options forwarded to `do_main` (`test_cli_options_forwarded`,
+  `test_cli_start_end_time_default_is_auto`)
+
+### `resolve_video_time_info` (`tests/qr/test_parse.py`)
+- [x] `auto`/`auto` with a matching filename — identical to plain `get_video_time_info`
+  (`test_resolve_auto_auto_matching_filename`)
+- [x] `filename`/`filename` with a matching filename (`test_resolve_filename_filename_matching`)
+- [x] `filename`/`filename` on a non-matching filename — fails with a clear error
+  (`test_resolve_filename_mode_non_matching_fails`)
+- [x] `-S filename` against a partial/start-only-pattern filename — succeeds using the available
+  `fn_start` (`test_resolve_start_filename_partial_pattern_succeeds`; the review-bug regression test)
+- [x] `-E filename` against the same partial/start-only filename — fails, `fn_end` genuinely
+  unavailable (`test_resolve_end_filename_partial_pattern_fails`)
+- [x] `auto`/`auto` on a non-matching filename — mtime `end`, `ffprobe`-duration-derived `start`
+  (`test_resolve_auto_fallback_non_matching_filename`)
+- [x] `auto` start fallback when `ffprobe` isn't installed — clean failure, no exception
+  (`test_resolve_auto_fallback_ffprobe_missing`)
+- [x] `auto` start fallback when `ffprobe` can't determine duration — clean failure
+  (`test_resolve_auto_fallback_ffprobe_duration_unavailable`)
+- [x] Both explicit ISO 8601, valid order — used verbatim (`test_resolve_explicit_iso_both_valid`)
+- [x] Both explicit ISO 8601, inverted order — validation fails
+  (`test_resolve_explicit_iso_both_inverted_fails`)
+- [x] Malformed `--start-time` / `--end-time` values — clean failure, no exception
+  (`test_resolve_explicit_iso_malformed_start`/`_end`)
+- [x] Validation only applies when *both* sides are explicit — an explicit start after a
+  filename/auto-derived end is accepted, by design
+  (`test_resolve_validation_skipped_when_only_one_side_explicit`)
+- [x] Explicit `--start-time` with `--end-time auto` — end still resolves from a matching filename
+  (`test_resolve_explicit_start_auto_end_uses_filename`)
+
+### `do_main` (`tests/qr/test_parse.py`)
+- [x] Malformed `--start-time` / `--end-time` — returns 1 in `PARSE` mode
+  (`test_do_main_invalid_start_time`/`_end_time`)
+- [x] `--mode INFO` with malformed `-S`/`-E` — no validation, no effect, returns 0
+  (`test_do_main_info_mode_ignores_start_end_time`)
+- [x] `start_time`/`end_time` forwarded into `ParseContext`
+  (`test_do_main_start_end_time_forwarded_to_parse_context`)
 
 ### Integration
 - [ ] Combined `--grayscale cvtcolor --std-threshold 40 --skip 1` — verify all three interact correctly on a real video
@@ -110,6 +144,8 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
 - [x] `parse.py` ≥ 80% — achieved **93%**
 - [x] `cmd_qr_parse.py` ≥ 80% — achieved **100%**
 - [x] `get_video_time_info` edge cases: invalid filename, start-only filename, start ≥ end
+- [x] `resolve_video_time_info` — see dedicated subsection above; `parse.py` coverage holds at
+  **93%** with the new code fully exercised (remaining gaps are pre-existing, unrelated branches)
 - [x] `_decode_qr_pyzbar` / `_decode_qr_opencv` found-code paths
 - [x] `_qr_state_machine` — two different QR codes in sequence; QR code at end of video
 - [x] `do_parse` — `summary_only=True`; `ignore_errors=True`; `cap.isOpened()=False`

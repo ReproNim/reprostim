@@ -5,12 +5,14 @@
 """Tests for CLI option handling in ``reprostim.qr.parse``.
 
 Covers: --grayscale, --std-threshold, --scale, --skip, --qr-decoder,
---video-decoder, --qrdet, --qrdet-model-size, --qr-decoder-workers.
+--video-decoder, --qrdet, --qrdet-model-size, --qr-decoder-workers,
+--start-time, --end-time.
 
 qrdet tests use mocks only — no real GPU or qrdet/torch packages required.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import click.testing
@@ -36,7 +38,10 @@ from reprostim.qr.parse import (
     do_main,
     do_parse,
     get_video_time_info,
+    resolve_video_time_info,
 )
+from reprostim.video.media_info import AudioInfo
+from reprostim.video.media_info import VideoInfo as FfprobeVideoInfo
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,6 +83,13 @@ def _video(tmp_path) -> str:
     return str(p)
 
 
+def _video_named(tmp_path, name: str) -> str:
+    """Create an empty file with an arbitrary *name* and return its path."""
+    p = tmp_path / name
+    p.touch()
+    return str(p)
+
+
 # ===========================================================================
 # ParseContext — defaults
 # ===========================================================================
@@ -94,6 +106,8 @@ def test_parse_context_defaults():
     assert ctx.video_decoder == VideoDecoder.OPENCV
     assert ctx.qrdet is False
     assert ctx.qrdet_model_size == "s"
+    assert ctx.start_time_opt == "auto"
+    assert ctx.end_time_opt == "auto"
 
 
 # ===========================================================================
@@ -463,6 +477,157 @@ def test_get_video_time_info_start_gte_end():
 
 
 # ===========================================================================
+# resolve_video_time_info — -S/--start-time / -E/--end-time resolution
+# ===========================================================================
+
+
+def test_resolve_auto_auto_matching_filename(tmp_path):
+    """auto/auto with a filename that matches the pattern behaves exactly like
+    plain get_video_time_info (backward-compatible default)."""
+    vti = resolve_video_time_info(_video(tmp_path), "auto", "auto")
+    assert vti.success
+    assert vti.start_time == datetime(2025, 1, 1, 0, 0, 0)
+    assert vti.end_time == datetime(2025, 1, 1, 0, 1, 0)
+    assert vti.duration_sec == pytest.approx(60.0)
+
+
+def test_resolve_filename_filename_matching(tmp_path):
+    """filename/filename with a matching filename extracts both from it."""
+    vti = resolve_video_time_info(_video(tmp_path), "filename", "filename")
+    assert vti.success
+    assert vti.start_time == datetime(2025, 1, 1, 0, 0, 0)
+    assert vti.end_time == datetime(2025, 1, 1, 0, 1, 0)
+
+
+def test_resolve_filename_mode_non_matching_fails(tmp_path):
+    """filename/filename against a non-conforming filename fails with a clear
+    error, not an exception."""
+    path = _video_named(tmp_path, "not_a_valid_name.mkv")
+    vti = resolve_video_time_info(path, "filename", "filename")
+    assert not vti.success
+    assert "does not match" in vti.error
+
+
+def test_resolve_start_filename_partial_pattern_succeeds(tmp_path):
+    """Regression: -S filename against a start-only ("in-progress recording")
+    filename succeeds using the available start, even though the overall
+    get_video_time_info() match is only partial (success=False there)."""
+    path = _video_named(tmp_path, "2025.01.01-00.00.00.000--.mkv")
+    mtime_dt = datetime(2026, 1, 1, 12, 0, 0)
+    with patch(
+        "reprostim.qr.parse.os.path.getmtime", return_value=mtime_dt.timestamp()
+    ):
+        vti = resolve_video_time_info(path, "filename", "auto")
+    assert vti.success
+    assert vti.start_time == datetime(2025, 1, 1, 0, 0, 0)
+    assert vti.end_time == mtime_dt
+
+
+def test_resolve_end_filename_partial_pattern_fails(tmp_path):
+    """-E filename against a start-only filename fails: fn_end is genuinely
+    unavailable, regardless of fn_start being present."""
+    path = _video_named(tmp_path, "2025.01.01-00.00.00.000--.mkv")
+    vti = resolve_video_time_info(path, "auto", "filename")
+    assert not vti.success
+    assert "does not match" in vti.error
+
+
+def test_resolve_auto_fallback_non_matching_filename(tmp_path):
+    """auto/auto against a non-conforming filename: end falls back to mtime,
+    start falls back to end - real (ffprobe) duration."""
+    path = _video_named(tmp_path, "some_other_tool_export.mp4")
+    mtime_dt = datetime(2026, 1, 1, 12, 0, 0)
+    fake_vi = FfprobeVideoInfo(duration_sec=90.0)
+    with patch(
+        "reprostim.qr.parse.os.path.getmtime", return_value=mtime_dt.timestamp()
+    ), patch("reprostim.qr.parse.check_ffprobe", return_value=True), patch(
+        "reprostim.qr.parse.get_audio_video_info_ffprobe",
+        return_value=(AudioInfo(), fake_vi),
+    ):
+        vti = resolve_video_time_info(path, "auto", "auto")
+    assert vti.success
+    assert vti.end_time == mtime_dt
+    assert vti.start_time == mtime_dt - timedelta(seconds=90.0)
+    assert vti.duration_sec == pytest.approx(90.0)
+
+
+def test_resolve_auto_fallback_ffprobe_missing(tmp_path):
+    """auto start fallback fails cleanly when ffprobe is not installed."""
+    path = _video_named(tmp_path, "some_other_tool_export.mp4")
+    with patch("reprostim.qr.parse.check_ffprobe", return_value=False):
+        vti = resolve_video_time_info(path, "auto", "auto")
+    assert not vti.success
+    assert "ffprobe" in vti.error.lower()
+
+
+def test_resolve_auto_fallback_ffprobe_duration_unavailable(tmp_path):
+    """auto start fallback fails cleanly when ffprobe can't determine duration."""
+    path = _video_named(tmp_path, "some_other_tool_export.mp4")
+    fake_vi = FfprobeVideoInfo(duration_sec=None)
+    with patch("reprostim.qr.parse.check_ffprobe", return_value=True), patch(
+        "reprostim.qr.parse.get_audio_video_info_ffprobe",
+        return_value=(AudioInfo(), fake_vi),
+    ):
+        vti = resolve_video_time_info(path, "auto", "auto")
+    assert not vti.success
+    assert "duration" in vti.error.lower()
+
+
+def test_resolve_explicit_iso_both_valid(tmp_path):
+    """Explicit ISO 8601 for both, in valid order: used verbatim."""
+    vti = resolve_video_time_info(
+        _video(tmp_path), "2025-06-01T10:00:00", "2025-06-01T11:00:00"
+    )
+    assert vti.success
+    assert vti.start_time == datetime(2025, 6, 1, 10, 0, 0)
+    assert vti.end_time == datetime(2025, 6, 1, 11, 0, 0)
+    assert vti.duration_sec == pytest.approx(3600.0)
+
+
+def test_resolve_explicit_iso_both_inverted_fails(tmp_path):
+    """Explicit ISO 8601 for both, in inverted order: chronological validation
+    fails since both were given explicitly via the CLI."""
+    vti = resolve_video_time_info(
+        _video(tmp_path), "2025-06-01T11:00:00", "2025-06-01T10:00:00"
+    )
+    assert not vti.success
+    assert "must be <=" in vti.error
+
+
+def test_resolve_explicit_iso_malformed_start(tmp_path):
+    """Malformed --start-time value fails cleanly, no exception raised."""
+    vti = resolve_video_time_info(_video(tmp_path), "not-a-date", "auto")
+    assert not vti.success
+    assert "Invalid --start-time value" in vti.error
+
+
+def test_resolve_explicit_iso_malformed_end(tmp_path):
+    """Malformed --end-time value fails cleanly, no exception raised."""
+    vti = resolve_video_time_info(_video(tmp_path), "auto", "not-a-date")
+    assert not vti.success
+    assert "Invalid --end-time value" in vti.error
+
+
+def test_resolve_validation_skipped_when_only_one_side_explicit(tmp_path):
+    """Chronological validation only applies when *both* -S/-E are explicit —
+    an explicit start after the filename/auto-derived end is accepted
+    (a deliberate scope limit, not a bug)."""
+    vti = resolve_video_time_info(_video(tmp_path), "2025-06-01T00:00:00", "auto")
+    assert vti.success
+    assert vti.end_time == datetime(2025, 1, 1, 0, 1, 0)  # from filename
+    assert vti.duration_sec < 0  # inverted, but not validated — by design
+
+
+def test_resolve_explicit_start_auto_end_uses_filename(tmp_path):
+    """Explicit --start-time with --end-time auto: end still resolves from a
+    matching filename."""
+    vti = resolve_video_time_info(_video(tmp_path), "2024-12-31T00:00:00", "auto")
+    assert vti.success
+    assert vti.start_time == datetime(2024, 12, 31, 0, 0, 0)
+    assert vti.end_time == datetime(2025, 1, 1, 0, 1, 0)
+
+
+# ===========================================================================
 # _decode_qr_pyzbar / _decode_qr_opencv — found path
 # ===========================================================================
 
@@ -660,6 +825,55 @@ def test_do_main_parse_mode_success(tmp_path):
     assert len(out) == 1
 
 
+def test_do_main_invalid_start_time(tmp_path):
+    """do_main returns 1 for a malformed --start-time value in PARSE mode."""
+    result = do_main(path=_video(tmp_path), mode="PARSE", start_time="not-a-date")
+    assert result == 1
+
+
+def test_do_main_invalid_end_time(tmp_path):
+    """do_main returns 1 for a malformed --end-time value in PARSE mode."""
+    result = do_main(path=_video(tmp_path), mode="PARSE", end_time="not-a-date")
+    assert result == 1
+
+
+def test_do_main_info_mode_ignores_start_end_time(tmp_path):
+    """INFO mode is unaffected by -S/-E — no validation, no effect, even with
+    a malformed value that would fail in PARSE mode."""
+    out = []
+    result = do_main(
+        path=_video(tmp_path),
+        mode="INFO",
+        start_time="not-a-date",
+        end_time="not-a-date",
+        out_func=out.append,
+    )
+    assert result == 0
+    assert len(out) == 1
+
+
+def test_do_main_start_end_time_forwarded_to_parse_context(tmp_path):
+    """do_main forwards start_time/end_time into ParseContext, which do_parse
+    then reads for time resolution."""
+    ctx_holder = {}
+
+    def fake_do_parse(ctx, path, **_kwargs):
+        ctx_holder["ctx"] = ctx
+        ps = ParseSummary()
+        ps.exit_code = 0
+        yield ps
+
+    with patch("reprostim.qr.parse.do_parse", side_effect=fake_do_parse):
+        do_main(
+            path=_video(tmp_path),
+            mode="PARSE",
+            start_time="2025-01-01T00:00:00",
+            end_time="2025-01-01T00:01:00",
+        )
+    assert ctx_holder["ctx"].start_time_opt == "2025-01-01T00:00:00"
+    assert ctx_holder["ctx"].end_time_opt == "2025-01-01T00:01:00"
+
+
 # ===========================================================================
 # cmd_qr_parse CLI — Click runner tests
 # ===========================================================================
@@ -705,6 +919,10 @@ def test_cli_options_forwarded(cli_runner, tmp_path):
                 "opencv",
                 "--qr-decoder-workers",
                 "4",
+                "--start-time",
+                "2025-01-01T00:00:00",
+                "--end-time",
+                "filename",
                 str(video),
             ],
         )
@@ -715,6 +933,18 @@ def test_cli_options_forwarded(cli_runner, tmp_path):
     assert kw["std_threshold"] == 20.0
     assert kw["qr_decoder"] == "opencv"
     assert kw["qr_decoder_workers"] == 4
+    assert kw["start_time"] == "2025-01-01T00:00:00"
+    assert kw["end_time"] == "filename"
+
+
+def test_cli_start_end_time_default_is_auto(cli_runner, tmp_path):
+    """-S/-E default to "auto" when not specified on the CLI."""
+    video = _video(tmp_path)
+    with patch("reprostim.qr.parse.do_main", return_value=0) as mock_main:
+        cli_runner.invoke(qr_parse_cmd, [str(video)])
+    kw = mock_main.call_args.kwargs
+    assert kw["start_time"] == "auto"
+    assert kw["end_time"] == "auto"
 
 
 def test_cli_invalid_path(cli_runner, tmp_path):
