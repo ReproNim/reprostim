@@ -17,6 +17,8 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
 - [x] `-Q / --qrdet` — enable qrdet-based frame pre-filter; default `False`
 - [x] `-M / --qrdet-model-size [n|s|m|l]` — qrdet model size; default `s`; only used when `--qrdet` is set
 - [x] `-W / --qr-decoder-workers INT` — worker threads for parallel QR decoding; `0`/`1` = sequential (streaming); `N > 1` = parallel (buffered, iframe-ordered)
+- [x] `-S / --start-time TEXT` — `auto`/`filename`/ISO 8601; `PARSE` mode only; default `auto`
+- [x] `-E / --end-time TEXT` — `auto`/`filename`/ISO 8601; `PARSE` mode only; default `auto`
 
 ---
 
@@ -31,6 +33,31 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
 - [x] Std-deviation pre-filter: compute grayscale std before decode, skip frame if below `--std-threshold`
 - [x] Replace `np.mean` grayscale with `cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` (×10 speedup)
 - [x] Replace `np.std` with `cv2.meanStdDev` on grayscale frame (faster, same result)
+
+### Start/end time resolution (`-S` / `-E`)
+- [x] `resolve_video_time_info(path_video, start_time_opt, end_time_opt)` — new function in
+  `parse.py`, replaces the direct `get_video_time_info` call in `do_parse`
+- [x] `auto`/`filename`/explicit-ISO8601 handling for both `-S` and `-E`
+- [x] `end_time` resolved before `start_time` (start's `auto` fallback depends on it)
+- [x] `end_time` `auto` fallback (no filename match): file mtime (`os.path.getmtime`)
+- [x] `start_time` `auto` fallback (no filename match): `end_time - real_duration`, duration via
+  `reprostim.video.media_info.get_audio_video_info_ffprobe` (requires `check_ffprobe()`)
+- [x] Chronological validation (`start <= end`) only when both are given as explicit ISO 8601
+  values via the CLI
+- [x] `ParseContext.start_time_opt` / `ParseContext.end_time_opt` fields (default `"auto"`) — the
+  option values live on `ctx`, like every other frame-processing setting (`grayscale`, `scale`,
+  `qr_decoder`, etc.), rather than as separate `do_parse` parameters; `do_parse` reads
+  `ctx.start_time_opt`/`ctx.end_time_opt` directly when calling `resolve_video_time_info`
+- [x] `-S/--start-time` / `-E/--end-time` CLI options added to `cmd_qr_parse.py`, threaded through
+  `do_main(start_time=..., end_time=...)` → `ParseContext(start_time_opt=..., end_time_opt=...)`
+- [x] `do_main`: eager syntax validation (`auto`/`filename`/valid ISO 8601) for `PARSE` mode before
+  constructing `ParseContext`, mirroring the existing `scale`/`skip` validation style
+- [x] Manually smoke-tested end-to-end against a real non-`ffprobe`-mocked, non-conforming-filename
+  video (`ffmpeg`-generated `.mp4`): `auto`/`auto` fallback, `filename`-forced failure, explicit
+  ISO 8601 both valid and inverted (validation error), malformed ISO 8601 (clean error, no
+  exception) — all behaved as designed
+- [ ] Automated unit tests for `resolve_video_time_info` (deferred — CLI/plumbing only in this
+  pass; see [Tests](#tests) below)
 
 ### INFO mode
 - [x] Enumerate `.mkv` files in directory (or single file)
@@ -61,6 +88,17 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
 - [x] `--qr-decoder-workers 4` — verify ThreadPoolExecutor instantiated with `max_workers=4`
 - [x] `--qr-decoder-workers 4` — verify `_process_frame` called once per non-skipped frame
 - [x] `--qr-decoder-workers 4` — verify output records match sequential path (data, frame_start, time_start)
+- [ ] `-S auto` / `-E auto` with a matching filename — output identical to pre-`-S/-E` behavior
+- [ ] `-S auto` / `-E auto` with a non-matching filename — falls back to mtime/duration-derived times
+- [ ] `-S filename` / `-E filename` on a non-matching filename — fails with a clear error, exit 1
+- [ ] `-S <ISO8601>` / `-E <ISO8601>` — both explicit, valid order — used verbatim
+- [ ] `-S <ISO8601>` / `-E <ISO8601>` — both explicit, inverted order — fails validation, exit 1
+- [ ] `-S <malformed>` / `-E <malformed>` — invalid ISO 8601 string — fails at `do_main`, exit 1
+- [ ] `-S <ISO8601>` alone (no `-E`) — `end_time` still resolves via its own `auto`/filename logic
+- [ ] `--mode INFO` with `-S`/`-E` set — options are accepted but have no effect (INFO mode unchanged)
+- [ ] `resolve_video_time_info` unit tests — full `{auto, filename, ISO8601}` × `{filename matches,
+  doesn't match}` matrix, plus the `check_ffprobe()`-missing and `ffprobe`-duration-unavailable
+  error paths
 
 ### Integration
 - [ ] Combined `--grayscale cvtcolor --std-threshold 40 --skip 1` — verify all three interact correctly on a real video
@@ -80,8 +118,11 @@ Tracks implementation progress against [parse-spec.md](parse-spec.md).
 - [x] CLI (`cmd_qr_parse`) — basic invocation, `--mode INFO`, option forwarding, invalid path
 
 ### Regression
-- [ ] Existing PARSE mode output unchanged when all new options are at their defaults
-- [ ] Existing INFO mode output unchanged
+- [x] Existing PARSE mode output unchanged when all new options are at their defaults — full
+  existing test suite (`tests/qr/`, `tests/video/`, `tests/bids/`) green after adding `-S/-E`
+  plumbing, since `start_time_opt`/`end_time_opt` default to `"auto"` and every existing test
+  video's filename matches the pattern (identical resolution path to before)
+- [x] Existing INFO mode output unchanged — untouched by this change
 
 ---
 

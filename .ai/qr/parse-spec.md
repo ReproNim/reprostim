@@ -39,6 +39,8 @@ reprostim qr-parse [OPTIONS] PATH
 | `-Q / --qrdet`                             | Flag | `False` | Enable `qrdet`-based frame pre-filter. When set, a QR detector model runs on GPU a fast region check on each frame before the full QR decode; frames with no detected QR region are skipped. Requires `qrdet` package. Can be combined with `--std-threshold`.                                                                                                 |
 | `-M / --qrdet-model-size [n\|s\|m\|l]`    | str  | `s`     | Size of the `qrdet` model to load. `n` (nano) is fastest with lowest accuracy; `s` (small) balances speed and accuracy; `m` (medium) and `l` (large) are progressively more capable for difficult or low-contrast QR codes. Only used when `--qrdet` is set.                                                                                                   |
 | `-W / --qr-decoder-workers INT`            | Int  | `0`     | Number of worker threads for parallel QR decoding. `0` or `1` = sequential (default, streaming). `N > 1` = parallel: the main thread reads frames and submits each to a `ThreadPoolExecutor` with N workers; results are collected in submission (iframe) order after all frames are processed, then the same/different QR state machine runs once over the sorted results. Named `qr_decoder_workers` to pair with `--qr-decoder` and leave room for a future `--video-decoder-workers` option. |
+| `-S / --start-time TEXT`                   | str  | `auto`  | `PARSE` mode only. Video start timestamp source: `auto`, `filename`, or an explicit ISO 8601 timestamp. See [Start/End Time Resolution](#startend-time-resolution--s--e) below. |
+| `-E / --end-time TEXT`                     | str  | `auto`  | `PARSE` mode only. Video end timestamp source: `auto`, `filename`, or an explicit ISO 8601 timestamp. See [Start/End Time Resolution](#startend-time-resolution--s--e) below. |
 
 ### Output
 
@@ -61,7 +63,56 @@ reprostim qr-parse --mode INFO Videos/2025/08/
 
 # Redirect JSONL output to a file
 reprostim qr-parse video.mkv > qrcodes.jsonl
+
+# Parse a video whose filename doesn't follow the reprostim-videocapture
+# naming convention — falls back to file mtime / ffprobe-measured duration
+reprostim qr-parse some_other_tool_export.mp4
+
+# Force filename-pattern extraction, failing loudly if it doesn't match
+reprostim qr-parse -S filename -E filename video.mkv
+
+# Provide the start time explicitly, let end time fall back to auto
+reprostim qr-parse -S 2025-08-14T15:04:15.714 video.mkv
 ```
+
+### Start/End Time Resolution (`-S` / `-E`)
+
+Each detected QR code is anchored to an absolute wall-clock timestamp (`isotime_start`/`isotime_end`),
+computed from the video's resolved start time plus the QR code's position within the video. By
+default this start/end pair comes from the filename, which must match one of the timestamped
+patterns (`YYYY.MM.DD-HH.MM.SS.mmm--YYYY.MM.DD-HH.MM.SS.mmm.ext` or the legacy
+`YYYY.MM.DD.HH.MM.SS.mmm_YYYY.MM.DD.HH.MM.SS.mmm.ext`). `-S/--start-time` and `-E/--end-time` let
+this requirement be bypassed for videos that don't follow the convention.
+
+Each option accepts one of:
+
+- **`auto`** (default) — use the filename-derived value if the filename matches the expected
+  pattern (identical to pre-`-S/-E` behavior); otherwise fall back to a file-timestamp-derived
+  value (see below).
+- **`filename`** — force extraction from the filename pattern; fails with a clear error if the
+  filename doesn't match.
+- **any other value** — parsed as an explicit ISO 8601 timestamp (e.g. `2025-08-14T15:04:15.714`),
+  taking precedence over the filename entirely.
+
+**`auto`-fallback mechanics** (only when the filename doesn't match): `end_time` is resolved
+*before* `start_time`, because the `start_time` fallback needs it.
+
+- `end_time` auto-fallback: the video file's modification time (`os.path.getmtime`).
+- `start_time` auto-fallback: `end_time - real_duration`, where `real_duration` is measured via
+  `ffprobe` (`reprostim.video.media_info.get_audio_video_info_ffprobe`), not the filename.
+
+mtime is used for `end_time` rather than `start_time` because it reflects when the file was last
+written — much closer to "recording finished" than "recording started" — so deriving the
+less-certain `start_time` from it (via the measured duration) is more defensible than the reverse.
+
+**Validation**: chronological order (`start_time <= end_time`) is checked only when *both*
+`-S`/`-E` are given as explicit ISO 8601 values on the CLI — not when either side comes from
+`auto`/`filename` resolution.
+
+**Scope**: `PARSE` mode only. `INFO` mode (`--mode INFO`) is unaffected by `-S`/`-E` and keeps its
+existing filename-only behavior.
+
+See `reprostim.qr.parse.resolve_video_time_info` for the implementation.
 
 ---
 
