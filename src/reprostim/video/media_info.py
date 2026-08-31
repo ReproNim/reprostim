@@ -56,23 +56,39 @@ class VideoInfo(BaseModel):
     width: Optional[int] = None  # Video frame width in pixels
 
 
-def check_ffprobe():
+def check_ffprobe(reraise: bool = False):
     """Check if ffprobe is installed and available in PATH.
-    :return: True if ffprobe is available, False otherwise
+
+    :param reraise: When True, re-raise the underlying exception
+        (``FileNotFoundError`` or ``subprocess.CalledProcessError``) instead
+        of swallowing it into a ``False`` return value. Use this at call
+        sites that assume ffprobe availability and should fail loudly
+        rather than silently proceeding past an unchecked ``False``.
+    :type reraise: bool
+
+    :return: True if ffprobe is available, False otherwise (when
+        ``reraise=False``).
     :rtype: bool
     """
     try:
-        # Try running `ffprobe -version` to see if it's installed
-        subprocess.run(
+        # Try running `ffprobe -version` to see if it's installed. check=False
+        # here so we decide explicitly (via `reraise`) whether a non-zero
+        # exit becomes an exception, rather than relying on subprocess.run's
+        # own implicit check=True behavior.
+        result = subprocess.run(
             ["ffprobe", "-version"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True,
+            check=False,
         )
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(result.returncode, result.args)
         logger.debug("ffprobe is installed")
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         logger.error("Error: ffprobe is not installed")
+        if reraise:
+            raise
         return False
 
 

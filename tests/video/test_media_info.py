@@ -79,7 +79,10 @@ def test_parse_audio_sr_sample_rate_only():
 
 
 def test_check_ffprobe_available():
-    with patch("reprostim.video.media_info.subprocess.run"):
+    with patch(
+        "reprostim.video.media_info.subprocess.run",
+        return_value=MagicMock(returncode=0),
+    ):
         assert check_ffprobe() is True
 
 
@@ -88,6 +91,40 @@ def test_check_ffprobe_not_found():
         "reprostim.video.media_info.subprocess.run", side_effect=FileNotFoundError
     ):
         assert check_ffprobe() is False
+
+
+def test_check_ffprobe_nonzero_exit_returns_false():
+    with patch(
+        "reprostim.video.media_info.subprocess.run",
+        return_value=MagicMock(returncode=1, args=["ffprobe", "-version"]),
+    ):
+        assert check_ffprobe() is False
+
+
+def test_check_ffprobe_not_found_reraise_true_raises():
+    with patch(
+        "reprostim.video.media_info.subprocess.run", side_effect=FileNotFoundError
+    ):
+        with pytest.raises(FileNotFoundError):
+            check_ffprobe(reraise=True)
+
+
+def test_check_ffprobe_nonzero_exit_reraise_true_raises():
+    with patch(
+        "reprostim.video.media_info.subprocess.run",
+        return_value=MagicMock(returncode=1, args=["ffprobe", "-version"]),
+    ):
+        with pytest.raises(subprocess.CalledProcessError):
+            check_ffprobe(reraise=True)
+
+
+def test_check_ffprobe_available_reraise_true_still_returns_true():
+    """reraise only affects the failure path; success is unaffected."""
+    with patch(
+        "reprostim.video.media_info.subprocess.run",
+        return_value=MagicMock(returncode=0),
+    ):
+        assert check_ffprobe(reraise=True) is True
 
 
 # ===========================================================================
