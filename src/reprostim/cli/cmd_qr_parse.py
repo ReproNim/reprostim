@@ -120,6 +120,35 @@ logger = logging.getLogger(__name__)
     help="Number of worker threads for parallel QR decoding. "
     "0 or 1 = sequential (default). N > 1 = parallel with N threads.",
 )
+@click.option(
+    "-S",
+    "--start-time",
+    default="auto",
+    type=str,
+    show_default=True,
+    help="Video start timestamp source, `PARSE` mode only. `auto` extracts it "
+    "from the filename when the name matches the expected pattern, otherwise "
+    "falls back to the video file's modification time minus its real "
+    "(ffprobe-measured) duration. `filename` forces extraction from the "
+    "filename pattern, failing if it doesn't match. Any other value is "
+    "parsed as an explicit ISO 8601 timestamp (e.g. `2025-08-14T15:04:15.714`), "
+    "overriding both. When both `--start-time` and `--end-time` are explicit "
+    "timestamps, start must be <= end.",
+)
+@click.option(
+    "-E",
+    "--end-time",
+    default="auto",
+    type=str,
+    show_default=True,
+    help="Video end timestamp source, `PARSE` mode only. `auto` extracts it "
+    "from the filename when the name matches the expected pattern, otherwise "
+    "falls back to the video file's modification time. `filename` forces "
+    "extraction from the filename pattern, failing if it doesn't match. Any "
+    "other value is parsed as an explicit ISO 8601 timestamp, overriding "
+    "both. When both `--start-time` and `--end-time` are explicit "
+    "timestamps, start must be <= end.",
+)
 @click.pass_context
 def qr_parse(
     ctx,
@@ -134,6 +163,8 @@ def qr_parse(
     qrdet: bool,
     qrdet_model_size: str,
     qr_decoder_workers: int,
+    start_time: str,
+    end_time: str,
 ):
     """Parse QR codes in captured videos."""
 
@@ -155,6 +186,8 @@ def qr_parse(
         qrdet=qrdet,
         qrdet_model_size=qrdet_model_size,
         qr_decoder_workers=qr_decoder_workers,
+        start_time=start_time,
+        end_time=end_time,
         out_func=click.echo,
     )
 

@@ -25,6 +25,8 @@ import numpy as np
 from pydantic import BaseModel, Field
 from pyzbar.pyzbar import ZBarSymbol, decode
 
+from reprostim.video.media_info import check_ffprobe, get_audio_video_info_ffprobe
+
 # initialize the logger
 # Note: all logs out to stderr
 logger = logging.getLogger(__name__)
@@ -165,6 +167,16 @@ class ParseContext(BaseModel):
         0,
         description="Number of worker threads for parallel QR decoding. "
         "0 or 1 = sequential (default). N > 1 = parallel with N threads.",
+    )
+    start_time_opt: str = Field(
+        "auto",
+        description="`-S/--start-time` option value: `auto`, `filename`, or an "
+        "explicit ISO 8601 timestamp. See `resolve_video_time_info`.",
+    )
+    end_time_opt: str = Field(
+        "auto",
+        description="`-E/--end-time` option value: `auto`, `filename`, or an "
+        "explicit ISO 8601 timestamp. See `resolve_video_time_info`.",
     )
 
 
@@ -406,6 +418,130 @@ def get_video_time_info(path_video: str) -> VideoTimeInfo:
     dt: float = (res.end_time - res.start_time).total_seconds()
     res.duration_sec = dt
 
+    res.success = True
+    return res
+
+
+def resolve_video_time_info(
+    path_video: str, start_time_opt: str, end_time_opt: str
+) -> VideoTimeInfo:
+    """
+    Resolve a video's start/end timestamps from ``-S/--start-time`` and
+    ``-E/--end-time`` option values, bypassing the filename-pattern
+    requirement when needed.
+
+    Each of ``start_time_opt``/``end_time_opt`` is one of:
+
+    - ``"auto"`` — use the filename-derived value if the filename matches the
+      expected pattern (see :func:`get_video_time_info`); otherwise fall back
+      to a file-timestamp-derived value (see below).
+    - ``"filename"`` — force extraction from the filename pattern; fails if
+      the filename doesn't match.
+    - any other string — parsed as an explicit ISO 8601 timestamp, taking
+      precedence over the filename entirely.
+
+    ``end_time`` is resolved before ``start_time`` because the ``"auto"``
+    fallback for ``start_time`` (when the filename doesn't match) needs
+    ``end_time`` already known: it derives ``start_time`` as
+    ``end_time - real_duration``, where ``real_duration`` is measured via
+    ``ffprobe`` (:func:`reprostim.video.media_info.get_audio_video_info_ffprobe`),
+    not the filename. The ``"auto"`` fallback for ``end_time`` itself uses the
+    video file's modification time (``os.path.getmtime``) — chosen over
+    ``start_time`` for the raw file-timestamp fallback because mtime reflects
+    when the file was last written, which is much closer to "recording
+    finished" than "recording started".
+
+    Chronological validation (``start_time <= end_time``) is only performed
+    when *both* options were given as explicit ISO 8601 timestamps.
+
+    :param path_video: Full path to the video file.
+    :type path_video: str
+    :param start_time_opt: ``-S/--start-time`` option value.
+    :type start_time_opt: str
+    :param end_time_opt: ``-E/--end-time`` option value.
+    :type end_time_opt: str
+
+    :return: A :class:`VideoTimeInfo` with ``success=True`` and populated
+             ``start_time``/``end_time``/``duration_sec`` on success, or
+             ``success=False`` with ``error`` set on failure.
+    :rtype: VideoTimeInfo
+    """
+    res: VideoTimeInfo = VideoTimeInfo(
+        success=False, error=None, start_time=None, end_time=None
+    )
+
+    vti: VideoTimeInfo = get_video_time_info(path_video)
+    fn_start: Optional[datetime] = vti.start_time
+    fn_end: Optional[datetime] = vti.end_time
+
+    is_start_explicit = start_time_opt not in ("auto", "filename")
+    is_end_explicit = end_time_opt not in ("auto", "filename")
+
+    # Resolve end_time first — start_time's "auto" fallback may need it.
+    if is_end_explicit:
+        try:
+            res.end_time = get_iso_time(end_time_opt)
+        except ValueError as e:
+            res.error = f"Invalid --end-time value '{end_time_opt}': {e}"
+            return res
+    elif end_time_opt == "filename":
+        if fn_end is None:
+            res.error = (
+                f"--end-time filename requested, but filename '{path_video}' "
+                f"does not match the required pattern."
+            )
+            return res
+        res.end_time = fn_end
+    else:  # auto
+        if fn_end is not None:
+            res.end_time = fn_end
+        else:
+            res.end_time = datetime.fromtimestamp(os.path.getmtime(path_video))
+
+    # Resolve start_time.
+    if is_start_explicit:
+        try:
+            res.start_time = get_iso_time(start_time_opt)
+        except ValueError as e:
+            res.error = f"Invalid --start-time value '{start_time_opt}': {e}"
+            return res
+    elif start_time_opt == "filename":
+        if fn_start is None:
+            res.error = (
+                f"--start-time filename requested, but filename '{path_video}' "
+                f"does not match the required pattern."
+            )
+            return res
+        res.start_time = fn_start
+    else:  # auto
+        if fn_start is not None:
+            res.start_time = fn_start
+        else:
+            if not check_ffprobe():
+                res.error = (
+                    "--start-time auto needs ffprobe to measure real video "
+                    f"duration (filename '{path_video}' does not match the "
+                    "required pattern), but ffprobe is not installed."
+                )
+                return res
+            _, vi = get_audio_video_info_ffprobe(path_video)
+            if vi.duration_sec is None:
+                res.error = (
+                    f"Could not determine video duration via ffprobe for "
+                    f"'{path_video}'; cannot resolve --start-time auto."
+                )
+                return res
+            res.start_time = res.end_time - timedelta(seconds=vi.duration_sec)
+
+    # Chronological validation only when both were given explicitly.
+    if is_start_explicit and is_end_explicit and res.start_time > res.end_time:
+        res.error = (
+            f"--start-time ({res.start_time.isoformat()}) must be <= "
+            f"--end-time ({res.end_time.isoformat()})."
+        )
+        return res
+
+    res.duration_sec = (res.end_time - res.start_time).total_seconds()
     res.success = True
     return res
 
@@ -738,7 +874,7 @@ def do_parse(
     Parse a video file to extract QR code-encoded segments and video metadata.
 
     The function performs the following steps:
-    - Parses the filename to extract start and end timestamps.
+    - Resolves start and end timestamps (see :func:`resolve_video_time_info`).
     - Extracts video metadata such as resolution, frame rate, frame count, and duration.
     - Iterates through video frames to detect and decode QR codes.
     - Yields finalized records when a QR code is detected or ends.
@@ -748,8 +884,9 @@ def do_parse(
     QR code corresponds to a data payload which is yielded as a finalized record.
 
     :param ctx: Parse context holding configuration for frame processing (grayscale
-                method, std-threshold, scale, skip, QR decoder, etc.). Initialised
-                once by the caller and shared across the entire parse run.
+                method, std-threshold, scale, skip, QR decoder, start/end time option,
+                etc.). Initialised once by the caller and shared across the entire
+                parse run.
     :type ctx: ParseContext
 
     :param path_video: Path to the input video file (e.g., `*.mkv`, `*.mp4`).
@@ -767,9 +904,11 @@ def do_parse(
     """
     ps: ParseSummary = ParseSummary()
 
-    vti: VideoTimeInfo = get_video_time_info(path_video)
+    vti: VideoTimeInfo = resolve_video_time_info(
+        path_video, ctx.start_time_opt, ctx.end_time_opt
+    )
     if not vti.success:
-        logger.error(f"Failed parse file name time pattern, error: {vti.error}")
+        logger.error(f"Failed to resolve video start/end time, error: {vti.error}")
         if not ignore_errors:
             return
 
@@ -862,6 +1001,8 @@ def do_main(
     qrdet: bool = False,
     qrdet_model_size: str = "s",
     qr_decoder_workers: int = 0,
+    start_time: str = "auto",
+    end_time: str = "auto",
     out_func=print,
 ):
     """Entry point for the ``qr-parse`` command.
@@ -881,6 +1022,12 @@ def do_main(
     :param qrdet_model_size: qrdet model size (``'n'``, ``'s'``, ``'m'``, ``'l'``).
     :param qr_decoder_workers: Worker threads for parallel QR decoding;
         ``0`` or ``1`` = sequential.
+    :param start_time: ``-S/--start-time`` option value, ``PARSE`` mode only —
+        ``"auto"``, ``"filename"``, or an explicit ISO 8601 timestamp. See
+        :func:`resolve_video_time_info`.
+    :param end_time: ``-E/--end-time`` option value, ``PARSE`` mode only —
+        ``"auto"``, ``"filename"``, or an explicit ISO 8601 timestamp. See
+        :func:`resolve_video_time_info`.
     :param out_func: Callable used to emit each output line (default: ``print``).
     :returns: Exit code (``0`` on success, non-zero on error).
     """
@@ -895,6 +1042,8 @@ def do_main(
     logger.info(f"Video decoder    : {video_decoder}")
     logger.info(f"QRDet pre-filter : {qrdet} (model={qrdet_model_size})")
     logger.info(f"QR decoder workers: {qr_decoder_workers}")
+    logger.info(f"Start time       : {start_time}")
+    logger.info(f"End time         : {end_time}")
 
     if not os.path.exists(path):
         logger.error(f"Path does not exist: {path}")
@@ -909,6 +1058,14 @@ def do_main(
         return 1
 
     if mode == "PARSE":
+        for label, value in (("start-time", start_time), ("end-time", end_time)):
+            if value not in ("auto", "filename"):
+                try:
+                    get_iso_time(value)
+                except ValueError as e:
+                    logger.error(f"Invalid --{label} value '{value}': {e}")
+                    return 1
+
         ctx: ParseContext = ParseContext(
             grayscale=Grayscale(grayscale),
             scale=scale,
@@ -919,6 +1076,8 @@ def do_main(
             qrdet=qrdet,
             qrdet_model_size=qrdet_model_size,
             qr_decoder_workers=qr_decoder_workers,
+            start_time_opt=start_time,
+            end_time_opt=end_time,
         )
         try:
             _init_qrdet(ctx)

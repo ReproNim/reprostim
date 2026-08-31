@@ -18,12 +18,11 @@ from typing import Any, Dict, Optional
 
 from reprostim.bids.media import BidsMediaProperty
 from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
-from reprostim.video.audit import (
+from reprostim.video.audit import VaRecord, get_file_video_audit
+from reprostim.video.media_info import (
     AudioInfo,
-    VaRecord,
     VideoInfo,
     get_audio_video_info_ffprobe,
-    get_file_video_audit,
     parse_audio_sr,
 )
 

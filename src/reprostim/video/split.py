@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 
 from reprostim.bids.properties import bids_properties_from_split_result
 from reprostim.capture.metadata import MetadataSessionBegin, find_metadata_by_class
-from reprostim.video.audit import VaRecord, get_file_video_audit, parse_audio_sr
+from reprostim.video.audit import VaRecord, get_file_video_audit
+from reprostim.video.media_info import parse_audio_sr
 
 # initialize the logger
 # Note: all logs out to stderr
