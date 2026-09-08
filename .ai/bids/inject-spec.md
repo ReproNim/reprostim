@@ -113,6 +113,48 @@ other row (acquisition rows that were matched and injected, rows that were skipp
 that errored) — matching the general "fill absent values with the literal `n/a`" rule from
 the issue.
 
+#### Row classification
+
+Every row in a parsed `ScansModel` is classified as either a **media row** or an
+**acquisition row** by matching its `filename` against the Output A suffix pattern:
+`_recording-reprostim_(video|audio|audiovideo)\.mkv$` (`_is_media_row(filename)` helper).
+
+- **Acquisition rows** (everything else — `.nii.gz`/`.nii`/other non-reprostim files) go
+  through the normal per-record loop: duration computation, video matching, `split-video`
+  invocation.
+- **Media rows** are recognized up front and **excluded from the main per-acquisition loop**
+  — they have no JSON sidecar / duration / video match of their own to compute, so processing
+  them as if they were acquisitions would spuriously warn or error. They are only touched via
+  the insert-or-update mechanism below, driven by the acquisition row they correspond to.
+
+#### Migration from the pre-#276 layout / idempotent re-runs
+
+`bids-inject` is expected to be re-run repeatedly over a dataset — including datasets that
+were already (partially) injected by the pre-#276 version of the tool, which wrote real
+`reprostim_*` values onto the acquisition row instead of a dedicated media row. Running the
+current version once over such a file must fully migrate it, without requiring a separate
+migration step:
+
+- **Every acquisition row's `reprostim_*` columns are unconditionally forced to `n/a` on
+  every save** — regardless of whether that row was matched by `--match`, successfully
+  injected, skipped, or errored this run, and regardless of what stale values (real or `n/a`)
+  were already present in the file. This is what clears out leftover values from a pre-#276
+  run the moment the file is next rewritten.
+- This reset is unconditional specifically because `reprostim_*` is no longer a valid concept
+  for an acquisition row; there is no scenario where a `.nii.gz` row should carry a non-`n/a`
+  value in these columns under the current design.
+- **Existing media rows are only touched when their corresponding acquisition is
+  successfully (re-)injected this run.** A media row already present in the file (from a
+  prior #276-compliant run) whose acquisition is skipped this run (excluded by `--match`, no
+  video match, error, etc.) is left exactly as-is — `bids-inject` never deletes or blanks a
+  media row just because the run didn't revisit it.
+- When an acquisition *is* successfully (re-)injected, its media row is looked up by
+  `filename` (see Insert-or-update below) and **updated in place** with the freshly computed
+  `acq_time`/`operator`/`reprostim_*` values, whether or not the row already existed and
+  whether or not those values changed from before — this is what keeps a media row for a
+  video that "was saved before" (from an earlier run) in sync when re-injected rather than
+  duplicated.
+
 #### Media row fields
 
 | Field       | Value                                                                                                                                                                     |
@@ -126,10 +168,12 @@ the issue.
 #### Insert-or-update (idempotency) and sort order
 
 - On each successful injection, `bids-inject` looks for an existing row in the same
-  `ScansModel` whose `filename` equals the media file's relative path.
-  - **Found** (re-run) — the row's `acq_time`, `operator` (if applicable), and `reprostim_*`
-    columns are updated in place; no duplicate row is created.
-  - **Not found** — a new `ScanRecord` is appended to the model.
+  `ScansModel` (media or acquisition — in practice always a media row, since that's the only
+  kind carrying this `filename`) whose `filename` equals the media file's relative path.
+  - **Found** (re-run over a file that already has this media row) — the row's `acq_time`,
+    `operator` (if applicable), and `reprostim_*` columns are updated in place; no duplicate
+    row is created.
+  - **Not found** — a new `ScanRecord` is appended to the model, tagged as a media row.
 - After all rows in the file have been processed, and **before** writing, all records are
   sorted by parsed `acq_time` ascending (stable sort — ties keep their original relative
   order). This keeps media rows interleaved with their related acquisitions in acquisition
@@ -653,7 +697,11 @@ wrappers around `dt_convert`.
 
 2. For each subject/session in BIDS_ROOT:
    a. Load <sub>/<ses>/*_scans.tsv
-   b. For each scan row:
+      └─ Classify each row as media row (filename matches
+         `_recording-reprostim_(video|audio|audiovideo)\.mkv$`) or acquisition row.
+         Media rows are set aside (not looped over below); they are only touched via
+         the insert-or-update step (vii) below, keyed by filename.
+   b. For each ACQUISITION scan row:
       i.  Parse acq_time → normalize to UTC (see Timezone Handling):
             dt_bids_to_utc(dt_parse_bids(acq_time), tz_bids)
           Apply --time-offset (seconds) to UTC-normalized acq_time
@@ -687,7 +735,15 @@ wrappers around `dt_convert`.
       vii. On success, upsert the dedicated media row in the in-memory ScansModel
            (insert if no row with matching `filename` exists, else update in place)
               — see Output D / "Insert-or-update (idempotency) and sort order".
-   c. After all rows in the file are processed: sort ScansModel records by parsed
+           An acquisition row that is skipped/errored this iteration, or one whose
+           corresponding video was already injected in a prior run and isn't
+           re-matched this time, leaves any pre-existing media row untouched.
+   c. Regardless of outcome (matched, skipped, or errored), force this acquisition
+      row's `reprostim_*` columns to `n/a` — see Output D / "Migration from the
+      pre-#276 layout". This runs for every acquisition row, including ones excluded
+      by `--match` (they were still loaded and will still be rewritten), guaranteeing
+      a single run fully migrates a file previously annotated by the pre-#276 tool.
+   d. After all rows in the file are processed: sort ScansModel records by parsed
       `acq_time` ascending (stable), then write the file once (skipped in --dry-run).
 
 3. Report summary: N injected, M skipped, K errors

@@ -143,8 +143,17 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 > acquisition's row. See [inject-spec.md](inject-spec.md) Output D for the current design.
 
 - [x] Add `ScansModel` / `ScanRecord` fields for the four annotation columns
-- [x] `reprostim_path`, `reprostim_offset`, `reprostim_buffer_before`, `reprostim_buffer_after`
-      are always `n/a` on the source acquisition row (moved off it per #276)
+- [ ] `_is_media_row(filename)` helper — matches
+      `_recording-reprostim_(video|audio|audiovideo)\.mkv$`; used to classify each parsed row
+      as media vs. acquisition
+- [ ] Exclude media rows from the main per-acquisition loop in `_do_inject_scans` (no
+      duration/video-match/split-video attempted on them)
+- [ ] Force every **acquisition** row's `reprostim_path`/`reprostim_offset`/
+      `reprostim_buffer_before`/`reprostim_buffer_after` to `n/a` unconditionally on every
+      save — regardless of `--match`, regardless of matched/skipped/errored outcome, and
+      regardless of stale values already present (migrates pre-#276 files in a single run)
+- [ ] Existing media rows whose acquisition is not (re-)injected this run (excluded by
+      `--match`, no video match, error) are left untouched — never deleted/blanked
 - [ ] Build the dedicated media `ScanRecord`: `filename` (media file's session-relative path),
       `acq_time` (acquisition's raw `acq_time` string minus `reprostim_buffer_before`,
       same ISO precision), `operator` = `f"reprostim:{__version__}"` (only when an `operator`
@@ -352,6 +361,24 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [ ] `--dry-run` → `_scans.tsv` not modified (no media row inserted)
 - [ ] `--layout top-stimuli` → no dedicated media row inserted (out of scope per spec Open
       Questions #16); acquisition row's `reprostim_*` remain `n/a`
+
+#### Migration / idempotency tests
+
+- [ ] Pre-#276-style file (acquisition row has real `reprostim_*` values, no media row) →
+      after one run: acquisition row's `reprostim_*` are `n/a`, a new media row exists with
+      correct values
+- [ ] Pre-#276-style row excluded by `--match` this run → its stale `reprostim_*` are still
+      forced to `n/a` on save (row is loaded/rewritten even though not reprocessed)
+- [ ] File already has a correct media row (prior #276-compliant run) + acquisition
+      re-injected this run → media row updated in place, no duplicate row, row count
+      unchanged
+- [ ] File has a media row whose acquisition is skipped this run (no video match) → media
+      row left byte-for-byte untouched
+- [ ] File has a media row whose acquisition's `--match` excludes it this run → media row
+      left untouched (not deleted)
+- [ ] Media rows themselves are excluded from the main per-acquisition loop — no spurious
+      "cannot determine duration" warning/error for a row whose `filename` matches
+      `_is_media_row`
 
 ### scans.json data-dictionary sync tests (`_do_inject_scans_json`)
 - [x] Missing `scans.json` → created verbatim from `_load_default_scans_json()`
