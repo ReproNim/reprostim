@@ -81,15 +81,21 @@ Example:
 sub-qa/ses-20250814/func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.json
 ```
 
-### D) _scans.tsv annotation — reprostim columns
+### D) _scans.tsv annotation — dedicated media row
 
-After a successful injection `bids-inject` writes back several `reprostim_*` columns to
-the same `_scans.tsv` row, recording the exact video provenance and timing offsets used.
-These columns are written **in-place** (the file is rewritten with the new columns appended
-to the right of any existing columns).  All four columns are always written for every row that `_call_split_video` is invoked for —
-`n/a` on failure or when `SplitResult` is unavailable, actual values on success.  Rows that
-were never matched to a video (skipped before `_call_split_video`) retain whatever value was
-already in the file (or `n/a` if the column is newly added).
+Corresponds to GitHub issue: https://github.com/ReproNim/reprostim/issues/276
+
+> **Supersedes the original design.** The first implementation of this feature wrote the
+> `reprostim_*` columns onto the *same row* as the source `.nii.gz`/`.tsv` acquisition. Issue
+> #276 pointed out that this conflates two different things — the DICOM/NIfTI acquisition and
+> the injected media file are separate BIDS entities (the media file has its own `filename`,
+> the same way an `_events.tsv` or `_physio.tsv` file would) — and that the media file should
+> get its own row instead.
+
+After a successful injection, `bids-inject` adds (or updates, on re-run) a **dedicated row**
+in the same `_scans.tsv` file for the injected media file (Output A) itself, in addition to
+leaving the original acquisition's row untouched aside from its `reprostim_*` columns always
+reading `n/a` (those columns describe a video file, which the acquisition row is not).
 
 **Column name prefix — `reprostim_`:** the longer prefix is preferred over `r_` because it
 is self-documenting, unambiguous if multiple tools annotate the same scans file, and avoids
@@ -102,11 +108,85 @@ namespace collisions.
 | `reprostim_path`           | `input_path` (relative)   | Path to the source `.mkv` file, relative to the `videos.tsv` location.                       |
 | `reprostim_offset`         | `orig_buffer_offset`      | Offset of the buffer-segment start into the source video, in seconds (`buf_seg.offset_sec`).  |
 
-**Example extended `_scans.tsv`:**
+These four columns are written **only** on the media row. They are always `n/a` on every
+other row (acquisition rows that were matched and injected, rows that were skipped, and rows
+that errored) — matching the general "fill absent values with the literal `n/a`" rule from
+the issue.
+
+#### Row classification
+
+Every row in a parsed `ScansModel` is classified as either a **media row** or an
+**acquisition row** by matching its `filename` against the Output A suffix pattern:
+`_recording-reprostim_(video|audio|audiovideo)\.mkv$` (`_is_media_row(filename)` helper).
+
+- **Acquisition rows** (everything else — `.nii.gz`/`.nii`/other non-reprostim files) go
+  through the normal per-record loop: duration computation, video matching, `split-video`
+  invocation.
+- **Media rows** are recognized up front and **excluded from the main per-acquisition loop**
+  — they have no JSON sidecar / duration / video match of their own to compute, so processing
+  them as if they were acquisitions would spuriously warn or error. They are only touched via
+  the insert-or-update mechanism below, driven by the acquisition row they correspond to.
+
+#### Migration from the pre-#276 layout / idempotent re-runs
+
+`bids-inject` is expected to be re-run repeatedly over a dataset — including datasets that
+were already (partially) injected by the pre-#276 version of the tool, which wrote real
+`reprostim_*` values onto the acquisition row instead of a dedicated media row. Running the
+current version once over such a file must fully migrate it, without requiring a separate
+migration step:
+
+- **Every acquisition row's `reprostim_*` columns are unconditionally forced to `n/a` on
+  every save** — regardless of whether that row was matched by `--match`, successfully
+  injected, skipped, or errored this run, and regardless of what stale values (real or `n/a`)
+  were already present in the file. This is what clears out leftover values from a pre-#276
+  run the moment the file is next rewritten.
+- This reset is unconditional specifically because `reprostim_*` is no longer a valid concept
+  for an acquisition row; there is no scenario where a `.nii.gz` row should carry a non-`n/a`
+  value in these columns under the current design.
+- **Existing media rows are only touched when their corresponding acquisition is
+  successfully (re-)injected this run.** A media row already present in the file (from a
+  prior #276-compliant run) whose acquisition is skipped this run (excluded by `--match`, no
+  video match, error, etc.) is left exactly as-is — `bids-inject` never deletes or blanks a
+  media row just because the run didn't revisit it.
+- When an acquisition *is* successfully (re-)injected, its media row is looked up by
+  `filename` (see Insert-or-update below) and **updated in place** with the freshly computed
+  `acq_time`/`operator`/`reprostim_*` values, whether or not the row already existed and
+  whether or not those values changed from before — this is what keeps a media row for a
+  video that "was saved before" (from an earlier run) in sync when re-injected rather than
+  duplicated.
+
+#### Media row fields
+
+| Field       | Value                                                                                                                                                                     |
+|-------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `filename`  | Relative path of the injected media file (Output A), using the same session-relative convention as other `filename` values in the file (e.g. `func/..._recording-reprostim_audiovideo.mkv`). Only well-defined for `--layout nearby` — see Open Questions. |
+| `acq_time`  | The acquisition's own `acq_time` string (as read from the file, *before* `--time-offset`/timezone normalization) minus `reprostim_buffer_before` seconds — i.e. the actual wall-clock start of the sliced clip. Formatted with the same ISO 8601 precision as the source string. |
+| `operator`  | `reprostim:{__version__}` (the installed `reprostim` package version that performed the slicing), written **only if an `operator` column already exists** in the file. `bids-inject` never introduces a new column that wasn't already present. |
+| other extra columns (e.g. `randstr`) | `n/a` — not applicable to a media row.                                                                                                                  |
+| `reprostim_*` (4 cols) | Real values from `SplitResult`, as in the table above.                                                                                                        |
+
+#### Insert-or-update (idempotency) and sort order
+
+- On each successful injection, `bids-inject` looks for an existing row in the same
+  `ScansModel` (media or acquisition — in practice always a media row, since that's the only
+  kind carrying this `filename`) whose `filename` equals the media file's relative path.
+  - **Found** (re-run over a file that already has this media row) — the row's `acq_time`,
+    `operator` (if applicable), and `reprostim_*` columns are updated in place; no duplicate
+    row is created.
+  - **Not found** — a new `ScanRecord` is appended to the model, tagged as a media row.
+- After all rows in the file have been processed, and **before** writing, all records are
+  sorted by parsed `acq_time` ascending (stable sort — ties keep their original relative
+  order). This keeps media rows interleaved with their related acquisitions in acquisition
+  order, per the issue's "sort by `acq_time`" requirement.
+- Sorting and insertion both happen in-memory on the `ScansModel`; the file itself is still
+  rewritten exactly once per `_do_inject_scans` call, same as today.
+- Skipped in `--dry-run` mode, same as the rest of Output D.
+
+**Example extended `_scans.tsv`** (from issue #276, reformatted):
 ```
-filename                                                              acq_time                    operator  randstr   reprostim_buffer_before  reprostim_buffer_after  reprostim_path                              reprostim_offset
-func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz                       2025-08-14T15:19:53.397500  n/a       6b371aad  10.0                     10.0                    2025.08.14.15.10.00.000_....mkv             560.3
-func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T15:06:09.742500  n/a       77b0dbb6  n/a                      n/a                     n/a                                         n/a
+filename                                                                acq_time                     operator         randstr   reprostim_path                                                            reprostim_offset  reprostim_buffer_before  reprostim_buffer_after
+func/sub-qa_ses-20250811_acq-faX10_recording-reprostim_audiovideo.mkv  2025-08-11T09:16:22.485000    reprostim:0.7.36 n/a       Videos/2025/08/2025.08.11-08.12.19.844--2025.08.11-09.44.03.638.mkv      3842.641          3.0                      3.0
+func/sub-qa_ses-20250811_acq-faX10_bold.nii.gz                         2025-08-11T09:16:25.485000    n/a              7a3668f9  n/a                                                                        n/a               n/a                      n/a
 ```
 
 > **Future (QR-based improvement):** When QR codes are embedded in the source video and
@@ -115,6 +195,10 @@ func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz        2025-08-14T
 > relying solely on NTP-based `acq_time`.  Recording `reprostim_offset` in `_scans.tsv`
 > makes it possible to resume or validate a subsequent `bids-qr-sync` pass without
 > re-scanning the source video from scratch.
+>
+> **Future (`bids-qr-inject`, issue #275):** once QR codes are decoded from the injected
+> media, that follow-on tool will add further columns to this same dedicated media row
+> (not to the acquisition row), continuing the pattern established here.
 
 **`scans.json` sidecar:** `src/reprostim/assets/bids/scans.json` provides a default BIDS
 data-dictionary sidecar (`LongName`/`Description`/`Units` per BIDS's tabular-file column
@@ -613,7 +697,11 @@ wrappers around `dt_convert`.
 
 2. For each subject/session in BIDS_ROOT:
    a. Load <sub>/<ses>/*_scans.tsv
-   b. For each scan row:
+      └─ Classify each row as media row (filename matches
+         `_recording-reprostim_(video|audio|audiovideo)\.mkv$`) or acquisition row.
+         Media rows are set aside (not looped over below); they are only touched via
+         the insert-or-update step (vii) below, keyed by filename.
+   b. For each ACQUISITION scan row:
       i.  Parse acq_time → normalize to UTC (see Timezone Handling):
             dt_bids_to_utc(dt_parse_bids(acq_time), tz_bids)
           Apply --time-offset (seconds) to UTC-normalized acq_time
@@ -644,6 +732,19 @@ wrappers around `dt_convert`.
                 --buffer-policy <policy> \
                 --sidecar-json \
                 --input <video_path> --output <output_mkv>
+      vii. On success, upsert the dedicated media row in the in-memory ScansModel
+           (insert if no row with matching `filename` exists, else update in place)
+              — see Output D / "Insert-or-update (idempotency) and sort order".
+           An acquisition row that is skipped/errored this iteration, or one whose
+           corresponding video was already injected in a prior run and isn't
+           re-matched this time, leaves any pre-existing media row untouched.
+   c. Regardless of outcome (matched, skipped, or errored), force this acquisition
+      row's `reprostim_*` columns to `n/a` — see Output D / "Migration from the
+      pre-#276 layout". This runs for every acquisition row, including ones excluded
+      by `--match` (they were still loaded and will still be rewritten), guaranteeing
+      a single run fully migrates a file previously annotated by the pre-#276 tool.
+   d. After all rows in the file are processed: sort ScansModel records by parsed
+      `acq_time` ascending (stable), then write the file once (skipped in --dry-run).
 
 3. Report summary: N injected, M skipped, K errors
 ```
@@ -722,7 +823,8 @@ The two columns used by `bids-inject`:
 Other columns (`operator`, `randstr`, etc.) are ignored on read.
 
 After processing all scan records, `bids-inject` calls `_save_scans_model` to rewrite the
-`_scans.tsv` file with `reprostim_*` annotation columns appended (see Output D above).
+`_scans.tsv` file with `reprostim_*` annotation columns appended (see Output D above), and
+with a dedicated row inserted/updated per successful injection, sorted by `acq_time`.
 Write-back is skipped in `--dry-run` mode.  `_save_scans_model` derives the output fieldnames
 from the existing `ScanRecord.extra` keys (preserving column order) and then appends any
 `_REPROSTIM_COLS` not already present.  It uses `csv.DictWriter` with `extrasaction="ignore"`
@@ -860,3 +962,6 @@ since `_scans.tsv` is a git-tracked plain-text file, not annexed.
 12. **con/duct**: ideally -- should have also used duct
 13. ~~**Error processing**: Add an option on what to do about "problematic" cases.~~ → partially resolved as `-w / --overwrite [skip|force|always|error]` for existing output handling.
 14. **QR-assisted injection resume**: When QR codes are already parsed and stored alongside the source video, `reprostim_offset` written to `_scans.tsv` (output D) enables a future `bids-qr-sync` pass to refine timing without re-scanning the video. Design the handoff protocol between `bids-inject` and `bids-qr-sync`.
+15. ~~**Dedicated media row** (issue #276): `reprostim_*` columns were written to the source acquisition's row instead of a dedicated row for the injected media file.~~ → resolved, see Output D / "Media row fields" above.
+16. **`top-stimuli` + dedicated media row**: the media file's `filename` isn't expressible as a simple session-relative path when it lives under a top-level `stimuli/` tree outside the subject/session directory. Deferred — dedicated media-row insertion (Output D) currently applies only to `--layout nearby`; `top-stimuli` keeps pre-#276 behavior (no dedicated row, `reprostim_*` on the acquisition row is `n/a`) until this is designed.
+17. **`operator` column provenance for non-media rows**: should the acquisition row's `operator` also change now that a `reprostim`-authored row exists alongside it, or does it remain whatever the DICOM exporter/upstream tool wrote? Current design: acquisition rows are untouched aside from `reprostim_*` → `n/a`.
