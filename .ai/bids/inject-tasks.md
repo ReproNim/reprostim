@@ -137,16 +137,30 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [ ] Finalise suffix name (`_qrcodes` / `_codes` / `_qr` / `_qrinfo`)
 - [ ] Columns: `onset`, `duration`, plus QR-derived fields
 
-### D) _scans.tsv annotation — `reprostim_*` columns
+### D) _scans.tsv annotation — dedicated media row (issue #276)
+
+> Supersedes the original design where `reprostim_*` columns were written onto the source
+> acquisition's row. See [inject-spec.md](inject-spec.md) Output D for the current design.
+
 - [x] Add `ScansModel` / `ScanRecord` fields for the four annotation columns
-- [x] Write-back `reprostim_buffer_before`, `reprostim_buffer_after`, `reprostim_path`, `reprostim_offset` to `_scans.tsv` after successful injection
-- [x] Rows that are skipped or error → write `n/a` for all four columns (when column is newly added to file)
+- [x] `reprostim_path`, `reprostim_offset`, `reprostim_buffer_before`, `reprostim_buffer_after`
+      are always `n/a` on the source acquisition row (moved off it per #276)
+- [ ] Build the dedicated media `ScanRecord`: `filename` (media file's session-relative path),
+      `acq_time` (acquisition's raw `acq_time` string minus `reprostim_buffer_before`,
+      same ISO precision), `operator` = `f"reprostim:{__version__}"` (only when an `operator`
+      column already exists in the file), other pre-existing extra columns = `n/a`,
+      `reprostim_*` = real `SplitResult` values
+- [ ] Upsert by `filename`: update the existing media row in place if one is found in the
+      model, else append a new `ScanRecord` (handles re-runs without duplicating rows)
+- [ ] Sort `ScansModel.records` by parsed `acq_time` ascending (stable) before `_save_scans_model`
+      writes the file — runs once per `_do_inject_scans` call, after all rows are processed
 - [x] Preserve all existing columns; append new ones to the right
-- [x] Handle re-runs: update existing `reprostim_*` columns in-place (don't duplicate)
 - [x] Skip write-back in `--dry-run` mode
 - [x] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
 - [x] `src/reprostim/assets/bids/scans.json` — default BIDS data-dictionary sidecar documenting
       `filename`, `acq_time`, and all four `reprostim_*` columns (`LongName`/`Description`/`Units`)
+- [ ] Limit dedicated media-row insertion to `--layout nearby` for now (see spec Open Questions #16);
+      `top-stimuli` keeps pre-#276 behavior
 
 ### E) scans.json data-dictionary sync
 - [x] `_load_default_scans_json()` — reads the packaged default sample via `importlib.resources`
@@ -319,12 +333,25 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] `_save_scans_model` — `reprostim_*` columns appear in `_REPROSTIM_COLS` order
 
 #### Integration tests (end-to-end via `_do_inject_scans` / `_call_split_video`)
-- [x] Successful injection → all four `reprostim_*` columns written with correct values
-- [x] `reprostim_path` is relative to `videos.tsv` location, not absolute
-- [x] Non-injected rows receive `n/a` for all `reprostim_*` columns
-- [x] Failed split → four columns written as `n/a` (stale values cleared)
-- [x] Re-run (columns already present) → columns updated in-place, no duplication
-- [x] `--dry-run` → `_scans.tsv` not modified
+
+> Pre-#276 tests below assumed `reprostim_*` columns were written to the source acquisition's
+> row; these need to be rewritten against the dedicated-media-row design (Output D).
+
+- [ ] Successful injection → a new media row is appended with correct `filename`, `acq_time`
+      (acq_time − buffer_before), `operator` (`reprostim:{__version__}`, only if `operator`
+      column pre-exists), and all four `reprostim_*` columns
+- [ ] Source acquisition row's `reprostim_*` columns are always `n/a`, including on success
+- [ ] `reprostim_path` on the media row is relative to `videos.tsv` location, not absolute
+- [ ] Rows never matched to a video (skipped/errored) → no media row created; acquisition row's
+      `reprostim_*` stay `n/a`
+- [ ] Failed split → no media row created (or removed if a stale one existed from a prior run —
+      TBD, see spec)
+- [ ] Re-run (media row already present, matched by `filename`) → row updated in-place, no
+      duplicate row
+- [ ] Records are sorted by `acq_time` ascending after processing, before write
+- [ ] `--dry-run` → `_scans.tsv` not modified (no media row inserted)
+- [ ] `--layout top-stimuli` → no dedicated media row inserted (out of scope per spec Open
+      Questions #16); acquisition row's `reprostim_*` remain `n/a`
 
 ### scans.json data-dictionary sync tests (`_do_inject_scans_json`)
 - [x] Missing `scans.json` → created verbatim from `_load_default_scans_json()`
@@ -400,3 +427,9 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [ ] **`--skip` error policy** — e.g. `--skip=absent-video,unknown-timing,...`
 - [x] **`--overwrite` policy** — `-w / --overwrite [skip|force|always|error]` implemented for existing output file handling
 - [ ] **`--duration` override** — manual scan duration for edge cases
+- [ ] **Dedicated media row (issue #276)** — design finalized in spec Output D; implementation
+      pending, see "D) _scans.tsv annotation" section above
+- [ ] **`top-stimuli` + dedicated media row** — deferred, filename not session-relative when
+      media lives under top-level `stimuli/` (spec Open Questions #16)
+- [ ] **`bids-qr-inject` (issue #275)** — future tool; will add QR-derived columns to the same
+      dedicated media row introduced by #276
