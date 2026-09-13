@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import pytest
 from click.testing import CliRunner
 
+from reprostim.__about__ import __version__
 from reprostim.bids.inject import (
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
@@ -25,11 +26,15 @@ from reprostim.bids.inject import (
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
+    ScanRecordKind,
     ScansModel,
     _calc_bids_output_stem,
+    _calc_media_acq_time,
     _calc_media_suffix,
     _calc_scan_duration_sec,
+    _calc_scan_record_kind,
     _calc_scan_start_end_ts,
+    _calc_sidecar_json,
     _do_inject_scans_json,
     _find_bids_root,
     _format_bids_str,
@@ -41,6 +46,7 @@ from reprostim.bids.inject import (
     _parse_scan_metadata,
     _parse_scans_model,
     _save_scans_model,
+    _upsert_media_row,
     do_main,
     dt_bids_to_reprostim,
     dt_bids_to_utc,
@@ -448,6 +454,161 @@ def test_calc_media_suffix_neither_returns_none():
 
 
 # ===========================================================================
+# ScanRecordKind / _calc_scan_record_kind (issue #276 — row classification)
+# ===========================================================================
+
+
+@pytest.mark.parametrize(
+    "filename,expected",
+    [
+        (
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_video.mkv",
+            ScanRecordKind.REPROSTIM_VIDEO,
+        ),
+        (
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audio.mkv",
+            ScanRecordKind.REPROSTIM_AUDIO,
+        ),
+        (
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv",
+            ScanRecordKind.REPROSTIM_AUDIOVIDEO,
+        ),
+        ("func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz", ScanRecordKind.NIFTI_GZ),
+        ("anat/sub-qa_ses-20250814_T1w.nii", ScanRecordKind.NIFTI),
+        (
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_events.tsv",
+            ScanRecordKind.UNKNOWN,
+        ),
+    ],
+)
+def test_calc_scan_record_kind(filename, expected):
+    assert _calc_scan_record_kind(filename) == expected
+
+
+@pytest.mark.parametrize(
+    "kind,expected",
+    [
+        (ScanRecordKind.REPROSTIM_VIDEO, True),
+        (ScanRecordKind.REPROSTIM_AUDIO, True),
+        (ScanRecordKind.REPROSTIM_AUDIOVIDEO, True),
+        (ScanRecordKind.NIFTI_GZ, False),
+        (ScanRecordKind.NIFTI, False),
+        (ScanRecordKind.UNKNOWN, False),
+    ],
+)
+def test_scan_record_kind_is_reprostim_media(kind, expected):
+    assert kind.is_reprostim_media is expected
+
+
+@pytest.mark.parametrize(
+    "kind,expected",
+    [
+        (ScanRecordKind.NIFTI_GZ, True),
+        (ScanRecordKind.NIFTI, True),
+        (ScanRecordKind.REPROSTIM_VIDEO, False),
+        (ScanRecordKind.REPROSTIM_AUDIO, False),
+        (ScanRecordKind.REPROSTIM_AUDIOVIDEO, False),
+        (ScanRecordKind.UNKNOWN, False),
+    ],
+)
+def test_scan_record_kind_is_nifti(kind, expected):
+    assert kind.is_nifti is expected
+
+
+def test_scan_record_kind_defaults_to_unknown_when_not_passed():
+    """kind is a plain stored field, not auto-derived from filename on every
+    construction — callers must compute and pass it explicitly (see
+    _parse_scans_model / _call_split_video), otherwise it defaults to
+    UNKNOWN even for a filename that _calc_scan_record_kind would classify."""
+    rec = ScanRecord(
+        filename="func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv",
+        acq_time="2025-08-14T15:06:09.742500",
+    )
+    assert rec.kind == ScanRecordKind.UNKNOWN
+
+
+def test_scan_record_kind_honors_explicit_value():
+    rec = ScanRecord(
+        filename="func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv",
+        acq_time="2025-08-14T15:06:09.742500",
+        kind=ScanRecordKind.REPROSTIM_AUDIOVIDEO,
+    )
+    assert rec.kind == ScanRecordKind.REPROSTIM_AUDIOVIDEO
+
+
+def test_parse_scans_model_computes_kind_from_filename(tmp_path):
+    """_parse_scans_model is the authoritative point where kind is computed
+    (via _calc_scan_record_kind) for every row, from its raw filename."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        [
+            "func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz"
+            "\t2025-08-14T15:06:09.742500\tn/a\tabc123",
+            "func/sub-qa_ses-20250814_acq-faX77"
+            "_recording-reprostim_audiovideo.mkv"
+            "\t2025-08-14T15:06:04.742500\treprostim:0.0.0\tn/a",
+        ],
+        "filename\tacq_time\toperator\trandstr",
+    )
+    model = _parse_scans_model(str(tsv))
+    assert model.records[0].kind == ScanRecordKind.NIFTI_GZ
+    assert model.records[1].kind == ScanRecordKind.REPROSTIM_AUDIOVIDEO
+
+
+# ===========================================================================
+# _calc_media_acq_time
+# ===========================================================================
+
+
+def test_calc_media_acq_time_subtracts_buffer_before():
+    result = _calc_media_acq_time("2025-08-14T15:06:09.742500", 5.0)
+    assert result == "2025-08-14T15:06:04.742500"
+
+
+def test_calc_media_acq_time_always_microsecond_precision():
+    result = _calc_media_acq_time("2025-08-14T15:06:09", 5.0)
+    assert result == "2025-08-14T15:06:04.000000"
+
+
+# ===========================================================================
+# _upsert_media_row
+# ===========================================================================
+
+
+def test_upsert_media_row_appends_when_not_found():
+    scans = ScansModel(
+        path="x.tsv",
+        records=[ScanRecord(filename="func/a_bold.nii.gz", acq_time="t")],
+    )
+    media = ScanRecord(filename="func/a_recording-reprostim_video.mkv", acq_time="t2")
+    _upsert_media_row(scans, media)
+    assert len(scans.records) == 2
+    assert scans.records[-1] is media
+
+
+def test_upsert_media_row_updates_in_place_when_found():
+    existing = ScanRecord(
+        filename="func/a_recording-reprostim_video.mkv",
+        acq_time="old",
+        reprostim_path="old.mkv",
+    )
+    scans = ScansModel(
+        path="x.tsv",
+        records=[ScanRecord(filename="func/a_bold.nii.gz", acq_time="t"), existing],
+    )
+    updated = ScanRecord(
+        filename="func/a_recording-reprostim_video.mkv",
+        acq_time="new",
+        reprostim_path="new.mkv",
+    )
+    _upsert_media_row(scans, updated)
+    assert len(scans.records) == 2
+    assert scans.records[1] is updated
+    assert scans.records[1].reprostim_path == "new.mkv"
+
+
+# ===========================================================================
 # _calc_scan_duration_sec
 # ===========================================================================
 
@@ -637,6 +798,60 @@ def test_scan_metadata_task_name_set():
     assert m.TaskName == "rest"
 
 
+# ===========================================================================
+# _calc_sidecar_json
+# ===========================================================================
+
+
+def test_calc_sidecar_json_nifti_gz():
+    sr = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+        kind=ScanRecordKind.NIFTI_GZ,
+    )
+    assert _calc_sidecar_json(sr) == "func/sub-qa_ses-20250814_task-rest_bold.json"
+
+
+def test_calc_sidecar_json_nifti_uncompressed():
+    sr = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_bold.nii",
+        acq_time="2025-01-15T12:00:00",
+        kind=ScanRecordKind.NIFTI,
+    )
+    assert _calc_sidecar_json(sr) == "func/sub-qa_ses-20250814_task-rest_bold.json"
+
+
+@pytest.mark.parametrize(
+    "kind,filename",
+    [
+        (
+            ScanRecordKind.REPROSTIM_VIDEO,
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_video.mkv",
+        ),
+        (
+            ScanRecordKind.REPROSTIM_AUDIO,
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audio.mkv",
+        ),
+        (
+            ScanRecordKind.REPROSTIM_AUDIOVIDEO,
+            "func/sub-qa_ses-20250814_acq-faX77_recording-reprostim_audiovideo.mkv",
+        ),
+    ],
+)
+def test_calc_sidecar_json_reprostim_media(kind, filename):
+    sr = ScanRecord(filename=filename, acq_time="2025-01-15T12:00:00", kind=kind)
+    assert _calc_sidecar_json(sr) == filename[: -len(".mkv")] + ".json"
+
+
+def test_calc_sidecar_json_unknown_kind_returns_none():
+    sr = ScanRecord(
+        filename="func/sub-qa_ses-20250814_task-rest_events.tsv",
+        acq_time="2025-01-15T12:00:00",
+        kind=ScanRecordKind.UNKNOWN,
+    )
+    assert _calc_sidecar_json(sr) is None
+
+
 def test_load_scan_metadata_task_name_present(tmp_path):
     """_load_scan_metadata reads TaskName from JSON sidecar."""
     scans_tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
@@ -649,6 +864,7 @@ def test_load_scan_metadata_task_name_present(tmp_path):
     record = ScanRecord(
         filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
         acq_time="2025-01-15T12:00:00",
+        kind=ScanRecordKind.NIFTI_GZ,
     )
     model = ScansModel(path=str(scans_tsv), records=[record])
     meta = _parse_scan_metadata(model, record)
@@ -666,6 +882,7 @@ def test_load_scan_metadata_task_name_absent(tmp_path):
     record = ScanRecord(
         filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
         acq_time="2025-01-15T12:00:00",
+        kind=ScanRecordKind.NIFTI_GZ,
     )
     model = ScansModel(path=str(scans_tsv), records=[record])
     meta = _parse_scan_metadata(model, record)
@@ -683,6 +900,7 @@ def test_load_scan_metadata_task_name_not_in_extra(tmp_path):
     record = ScanRecord(
         filename="func/sub-qa_ses-20250814_task-rest_bold.nii.gz",
         acq_time="2025-01-15T12:00:00",
+        kind=ScanRecordKind.NIFTI_GZ,
     )
     model = ScansModel(path=str(scans_tsv), records=[record])
     meta = _parse_scan_metadata(model, record)
@@ -1728,11 +1946,52 @@ def _tsv_rows(path: Path) -> dict:
         return {r["filename"]: r for r in csv.DictReader(f, delimiter="\t")}
 
 
-def test_scans_tsv_successful_injection_writes_reprostim_cols(tmp_path):
-    """Successful injection → reprostim_* columns written with correct values.
+def test_scans_tsv_media_row_not_reprocessed_as_acquisition(tmp_path):
+    """Regression: a media row appended mid-loop (via _upsert_media_row) must
+    not be revisited by the same `for sr in scans.records` loop as if it were
+    an acquisition. Python's list iterator does visit items appended during
+    iteration, so the newly built media ScanRecord's `kind` must be set
+    explicitly (not left to the UNKNOWN default) in _call_split_video —
+    otherwise it would fail the `kind.is_reprostim_media` check and fall
+    into the unconditional acquisition-row reset, wiping the reprostim_*
+    values it was just given."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
 
-    Also verifies reprostim_path is stored relative to the videos.tsv directory
-    and that non-injected rows receive n/a.
+    sr = _fake_split_result(
+        buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7
+    )
+    call_count = 0
+
+    def _fake_split(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        return 0, [sr]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            # Broad enough to also "match" the media filename appended mid-loop.
+            match=".*",
+            dry_run=False,
+            overwrite="always",
+        )
+
+    assert call_count == 1, "split-video should run once, not once per revisit"
+
+    media = _tsv_rows(scans_tsv)[_TASK_REST_OUTPUT_MKV]
+    for col in _REPROSTIM_COLS:
+        assert media[col] != "n/a", f"{col} was wiped — media row got reprocessed"
+
+
+def test_scans_tsv_successful_injection_writes_reprostim_cols(tmp_path):
+    """Successful injection → a dedicated media row is written with correct
+    reprostim_* values (issue #276), while the source acquisition row's own
+    reprostim_* columns are always n/a.
+
+    Also verifies reprostim_path is stored relative to the videos.tsv directory,
+    the media row's acq_time/operator, and that non-injected rows receive n/a.
     """
     scans_tsv = _copy_bids_fixture(tmp_path)
     videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)  # va.path == "video1.mkv"
@@ -1754,11 +2013,25 @@ def test_scans_tsv_successful_injection_writes_reprostim_cols(tmp_path):
         )
 
     rows = _tsv_rows(scans_tsv)
+
+    # Source acquisition row: reprostim_* always n/a under the new design.
     matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
-    assert matched["reprostim_path"] == "video1.mkv"
-    assert float(matched["reprostim_offset"]) == pytest.approx(69.7)
-    assert float(matched["reprostim_buffer_before"]) == pytest.approx(5.0)
-    assert float(matched["reprostim_buffer_after"]) == pytest.approx(3.0)
+    for col in _REPROSTIM_COLS:
+        assert matched[col] == "n/a"
+
+    # Dedicated media row carries the real values.
+    media = rows[_TASK_REST_OUTPUT_MKV]
+    assert media["reprostim_path"] == "video1.mkv"
+    assert float(media["reprostim_offset"]) == pytest.approx(69.7)
+    assert float(media["reprostim_buffer_before"]) == pytest.approx(5.0)
+    assert float(media["reprostim_buffer_after"]) == pytest.approx(3.0)
+    # acq_time = acquisition's acq_time (2025-08-14T15:06:09.742500) -
+    # buffer_before (5s).
+    assert media["acq_time"] == "2025-08-14T15:06:04.742500"
+    # operator column pre-exists in the fixture → gets the reprostim:{version} marker.
+    assert media["operator"] == f"reprostim:{__version__}"
+    assert media["randstr"] == "n/a"
+
     # Non-injected rows get n/a.
     anat = rows["anat/sub-qa_ses-20250814_T1w.nii.gz"]
     for col in _REPROSTIM_COLS:
@@ -1800,20 +2073,26 @@ def test_scans_tsv_failed_split_clears_stale_reprostim_cols(tmp_path):
 
 
 def test_scans_tsv_rerun_updates_in_place_no_duplication(tmp_path):
-    """Re-run with existing reprostim_* columns → values updated,
-    no column duplication."""
+    """Re-run over a file that already has a dedicated media row (from a prior
+    #276-compliant run) → that row is updated in place, no duplicate row."""
     scans_tsv = _copy_bids_fixture(tmp_path)
     videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
 
-    # Simulate a prior run with old values.
+    # Simulate a prior run that already produced a correct dedicated media row.
     model = _parse_scans_model(str(scans_tsv))
-    for rec in model.records:
-        if rec.filename.endswith("task-rest_acq-p2_bold.nii.gz"):
-            rec.reprostim_path = "old_video.mkv"
-            rec.reprostim_offset = 100.0
-            rec.reprostim_buffer_before = 0.0
-            rec.reprostim_buffer_after = 0.0
+    model.records.append(
+        ScanRecord(
+            filename=_TASK_REST_OUTPUT_MKV,
+            acq_time="2025-08-14T15:06:09.742500",
+            extra={"operator": f"reprostim:{__version__}", "randstr": "n/a"},
+            reprostim_path="old_video.mkv",
+            reprostim_offset=100.0,
+            reprostim_buffer_before=0.0,
+            reprostim_buffer_after=0.0,
+        )
+    )
     _save_scans_model(model)
+    n_rows_before = len(_tsv_rows(scans_tsv))
 
     sr = _fake_split_result(
         buffer_before=10.0, buffer_after=8.0, orig_buffer_offset=42.5
@@ -1838,11 +2117,161 @@ def test_scans_tsv_rerun_updates_in_place_no_duplication(tmp_path):
 
     for col in _REPROSTIM_COLS:
         assert fieldnames.count(col) == 1, f"Column '{col}' duplicated after re-run"
+    assert len(rows) == n_rows_before, "media row should be updated, not duplicated"
 
+    media = rows[_TASK_REST_OUTPUT_MKV]
+    assert float(media["reprostim_offset"]) == pytest.approx(42.5)
+    assert float(media["reprostim_buffer_before"]) == pytest.approx(10.0)
+    assert float(media["reprostim_buffer_after"]) == pytest.approx(8.0)
+    assert media["reprostim_path"] == "video1.mkv"
+    # acq_time refreshed too: acquisition's acq_time - new buffer_before (10s).
+    assert media["acq_time"] == "2025-08-14T15:05:59.742500"
+
+
+def test_scans_tsv_existing_media_row_untouched_when_not_reinjected(tmp_path):
+    """An existing media row is left byte-for-byte untouched when this run's
+    --match excludes the acquisition it belongs to (not re-injected)."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    stale_media_row = ScanRecord(
+        filename=_TASK_REST_OUTPUT_MKV,
+        acq_time="2025-08-14T15:06:04.742500",
+        extra={"operator": f"reprostim:{__version__}", "randstr": "n/a"},
+        reprostim_path="video1.mkv",
+        reprostim_offset=69.7,
+        reprostim_buffer_before=5.0,
+        reprostim_buffer_after=3.0,
+    )
+    model = _parse_scans_model(str(scans_tsv))
+    model.records.append(stale_media_row)
+    _save_scans_model(model)
+    before = _tsv_rows(scans_tsv)[_TASK_REST_OUTPUT_MKV]
+
+    def _fake_split(**kwargs):
+        return 0, [_fake_split_result()]
+
+    # --match excludes the task-rest_acq-p2 scan this media row belongs to.
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=r"__dup-01",
+            dry_run=False,
+            overwrite="always",
+        )
+
+    after = _tsv_rows(scans_tsv)[_TASK_REST_OUTPUT_MKV]
+    assert after == before
+
+
+def test_scans_tsv_migrates_pre_276_layout_in_one_run(tmp_path):
+    """A file annotated by the pre-#276 tool (real reprostim_* values on the
+    acquisition row, no dedicated media row) is fully migrated by a single run:
+    the acquisition row's reprostim_* are reset to n/a and a new media row is
+    created — including for a row excluded by --match this run."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    # Simulate pre-#276 output: both scan rows have stale real values.
+    model = _parse_scans_model(str(scans_tsv))
+    for rec in model.records:
+        if rec.filename.endswith(
+            "task-rest_acq-p2_bold.nii.gz"
+        ) or rec.filename.endswith("task-rest_acq-p2_bold__dup-01.nii.gz"):
+            rec.reprostim_path = "old_video.mkv"
+            rec.reprostim_offset = 100.0
+            rec.reprostim_buffer_before = 1.0
+            rec.reprostim_buffer_after = 1.0
+    _save_scans_model(model)
+
+    sr = _fake_split_result(
+        buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7
+    )
+
+    def _fake_split(**kwargs):
+        return 0, [sr]
+
+    # --match only re-injects task-rest_acq-p2_bold.nii.gz, NOT the __dup-01 row.
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+        )
+
+    rows = _tsv_rows(scans_tsv)
+
+    # Re-injected row: reprostim_* n/a, dedicated media row created.
     matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
-    assert float(matched["reprostim_offset"]) == pytest.approx(42.5)
-    assert float(matched["reprostim_buffer_before"]) == pytest.approx(10.0)
-    assert float(matched["reprostim_buffer_after"]) == pytest.approx(8.0)
+    for col in _REPROSTIM_COLS:
+        assert matched[col] == "n/a"
+    assert _TASK_REST_OUTPUT_MKV in rows
+
+    # __dup-01 row wasn't re-injected this run (excluded by --match), but its
+    # stale reprostim_* values are still forced to n/a on save.
+    dup_row = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold__dup-01.nii.gz"]
+    for col in _REPROSTIM_COLS:
+        assert dup_row[col] == "n/a"
+
+
+def test_scans_tsv_media_rows_sorted_by_acq_time(tmp_path):
+    """After processing, records are sorted by acq_time ascending — a media
+    row is interleaved right after (chronologically) the acquisition it was
+    sliced from, rather than always trailing at the end of the file."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    # V2 covers the __dup-01 scan window (15:13:03); match both func scans so
+    # each gets its own media row, sliced from two different fake results.
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1, _VA_V2)
+
+    def _fake_split(**kwargs):
+        return 0, [_fake_split_result(buffer_before=2.0)]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=r"task-rest_acq-p2_bold(__dup-01)?\.nii\.gz$",
+            dry_run=False,
+            overwrite="always",
+        )
+
+    with open(scans_tsv, newline="", encoding="utf-8") as f:
+        filenames = [r["filename"] for r in csv.DictReader(f, delimiter="\t")]
+
+    acq_times = [
+        dt_parse_bids(_tsv_rows(scans_tsv)[fn]["acq_time"]) for fn in filenames
+    ]
+    assert acq_times == sorted(acq_times)
+
+
+def test_scans_tsv_top_stimuli_layout_creates_no_media_row(tmp_path):
+    """--layout top-stimuli → media file is written, but no dedicated media
+    row is inserted into _scans.tsv (out of scope for now, spec Open
+    Questions #16); the acquisition row's reprostim_* stay n/a."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    def _fake_split(**kwargs):
+        return 0, [_fake_split_result()]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="always",
+            layout="top-stimuli",
+        )
+
+    rows = _tsv_rows(scans_tsv)
+    assert _TASK_REST_OUTPUT_MKV not in rows
+    matched = rows["func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz"]
+    for col in _REPROSTIM_COLS:
+        assert matched[col] == "n/a"
 
 
 def test_scans_tsv_dry_run_does_not_modify_file(tmp_path):

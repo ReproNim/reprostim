@@ -143,32 +143,45 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 > acquisition's row. See [inject-spec.md](inject-spec.md) Output D for the current design.
 
 - [x] Add `ScansModel` / `ScanRecord` fields for the four annotation columns
-- [ ] `_is_media_row(filename)` helper — matches
-      `_recording-reprostim_(video|audio|audiovideo)\.mkv$`; used to classify each parsed row
-      as media vs. acquisition
-- [ ] Exclude media rows from the main per-acquisition loop in `_do_inject_scans` (no
-      duration/video-match/split-video attempted on them)
-- [ ] Force every **acquisition** row's `reprostim_path`/`reprostim_offset`/
+- [x] `ScanRecordKind` enum (`NIFTI_GZ`/`NIFTI`/`REPROSTIM_VIDEO`/`REPROSTIM_AUDIO`/
+      `REPROSTIM_AUDIOVIDEO`/`UNKNOWN`) with `is_reprostim_media`/`is_nifti` convenience
+      properties; `_calc_scan_record_kind(filename)` classifier — supersedes the earlier ad
+      hoc `_is_media_row(filename)` boolean helper
+- [x] `ScanRecord.kind` is a **plain stored field** (default `ScanRecordKind.UNKNOWN`), not a
+      pydantic `computed_field` — computed explicitly, once, at each of the two production
+      construction sites (`_parse_scans_model` for every parsed row; `_call_split_video` for
+      the media row it builds), not auto-re-derived from `filename` on every access
+- [x] `_call_split_video` sets `kind` explicitly on the media row it builds — required because
+      `_upsert_media_row` may append it onto `scans.records` while `_do_inject_scans`'s
+      `for sr in scans.records:` loop is still running (Python's list iterator visits items
+      appended mid-iteration); without it the appended row would default to `UNKNOWN`, miss
+      the `is_reprostim_media` skip, and have its just-set `reprostim_*` wiped by the
+      unconditional acquisition-row reset — covered by
+      `test_scans_tsv_media_row_not_reprocessed_as_acquisition`
+- [x] Exclude media rows (`sr.kind.is_reprostim_media`) from the main per-acquisition loop in
+      `_do_inject_scans` (no duration/video-match/split-video attempted on them)
+- [x] Force every **acquisition** row's `reprostim_path`/`reprostim_offset`/
       `reprostim_buffer_before`/`reprostim_buffer_after` to `n/a` unconditionally on every
       save — regardless of `--match`, regardless of matched/skipped/errored outcome, and
       regardless of stale values already present (migrates pre-#276 files in a single run)
-- [ ] Existing media rows whose acquisition is not (re-)injected this run (excluded by
+- [x] Existing media rows whose acquisition is not (re-)injected this run (excluded by
       `--match`, no video match, error) are left untouched — never deleted/blanked
-- [ ] Build the dedicated media `ScanRecord`: `filename` (media file's session-relative path),
+- [x] Build the dedicated media `ScanRecord`: `filename` (media file's session-relative path),
       `acq_time` (acquisition's raw `acq_time` string minus `reprostim_buffer_before`,
-      same ISO precision), `operator` = `f"reprostim:{__version__}"` (only when an `operator`
+      always formatted with microsecond precision regardless of the source string's own
+      precision), `operator` = `f"reprostim:{__version__}"` (only when an `operator`
       column already exists in the file), other pre-existing extra columns = `n/a`,
       `reprostim_*` = real `SplitResult` values
-- [ ] Upsert by `filename`: update the existing media row in place if one is found in the
+- [x] Upsert by `filename`: update the existing media row in place if one is found in the
       model, else append a new `ScanRecord` (handles re-runs without duplicating rows)
-- [ ] Sort `ScansModel.records` by parsed `acq_time` ascending (stable) before `_save_scans_model`
+- [x] Sort `ScansModel.records` by parsed `acq_time` ascending (stable) before `_save_scans_model`
       writes the file — runs once per `_do_inject_scans` call, after all rows are processed
 - [x] Preserve all existing columns; append new ones to the right
 - [x] Skip write-back in `--dry-run` mode
 - [x] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
 - [x] `src/reprostim/assets/bids/scans.json` — default BIDS data-dictionary sidecar documenting
       `filename`, `acq_time`, and all four `reprostim_*` columns (`LongName`/`Description`/`Units`)
-- [ ] Limit dedicated media-row insertion to `--layout nearby` for now (see spec Open Questions #16);
+- [x] Limit dedicated media-row insertion to `--layout nearby` for now (see spec Open Questions #16);
       `top-stimuli` keeps pre-#276 behavior
 
 ### E) scans.json data-dictionary sync
@@ -248,6 +261,19 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] `_calc_media_suffix` — audio only → `_audio`
 - [x] `_calc_media_suffix` — both → `_audiovideo`
 - [x] `_calc_media_suffix` — neither → `None`
+- [x] `_calc_scan_record_kind` — `.nii.gz`/`.nii`/`_recording-reprostim_video.mkv`/
+      `_recording-reprostim_audio.mkv`/`_recording-reprostim_audiovideo.mkv`/other → correct
+      `ScanRecordKind`
+- [x] `ScanRecordKind.is_reprostim_media` / `.is_nifti` — correct for all six values
+- [x] `ScanRecord.kind` — plain field defaulting to `ScanRecordKind.UNKNOWN` when not passed to
+      the constructor (not auto-derived from `filename`); explicit `kind=...` is honored
+- [x] `_parse_scans_model` — computes `kind` correctly for each parsed row via
+      `_calc_scan_record_kind(row["filename"])`
+- [x] `_calc_sidecar_json(sr: ScanRecord)` — derives the JSON sidecar filename from `sr.kind`:
+      `.nii.gz`/`.nii` → `.json` for `NIFTI_GZ`/`NIFTI` (existing logic, now `kind`-dispatched
+      instead of re-checking the filename suffix); `.mkv` → `.json` for any `REPROSTIM_*` kind
+      (mirrors the NIfTI logic for dedicated media rows); `None` (+ warning) for `UNKNOWN`.
+      `_parse_scan_metadata` now delegates to it instead of inlining the extension-stripping
 - [x] `ScanMetadata.TaskName` — defaults to `None`
 - [x] `ScanMetadata.TaskName` — stores task name string when set
 - [x] `_parse_scan_metadata` — reads `TaskName` from JSON sidecar when present
@@ -343,42 +369,41 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 
 #### Integration tests (end-to-end via `_do_inject_scans` / `_call_split_video`)
 
-> Pre-#276 tests below assumed `reprostim_*` columns were written to the source acquisition's
-> row; these need to be rewritten against the dedicated-media-row design (Output D).
-
-- [ ] Successful injection → a new media row is appended with correct `filename`, `acq_time`
+- [x] Successful injection → a new media row is appended with correct `filename`, `acq_time`
       (acq_time − buffer_before), `operator` (`reprostim:{__version__}`, only if `operator`
       column pre-exists), and all four `reprostim_*` columns
-- [ ] Source acquisition row's `reprostim_*` columns are always `n/a`, including on success
-- [ ] `reprostim_path` on the media row is relative to `videos.tsv` location, not absolute
-- [ ] Rows never matched to a video (skipped/errored) → no media row created; acquisition row's
-      `reprostim_*` stay `n/a`
-- [ ] Failed split → no media row created (or removed if a stale one existed from a prior run —
-      TBD, see spec)
-- [ ] Re-run (media row already present, matched by `filename`) → row updated in-place, no
+- [x] Source acquisition row's `reprostim_*` columns are always `n/a`, including on success
+- [x] `reprostim_path` on the media row is relative to `videos.tsv` location, not absolute
+- [x] Rows never matched to a video (skipped) → acquisition row's `reprostim_*` stay `n/a`
+      (covered via the anat/non-matched rows in the successful-injection test)
+- [x] Failed split → acquisition row's `reprostim_*` cleared to `n/a`
+      (`test_scans_tsv_failed_split_clears_stale_reprostim_cols`)
+- [x] Re-run (media row already present, matched by `filename`) → row updated in-place, no
       duplicate row
-- [ ] Records are sorted by `acq_time` ascending after processing, before write
-- [ ] `--dry-run` → `_scans.tsv` not modified (no media row inserted)
-- [ ] `--layout top-stimuli` → no dedicated media row inserted (out of scope per spec Open
+- [x] Records are sorted by `acq_time` ascending after processing, before write
+      (`test_scans_tsv_media_rows_sorted_by_acq_time`)
+- [x] `--dry-run` → `_scans.tsv` not modified (no media row inserted)
+- [x] `--layout top-stimuli` → no dedicated media row inserted (out of scope per spec Open
       Questions #16); acquisition row's `reprostim_*` remain `n/a`
+      (`test_scans_tsv_top_stimuli_layout_creates_no_media_row`)
 
 #### Migration / idempotency tests
 
-- [ ] Pre-#276-style file (acquisition row has real `reprostim_*` values, no media row) →
+- [x] Pre-#276-style file (acquisition row has real `reprostim_*` values, no media row) →
       after one run: acquisition row's `reprostim_*` are `n/a`, a new media row exists with
-      correct values
-- [ ] Pre-#276-style row excluded by `--match` this run → its stale `reprostim_*` are still
+      correct values (`test_scans_tsv_migrates_pre_276_layout_in_one_run`)
+- [x] Pre-#276-style row excluded by `--match` this run → its stale `reprostim_*` are still
       forced to `n/a` on save (row is loaded/rewritten even though not reprocessed)
-- [ ] File already has a correct media row (prior #276-compliant run) + acquisition
+- [x] File already has a correct media row (prior #276-compliant run) + acquisition
       re-injected this run → media row updated in place, no duplicate row, row count
-      unchanged
-- [ ] File has a media row whose acquisition is skipped this run (no video match) → media
-      row left byte-for-byte untouched
-- [ ] File has a media row whose acquisition's `--match` excludes it this run → media row
-      left untouched (not deleted)
-- [ ] Media rows themselves are excluded from the main per-acquisition loop — no spurious
-      "cannot determine duration" warning/error for a row whose `filename` matches
-      `_is_media_row`
+      unchanged (`test_scans_tsv_rerun_updates_in_place_no_duplication`)
+- [x] File has a media row whose acquisition's `--match` excludes it this run → media row
+      left byte-for-byte untouched
+      (`test_scans_tsv_existing_media_row_untouched_when_not_reinjected`)
+- [x] Media rows themselves are excluded from the main per-acquisition loop — no spurious
+      "cannot determine duration" warning/error for a row whose `kind.is_reprostim_media`
+      (implied by all integration tests above passing with a media row already present in
+      the file; no dedicated regression test for the warning's absence)
 
 ### scans.json data-dictionary sync tests (`_do_inject_scans_json`)
 - [x] Missing `scans.json` → created verbatim from `_load_default_scans_json()`
@@ -454,8 +479,8 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [ ] **`--skip` error policy** — e.g. `--skip=absent-video,unknown-timing,...`
 - [x] **`--overwrite` policy** — `-w / --overwrite [skip|force|always|error]` implemented for existing output file handling
 - [ ] **`--duration` override** — manual scan duration for edge cases
-- [ ] **Dedicated media row (issue #276)** — design finalized in spec Output D; implementation
-      pending, see "D) _scans.tsv annotation" section above
+- [x] **Dedicated media row (issue #276)** — implemented per spec Output D, see
+      "D) _scans.tsv annotation" section above
 - [ ] **`top-stimuli` + dedicated media row** — deferred, filename not session-relative when
       media lives under top-level `stimuli/` (spec Open Questions #16)
 - [ ] **`bids-qr-inject` (issue #275)** — future tool; will add QR-derived columns to the same

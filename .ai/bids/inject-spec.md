@@ -113,19 +113,59 @@ other row (acquisition rows that were matched and injected, rows that were skipp
 that errored) — matching the general "fill absent values with the literal `n/a`" rule from
 the issue.
 
-#### Row classification
+#### Row classification — `ScanRecordKind`
 
-Every row in a parsed `ScansModel` is classified as either a **media row** or an
-**acquisition row** by matching its `filename` against the Output A suffix pattern:
-`_recording-reprostim_(video|audio|audiovideo)\.mkv$` (`_is_media_row(filename)` helper).
+Every `ScanRecord` carries a `kind: ScanRecordKind` field. Unlike a pydantic computed
+property, `kind` is a **plain stored field computed once, explicitly, at the point a
+`ScanRecord` is built** — via `_calc_scan_record_kind(filename)` — rather than re-derived
+automatically every time `filename` is read. There are exactly two production call sites that
+must compute it explicitly:
 
-- **Acquisition rows** (everything else — `.nii.gz`/`.nii`/other non-reprostim files) go
-  through the normal per-record loop: duration computation, video matching, `split-video`
-  invocation.
-- **Media rows** are recognized up front and **excluded from the main per-acquisition loop**
-  — they have no JSON sidecar / duration / video match of their own to compute, so processing
-  them as if they were acquisitions would spuriously warn or error. They are only touched via
-  the insert-or-update mechanism below, driven by the acquisition row they correspond to.
+1. `_parse_scans_model` — for every row read from an existing `_scans.tsv` file.
+2. `_call_split_video` — for the dedicated media `ScanRecord` it builds on a successful
+   injection (see Insert-or-update below).
+
+A `ScanRecord` constructed without an explicit `kind` defaults to `ScanRecordKind.UNKNOWN`
+regardless of its `filename` — callers that need a correct classification must pass it.
+
+| `ScanRecordKind` value  | Matches                                                              |
+|-------------------------|-----------------------------------------------------------------------|
+| `NIFTI_GZ`               | `filename` ends with `.nii.gz`                                       |
+| `NIFTI`                  | `filename` ends with `.nii` (uncompressed)                           |
+| `REPROSTIM_VIDEO`        | `filename` ends with `_recording-reprostim_video.mkv`                |
+| `REPROSTIM_AUDIO`        | `filename` ends with `_recording-reprostim_audio.mkv`                |
+| `REPROSTIM_AUDIOVIDEO`   | `filename` ends with `_recording-reprostim_audiovideo.mkv`           |
+| `UNKNOWN`                | default; anything else (e.g. a future `_events.tsv`/`_physio.tsv` row), or a `ScanRecord` built without an explicit `kind` |
+
+Two convenience properties group these for the checks that matter downstream:
+`kind.is_reprostim_media` (true for the three `REPROSTIM_*` values) and `kind.is_nifti`
+(true for `NIFTI_GZ`/`NIFTI`).
+
+- **Acquisition rows** (`kind.is_nifti`) go through the normal per-record loop: duration
+  computation, video matching, `split-video` invocation.
+- **Media rows** (`kind.is_reprostim_media`) are recognized up front and **excluded from the
+  main per-acquisition loop** — they have no JSON sidecar / duration / video match of their
+  own to compute, so processing them as if they were acquisitions would spuriously warn or
+  error. They are only touched via the insert-or-update mechanism below, driven by the
+  acquisition row they correspond to.
+- **Important:** `_call_split_video` must set `kind` explicitly on the media `ScanRecord` it
+  returns, even though nothing appears to read it immediately — `_upsert_media_row` appends it
+  onto `scans.records` while `_do_inject_scans`'s `for sr in scans.records:` loop is still
+  running, and Python's list iterator *does* visit items appended during iteration. Without an
+  explicit `kind`, the appended record would default to `UNKNOWN`, fail the
+  `kind.is_reprostim_media` check on its later revisit, and fall into the unconditional
+  acquisition-row reset — wiping the `reprostim_*` values it was just given.
+- **`UNKNOWN` rows** currently fall through the acquisition loop unchanged (same as any row
+  that isn't recognized as media) — `kind` doesn't yet gate anything for them beyond documenting
+  what they are; see Open Questions if this needs to become an explicit skip.
+
+`kind` also drives JSON sidecar path derivation via `_calc_sidecar_json(sr)`, which replaces
+the extension of `sr.filename` with `.json` according to `sr.kind`: `.nii.gz` → `.json` for
+`NIFTI_GZ`, `.nii` → `.json` for `NIFTI`, and `.mkv` → `.json` for any `REPROSTIM_*` kind (the
+same convention as Output B's sidecar next to the injected media file). Returns `None` (with a
+warning) for `UNKNOWN`. `_parse_scan_metadata` calls this to locate an acquisition row's
+`*_bold.json` (etc.); the same helper works unchanged if something later needs to read a
+ReproStim media row's own sidecar JSON by its `kind` rather than duplicating the extension logic.
 
 #### Migration from the pre-#276 layout / idempotent re-runs
 
@@ -160,7 +200,7 @@ migration step:
 | Field       | Value                                                                                                                                                                     |
 |-------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `filename`  | Relative path of the injected media file (Output A), using the same session-relative convention as other `filename` values in the file (e.g. `func/..._recording-reprostim_audiovideo.mkv`). Only well-defined for `--layout nearby` — see Open Questions. |
-| `acq_time`  | The acquisition's own `acq_time` string (as read from the file, *before* `--time-offset`/timezone normalization) minus `reprostim_buffer_before` seconds — i.e. the actual wall-clock start of the sliced clip. Formatted with the same ISO 8601 precision as the source string. |
+| `acq_time`  | The acquisition's own `acq_time` string (as read from the file, *before* `--time-offset`/timezone normalization) minus `reprostim_buffer_before` seconds — i.e. the actual wall-clock start of the sliced clip. Always formatted with microsecond precision (`isoformat(timespec="microseconds")`), regardless of the source string's own precision, so every reprostim media row's `acq_time` has a consistent format. |
 | `operator`  | `reprostim:{__version__}` (the installed `reprostim` package version that performed the slicing), written **only if an `operator` column already exists** in the file. `bids-inject` never introduces a new column that wasn't already present. |
 | other extra columns (e.g. `randstr`) | `n/a` — not applicable to a media row.                                                                                                                  |
 | `reprostim_*` (4 cols) | Real values from `SplitResult`, as in the table above.                                                                                                        |
