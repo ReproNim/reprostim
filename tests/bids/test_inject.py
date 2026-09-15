@@ -1051,6 +1051,7 @@ def _run(
     layout="nearby",
     reprostim_timezone="UTC",
     bids_timezone="UTC",
+    metadata_only=False,
     verbose=False,
 ):
     """Call do_main with sensible test defaults; return (exit_code, output_lines)."""
@@ -1076,6 +1077,7 @@ def _run(
         dry_run=dry_run,
         overwrite=overwrite,
         lock=False,
+        metadata_only=metadata_only,
         verbose=verbose,
         out_func=output.append,
     )
@@ -1500,6 +1502,183 @@ def test_overwrite_error_proceeds_when_no_output(tmp_path):
         match=_MATCH_TASK_REST,
         overwrite="error",
     )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "1 injected" in summary
+
+
+# ===========================================================================
+# Metadata-only mode (--metadata-only)
+# ===========================================================================
+
+
+def test_metadata_only_existing_media_upserts_without_touching_files(tmp_path):
+    """--metadata-only + existing media file → media row upserted with
+    recomputed values, but the .mkv/sidecar .json are never touched, and
+    --overwrite (set to 'error' here) has no effect."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    mkv, jsn = _pre_create_output(scans_tsv)
+    mkv_before = mkv.read_bytes()
+    jsn_before = jsn.read_text()
+
+    sr = _fake_split_result(
+        buffer_before=5.0, buffer_after=3.0, orig_buffer_offset=69.7
+    )
+    captured = {}
+
+    def _fake_split(**kwargs):
+        captured.update(kwargs)
+        return 0, [sr]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            overwrite="error",  # would normally fail — must be bypassed
+            metadata_only=True,
+        )
+
+    assert ret == 0
+    summary = next(line for line in output if "injected" in line)
+    assert "1 injected" in summary
+    assert "0 errors" in summary
+
+    assert captured["phantom_mode"] is True
+    assert captured["sidecar_json"] is None
+
+    # Files on disk are byte-for-byte untouched.
+    assert mkv.read_bytes() == mkv_before
+    assert jsn.read_text() == jsn_before
+
+    media = _tsv_rows(scans_tsv)[_TASK_REST_OUTPUT_MKV]
+    assert media["reprostim_path"] == "video1.mkv"
+    assert float(media["reprostim_offset"]) == pytest.approx(69.7)
+    assert float(media["reprostim_buffer_before"]) == pytest.approx(5.0)
+    assert float(media["reprostim_buffer_after"]) == pytest.approx(3.0)
+
+
+def test_metadata_only_missing_media_errors(tmp_path):
+    """--metadata-only + no existing media file → error, no row upserted,
+    split-video is never even invoked (existence check happens first)."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.video.split.do_main") as mock_split:
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            metadata_only=True,
+        )
+
+    mock_split.assert_not_called()
+    assert ret == 1
+    summary = next(line for line in output if "injected" in line)
+    assert "0 injected" in summary
+    assert "1 errors" in summary
+    assert _TASK_REST_OUTPUT_MKV not in _tsv_rows(scans_tsv)
+
+
+def test_metadata_only_dry_run_does_not_modify_file(tmp_path):
+    """--metadata-only --dry-run → no _scans.tsv write, same as plain --dry-run."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    _pre_create_output(scans_tsv)
+    original_content = scans_tsv.read_text(encoding="utf-8")
+
+    with patch("reprostim.video.split.do_main") as mock_split:
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=True,
+            metadata_only=True,
+        )
+
+    mock_split.assert_not_called()
+    assert ret == 0
+    assert scans_tsv.read_text(encoding="utf-8") == original_content
+    summary = next(line for line in output if "injected" in line)
+    assert "[DRY-RUN]" in summary
+    assert "1 injected" in summary
+
+
+def test_metadata_only_skips_ffprobe_call(tmp_path):
+    """--metadata-only never calls bids_properties_from_ffprobe (no sidecar
+    to enrich)."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    _pre_create_output(scans_tsv)
+
+    def _fake_split(**kwargs):
+        return 0, [_fake_split_result()]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split), patch(
+        "reprostim.bids.inject.bids_properties_from_ffprobe"
+    ) as mock_ffprobe:
+        ret, _ = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            metadata_only=True,
+        )
+
+    assert ret == 0
+    mock_ffprobe.assert_not_called()
+
+
+def test_metadata_only_skips_makedirs(tmp_path):
+    """--metadata-only never calls os.makedirs for the output directory."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    _pre_create_output(scans_tsv)
+
+    def _fake_split(**kwargs):
+        return 0, [_fake_split_result()]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split), patch(
+        "reprostim.bids.inject.os.makedirs"
+    ) as mock_makedirs:
+        ret, _ = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            metadata_only=True,
+        )
+
+    assert ret == 0
+    mock_makedirs.assert_not_called()
+
+
+def test_metadata_only_excludes_nifti_and_json_from_existence_check(tmp_path):
+    """The existence check applies only to the ReproStim .mkv media file —
+    not the sidecar .json (missing here) and not the NIfTI acquisition file."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    ses_dir = scans_tsv.parent
+    mkv = ses_dir / _TASK_REST_OUTPUT_MKV
+    mkv.parent.mkdir(parents=True, exist_ok=True)
+    mkv.write_bytes(b"placeholder")
+    # Deliberately do NOT create the sidecar .json.
+
+    def _fake_split(**kwargs):
+        return 0, [_fake_split_result()]
+
+    with patch("reprostim.video.split.do_main", side_effect=_fake_split):
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            metadata_only=True,
+        )
 
     assert ret == 0
     summary = next(line for line in output if "injected" in line)

@@ -27,8 +27,8 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
       `-d` now used for `--dataset` above
 - [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
-- [x] `-M / --metadata-only` — option defined, plumbed through to `BiContext.metadata_only`;
-      logic not yet implemented (stub, mirrors the `-q / --qr` pattern above)
+- [x] `-M / --metadata-only` — option defined, plumbed through to `BiContext.metadata_only`,
+      implemented in `_call_split_video` (see "Metadata-only mode" under Core Logic)
 - [x] `-v / --verbose`
 
 ---
@@ -115,23 +115,25 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 
 ### Metadata-only mode (`--metadata-only`)
 - [x] `BiContext.metadata_only: bool` field (default `False`); `do_main(..., metadata_only=False)`
-      parameter, passed through from the CLI. **Stub** — field exists and is plumbed end-to-end,
-      but nothing reads it yet; all items below remain to be implemented.
-- [ ] When set: bypass `--overwrite` skip/force/error/always logic entirely (never writes the
-      output file, so none of those modes apply)
-- [ ] When set: skip `os.makedirs` for the output directory
-- [ ] When set: skip the `bids_properties_from_ffprobe(input_path, ...)` call (nothing consumes
+      parameter, passed through from the CLI.
+- [x] When set: bypass `--overwrite` skip/force/error/always logic entirely (never writes the
+      output file, so none of those modes apply) — `_call_split_video` branches into a dedicated
+      `if ctx.metadata_only: ... else: <existing overwrite/dry-run/makedirs/ffprobe path>` split
+- [x] When set: skip `os.makedirs` for the output directory
+- [x] When set: skip the `bids_properties_from_ffprobe(input_path, ...)` call (nothing consumes
       `sidecar_metadata` since no sidecar is written)
-- [ ] Existence check against `output_path` (the `.mkv`) only — not the sidecar `.json`, not the
+- [x] Existence check against `output_path` (the `.mkv`) only — not the sidecar `.json`, not the
       NIfTI acquisition file
-- [ ] Missing `output_path` → error and skip (`ctx.summary.errors`/`n_errors`), same bookkeeping
-      pattern as the ambiguous-match error; continue with remaining records
-- [ ] Present `output_path` → call `split_video_main(..., phantom_mode=True, sidecar_json=None)`
-      (see [split-tasks.md](../video/split-tasks.md)), build the dedicated media `ScanRecord`
-      from the returned `SplitResult` exactly as the real path does, `_upsert_media_row` as today
-- [ ] Fully composes with `--match`, `--dry-run`, the unconditional acquisition-row
-      `reprostim_*` → `n/a` reset, and `_do_inject_scans_json` — no changes needed to any of those
-- [ ] Code comment (`# NOTE:`) documenting the deliberate no-drift-protection scope decision —
+- [x] Missing `output_path` → error and skip (`ctx.summary.errors`/`n_errors`), same bookkeeping
+      pattern as the ambiguous-match error; continue with remaining records; `split-video` is
+      never even invoked (existence check happens first)
+- [x] Present `output_path` → call `split_video_main(..., phantom_mode=True, sidecar_json=None)`,
+      build the dedicated media `ScanRecord` from the returned `SplitResult` exactly as the real
+      path does (shared tail code, unchanged), `_upsert_media_row` as today
+- [x] Fully composes with `--match`, `--dry-run` (own dry-run branch: reports the planned refresh,
+      counts as injected, writes nothing), the unconditional acquisition-row `reprostim_*` →
+      `n/a` reset, and `_do_inject_scans_json` — none of those needed to change
+- [x] Code comment (`# NOTE:`) documenting the deliberate no-drift-protection scope decision —
       no cross-check of recomputed values against the existing sidecar JSON (see spec "Known
       limitation — no drift protection")
 
@@ -454,16 +456,26 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 
 ### Metadata-only mode tests
 
-- [ ] `--metadata-only` + existing media file → media row upserted with recomputed values;
-      `.mkv`/sidecar `.json` untouched (mtime unchanged), `ffmpeg`/`do_main`'s encode path not
-      invoked (mock asserts `phantom_mode=True`, or asserts no subprocess call)
-- [ ] `--metadata-only` + missing media file → 1 error, `n_injected` unaffected, no row upserted,
-      exit code non-zero
-- [ ] `--metadata-only` → `--overwrite` value has no effect regardless of skip/force/always/error
-- [ ] `--metadata-only --dry-run` → no `_scans.tsv`/`scans.json` write, same as plain `--dry-run`
-- [ ] `--metadata-only` + `--match` excluding a scan → unaffected (existing `--match` behavior)
-- [ ] `bids_properties_from_ffprobe` NOT called when `--metadata-only` is set
-- [ ] `os.makedirs` NOT called for the output directory when `--metadata-only` is set
+- [x] `--metadata-only` + existing media file → media row upserted with recomputed values;
+      `.mkv`/sidecar `.json` untouched byte-for-byte; `--overwrite error` (which would normally
+      fail) has no effect
+      (`test_metadata_only_existing_media_upserts_without_touching_files`)
+- [x] `--metadata-only` + missing media file → 1 error, `0 injected`, no row upserted,
+      exit code non-zero, `split-video` never invoked (existence check happens first)
+      (`test_metadata_only_missing_media_errors`)
+- [x] `--metadata-only` → `--overwrite` value has no effect regardless of skip/force/always/error
+      (covered via `overwrite="error"` in the existing-media test above)
+- [x] `--metadata-only --dry-run` → no `_scans.tsv` write, same as plain `--dry-run`
+      (`test_metadata_only_dry_run_does_not_modify_file`)
+- [x] `--metadata-only` + `--match` excluding a scan → unaffected; not a dedicated test since
+      `--match` filtering happens in `_do_inject_scans` before `_call_split_video` is ever
+      reached, unrelated to `ctx.metadata_only`
+- [x] `bids_properties_from_ffprobe` NOT called when `--metadata-only` is set
+      (`test_metadata_only_skips_ffprobe_call`)
+- [x] `os.makedirs` NOT called for the output directory when `--metadata-only` is set
+      (`test_metadata_only_skips_makedirs`)
+- [x] Existence check excludes the sidecar `.json`/NIfTI file — only the `.mkv` is checked
+      (`test_metadata_only_excludes_nifti_and_json_from_existence_check`)
 
 ### sidecar_metadata propagation tests
 
@@ -523,8 +535,7 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       media lives under top-level `stimuli/` (spec Open Questions #16)
 - [ ] **`bids-qr-inject` (issue #275)** — future tool; will add QR-derived columns to the same
       dedicated media row introduced by #276
-- [ ] **`--metadata-only`** — refresh `_scans.tsv`/`scans.json` for already-generated media via
-      `split-video`'s `phantom_mode` (see spec "Metadata-Only Mode"); design settled, not yet
-      implemented
+- [x] **`--metadata-only`** — refresh `_scans.tsv`/`scans.json` for already-generated media via
+      `split-video`'s `phantom_mode`; implemented per spec "Metadata-Only Mode"
 - [ ] **`--metadata-only` drift protection** — deliberately deferred (see spec "Known limitation
       — no drift protection"); revisit if it proves to be a practical problem
