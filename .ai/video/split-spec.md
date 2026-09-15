@@ -168,13 +168,17 @@ reprostim split-video --sidecar-json auto --sidecar-format raw -i input.mkv -o o
 
 
 
-### Phantom Mode (`phantom_mode`) (Planned)
+### Phantom Mode (`phantom_mode`) (Implemented)
 
 **Python API only — no CLI flag.** `do_main(..., phantom_mode: bool = False)`, threaded through
 to `_do_main_specs` and `_split_video`. There is deliberately no `--phantom-mode` option on the
-`split-video` CLI command; this is reachable only by a Python caller (currently
-`bids_inject.py::_call_split_video`, for `--metadata-only` — see
-[../bids/inject-spec.md § Metadata-Only Mode](../bids/inject-spec.md#metadata-only-mode)).
+`split-video` CLI command; this is reachable only by a Python caller. The intended (and, for now,
+only) consumer is `bids_inject.py::_call_split_video`, for `--metadata-only` — see
+[../bids/inject-spec.md § Metadata-Only Mode](../bids/inject-spec.md#metadata-only-mode). That
+consumer side is not wired up yet: `bids-inject`'s `--metadata-only` currently only accepts the
+flag and plumbs it into `BiContext.metadata_only` (a stub — see
+[../bids/inject-tasks.md](../bids/inject-tasks.md)); `split-video`'s `phantom_mode` itself is
+fully implemented and usable directly.
 
 **Motivation:** let a caller obtain the exact `SplitResult` a real split would produce —
 buffer/offset/duration math, fully validated against `--buffer-policy` — **without** running

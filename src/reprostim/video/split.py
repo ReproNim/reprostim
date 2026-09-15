@@ -523,16 +523,30 @@ def _calc_split_data(
     return sd
 
 
-def _split_video(sd: SplitData, out_path: str) -> SplitResult:
+def _split_video(
+    sd: SplitData, out_path: str, phantom_mode: bool = False
+) -> SplitResult:
     """Split video file based on calculated SplitData.
 
     :param sd: SplitData object with metadata
     :type sd: SplitData
 
+    :param out_path: Path to write the output .mkv file to. Ignored (never
+        created) when *phantom_mode* is True.
+    :type out_path: str
+
+    :param phantom_mode: When True, skip the actual `ffmpeg` encode — no
+        output file is created or overwritten. The returned SplitResult
+        still reflects the same buffer/offset/duration/video-property
+        calculations a real split would produce (all sourced from *sd*, not
+        from the encode itself), with ``success=True`` and
+        ``video_size_mb``/``video_rate_mbpm`` left ``None`` (unknowable
+        without an actual encode). Python-API only; see
+        ``.ai/video/split-spec.md`` "Phantom Mode".
+    :type phantom_mode: bool
+
     :return: SplitResult object with result metadata
     :rtype: SplitResult
-
-    :raises NotImplementedError: Function not yet implemented
     """
 
     # create SplitResult for output
@@ -570,36 +584,40 @@ def _split_video(sd: SplitData, out_path: str) -> SplitResult:
         orig_device_serial_number=sd.device_serial_number,
     )
 
-    try:
-        cmd = [
-            "ffmpeg",
-            "-y",  # force overwrite
-            "-ss",
-            str(sd.buf_seg.offset_sec),
-            "-i",
-            sd.path,
-            "-t",
-            str(sd.buf_seg.duration_sec),
-            "-c",
-            "copy",
-            out_path,
-        ]
-        logger.debug(f"run: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        logger.debug(f"ffmpeg exit code : {str(result.returncode)}")
-        logger.debug(f"ffmpeg output    : {str(result.stdout)}")
-        logger.debug(f"ffmpeg errors    : {str(result.stderr)}")
-
-        # calculate output video size and rate
-        file_size_bytes = os.path.getsize(out_path)
-        sr.video_size_mb = round(file_size_bytes / (1024 * 1024), 1)
-        if sd.buf_seg.duration_sec > 0:
-            sr.video_rate_mbpm = round(
-                (file_size_bytes * 8) / (sd.buf_seg.duration_sec * 1024 * 1024), 1
-            )
+    if phantom_mode:
+        logger.debug(f"phantom_mode: skipping ffmpeg encode for {out_path}")
         sr.success = True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
+    else:
+        try:
+            cmd = [
+                "ffmpeg",
+                "-y",  # force overwrite
+                "-ss",
+                str(sd.buf_seg.offset_sec),
+                "-i",
+                sd.path,
+                "-t",
+                str(sd.buf_seg.duration_sec),
+                "-c",
+                "copy",
+                out_path,
+            ]
+            logger.debug(f"run: {' '.join(cmd)}")
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.debug(f"ffmpeg exit code : {str(result.returncode)}")
+            logger.debug(f"ffmpeg output    : {str(result.stdout)}")
+            logger.debug(f"ffmpeg errors    : {str(result.stderr)}")
+
+            # calculate output video size and rate
+            file_size_bytes = os.path.getsize(out_path)
+            sr.video_size_mb = round(file_size_bytes / (1024 * 1024), 1)
+            if sd.buf_seg.duration_sec > 0:
+                sr.video_rate_mbpm = round(
+                    (file_size_bytes * 8) / (sd.buf_seg.duration_sec * 1024 * 1024), 1
+                )
+            sr.success = True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"ffmpeg error: {e} {e.stdout} {e.stderr}")
 
     if sr.start_time:
         sr.orig_start = _format_time(sr.start_time)
@@ -687,6 +705,7 @@ def _do_main_specs(
     raw: bool = False,
     verbose: bool = False,
     lock: bool = True,
+    phantom_mode: bool = False,
     out_func=print,
 ) -> Tuple[int, List["SplitResult"]]:
     """Process multiple --spec arguments.
@@ -701,6 +720,11 @@ def _do_main_specs(
     :param video_audit_file: Path to video audit TSV file
     :param raw: Enable raw mode
     :param verbose: Enable verbose output
+    :param phantom_mode: When True, skip the actual `ffmpeg` encode and never
+        write a sidecar JSON (regardless of *sidecar_json*) — each spec still
+        gets a fully computed `SplitResult`. Python-API only; see
+        ``.ai/video/split-spec.md`` "Phantom Mode".
+    :type phantom_mode: bool
     :param out_func: Output function
     :return: Tuple of (number of failures, list of successful SplitResult objects)
     """
@@ -777,7 +801,7 @@ def _do_main_specs(
                 out_func(f"Spec [{idx}] '{spec_str}' -> {out_path}")
 
             # E) Run the split
-            sr = _split_video(sd, out_path)
+            sr = _split_video(sd, out_path, phantom_mode=phantom_mode)
 
             if not sr.success:
                 logger.error(f"Spec [{idx}] '{spec_str}': video split failed.")
@@ -791,8 +815,9 @@ def _do_main_specs(
                 out_func(f"  Output path : {sr.output_path}")
                 out_func(f"  JSON Result : {sr.model_dump_json(indent=2)}")
 
-            # F) Write sidecar JSON
-            if sidecar_json is not None:
+            # F) Write sidecar JSON (never written in phantom_mode, regardless
+            #    of sidecar_json — nothing was actually encoded)
+            if sidecar_json is not None and not phantom_mode:
                 sidecar_path = _resolve_sidecar_path(
                     sidecar_json,
                     out_path,
@@ -832,6 +857,7 @@ def do_main(
     verbose: bool = False,
     specs: tuple = (),
     lock: bool = True,
+    phantom_mode: bool = False,
     out_func=print,
 ) -> Tuple[int, List[SplitResult]]:
     """Main entry point for split_video module.
@@ -886,6 +912,15 @@ def do_main(
         When True (default), acquire the advisory file lock before reading
         the video audit TSV file. When False, skip the lock (dirty-read
         mode) — useful when the lock file is owned by a different OS user.
+    phantom_mode : bool
+        Python-API only — not exposed as a CLI option. When True, skip the
+        actual `ffmpeg` encode and never write a sidecar JSON (regardless of
+        `sidecar_json`); each spec still gets a fully computed `SplitResult`
+        (buffer/offset/duration/video-property fields), with `success=True`
+        and `video_size_mb`/`video_rate_mbpm` left `None`. Used by
+        `bids-inject --metadata-only` to refresh `_scans.tsv` annotations for
+        already-generated media without re-encoding it. See
+        ``.ai/video/split-spec.md`` "Phantom Mode".
     out_func : callable
         Output function for printing messages.
 
@@ -946,6 +981,7 @@ def do_main(
             raw=raw,
             verbose=verbose,
             lock=lock,
+            phantom_mode=phantom_mode,
             out_func=out_func,
         )
     except ValueError as e:

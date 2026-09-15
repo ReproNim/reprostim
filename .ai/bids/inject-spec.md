@@ -530,7 +530,7 @@ For each acquisition `_call_split_video` would normally handle:
 3. Check whether `output_path` (the `.mkv`) exists on disk:
    - **Missing** — error (see Error Handling below).
    - **Present** — call `split_video_main(..., phantom_mode=True, sidecar_json=None)` (see
-     [split-spec.md § Phantom Mode](../video/split-spec.md#phantom-mode-phantom_mode-planned))
+     [split-spec.md § Phantom Mode](../video/split-spec.md#phantom-mode-phantom_mode-implemented))
      to get a `SplitResult` computed the same way a real run would (buffer/offset math from
      `videos.tsv`-sourced `SplitData`, full `--buffer-policy` validation), but without touching
      ffmpeg or the filesystem. Build the dedicated media `ScanRecord` from it exactly as the real
@@ -1049,7 +1049,7 @@ git-tracked plain text and never needs this handling.)
 
 | Component       | Relationship                                               |
 |-----------------|------------------------------------------------------------|
-| `split-video`   | Called by `bids-inject` to do actual video slicing; called with `phantom_mode=True` for `--metadata-only` (see [split-spec.md § Phantom Mode](../video/split-spec.md#phantom-mode-phantom_mode-planned)) |
+| `split-video`   | Called by `bids-inject` to do actual video slicing; called with `phantom_mode=True` for `--metadata-only` (see [split-spec.md § Phantom Mode](../video/split-spec.md#phantom-mode-phantom_mode-implemented)) |
 | `video-audit`   | Produces `videos.tsv` consumed by `bids-inject`            |
 | `qr-parse`      | Invoked by `bids-inject` when `--qr parse` mode is used    |
 | `datalad-fuse`  | Optional; enables reading annexed sidecar files remotely (issue #229) |

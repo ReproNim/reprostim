@@ -58,19 +58,22 @@ Tracks implementation progress against [split-spec.md](split-spec.md).
 - [x] `--raw` mode: accept any video file, use time-only/offset rather than absolute datetime
 
 ### Phantom mode (`phantom_mode`) — Python API only, no CLI flag
-- [ ] `do_main(..., phantom_mode: bool = False)` parameter, threaded through `_do_main_specs`
-- [ ] `_split_video` (or a phantom-aware variant): `_calc_split_data` still runs in full (same
-      buffer-policy validation); the `ffmpeg` `subprocess.run(...)` call is skipped
-- [ ] `SplitResult.success` still set `True` on a successful phantom computation — no new field
+- [x] `do_main(..., phantom_mode: bool = False)` parameter, threaded through `_do_main_specs`
+      and `_split_video`
+- [x] `_split_video(sd, out_path, phantom_mode=False)`: `_calc_split_data` still runs in full
+      (unaffected — happens in the caller, before `_split_video`, same buffer-policy validation);
+      the `ffmpeg` `subprocess.run(...)` call is skipped when `phantom_mode=True`
+- [x] `SplitResult.success` still set `True` on a successful phantom computation — no new field
       added to distinguish phantom from real (reuses existing `success` semantics)
-- [ ] `video_size_mb` / `video_rate_mbpm` left `None` in phantom mode (unknowable without a real
-      encode; unused by the metadata-only consumer)
-- [ ] All other `SplitResult` fields populated identically to a real split (already sourced from
+- [x] `video_size_mb` / `video_rate_mbpm` left `None` in phantom mode (unknowable without a real
+      encode; unused by the metadata-only consumer) — `os.path.getsize` not even called
+- [x] All other `SplitResult` fields populated identically to a real split (already sourced from
       `SplitData`, not from the encode — no change needed to that part of `_split_video`)
-- [ ] Sidecar JSON never written when `phantom_mode=True`, regardless of the `sidecar_json`
-      argument's value (suppressed inside `split-video`, not left to the caller to arrange)
-- [ ] No `--phantom-mode`/`--phantom` CLI option on `cmd_split_video.py` — intentional, not an
-      oversight
+- [x] Sidecar JSON never written when `phantom_mode=True`, regardless of the `sidecar_json`
+      argument's value (`_do_main_specs`'s Step F condition is
+      `if sidecar_json is not None and not phantom_mode`)
+- [x] No `--phantom-mode`/`--phantom` CLI option on `cmd_split_video.py` — confirmed, file
+      untouched by this feature
 
 ### Multi-spec mode (`_do_main_specs`)
 - [x] Process each `SpecEntry` independently
@@ -187,15 +190,24 @@ Test file location: `tests/video/test_split.py` (mirrors `tests/qr/test_bids_inj
 
 ### Phantom mode (`phantom_mode`)
 
-- [ ] `phantom_mode=True` → `ffmpeg` not invoked (no subprocess call), no output file written
-- [ ] `phantom_mode=True` → `SplitResult.success` is `True` on a valid computation
-- [ ] `phantom_mode=True` → `video_size_mb` / `video_rate_mbpm` are `None`
-- [ ] `phantom_mode=True` → all other `SplitResult` fields match what a real split with the same
+- [x] `phantom_mode=True` → `ffmpeg` not invoked (no subprocess call), no output file written
+      (`test_split_video_phantom_mode_skips_ffmpeg`)
+- [x] `phantom_mode=True` → `SplitResult.success` is `True` on a valid computation (same test)
+- [x] `phantom_mode=True` → `video_size_mb` / `video_rate_mbpm` are `None`, `os.path.getsize` not
+      called (`test_split_video_phantom_mode_leaves_size_and_rate_none`)
+- [x] `phantom_mode=True` → all other `SplitResult` fields match what a real split with the same
       inputs would produce (buffer_before/after, orig_buffer_offset, orig_start/end, resolution,
-      fps, audio fields)
-- [ ] `phantom_mode=True` + `sidecar_json` provided → sidecar JSON still NOT written
-- [ ] `phantom_mode=False` (default) → behavior unchanged from before this parameter existed
-- [ ] `cmd_split_video.py` has no `--phantom-mode`/`--phantom` option (negative/absence test)
+      fps, audio fields) (`test_split_video_phantom_mode_matches_real_split_fields`)
+- [x] `phantom_mode=True` + `sidecar_json` provided → sidecar JSON still NOT written
+      (`test_do_main_specs_phantom_mode_never_writes_sidecar`, asserted with `sidecar_json="auto"`)
+- [x] `phantom_mode=False` (default) → behavior unchanged from before this parameter existed
+      (`test_split_video_phantom_mode_default_is_false`,
+      `test_do_main_phantom_mode_defaults_to_false`)
+- [x] `do_main(..., phantom_mode=True)` forwards to `_do_main_specs`
+      (`test_do_main_phantom_mode_passed_to_do_main_specs`)
+- [ ] `cmd_split_video.py` has no `--phantom-mode`/`--phantom` option (negative/absence test) —
+      confirmed by inspection (no CLI changes made for this feature); no dedicated regression
+      test added
 
 ### Multi-spec mode
 
@@ -251,5 +263,6 @@ Test file location: `tests/video/test_split.py` (mirrors `tests/qr/test_bids_inj
 - [ ] **BIDS output path template** — `--output` template tokens to embed BIDS entities directly
 - [ ] **`--jobs` / parallel processing** — `--spec` list is naturally parallelisable
 - [ ] **con/duct integration**
-- [ ] **`phantom_mode`** — Python API-only parameter for `bids-inject --metadata-only`; design
-      settled (see spec "Phantom Mode"), not yet implemented
+- [x] **`phantom_mode`** — Python API-only parameter for `bids-inject --metadata-only`;
+      implemented per spec "Phantom Mode" (`bids-inject`'s own `--metadata-only` consumer is
+      still a stub — see [../bids/inject-tasks.md](../bids/inject-tasks.md))
