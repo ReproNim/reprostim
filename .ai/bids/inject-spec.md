@@ -951,8 +951,15 @@ risk double-yielding.  Setup errors are caught before the `yield`; once the
 file object is yielded, any exception from the caller's `with`-block propagates
 normally.
 
-**Write path is unaffected:** `_save_scans_model` uses plain `open()` directly
-since `_scans.tsv` is a git-tracked plain-text file, not annexed.
+**Write path:** `_save_scans_model` always rewrites `_scans.tsv` in full on every non-dry-run
+invocation, so before opening it removes any existing file/symlink first
+(`os.path.lexists(model.path)` → `os.remove(model.path)`), then writes a fresh regular file
+with plain `open()`. This mirrors the `--overwrite force` remedy from the git-annex / DataLad
+interaction above: `_scans.tsv` is not guaranteed to be un-annexed — a DataLad dataset can annex
+any file by `.gitattributes` policy, including small text files, not only large binaries — so
+without this step a plain `open(path, "w")` would raise `PermissionError` on a read-only
+git-annex symlink. (An earlier version of this spec incorrectly assumed `_scans.tsv` is always
+git-tracked plain text and never needs this handling.)
 
 ---
 
