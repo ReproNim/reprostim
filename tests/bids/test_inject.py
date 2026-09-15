@@ -2420,6 +2420,51 @@ def test_cli_dataset_short_flag_forwarded(tmp_path):
     assert mock_dm.call_args.kwargs["dataset_home"] == str(dataset_dir)
 
 
+def test_cli_metadata_only_defaults_to_false(tmp_path):
+    """--metadata-only defaults to False when not specified."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["metadata_only"] is False
+
+
+def test_cli_metadata_only_short_flag_forwarded(tmp_path):
+    """-M/--metadata-only is forwarded to do_main as metadata_only=True.
+
+    STUB: only checks CLI → do_main plumbing; --metadata-only has no
+    processing behavior implemented yet (see inject-spec.md Metadata-Only
+    Mode).
+    """
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.bids.inject.do_main", return_value=0) as mock_dm:
+        result = CliRunner().invoke(
+            bids_inject,
+            [str(scans_tsv), "-f", videos_tsv, "-M"],
+        )
+    assert result.exit_code == 0
+    assert mock_dm.call_args.kwargs["metadata_only"] is True
+
+
+def test_bicontext_metadata_only_defaults_to_false():
+    """BiContext.metadata_only defaults to False when not passed."""
+    ctx = BiContext(dry_run=True, recursive=False)
+    assert ctx.metadata_only is False
+
+
+def test_bicontext_metadata_only_explicit_true():
+    """BiContext.metadata_only stores an explicit True value."""
+    ctx = BiContext(dry_run=True, recursive=False, metadata_only=True)
+    assert ctx.metadata_only is True
+
+
 def test_cli_dataset_nonexistent_dir_nonzero_exit(tmp_path):
     """A --dataset path that doesn't exist is rejected by Click's Path(exists=True)."""
     scans_tsv = _copy_bids_fixture(tmp_path)

@@ -254,6 +254,12 @@ class BiContext(BaseModel):
         "reading videos.tsv. When False, skip the lock (dirty-read mode) — "
         "useful when the lock is owned by a different OS user.",
     )
+    metadata_only: bool = Field(
+        default=False,
+        description="When True, refresh _scans.tsv/scans.json annotations for "
+        "already-generated media without touching the .mkv/sidecar .json "
+        "(see inject-spec.md Metadata-Only Mode). ",
+    )
     verbose: bool = Field(
         default=False,
         description="When True, emit verbose progress output.",
@@ -1694,6 +1700,7 @@ def do_main(
     lock: bool,
     verbose: bool,
     out_func: Callable,
+    metadata_only: bool = False,
 ) -> int:
     """Main entry point for the bids-inject command.
 
@@ -1761,6 +1768,10 @@ def do_main(
     :type verbose: bool
     :param out_func: Callable used for user-facing output (e.g. ``click.echo``).
     :type out_func: Callable
+    :param metadata_only: When ``True``, refresh ``_scans.tsv``/``scans.json``
+        annotations for already-generated media without touching the
+        ``.mkv``/sidecar ``.json`` (see inject-spec.md Metadata-Only Mode).
+    :type metadata_only: bool
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
@@ -1791,6 +1802,7 @@ def do_main(
         lock=lock,
         verbose=verbose,
         out_func=out_func,
+        metadata_only=metadata_only,
     )
 
     _do_inject_all(ctx, paths)

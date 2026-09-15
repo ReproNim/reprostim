@@ -27,9 +27,8 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
       `-d` now used for `--dataset` above
 - [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
-- [ ] `-M / --metadata-only` — refresh `_scans.tsv`/`scans.json` for already-generated media
-      without touching `.mkv`/sidecar `.json` (`-M` since `-m` is taken by `--match`); see spec
-      "Metadata-Only Mode"
+- [x] `-M / --metadata-only` — option defined, plumbed through to `BiContext.metadata_only`;
+      logic not yet implemented (stub, mirrors the `-q / --qr` pattern above)
 - [x] `-v / --verbose`
 
 ---
@@ -115,7 +114,9 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `error` — existing output → log error, append to `summary.errors`, count as error
 
 ### Metadata-only mode (`--metadata-only`)
-- [ ] `BiContext.metadata_only: bool` field
+- [x] `BiContext.metadata_only: bool` field (default `False`); `do_main(..., metadata_only=False)`
+      parameter, passed through from the CLI. **Stub** — field exists and is plumbed end-to-end,
+      but nothing reads it yet; all items below remain to be implemented.
 - [ ] When set: bypass `--overwrite` skip/force/error/always logic entirely (never writes the
       output file, so none of those modes apply)
 - [ ] When set: skip `os.makedirs` for the output directory
@@ -478,7 +479,7 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [ ] `--reprostim-timezone America/New_York` passed through to `do_main`
 - [ ] `--bids-timezone UTC` passed through to `do_main`
 - [ ] Unknown `--layout` value → Click error (invalid choice)
-- [ ] `-M` / `--metadata-only` flag → `metadata_only=True` passed to `do_main`
+- [x] `-M` / `--metadata-only` flag → `metadata_only=True` passed to `do_main`
 
 ### Coverage targets
 
