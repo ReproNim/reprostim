@@ -57,6 +57,21 @@ Tracks implementation progress against [split-spec.md](split-spec.md).
 - [x] Input filename timestamp pattern required (unless `--raw` mode)
 - [x] `--raw` mode: accept any video file, use time-only/offset rather than absolute datetime
 
+### Phantom mode (`phantom_mode`) — Python API only, no CLI flag
+- [ ] `do_main(..., phantom_mode: bool = False)` parameter, threaded through `_do_main_specs`
+- [ ] `_split_video` (or a phantom-aware variant): `_calc_split_data` still runs in full (same
+      buffer-policy validation); the `ffmpeg` `subprocess.run(...)` call is skipped
+- [ ] `SplitResult.success` still set `True` on a successful phantom computation — no new field
+      added to distinguish phantom from real (reuses existing `success` semantics)
+- [ ] `video_size_mb` / `video_rate_mbpm` left `None` in phantom mode (unknowable without a real
+      encode; unused by the metadata-only consumer)
+- [ ] All other `SplitResult` fields populated identically to a real split (already sourced from
+      `SplitData`, not from the encode — no change needed to that part of `_split_video`)
+- [ ] Sidecar JSON never written when `phantom_mode=True`, regardless of the `sidecar_json`
+      argument's value (suppressed inside `split-video`, not left to the caller to arrange)
+- [ ] No `--phantom-mode`/`--phantom` CLI option on `cmd_split_video.py` — intentional, not an
+      oversight
+
 ### Multi-spec mode (`_do_main_specs`)
 - [x] Process each `SpecEntry` independently
 - [x] Continue on per-spec failure; report errors; exit code reflects failure count
@@ -170,6 +185,18 @@ Test file location: `tests/video/test_split.py` (mirrors `tests/qr/test_bids_inj
       `test_bids_properties_from_split_result_*`); `_write_sidecar`'s own integration tests above
       stayed here since they test `_write_sidecar`, not the mapping function directly.**
 
+### Phantom mode (`phantom_mode`)
+
+- [ ] `phantom_mode=True` → `ffmpeg` not invoked (no subprocess call), no output file written
+- [ ] `phantom_mode=True` → `SplitResult.success` is `True` on a valid computation
+- [ ] `phantom_mode=True` → `video_size_mb` / `video_rate_mbpm` are `None`
+- [ ] `phantom_mode=True` → all other `SplitResult` fields match what a real split with the same
+      inputs would produce (buffer_before/after, orig_buffer_offset, orig_start/end, resolution,
+      fps, audio fields)
+- [ ] `phantom_mode=True` + `sidecar_json` provided → sidecar JSON still NOT written
+- [ ] `phantom_mode=False` (default) → behavior unchanged from before this parameter existed
+- [ ] `cmd_split_video.py` has no `--phantom-mode`/`--phantom` option (negative/absence test)
+
 ### Multi-spec mode
 
 - [x] Single `--spec` → output used as-is
@@ -224,3 +251,5 @@ Test file location: `tests/video/test_split.py` (mirrors `tests/qr/test_bids_inj
 - [ ] **BIDS output path template** — `--output` template tokens to embed BIDS entities directly
 - [ ] **`--jobs` / parallel processing** — `--spec` list is naturally parallelisable
 - [ ] **con/duct integration**
+- [ ] **`phantom_mode`** — Python API-only parameter for `bids-inject --metadata-only`; design
+      settled (see spec "Phantom Mode"), not yet implemented

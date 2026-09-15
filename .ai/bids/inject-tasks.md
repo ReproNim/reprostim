@@ -27,6 +27,9 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
       `-d` now used for `--dataset` above
 - [x] `-w / --overwrite [skip|force|always|error]` — policy for existing output files
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
+- [ ] `-M / --metadata-only` — refresh `_scans.tsv`/`scans.json` for already-generated media
+      without touching `.mkv`/sidecar `.json` (`-M` since `-m` is taken by `--match`); see spec
+      "Metadata-Only Mode"
 - [x] `-v / --verbose`
 
 ---
@@ -110,6 +113,26 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `force` — existing output → `os.remove()` both files, then re-inject (handles git-annex read-only symlinks)
 - [x] `always` — no existence check, run `split-video` as-is (pre-feature behaviour)
 - [x] `error` — existing output → log error, append to `summary.errors`, count as error
+
+### Metadata-only mode (`--metadata-only`)
+- [ ] `BiContext.metadata_only: bool` field
+- [ ] When set: bypass `--overwrite` skip/force/error/always logic entirely (never writes the
+      output file, so none of those modes apply)
+- [ ] When set: skip `os.makedirs` for the output directory
+- [ ] When set: skip the `bids_properties_from_ffprobe(input_path, ...)` call (nothing consumes
+      `sidecar_metadata` since no sidecar is written)
+- [ ] Existence check against `output_path` (the `.mkv`) only — not the sidecar `.json`, not the
+      NIfTI acquisition file
+- [ ] Missing `output_path` → error and skip (`ctx.summary.errors`/`n_errors`), same bookkeeping
+      pattern as the ambiguous-match error; continue with remaining records
+- [ ] Present `output_path` → call `split_video_main(..., phantom_mode=True, sidecar_json=None)`
+      (see [split-tasks.md](../video/split-tasks.md)), build the dedicated media `ScanRecord`
+      from the returned `SplitResult` exactly as the real path does, `_upsert_media_row` as today
+- [ ] Fully composes with `--match`, `--dry-run`, the unconditional acquisition-row
+      `reprostim_*` → `n/a` reset, and `_do_inject_scans_json` — no changes needed to any of those
+- [ ] Code comment (`# NOTE:`) documenting the deliberate no-drift-protection scope decision —
+      no cross-check of recomputed values against the existing sidecar JSON (see spec "Known
+      limitation — no drift protection")
 
 ### Summary / reporting
 - [x] Count processed / injected / skipped / error records per run
@@ -428,6 +451,19 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] `error` + existing output → exit 1, 1 error, error detail in verbose output
 - [x] `error` + no existing output → 1 injected (normal path)
 
+### Metadata-only mode tests
+
+- [ ] `--metadata-only` + existing media file → media row upserted with recomputed values;
+      `.mkv`/sidecar `.json` untouched (mtime unchanged), `ffmpeg`/`do_main`'s encode path not
+      invoked (mock asserts `phantom_mode=True`, or asserts no subprocess call)
+- [ ] `--metadata-only` + missing media file → 1 error, `n_injected` unaffected, no row upserted,
+      exit code non-zero
+- [ ] `--metadata-only` → `--overwrite` value has no effect regardless of skip/force/always/error
+- [ ] `--metadata-only --dry-run` → no `_scans.tsv`/`scans.json` write, same as plain `--dry-run`
+- [ ] `--metadata-only` + `--match` excluding a scan → unaffected (existing `--match` behavior)
+- [ ] `bids_properties_from_ffprobe` NOT called when `--metadata-only` is set
+- [ ] `os.makedirs` NOT called for the output directory when `--metadata-only` is set
+
 ### sidecar_metadata propagation tests
 
 - [x] `_call_split_video` passes `sidecar_metadata` with `TaskName` from `record.metadata` to `split-video` `do_main`
@@ -442,6 +478,7 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [ ] `--reprostim-timezone America/New_York` passed through to `do_main`
 - [ ] `--bids-timezone UTC` passed through to `do_main`
 - [ ] Unknown `--layout` value → Click error (invalid choice)
+- [ ] `-M` / `--metadata-only` flag → `metadata_only=True` passed to `do_main`
 
 ### Coverage targets
 
@@ -485,3 +522,8 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       media lives under top-level `stimuli/` (spec Open Questions #16)
 - [ ] **`bids-qr-inject` (issue #275)** — future tool; will add QR-derived columns to the same
       dedicated media row introduced by #276
+- [ ] **`--metadata-only`** — refresh `_scans.tsv`/`scans.json` for already-generated media via
+      `split-video`'s `phantom_mode` (see spec "Metadata-Only Mode"); design settled, not yet
+      implemented
+- [ ] **`--metadata-only` drift protection** — deliberately deferred (see spec "Known limitation
+      — no drift protection"); revisit if it proves to be a practical problem
