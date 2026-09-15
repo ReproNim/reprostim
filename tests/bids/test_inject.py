@@ -1925,6 +1925,34 @@ def test_save_scans_model_idempotent(tmp_path):
         assert fieldnames.count(col) == 1, f"Column '{col}' duplicated after two saves"
 
 
+def test_save_scans_model_handles_readonly_annex_symlink(tmp_path):
+    """_scans.tsv itself may be a git-annex symlink to a read-only object
+    (a DataLad dataset can annex any file by .gitattributes policy, not only
+    large binaries). _save_scans_model must remove it first rather than
+    raising PermissionError trying to write through the symlink."""
+    model = _make_scans_model(tmp_path)
+    scans_path = Path(model.path)
+
+    # Simulate a git-annex object store with a read-only object file, and
+    # replace the real scans.tsv with a symlink pointing to it.
+    annex_object = tmp_path / "annex_object.tsv"
+    annex_object.write_text(scans_path.read_text(encoding="utf-8"), encoding="utf-8")
+    annex_object.chmod(0o444)
+    original_content = scans_path.read_text(encoding="utf-8")
+    scans_path.unlink()
+    scans_path.symlink_to(annex_object)
+    assert scans_path.is_symlink()
+
+    model.records[0].reprostim_path = "video1.mkv"
+    _save_scans_model(model)
+
+    assert not scans_path.is_symlink(), "symlink should be replaced by a regular file"
+    saved = scans_path.read_text(encoding="utf-8")
+    assert "video1.mkv" in saved
+    # The read-only annex object itself must be untouched.
+    assert annex_object.read_text(encoding="utf-8") == original_content
+
+
 # ===========================================================================
 # _scans.tsv annotation write-back (integration)
 # ===========================================================================

@@ -665,7 +665,7 @@ def _save_scans_model(model: ScansModel) -> None:
     serialised as ``'n/a'`` via :func:`_format_bids_str`.
 
     :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
-        writable.
+        writable, or removable if it is a read-only git-annex symlink.
     :type model: ScansModel
     """
     # Derive extra column names from the first record (order preserved by dict).
@@ -688,6 +688,16 @@ def _save_scans_model(model: ScansModel) -> None:
             "reprostim_buffer_after": _format_bids_str(record.reprostim_buffer_after),
         }
         rows.append(row)
+
+    # `_scans.tsv` can itself be annexed (a DataLad dataset may annex any file
+    # by .gitattributes policy, not only large binaries), in which case it is
+    # a read-only symlink into .git/annex/objects/ and a plain open(..., "w")
+    # raises PermissionError. Since this function always rewrites the entire
+    # file's content, remove any existing file/symlink first — os.remove()
+    # unlinks the symlink without touching the annex object — mirroring the
+    # --overwrite force remedy used for Output A/B media files.
+    if os.path.lexists(model.path):
+        os.remove(model.path)
 
     with open(model.path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
