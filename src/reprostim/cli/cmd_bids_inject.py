@@ -172,6 +172,15 @@ logger = logging.getLogger(__name__)
     "by a different OS user.",
 )
 @click.option(
+    "-M",
+    "--metadata-only",
+    is_flag=True,
+    default=False,
+    help="Refresh _scans.tsv/scans.json annotations for already-generated media "
+    "without touching the .mkv/sidecar .json. Errors on any scan whose media "
+    "file does not already exist. Ignores --overwrite. ",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -197,6 +206,7 @@ def bids_inject(
     dry_run: bool,
     overwrite: str,
     lock: str,
+    metadata_only: bool,
     verbose: bool,
 ):
     """Inject ReproStim video recordings into a BIDS dataset.
@@ -229,6 +239,7 @@ def bids_inject(
     logger.info(f"Dry-run        : {dry_run}")
     logger.info(f"Overwrite      : {overwrite}")
     logger.info(f"Lock           : {lock}")
+    logger.info(f"Metadata-only  : {metadata_only}")
     logger.info(f"Verbose        : {verbose}")
 
     start_time_sec = time.time()
@@ -250,6 +261,7 @@ def bids_inject(
         dry_run=dry_run,
         overwrite=overwrite,
         lock=lock.lower() != "no",
+        metadata_only=metadata_only,
         verbose=verbose,
         out_func=click.echo,
     )

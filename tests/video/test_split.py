@@ -1085,6 +1085,80 @@ def test_split_video_resolution_none_gives_na_dimensions():
 
 
 # ===========================================================================
+# _split_video — phantom_mode
+# ===========================================================================
+
+
+def test_split_video_phantom_mode_skips_ffmpeg():
+    """phantom_mode=True never invokes ffmpeg (no subprocess call)."""
+    sd = _make_sd()
+    with patch("subprocess.run") as mock_run:
+        sr = _split_video(sd, "/out/clip.mkv", phantom_mode=True)
+
+    mock_run.assert_not_called()
+    assert sr.success is True
+
+
+def test_split_video_phantom_mode_leaves_size_and_rate_none():
+    """phantom_mode=True never touches the filesystem for size/rate — both None."""
+    sd = _make_sd()
+    with patch("os.path.getsize") as mock_getsize:
+        sr = _split_video(sd, "/out/clip.mkv", phantom_mode=True)
+
+    mock_getsize.assert_not_called()
+    assert sr.video_size_mb is None
+    assert sr.video_rate_mbpm is None
+
+
+def test_split_video_phantom_mode_matches_real_split_fields():
+    """phantom_mode=True populates every other field identically to a real split."""
+    sd = _make_sd()
+    with patch("subprocess.run", return_value=_fake_proc()), patch(
+        "os.path.getsize", return_value=10 * 1024 * 1024
+    ):
+        real_sr = _split_video(sd, "/out/clip.mkv")
+
+    phantom_sr = _split_video(sd, "/out/clip.mkv", phantom_mode=True)
+
+    for field in (
+        "buffer_before",
+        "buffer_after",
+        "buffer_duration",
+        "orig_buffer_start",
+        "orig_buffer_end",
+        "orig_buffer_offset",
+        "duration",
+        "orig_offset",
+        "orig_start",
+        "orig_end",
+        "video_width",
+        "video_height",
+        "video_frame_rate",
+        "video_codec",
+        "audio_sample_rate",
+        "audio_bit_depth",
+        "audio_channel_count",
+        "audio_codec",
+        "orig_device",
+        "orig_device_serial_number",
+        "input_path",
+        "output_path",
+    ):
+        assert getattr(real_sr, field) == getattr(phantom_sr, field), field
+
+
+def test_split_video_phantom_mode_default_is_false():
+    """phantom_mode defaults to False — pre-existing behavior unchanged."""
+    sd = _make_sd()
+    with patch("subprocess.run", return_value=_fake_proc()) as mock_run, patch(
+        "os.path.getsize", return_value=1024
+    ):
+        _split_video(sd, "/out/clip.mkv")
+
+    mock_run.assert_called_once()
+
+
+# ===========================================================================
 # do_main dispatch
 # ===========================================================================
 
@@ -1180,6 +1254,35 @@ def test_do_main_sidecar_metadata_passed_to_do_main_specs():
             sidecar_metadata=meta,
         )
     assert mock_dms.call_args.kwargs.get("sidecar_metadata") == meta
+
+
+def test_do_main_phantom_mode_passed_to_do_main_specs():
+    """do_main forwards phantom_mode to _do_main_specs (Python-API only)."""
+    with patch(
+        "reprostim.video.split._do_main_specs", return_value=(0, [])
+    ) as mock_dms:
+        do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            start_time="2024-02-02T17:30:00",
+            duration="PT3M",
+            phantom_mode=True,
+        )
+    assert mock_dms.call_args.kwargs.get("phantom_mode") is True
+
+
+def test_do_main_phantom_mode_defaults_to_false():
+    """do_main's phantom_mode defaults to False when not specified."""
+    with patch(
+        "reprostim.video.split._do_main_specs", return_value=(0, [])
+    ) as mock_dms:
+        do_main(
+            input_path="/fake/video.mkv",
+            output_path="/out/clip.mkv",
+            start_time="2024-02-02T17:30:00",
+            duration="PT3M",
+        )
+    assert mock_dms.call_args.kwargs.get("phantom_mode") is False
 
 
 # ===========================================================================
@@ -1289,6 +1392,32 @@ def test_do_main_specs_sidecar_auto_written(mock_csd, mock_sv, mock_ws):
     mock_ws.assert_called_once()
     sidecar_path_used = mock_ws.call_args[0][0]
     assert sidecar_path_used.endswith(".split-video.json")
+
+
+@patch("reprostim.video.split._write_sidecar")
+@patch("reprostim.video.split._split_video")
+@patch("reprostim.video.split._calc_split_data")
+def test_do_main_specs_phantom_mode_never_writes_sidecar(mock_csd, mock_sv, mock_ws):
+    """phantom_mode=True never calls _write_sidecar, even with sidecar_json='auto'."""
+    mock_csd.return_value = _make_sd()
+    mock_sv.return_value = _make_sr_ms()
+
+    _do_main_specs(
+        specs=("2024-02-02T17:30:00/PT3M",),
+        input_path="/fake/video.mkv",
+        output_template="/out/clip.mkv",
+        buffer_before=None,
+        buffer_after=None,
+        buffer_policy="strict",
+        sidecar_json="auto",
+        video_audit_file=None,
+        raw=False,
+        verbose=False,
+        phantom_mode=True,
+    )
+
+    mock_ws.assert_not_called()
+    assert mock_sv.call_args.kwargs["phantom_mode"] is True
 
 
 def test_do_main_specs_sidecar_no_token_multiple_specs_raises():

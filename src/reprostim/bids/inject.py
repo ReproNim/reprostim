@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
+from reprostim.__about__ import __version__
 from reprostim.bids.properties import bids_properties_from_ffprobe
 from reprostim.video.audit import find_video_audit_by_timerange
 
@@ -92,6 +93,40 @@ class MediaSuffix(str, Enum):
     VIDEO = "_video"
     AUDIO = "_audio"
     AUDIOVIDEO = "_audiovideo"
+
+
+class ScanRecordKind(str, Enum):
+    """Classification of a ``_scans.tsv`` row's ``filename`` by file type.
+
+    Distinguishes NIfTI acquisition rows (compressed/uncompressed) from
+    dedicated ReproStim media rows (Output A, see inject-spec.md Output D)
+    and any other/unrecognized row type (e.g. a future
+    ``_events.tsv``/``_physio.tsv``). Computed once, from a raw filename, via
+    :func:`_calc_scan_record_kind` — see :attr:`ScanRecord.kind`. Replaces the
+    earlier ad hoc ``_is_media_row(filename)`` boolean check with a single,
+    inspectable classification reused everywhere a row's type matters.
+    """
+
+    NIFTI_GZ = "nifti_gz"
+    NIFTI = "nifti"
+    REPROSTIM_VIDEO = "reprostim_video"
+    REPROSTIM_AUDIO = "reprostim_audio"
+    REPROSTIM_AUDIOVIDEO = "reprostim_audiovideo"
+    UNKNOWN = "unknown"
+
+    @property
+    def is_reprostim_media(self) -> bool:
+        """``True`` for any of the three ReproStim media row kinds."""
+        return self in (
+            ScanRecordKind.REPROSTIM_VIDEO,
+            ScanRecordKind.REPROSTIM_AUDIO,
+            ScanRecordKind.REPROSTIM_AUDIOVIDEO,
+        )
+
+    @property
+    def is_nifti(self) -> bool:
+        """``True`` for either NIfTI variant (compressed or uncompressed)."""
+        return self in (ScanRecordKind.NIFTI_GZ, ScanRecordKind.NIFTI)
 
 
 ####################################################################
@@ -219,6 +254,12 @@ class BiContext(BaseModel):
         "reading videos.tsv. When False, skip the lock (dirty-read mode) — "
         "useful when the lock is owned by a different OS user.",
     )
+    metadata_only: bool = Field(
+        default=False,
+        description="When True, refresh _scans.tsv/scans.json annotations for "
+        "already-generated media without touching the .mkv/sidecar .json "
+        "(see inject-spec.md Metadata-Only Mode). ",
+    )
     verbose: bool = Field(
         default=False,
         description="When True, emit verbose progress output.",
@@ -284,6 +325,13 @@ class ScanRecord(BaseModel):
         ..., description="Relative path to NIfTI within subject/session dir"
     )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
+    kind: ScanRecordKind = Field(
+        default=ScanRecordKind.UNKNOWN,
+        description="Classification of this row's filename (NIfTI vs. ReproStim "
+        "media vs. other). Computed once via _calc_scan_record_kind(filename) "
+        "when a ScanRecord is parsed/built — not auto-recomputed if filename "
+        "changes afterwards.",
+    )
     extra: dict = Field(
         default_factory=dict,
         description="All remaining columns from the TSV row as key/value pairs",
@@ -442,13 +490,77 @@ def _is_scans_file(path: str) -> bool:
     return os.path.isfile(path) and path.endswith("_scans.tsv")
 
 
+# Matches the Output A media filename suffix, e.g.
+# "..._recording-reprostim_audiovideo.mkv". Capture group 1 ("video" / "audio"
+# / "audiovideo") maps directly onto the ScanRecordKind.REPROSTIM_* values.
+_MEDIA_FILENAME_RE = re.compile(r"_recording-reprostim_(video|audio|audiovideo)\.mkv$")
+
+
+def _calc_scan_record_kind(filename: str) -> ScanRecordKind:
+    """Classify a ``_scans.tsv`` ``filename`` value into a :class:`ScanRecordKind`.
+
+    Backs :attr:`ScanRecord.kind`. Dedicated ReproStim media rows (the
+    injected ``.mkv`` files, see inject-spec.md Output A/D) are excluded from
+    the main per-acquisition processing loop (via ``kind.is_reprostim_media``)
+    and are only ever touched via the insert-or-update mechanism, keyed by
+    this same filename.
+
+    :param filename: ``filename`` column value of a :class:`ScanRecord`.
+    :type filename: str
+    :returns: The row's classification.
+    :rtype: ScanRecordKind
+    """
+
+    if filename.endswith(".nii.gz"):
+        return ScanRecordKind.NIFTI_GZ
+    if filename.endswith(".nii"):
+        return ScanRecordKind.NIFTI
+
+    m = _MEDIA_FILENAME_RE.search(filename)
+    if m:
+        return ScanRecordKind(f"reprostim_{m.group(1)}")
+    return ScanRecordKind.UNKNOWN
+
+
+def _calc_sidecar_json(sr: ScanRecord) -> Optional[str]:
+    """Derive a scan record's JSON sidecar filename from its ``filename`` and ``kind``.
+
+    Sidecar naming follows the same convention as the record's own file
+    extension:
+
+    - NIfTI rows (``NIFTI_GZ``/``NIFTI``) — standard BIDS convention: the
+      NIfTI extension (``.nii.gz`` or ``.nii``) is replaced by ``.json``
+      (e.g. ``*_bold.nii.gz`` -> ``*_bold.json``).
+    - ReproStim media rows (``REPROSTIM_VIDEO``/``REPROSTIM_AUDIO``/
+      ``REPROSTIM_AUDIOVIDEO``) — the ``.mkv`` extension is replaced by
+      ``.json`` (see inject-spec.md Output B).
+    - ``UNKNOWN`` — no sidecar naming convention is known; returns ``None``.
+
+    :param sr: Scan record whose JSON sidecar filename to derive.
+    :type sr: ScanRecord
+    :returns: Sidecar filename, relative in the same way as
+        :attr:`ScanRecord.filename`, or ``None`` when *sr*'s ``kind`` has no
+        known sidecar naming convention.
+    :rtype: Optional[str]
+    """
+    filename = sr.filename
+    if sr.kind == ScanRecordKind.NIFTI_GZ:
+        return filename[: -len(".nii.gz")] + ".json"
+    if sr.kind == ScanRecordKind.NIFTI:
+        return filename[: -len(".nii")] + ".json"
+    if sr.kind.is_reprostim_media:
+        return filename[: -len(".mkv")] + ".json"
+
+    logger.warning(f"Cannot derive JSON sidecar path from: {filename}")
+    return None
+
+
 def _parse_scan_metadata(
     model: ScansModel, record: ScanRecord
 ) -> Optional[ScanMetadata]:
     """Parse BIDS JSON sidecar metadata for a given scan record.
 
-    Locates the JSON sidecar by replacing the NIfTI extension (``.nii.gz``
-    or ``.nii``) with ``.json`` in :attr:`ScanRecord.filename`, resolved
+    Locates the JSON sidecar via :func:`_calc_sidecar_json`, resolved
     relative to the directory containing the ``*_scans.tsv`` file.
 
     The four duration-relevant keys (``FrameAcquisitionDuration``,
@@ -465,13 +577,13 @@ def _parse_scan_metadata(
         be read, ``None`` otherwise.
     :rtype: Optional[ScanMetadata]
     """
-    nifti_name = record.filename
-    if nifti_name.endswith(".nii.gz"):
-        json_name = nifti_name[: -len(".nii.gz")] + ".json"
-    elif nifti_name.endswith(".nii"):
-        json_name = nifti_name[: -len(".nii")] + ".json"
-    else:
-        logger.warning(f"Cannot derive JSON sidecar path from: {nifti_name}")
+    if not record.kind.is_nifti:
+        logger.warning(f"Skipping non-NIfTI scan record: {record.filename}")
+        return None
+
+    json_name = _calc_sidecar_json(record)
+    if json_name is None:
+        logger.warning(f"Cannot derive JSON sidecar path for: {record.filename}")
         return None
 
     scans_dir = os.path.dirname(os.path.abspath(model.path))
@@ -511,7 +623,8 @@ def _parse_scans_model(path: str) -> ScansModel:
 
     Reads a tab-separated BIDS scans file. The columns ``filename`` and
     ``acq_time`` are required; ``operator`` and ``randstr`` are read when
-    present and left as ``None`` otherwise.
+    present and left as ``None`` otherwise. Each record's ``kind`` is computed
+    once here, from its raw ``filename``, via :func:`_calc_scan_record_kind`.
 
     :param path: Absolute or relative path to a ``*_scans.tsv`` file.
     :type path: str
@@ -532,6 +645,7 @@ def _parse_scans_model(path: str) -> ScansModel:
                 ScanRecord(
                     filename=row["filename"],
                     acq_time=row["acq_time"],
+                    kind=_calc_scan_record_kind(row["filename"]),
                     extra={k: v for k, v in row.items() if k not in _known},
                     reprostim_path=_parse_bids_str(row.get("reprostim_path")),
                     reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
@@ -557,7 +671,7 @@ def _save_scans_model(model: ScansModel) -> None:
     serialised as ``'n/a'`` via :func:`_format_bids_str`.
 
     :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
-        writable.
+        writable, or removable if it is a read-only git-annex symlink.
     :type model: ScansModel
     """
     # Derive extra column names from the first record (order preserved by dict).
@@ -581,6 +695,16 @@ def _save_scans_model(model: ScansModel) -> None:
         }
         rows.append(row)
 
+    # `_scans.tsv` can itself be annexed (a DataLad dataset may annex any file
+    # by .gitattributes policy, not only large binaries), in which case it is
+    # a read-only symlink into .git/annex/objects/ and a plain open(..., "w")
+    # raises PermissionError. Since this function always rewrites the entire
+    # file's content, remove any existing file/symlink first — os.remove()
+    # unlinks the symlink without touching the annex object — mirroring the
+    # --overwrite force remedy used for Output A/B media files.
+    if os.path.lexists(model.path):
+        os.remove(model.path)
+
     with open(model.path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
@@ -593,6 +717,51 @@ def _save_scans_model(model: ScansModel) -> None:
         writer.writerows(rows)
 
     logger.debug(f"Saved {len(rows)} scan records to: {model.path}")
+
+
+def _calc_media_acq_time(acq_time: str, buffer_before: float) -> str:
+    """Compute the dedicated media row's ``acq_time`` (see inject-spec.md Output D).
+
+    The media row's ``acq_time`` is the acquisition's own raw ``acq_time``
+    string (as read from the file, *before* ``--time-offset``/timezone
+    normalization) minus ``buffer_before`` seconds — i.e. the actual
+    wall-clock start of the sliced clip. Always formatted with microsecond
+    precision, regardless of the input string's own precision, so every
+    reprostim media row's ``acq_time`` has a consistent format.
+
+    :param acq_time: Raw ``acq_time`` string from the acquisition row.
+    :type acq_time: str
+    :param buffer_before: Actual buffer prepended before scan onset, in
+        seconds (``SplitResult.buffer_before``).
+    :type buffer_before: float
+    :returns: ISO 8601 datetime string (microsecond precision) for the media
+        row's ``acq_time``.
+    :rtype: str
+    """
+    dt = dt_parse_bids(acq_time) - timedelta(seconds=buffer_before)
+    return dt.isoformat(timespec="microseconds")
+
+
+def _upsert_media_row(scans: ScansModel, media_record: ScanRecord) -> None:
+    """Insert or update the dedicated media row for an injected media file.
+
+    Looks up an existing record in ``scans.records`` whose ``filename``
+    equals ``media_record.filename`` (see inject-spec.md Output D /
+    "Insert-or-update (idempotency) and sort order"). If found, it is
+    replaced in place so re-running injection over an already-annotated file
+    updates rather than duplicates the row; otherwise *media_record* is
+    appended.
+
+    :param scans: Parsed scans model to update in place.
+    :type scans: ScansModel
+    :param media_record: Dedicated media row to insert or update with.
+    :type media_record: ScanRecord
+    """
+    for i, existing in enumerate(scans.records):
+        if existing.filename == media_record.filename:
+            scans.records[i] = media_record
+            return
+    scans.records.append(media_record)
 
 
 def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
@@ -844,7 +1013,7 @@ def _call_split_video(
     va,
     start_ts: datetime,
     end_ts: datetime,
-) -> None:
+) -> Optional[ScanRecord]:
     """Invoke split-video for a single matched video record.
 
     Resolves the input video path from the ``videos.tsv`` directory and
@@ -852,17 +1021,31 @@ def _call_split_video(
     filename stem.  Respects ``ctx.dry_run`` — when set, logs the planned
     action without executing the split.
 
+    When ``ctx.metadata_only`` is set, takes a different path entirely: skips
+    ``--overwrite`` (never writes the output file, so it's moot), errors if
+    the media file doesn't already exist on disk, and otherwise calls
+    ``split-video`` with ``phantom_mode=True`` and no sidecar JSON to refresh
+    ``_scans.tsv`` annotations without touching the ``.mkv``/sidecar
+    (see inject-spec.md "Metadata-Only Mode").
+
     :param ctx: Processing context with buffer, policy, and dry-run settings.
     :type ctx: BiContext
     :param scans_path: Absolute path to the ``*_scans.tsv`` file being processed.
     :type scans_path: str
-    :param record: Scan record being injected.
+    :param record: Scan record being injected. Never mutated — the
+        ``reprostim_*`` annotation now always lives on the dedicated media row
+        (see inject-spec.md Output D), not on the acquisition record.
     :type record: ScanRecord
     :param va: Matched video-audit record from ``videos.tsv``.
     :param start_ts: Scan start timestamp (after time-offset applied).
     :type start_ts: datetime
     :param end_ts: Scan end timestamp.
     :type end_ts: datetime
+    :returns: The dedicated media :class:`ScanRecord` to insert/update via
+        :func:`_upsert_media_row` on success, or ``None`` when nothing should
+        be upserted (skipped, dry-run, error, or ``--layout top-stimuli``,
+        which isn't supported yet — see inject-spec.md Open Questions #16).
+    :rtype: Optional[ScanRecord]
     """
     media_suffix = _calc_media_suffix(va)
     if media_suffix is None:
@@ -893,64 +1076,6 @@ def _call_split_video(
     logger.info(f"Output video path      : {output_path}")
     logger.info(f"Sidecar JSON path      : {sidecar_path}")
 
-    # Apply overwrite policy when any output file already exists
-    output_exists = os.path.exists(output_path) or os.path.islink(output_path)
-    sidecar_exists = os.path.exists(sidecar_path) or os.path.islink(sidecar_path)
-    if output_exists or sidecar_exists:
-        existing = ", ".join(
-            p
-            for p, e in [(output_path, output_exists), (sidecar_path, sidecar_exists)]
-            if e
-        )
-        if ctx.overwrite == OverwriteMode.SKIP:
-            logger.info(f"Output already exists, skipping ({existing}).")
-            ctx.summary.n_skipped += 1
-            return
-        elif ctx.overwrite == OverwriteMode.FORCE:
-            logger.info(
-                f"Output already exists, removing before re-inject ({existing})."
-            )
-            if output_exists:
-                os.remove(output_path)
-            if sidecar_exists:
-                os.remove(sidecar_path)
-        elif ctx.overwrite == OverwriteMode.ERROR:
-            err_msg = f"Output already exists ({existing})"
-            logger.error(err_msg)
-            ctx.summary.errors.append(f"{record.filename}: {err_msg}")
-            ctx.summary.n_errors += 1
-            return
-        # OverwriteMode.ALWAYS: no action, fall through
-
-    if ctx.dry_run:
-        duration_sec = (end_ts - start_ts).total_seconds()
-        if ctx.out_func:
-            ctx.out_func(f"[DRY-RUN] scan    : {record.filename}")
-            ctx.out_func(f"  onset     : {start_ts.isoformat()}")
-            ctx.out_func(f"  duration  : {duration_sec:.3f} s")
-            ctx.out_func(f"  buf_before: {ctx.buffer_before}")
-            ctx.out_func(f"  buf_after : {ctx.buffer_after}")
-            ctx.out_func(f"  input     : {input_path}")
-            ctx.out_func(f"  output    : {output_path}")
-            ctx.out_func(f"  sidecar   : {sidecar_path}")
-        logger.info(
-            f"Dry-run                : split-video"
-            f" --video-audit-file {ctx.videos_tsv}"
-            f" --buffer-before {ctx.buffer_before}"
-            f" --buffer-after {ctx.buffer_after}"
-            f" --buffer-policy {ctx.buffer_policy}"
-            f" --sidecar-json {sidecar_path}"
-            f" --start {start_ts.isoformat()}"
-            f" --end {end_ts.isoformat()}"
-            f" --lock {'yes' if ctx.lock else 'no'}"
-            f" --input {input_path}"
-            f" --output {output_path}"
-        )
-        ctx.summary.n_injected += 1
-        return
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
     from reprostim.video.split import SidecarFormat
     from reprostim.video.split import do_main as split_video_main
 
@@ -963,16 +1088,112 @@ def _call_split_video(
             ctx.out_func(msg)
 
     sidecar_metadata: dict = {}
-    if record.metadata and record.metadata.TaskName:
-        sidecar_metadata["TaskName"] = record.metadata.TaskName
 
-    # TODO: in the future, read these fields from dedicated columns in videos.tsv
-    #       populated by video-audit, avoiding the extra ffprobe call here.
-    try:
-        bids_properties_from_ffprobe(input_path, props=sidecar_metadata)
-    except Exception as e:
-        logger.error(f"Failed to get video info for {input_path}: {e}")
+    if ctx.metadata_only:
+        # --metadata-only refreshes _scans.tsv/scans.json for media that was
+        # already generated by an earlier real run; it never generates media
+        # itself. --overwrite governs whether to *write* output_path/
+        # sidecar_path, which never happens here, so it's bypassed entirely
+        # (all of skip/force/error/always are irrelevant). The existence
+        # check below applies only to this ReproStim media file — the one
+        # split-video/SplitResult produces — never to the NIfTI acquisition
+        # file or the sidecar JSON. See inject-spec.md "Metadata-Only Mode".
+        if not (os.path.exists(output_path) or os.path.islink(output_path)):
+            err_msg = (
+                f"--metadata-only: media file does not exist ({output_path}). "
+                "--metadata-only only refreshes annotations for already-"
+                "generated media; run without it first to generate this file."
+            )
+            logger.error(err_msg)
+            ctx.summary.errors.append(f"{record.filename}: {err_msg}")
+            ctx.summary.n_errors += 1
+            return None
+    else:
+        # Apply overwrite policy when any output file already exists
+        output_exists = os.path.exists(output_path) or os.path.islink(output_path)
+        sidecar_exists = os.path.exists(sidecar_path) or os.path.islink(sidecar_path)
+        if output_exists or sidecar_exists:
+            existing = ", ".join(
+                p
+                for p, e in [
+                    (output_path, output_exists),
+                    (sidecar_path, sidecar_exists),
+                ]
+                if e
+            )
+            if ctx.overwrite == OverwriteMode.SKIP:
+                logger.info(f"Output already exists, skipping ({existing}).")
+                ctx.summary.n_skipped += 1
+                return None
+            elif ctx.overwrite == OverwriteMode.FORCE:
+                logger.info(
+                    f"Output already exists, removing before re-inject ({existing})."
+                )
+                if output_exists:
+                    os.remove(output_path)
+                if sidecar_exists:
+                    os.remove(sidecar_path)
+            elif ctx.overwrite == OverwriteMode.ERROR:
+                err_msg = f"Output already exists ({existing})"
+                logger.error(err_msg)
+                ctx.summary.errors.append(f"{record.filename}: {err_msg}")
+                ctx.summary.n_errors += 1
+                return None
+            # OverwriteMode.ALWAYS: no action, fall through
 
+        if record.metadata and record.metadata.TaskName:
+            sidecar_metadata["TaskName"] = record.metadata.TaskName
+
+    if ctx.dry_run:
+        if ctx.out_func:
+            if ctx.metadata_only:
+                ctx.out_func(f"[DRY-RUN] scan (metadata-only): {record.filename}")
+                ctx.out_func(f"  output    : {output_path}")
+            else:
+                duration_sec = (end_ts - start_ts).total_seconds()
+                ctx.out_func(f"[DRY-RUN] scan    : {record.filename}")
+                ctx.out_func(f"  onset     : {start_ts.isoformat()}")
+                ctx.out_func(f"  duration  : {duration_sec:.3f} s")
+                ctx.out_func(f"  buf_before: {ctx.buffer_before}")
+                ctx.out_func(f"  buf_after : {ctx.buffer_after}")
+                ctx.out_func(f"  input     : {input_path}")
+                ctx.out_func(f"  output    : {output_path}")
+                ctx.out_func(f"  sidecar   : {sidecar_path}")
+        dry_run_sidecar = "n/a (metadata-only)" if ctx.metadata_only else sidecar_path
+        logger.info(
+            f"Dry-run                : split-video"
+            f" --video-audit-file {ctx.videos_tsv}"
+            f" --buffer-before {ctx.buffer_before}"
+            f" --buffer-after {ctx.buffer_after}"
+            f" --buffer-policy {ctx.buffer_policy}"
+            f" --sidecar-json {dry_run_sidecar}"
+            f" --start {start_ts.isoformat()}"
+            f" --end {end_ts.isoformat()}"
+            f" --lock {'yes' if ctx.lock else 'no'}"
+            f" --input {input_path}"
+            f" --output {output_path}"
+        )
+        ctx.summary.n_injected += 1
+        return None
+
+    if not ctx.metadata_only:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # TODO: in the future, read these fields from dedicated columns in videos.tsv
+        #       populated by video-audit, avoiding the extra ffprobe call here.
+        try:
+            bids_properties_from_ffprobe(input_path, props=sidecar_metadata)
+        except Exception as e:
+            logger.error(f"Failed to get video info for {input_path}: {e}")
+
+    # NOTE: in --metadata-only mode, the buffer/offset/acq_time values below
+    # are recomputed fresh from *this* invocation's --buffer-before/
+    # --buffer-after/--time-offset/timezone arguments, not cross-checked
+    # against what's actually baked into the existing sidecar JSON. A
+    # mismatch between this run's arguments and the original real run's
+    # would silently drift the refreshed _scans.tsv annotation out of sync
+    # with the real file. Deliberately deferred — see inject-spec.md
+    # "Metadata-Only Mode" / "Known limitation — no drift protection".
     ret, split_results = split_video_main(
         input_path=input_path,
         output_path=output_path,
@@ -981,20 +1202,15 @@ def _call_split_video(
         buffer_before=ctx.buffer_before,
         buffer_after=ctx.buffer_after,
         buffer_policy=ctx.buffer_policy,
-        sidecar_json=sidecar_path,
+        sidecar_json=None if ctx.metadata_only else sidecar_path,
         sidecar_format=SidecarFormat.BIDS,
         sidecar_metadata=sidecar_metadata,
         video_audit_file=ctx.videos_tsv,
+        phantom_mode=ctx.metadata_only,
         lock=ctx.lock,
         verbose=ctx.verbose,
         out_func=_capturing_out_func,
     )
-
-    # reset reprostim_ data first
-    record.reprostim_path = None
-    record.reprostim_offset = None
-    record.reprostim_buffer_before = None
-    record.reprostim_buffer_after = None
 
     if ret != 0:
         captured = "; ".join(captured_errors) if captured_errors else f"exit code {ret}"
@@ -1002,15 +1218,44 @@ def _call_split_video(
         logger.error(err_msg)
         ctx.summary.errors.append(err_msg)
         ctx.summary.n_errors += 1
-    else:
-        logger.info(f"split-video completed successfully ({record.filename})")
-        ctx.summary.n_injected += 1
-        if split_results:
-            sr = split_results[0]
-            record.reprostim_path = va.path
-            record.reprostim_offset = sr.orig_buffer_offset
-            record.reprostim_buffer_before = sr.buffer_before
-            record.reprostim_buffer_after = sr.buffer_after
+        return None
+
+    logger.info(f"split-video completed successfully ({record.filename})")
+    ctx.summary.n_injected += 1
+
+    if not split_results:
+        return None
+
+    if ctx.layout == LayoutMode.TOP_STIMULI:
+        # The media file lives outside the subject/session tree (under a
+        # top-level stimuli/ dir), so it has no session-relative `filename`
+        # yet — dedicated media-row insertion is nearby-only for now.
+        # See inject-spec.md Output D / Open Questions #16.
+        return None
+
+    split_result = split_results[0]
+    media_filename = os.path.relpath(output_path, scans_dir)
+    media_acq_time = _calc_media_acq_time(record.acq_time, split_result.buffer_before)
+    media_extra = {k: "n/a" for k in record.extra}
+    if "operator" in media_extra:
+        media_extra["operator"] = f"reprostim:{__version__}"
+
+    return ScanRecord(
+        filename=media_filename,
+        acq_time=media_acq_time,
+        # Computed explicitly here (not left to the field default) because
+        # _upsert_media_row may append this record onto scans.records while
+        # _do_inject_scans is still iterating it — Python's list iterator
+        # will visit the appended record later in the same loop, and it must
+        # already carry the correct kind so kind.is_reprostim_media routes it
+        # away from the acquisition-processing branch.
+        kind=_calc_scan_record_kind(media_filename),
+        extra=media_extra,
+        reprostim_path=va.path,
+        reprostim_offset=split_result.orig_buffer_offset,
+        reprostim_buffer_before=split_result.buffer_before,
+        reprostim_buffer_after=split_result.buffer_after,
+    )
 
 
 def _do_inject_scans(ctx: BiContext, path: str):
@@ -1018,6 +1263,13 @@ def _do_inject_scans(ctx: BiContext, path: str):
 
     Verifies that *path* is a valid BIDS scans file and delegates per-record
     injection logic.  Non-matching paths are logged as warnings and skipped.
+
+    Dedicated media rows (see inject-spec.md Output D) are skipped by the main
+    loop and only touched via :func:`_upsert_media_row`. Every acquisition
+    row's ``reprostim_*`` columns are unconditionally reset to ``n/a`` before
+    that row is (re-)evaluated, regardless of ``--match`` or outcome, which
+    migrates files previously annotated by the pre-#276 same-row design.
+    Records are sorted by ``acq_time`` before the file is rewritten.
 
     :param ctx: Processing context carrying flags such as ``dry_run``.
     :type ctx: BiContext
@@ -1033,6 +1285,22 @@ def _do_inject_scans(ctx: BiContext, path: str):
             )
         scans: ScansModel = _parse_scans_model(path)
         for sr in scans.records:
+            if sr.kind.is_reprostim_media:
+                # Dedicated media rows (Output D) are never treated as
+                # acquisitions — they have no sidecar/duration/video match of
+                # their own. They're only touched via _upsert_media_row below,
+                # driven by the acquisition row they correspond to.
+                logger.debug(f"Skipping media row (not an acquisition): {sr.filename}")
+                continue
+
+            # Unconditionally migrate/reset this acquisition row's reprostim_*
+            # annotation to n/a, regardless of --match or the outcome below —
+            # see inject-spec.md Output D / "Migration from the pre-#276 layout".
+            sr.reprostim_path = None
+            sr.reprostim_offset = None
+            sr.reprostim_buffer_before = None
+            sr.reprostim_buffer_after = None
+
             if re.search(ctx.match, sr.filename):
                 ctx.summary.n_processed += 1
                 logger.info(f"Processing scan record : {sr}")
@@ -1088,9 +1356,11 @@ def _do_inject_scans(ctx: BiContext, path: str):
                         ctx.summary.errors.append(f"{sr.filename}: {err_msg}")
                         ctx.summary.n_errors += 1
                     else:
-                        _call_split_video(
+                        media_record = _call_split_video(
                             ctx, path, sr, va_records[0], start_ts, end_ts
                         )
+                        if media_record is not None:
+                            _upsert_media_row(scans, media_record)
                 else:
                     if not (start_ts and end_ts):
                         logger.warning(
@@ -1103,6 +1373,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 logger.debug(f"Skipping scan record (no match): {sr.filename}")
                 ctx.summary.n_skipped += 1
         if not ctx.dry_run:
+            scans.records.sort(key=lambda r: dt_parse_bids(r.acq_time))
             _save_scans_model(scans)
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
@@ -1475,6 +1746,7 @@ def do_main(
     lock: bool,
     verbose: bool,
     out_func: Callable,
+    metadata_only: bool = False,
 ) -> int:
     """Main entry point for the bids-inject command.
 
@@ -1542,6 +1814,10 @@ def do_main(
     :type verbose: bool
     :param out_func: Callable used for user-facing output (e.g. ``click.echo``).
     :type out_func: Callable
+    :param metadata_only: When ``True``, refresh ``_scans.tsv``/``scans.json``
+        annotations for already-generated media without touching the
+        ``.mkv``/sidecar ``.json`` (see inject-spec.md Metadata-Only Mode).
+    :type metadata_only: bool
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
@@ -1572,6 +1848,7 @@ def do_main(
         lock=lock,
         verbose=verbose,
         out_func=out_func,
+        metadata_only=metadata_only,
     )
 
     _do_inject_all(ctx, paths)
