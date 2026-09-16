@@ -1,3 +1,16 @@
+# 0.7.37 (Wed Sep 16 2026)
+
+#### 🐛 Bug Fix
+
+- Enhance `bids-inject` to add media file records to `_scans.tsv` [#279](https://github.com/ReproNim/reprostim/pull/279) ([@vmdocua](https://github.com/vmdocua))
+- Support `qr-parse` for video files not in the `reprostim-videocapture` format [#278](https://github.com/ReproNim/reprostim/pull/278) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.36 (Tue Aug 25 2026)
 
 #### 🐛 Bug Fix
