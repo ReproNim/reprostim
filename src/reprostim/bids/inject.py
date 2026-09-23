@@ -325,6 +325,9 @@ class ScanRecord(BaseModel):
         ..., description="Relative path to NIfTI within subject/session dir"
     )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
+    duration: str = Field(
+        ..., description="Wallclock duration of the recording in seconds, optional"
+    )
     kind: ScanRecordKind = Field(
         default=ScanRecordKind.UNKNOWN,
         description="Classification of this row's filename (NIfTI vs. ReproStim "
@@ -635,7 +638,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
-    _known = {"filename", "acq_time"} | set(_REPROSTIM_COLS)
+    _known = {"filename", "acq_time", "duration"} | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
     with _open_dataset_file(path, newline="") as f:
@@ -645,6 +648,7 @@ def _parse_scans_model(path: str) -> ScansModel:
                 ScanRecord(
                     filename=row["filename"],
                     acq_time=row["acq_time"],
+                    duration=row["duration"],
                     kind=_calc_scan_record_kind(row["filename"]),
                     extra={k: v for k, v in row.items() if k not in _known},
                     reprostim_path=_parse_bids_str(row.get("reprostim_path")),
@@ -677,7 +681,7 @@ def _save_scans_model(model: ScansModel) -> None:
     # Derive extra column names from the first record (order preserved by dict).
     extra_cols = list(model.records[0].extra.keys()) if model.records else []
     fieldnames = (
-        ["filename", "acq_time"]
+        ["filename", "acq_time", "duration"]
         + extra_cols
         + [c for c in _REPROSTIM_COLS if c not in extra_cols]
     )
@@ -687,6 +691,7 @@ def _save_scans_model(model: ScansModel) -> None:
         row = {
             "filename": record.filename,
             "acq_time": record.acq_time,
+            "duration": record.duration,
             **record.extra,
             "reprostim_path": _format_bids_str(record.reprostim_path),
             "reprostim_offset": _format_bids_str(record.reprostim_offset),
