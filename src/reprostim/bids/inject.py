@@ -379,6 +379,9 @@ class ScansModel(BaseModel):
         default_factory=list,
         description="Ordered list of scan records parsed from the file",
     )
+    orig_content: Optional[str] = Field(
+        None, repr=False, description="Raw content of the original ``*_scans.tsv`` file"
+    )
 
 
 ####################################################################
@@ -646,28 +649,32 @@ def _parse_scans_model(path: str) -> ScansModel:
     _known = set(_BASIC_COLS) | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
+    raw_content: Optional[str] = None
+    # cache file content
     with _open_dataset_file(path, newline="") as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        for row in reader:
-            records.append(
-                ScanRecord(
-                    filename=row["filename"],
-                    acq_time=row["acq_time"],
-                    duration=_parse_bids_float(row.get("duration")),
-                    kind=_calc_scan_record_kind(row["filename"]),
-                    extra={k: v for k, v in row.items() if k not in _known},
-                    reprostim_path=_parse_bids_str(row.get("reprostim_path")),
-                    reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
-                    reprostim_buffer_before=_parse_bids_float(
-                        row.get("reprostim_buffer_before")
-                    ),
-                    reprostim_buffer_after=_parse_bids_float(
-                        row.get("reprostim_buffer_after")
-                    ),
-                )
+        raw_content = f.read()
+
+    reader = csv.DictReader(io.StringIO(raw_content), delimiter="\t")
+    for row in reader:
+        records.append(
+            ScanRecord(
+                filename=row["filename"],
+                acq_time=row["acq_time"],
+                duration=_parse_bids_float(row.get("duration")),
+                kind=_calc_scan_record_kind(row["filename"]),
+                extra={k: v for k, v in row.items() if k not in _known},
+                reprostim_path=_parse_bids_str(row.get("reprostim_path")),
+                reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
+                reprostim_buffer_before=_parse_bids_float(
+                    row.get("reprostim_buffer_before")
+                ),
+                reprostim_buffer_after=_parse_bids_float(
+                    row.get("reprostim_buffer_after")
+                ),
             )
+        )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
-    return ScansModel(path=path, records=records)
+    return ScansModel(path=path, records=records, orig_content=raw_content)
 
 
 def _save_scans_model(model: ScansModel) -> None:
@@ -678,6 +685,14 @@ def _save_scans_model(model: ScansModel) -> None:
     :attr:`ScanRecord.extra`), then ``reprostim_*`` annotation columns from
     :data:`_REPROSTIM_COLS` appended on the right.  ``None`` field values are
     serialised as ``'n/a'`` via :func:`_format_bids_str`.
+
+    The content is serialised in memory first and compared against
+    :attr:`ScansModel.orig_content`; if identical, the write is skipped
+    entirely, so an unchanged file (including a git-annex symlink) is left
+    untouched.  After a successful write, :attr:`ScansModel.orig_content` is
+    updated to the new content, so saving the same model again is a no-op.
+    A model with no ``orig_content`` (e.g. not loaded via
+    :func:`_parse_scans_model`) is always written.
 
     :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
         writable, or removable if it is a read-only git-annex symlink.
@@ -703,6 +718,27 @@ def _save_scans_model(model: ScansModel) -> None:
         }
         rows.append(row)
 
+    # first serialize content to str
+    out_str = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        out_str,
+        fieldnames=fieldnames,
+        delimiter="\t",
+        extrasaction="ignore",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    writer.writerows(rows)
+
+    # skip the write if content is unchanged:
+    new_content = out_str.getvalue()
+    if new_content == model.orig_content:
+        logger.debug(
+            f"Skip saving {len(rows)} scan records to: {model.path} as "
+            f"nothing to update"
+        )
+        return
+
     # `_scans.tsv` can itself be annexed (a DataLad dataset may annex any file
     # by .gitattributes policy, not only large binaries), in which case it is
     # a read-only symlink into .git/annex/objects/ and a plain open(..., "w")
@@ -714,15 +750,10 @@ def _save_scans_model(model: ScansModel) -> None:
         os.remove(model.path)
 
     with open(model.path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=fieldnames,
-            delimiter="\t",
-            extrasaction="ignore",
-            lineterminator="\n",
-        )
-        writer.writeheader()
-        writer.writerows(rows)
+        f.write(new_content)
+
+    # also update content in model after file saved
+    model.orig_content = new_content
 
     logger.debug(f"Saved {len(rows)} scan records to: {model.path}")
 
