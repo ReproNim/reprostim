@@ -385,6 +385,9 @@ class ScansModel(BaseModel):
 ####################################################################
 
 
+# Specify ordered list of basic _scans.tsv columns used by bids-inject tool
+_BASIC_COLS = ["filename", "acq_time", "duration"]
+
 # Ordered list of reprostim_* annotation columns read from and written to _scans.tsv.
 _REPROSTIM_COLS = [
     "reprostim_path",
@@ -638,7 +641,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
-    _known = {"filename", "acq_time", "duration"} | set(_REPROSTIM_COLS)
+    _known = set(_BASIC_COLS) | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
     with _open_dataset_file(path, newline="") as f:
@@ -681,9 +684,7 @@ def _save_scans_model(model: ScansModel) -> None:
     # Derive extra column names from the first record (order preserved by dict).
     extra_cols = list(model.records[0].extra.keys()) if model.records else []
     fieldnames = (
-        ["filename", "acq_time", "duration"]
-        + extra_cols
-        + [c for c in _REPROSTIM_COLS if c not in extra_cols]
+        _BASIC_COLS + extra_cols + [c for c in _REPROSTIM_COLS if c not in extra_cols]
     )
 
     rows = []
