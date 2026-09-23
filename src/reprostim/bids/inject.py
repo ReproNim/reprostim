@@ -1253,6 +1253,9 @@ def _call_split_video(
     split_result = split_results[0]
     media_filename = os.path.relpath(output_path, scans_dir)
     media_acq_time = _calc_media_acq_time(record.acq_time, split_result.buffer_before)
+    media_duration = (
+        split_result.buffer_duration
+    )  # entire duration with pre- and post- buffer
     media_extra = {k: "n/a" for k in record.extra}
     if "operator" in media_extra:
         media_extra["operator"] = f"reprostim:{__version__}"
@@ -1260,6 +1263,7 @@ def _call_split_video(
     return ScanRecord(
         filename=media_filename,
         acq_time=media_acq_time,
+        duration=media_duration,
         # Computed explicitly here (not left to the field default) because
         # _upsert_media_row may append this record onto scans.records while
         # _do_inject_scans is still iterating it — Python's list iterator
