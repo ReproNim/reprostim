@@ -659,6 +659,23 @@ def test_calc_scan_duration_sec_no_metadata_returns_none():
     assert _calc_scan_duration_sec(r) is None
 
 
+def test_calc_scan_duration_sec_no_metadata_uses_duration_column():
+    r = ScanRecord(
+        filename="func/test_bold.nii.gz", acq_time="2025-01-15T12:00:00", duration=12.5
+    )
+    assert _calc_scan_duration_sec(r) == pytest.approx(12.5)
+
+
+def test_calc_scan_duration_sec_falls_back_to_duration_column():
+    r = ScanRecord(
+        filename="func/test_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+        duration=11.0,
+        metadata=ScanMetadata(AcquisitionTime=["120000"]),
+    )
+    assert _calc_scan_duration_sec(r) == pytest.approx(11.0)
+
+
 # ===========================================================================
 # DATALAD_FUSE_AVAILABLE / _open_dataset_file
 # ===========================================================================

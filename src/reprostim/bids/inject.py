@@ -773,30 +773,39 @@ def _upsert_media_row(scans: ScansModel, media_record: ScanRecord) -> None:
 
 
 def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
-    """Calculate scan duration in seconds from a :class:`ScanRecord`'s metadata.
+    """Calculate scan duration in seconds from a :class:`ScanRecord`.
 
     Resolution follows the priority order defined in the spec:
 
-    1. ``FrameAcquisitionDuration`` (ms) — most reliable; divided by 1000.
-    2. ``AcquisitionTime`` array of DICOM TM strings —
+    1. ``duration`` from ``_scans.tsv`` when provided.
+    2. ``FrameAcquisitionDuration`` (ms) — most reliable; divided by 1000.
+    3. ``AcquisitionTime`` array of DICOM TM strings —
        ``(t_last − t_first) + TR`` where ``TR = t_times[1] − t_times[0]``.
        Requires at least two elements.
-    3. ``RepetitionTime`` (s) × ``NumberOfVolumes``.
+    4. ``RepetitionTime`` (s) × ``NumberOfVolumes``.
 
-    Returns ``None`` and logs a warning when none of the three sources are
+    Returns ``None`` and logs a warning when none of the four sources are
     available or sufficient.
 
-    :param record: Scan record with populated :attr:`ScanRecord.metadata`.
+    :param record: Scan record with optional metadata and/or ``duration``.
     :type record: ScanRecord
     :returns: Scan duration in seconds, or ``None`` if it cannot be determined.
     :rtype: Optional[float]
     """
+
+    # Priority 1: duration specified in _scans.tsv
+    if record.duration is not None:
+        logger.debug(
+            f"Duration from scans.tsv: {record.duration:.3f} s" f" ({record.filename})"
+        )
+        return record.duration
+
     md = record.metadata
     if md is None:
         logger.warning(f"No metadata available for: {record.filename}")
         return None
 
-    # Priority 1: FrameAcquisitionDuration (ms → seconds)
+    # Priority 2: FrameAcquisitionDuration (ms → seconds)
     if md.FrameAcquisitionDuration is not None:
         duration = md.FrameAcquisitionDuration / 1000.0
         logger.debug(
@@ -805,7 +814,7 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
         )
         return duration
 
-    # Priority 2: AcquisitionTime array — (t_last - t_first) + TR
+    # Priority 3: AcquisitionTime array — (t_last - t_first) + TR
     if md.AcquisitionTime is not None and len(md.AcquisitionTime) >= 2:
         times = [dt_time_to_sec(dt_parse_dicom_time(s)) for s in md.AcquisitionTime]
         tr = times[1] - times[0]
@@ -816,7 +825,7 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
         )
         return duration
 
-    # Priority 3: RepetitionTime × NumberOfVolumes
+    # Priority 4: RepetitionTime × NumberOfVolumes
     if md.RepetitionTime is not None and md.NumberOfVolumes is not None:
         duration = md.RepetitionTime * md.NumberOfVolumes
         logger.debug(
