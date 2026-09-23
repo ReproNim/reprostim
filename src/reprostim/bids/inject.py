@@ -325,8 +325,9 @@ class ScanRecord(BaseModel):
         ..., description="Relative path to NIfTI within subject/session dir"
     )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
-    duration: str = Field(
-        ..., description="Wallclock duration of the recording in seconds, optional"
+    duration: Optional[float] = Field(
+        default=None,
+        description="Wallclock duration of the recording in seconds, optional.",
     )
     kind: ScanRecordKind = Field(
         default=ScanRecordKind.UNKNOWN,
@@ -628,9 +629,10 @@ def _parse_scans_model(path: str) -> ScansModel:
     """Parse a ``*_scans.tsv`` file and return a :class:`ScansData` instance.
 
     Reads a tab-separated BIDS scans file. The columns ``filename`` and
-    ``acq_time`` are required; ``operator`` and ``randstr`` are read when
-    present and left as ``None`` otherwise. Each record's ``kind`` is computed
-    once here, from its raw ``filename``, via :func:`_calc_scan_record_kind`.
+    ``acq_time`` are required. ``duration`` is optional and parsed as float;
+    absent/``'n/a'``/empty values become ``None``. Each record's ``kind`` is
+    computed once here, from its raw ``filename``, via
+    :func:`_calc_scan_record_kind`.
 
     :param path: Absolute or relative path to a ``*_scans.tsv`` file.
     :type path: str
@@ -651,7 +653,7 @@ def _parse_scans_model(path: str) -> ScansModel:
                 ScanRecord(
                     filename=row["filename"],
                     acq_time=row["acq_time"],
-                    duration=row["duration"],
+                    duration=_parse_bids_float(row.get("duration")),
                     kind=_calc_scan_record_kind(row["filename"]),
                     extra={k: v for k, v in row.items() if k not in _known},
                     reprostim_path=_parse_bids_str(row.get("reprostim_path")),
@@ -692,7 +694,7 @@ def _save_scans_model(model: ScansModel) -> None:
         row = {
             "filename": record.filename,
             "acq_time": record.acq_time,
-            "duration": record.duration,
+            "duration": _format_bids_str(record.duration),
             **record.extra,
             "reprostim_path": _format_bids_str(record.reprostim_path),
             "reprostim_offset": _format_bids_str(record.reprostim_offset),

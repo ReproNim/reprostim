@@ -1934,10 +1934,23 @@ def test_parse_scans_model_reprostim_cols_absent(tmp_path):
     )
     model = _parse_scans_model(str(tsv))
     r = model.records[0]
+    assert r.duration is None
     assert r.reprostim_path is None
     assert r.reprostim_offset is None
     assert r.reprostim_buffer_before is None
     assert r.reprostim_buffer_after is None
+
+
+def test_parse_scans_model_duration_parsed_as_float(tmp_path):
+    """duration is parsed as float when present in the TSV."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        ["func/bold.nii.gz\t2025-08-14T15:06:09.742500\t12.5\tn/a\tabc123"],
+        "filename\tacq_time\tduration\toperator\trandstr",
+    )
+    model = _parse_scans_model(str(tsv))
+    assert model.records[0].duration == pytest.approx(12.5)
 
 
 def test_parse_scans_model_reprostim_cols_present(tmp_path):
