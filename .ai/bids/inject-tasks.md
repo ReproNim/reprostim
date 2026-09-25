@@ -50,6 +50,15 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 
 ### _scans.tsv integration
 - [x] Parse `_scans.tsv` (`filename` + `acq_time` columns)
+- [x] Parse optional `duration` column as `float` into `ScanRecord.duration`; missing, empty or
+      `n/a` → `None` (issue #281)
+- [x] `_BASIC_COLS` constant (`filename`, `acq_time`, `duration`), used by both
+      `_parse_scans_model` (known columns, not stored in `extra`) and `_save_scans_model`
+      (leading column order)
+- [x] Skip rewriting `_scans.tsv` when content is unchanged: `ScansModel.orig_content`
+      (raw file content, `repr=False`) is kept on parse; `_save_scans_model` builds the new
+      content in memory, returns early if it equals `orig_content`, and updates
+      `orig_content` after each actual write. Leaves unchanged annexed files (symlinks) alone.
 - [x] Apply `--match` regex to filter scan records
 - [x] `_open_dataset_file` — read-only context manager that routes through `datalad_fuse.FsspecAdapter` when available; falls back to plain `open()` on `ImportError` or any adapter failure; used by `_parse_scans_model` and `_parse_scan_metadata`
 - [x] `DATALAD_FUSE_AVAILABLE` — module-level bool set at import time; logged via `logger.debug`
@@ -61,9 +70,10 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `FrameAcquisitionDuration`, `AcquisitionTime`, `RepetitionTime`, `NumberOfVolumes` — existing typed fields
 
 ### Scan duration computation
-- [x] Priority 1: `FrameAcquisitionDuration` (ms → seconds)
-- [x] Priority 2: `AcquisitionTime` array — `(t_last − t_first) + TR`
-- [x] Priority 3: `RepetitionTime × NumberOfVolumes`
+- [x] Priority 1: `duration` column from `_scans.tsv`, when present (issue #281)
+- [x] Priority 2: `FrameAcquisitionDuration` (ms → seconds)
+- [x] Priority 3: `AcquisitionTime` array — `(t_last − t_first) + TR`
+- [x] Priority 4: `RepetitionTime × NumberOfVolumes`
 - [x] Warn and skip when duration cannot be determined
 - [ ] `--duration` manual override option (future)
 
@@ -198,6 +208,9 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
       precision), `operator` = `f"reprostim:{__version__}"` (only when an `operator`
       column already exists in the file), other pre-existing extra columns = `n/a`,
       `reprostim_*` = real `SplitResult` values
+- [x] Media row `duration` = `SplitResult.buffer_duration` — full clip length, including
+      pre-/post-scan buffers (issue #281); refreshed on re-run since the upsert replaces
+      the whole row
 - [x] Upsert by `filename`: update the existing media row in place if one is found in the
       model, else append a new `ScanRecord` (handles re-runs without duplicating rows)
 - [x] Sort `ScansModel.records` by parsed `acq_time` ascending (stable) before `_save_scans_model`
@@ -206,7 +219,8 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] Skip write-back in `--dry-run` mode
 - [x] `reprostim_path` stored relative to `videos.tsv` location (consistent with `videos.tsv` path convention)
 - [x] `src/reprostim/assets/bids/scans.json` — default BIDS data-dictionary sidecar documenting
-      `filename`, `acq_time`, and all four `reprostim_*` columns (`LongName`/`Description`/`Units`)
+      `filename`, `acq_time`, `duration` (`Units: "s"`, issue #281), and all four `reprostim_*`
+      columns (`LongName`/`Description`/`Units`)
 - [x] Limit dedicated media-row insertion to `--layout nearby` for now (see spec Open Questions #16);
       `top-stimuli` keeps pre-#276 behavior
 
@@ -392,6 +406,23 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] `_save_scans_model` — `None` values written as `"n/a"`
 - [x] `_save_scans_model` — existing extra columns preserved
 - [x] `_save_scans_model` — `reprostim_*` columns appear in `_REPROSTIM_COLS` order
+- [x] `_parse_scans_model` — `duration` parsed as `float`
+      (`test_parse_scans_model_duration_parsed_as_float`)
+- [x] `_calc_scan_duration_sec` — `duration` column used without sidecar metadata, and takes
+      priority over sidecar metadata
+      (`test_calc_scan_duration_sec_no_metadata_uses_duration_column`,
+      `test_calc_scan_duration_sec_falls_back_to_duration_column`)
+- [x] `_parse_scans_model` — raw file content stored in `orig_content`
+      (`test_parse_scans_model_stores_orig_content`)
+- [x] `_save_scans_model` — unchanged content → no write, annex symlink stays a symlink
+      (`test_save_scans_model_unchanged_content_skips_write`)
+- [x] `_save_scans_model` — `orig_content` updated after write; saving the same model twice
+      opens the file only once (`test_save_scans_model_second_save_skipped`)
+- [x] `_save_scans_model` — changed record after load → file written
+      (`test_save_scans_model_changed_record_is_written`)
+- [x] `_save_scans_model` — model built without `orig_content` → always written
+      (`test_save_scans_model_without_orig_content_always_writes`)
+- [ ] Integration: media row `duration` equals `SplitResult.buffer_duration` after injection
 
 #### Integration tests (end-to-end via `_do_inject_scans` / `_call_split_video`)
 

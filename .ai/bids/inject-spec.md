@@ -30,7 +30,7 @@ precisely match each DICOM series so that:
 | Source              | Description                                                                                                                                                                                          |
 |---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `videos.tsv`        | ReproStim video inventory (produced by `video-audit`). Contains per-file paths, start/end timestamps, duration, completeness flags. Video file paths are resolved relative to `videos.tsv` location. |
-| BIDS `_scans.tsv`   | Per-subject/session scan manifest. Contains `filename` (relative BIDS path) and `acq_time` (ISO 8601 datetime of scan start).                                                                        |
+| BIDS `_scans.tsv`   | Per-subject/session scan manifest. Contains `filename` (relative BIDS path), `acq_time` (ISO 8601 datetime of scan start) and, optionally, `duration` (seconds; preferred scan duration source). |
 | DICOM JSON sidecars | `*_bold.json` / `*_T1w.json` etc. Contain `AcquisitionTime` array and/or `FrameAcquisitionDuration` for computing scan duration.                                                                     |
 | CLI options         | Buffer sizes, buffer policy, time-offset, QR mode, _scan.tsv path.                                                                                                                                   |
 
@@ -201,6 +201,7 @@ migration step:
 |-------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `filename`  | Relative path of the injected media file (Output A), using the same session-relative convention as other `filename` values in the file (e.g. `func/..._recording-reprostim_audiovideo.mkv`). Only well-defined for `--layout nearby` — see Open Questions. |
 | `acq_time`  | The acquisition's own `acq_time` string (as read from the file, *before* `--time-offset`/timezone normalization) minus `reprostim_buffer_before` seconds — i.e. the actual wall-clock start of the sliced clip. Always formatted with microsecond precision (`isoformat(timespec="microseconds")`), regardless of the source string's own precision, so every reprostim media row's `acq_time` has a consistent format. |
+| `duration`  | `SplitResult.buffer_duration` — total wall-clock duration of the injected clip in seconds, **including** `reprostim_buffer_before`/`reprostim_buffer_after` (issue #281). |
 | `operator`  | `reprostim:{__version__}` (the installed `reprostim` package version that performed the slicing), written **only if an `operator` column already exists** in the file. `bids-inject` never introduces a new column that wasn't already present. |
 | other extra columns (e.g. `randstr`) | `n/a` — not applicable to a media row.                                                                                                                  |
 | `reprostim_*` (4 cols) | Real values from `SplitResult`, as in the table above.                                                                                                        |
@@ -229,6 +230,10 @@ func/sub-qa_ses-20250811_acq-faX10_recording-reprostim_audiovideo.mkv  2025-08-1
 func/sub-qa_ses-20250811_acq-faX10_bold.nii.gz                         2025-08-11T09:16:25.485000    n/a              7a3668f9  n/a                                                                        n/a               n/a                      n/a
 ```
 
+> Since issue #281, the saved file also always has a `duration` column right after
+> `acq_time` (see "_scans.tsv Integration" below). It holds the clip length on media rows,
+> and on acquisition rows it keeps any existing value (`n/a` when there was none).
+
 > **Future (QR-based improvement):** When QR codes are embedded in the source video and
 > have already been parsed (stored in `videos.tsv` or alongside the video as JSONL), the
 > injection offset and buffer boundaries can be refined using QR timestamps rather than
@@ -243,7 +248,7 @@ func/sub-qa_ses-20250811_acq-faX10_bold.nii.gz                         2025-08-1
 **`scans.json` sidecar:** `src/reprostim/assets/bids/scans.json` provides a default BIDS
 data-dictionary sidecar (`LongName`/`Description`/`Units` per BIDS's tabular-file column
 metadata schema, the same shape used for `_events.json`) documenting `filename`, `acq_time`,
-and all four `reprostim_*` columns above.
+`duration` (`Units: "s"`, issue #281), and all four `reprostim_*` columns above.
 
 `_do_inject_scans_json(ctx)` (called by `_do_inject_all` as its first step, before any
 `_scans.tsv` is touched) keeps `<dataset_home>/scans.json` (`--dataset`/`-d`,
@@ -828,7 +833,8 @@ wrappers around `dt_convert`.
             dt_bids_to_utc(dt_parse_bids(acq_time), tz_bids)
           Apply --time-offset (seconds) to UTC-normalized acq_time
       ii. Determine scan duration:
-            - From *_bold.json → FrameAcquisitionDuration (preferred)
+            - From _scans.tsv `duration` column, when present (issue #281)
+            - From *_bold.json → FrameAcquisitionDuration
             - OR compute from AcquisitionTime array length × TR
             - OR from RepetitionTime × NumberOfVolumes
             - Fallback: error / warn and skip
@@ -866,7 +872,8 @@ wrappers around `dt_convert`.
       by `--match` (they were still loaded and will still be rewritten), guaranteeing
       a single run fully migrates a file previously annotated by the pre-#276 tool.
    d. After all rows in the file are processed: sort ScansModel records by parsed
-      `acq_time` ascending (stable), then write the file once (skipped in --dry-run).
+      `acq_time` ascending (stable), then write the file once (skipped in --dry-run,
+      and skipped when the serialized content equals the file's original content).
 
 3. Report summary: N injected, M skipped, K errors
 ```
@@ -892,13 +899,16 @@ All other keys are stored verbatim in `extra`.
 
 ## Duration Computation
 
-Priority order for determining scan duration from BIDS JSON sidecars:
+Priority order for determining scan duration (`_calc_scan_duration_sec`):
 
-1. ??? TODO: Check `FrameAcquisitionDuration` (ms → seconds) — *most reliable*
-2. `AcquisitionTime` array → `last_time - first_time + TR`.  The acq_duration of video is
+1. `duration` column from `_scans.tsv` (seconds) when present and not empty/`n/a` —
+   the value from the scans file itself always wins over values computed from the sidecar
+   (issue #281)
+2. ??? TODO: Check `FrameAcquisitionDuration` (ms → seconds) — *most reliable*
+3. `AcquisitionTime` array → `last_time - first_time + TR`.  The acq_duration of video is
 pretty much from that AcquisitionTime array ([-1] - [0]) + ([1] - [0])
-3. `RepetitionTime` (s) × `NumberOfVolumes`
-4. ?? TODO: think about manual override via future `--duration` option
+4. `RepetitionTime` (s) × `NumberOfVolumes`
+5. ?? TODO: think about manual override via future `--duration` option
 
 Anatomical scans not used to split videos at this moment, only functional scans.
 
@@ -935,22 +945,33 @@ func/sub-qa_ses-20250814_acq-faX77_bold.nii.gz                                 2
 func/sub-qa_ses-20250814_task-rest_acq-p2_bold.nii.gz                          2025-08-14T15:25:30.500000  n/a         8a68d233
 ```
 
-The two columns used by `bids-inject`:
+The columns used by `bids-inject`:
 
 | Column       | Usage                                                                                                                                                                                     |
 |--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `filename`   | Relative path to the NIfTI file within the subject/session directory. Used to derive the output `.mkv` basename and locate the corresponding DICOM JSON sidecar for duration computation. |
 | `acq_time`   | ISO 8601 datetime of scan acquisition start. Combined with `--time-offset`, this is matched against the `start_time`/`end_time` range in `videos.tsv` to find the covering video file.    |
+| `duration`   | Optional (issue #281). Scan duration in seconds, parsed as `float` into `ScanRecord.duration` (missing, empty or `n/a` → `None`). When set, it is used instead of the sidecar-derived duration (see Duration Computation). |
 
 Other columns (`operator`, `randstr`, etc.) are ignored on read.
 
 After processing all scan records, `bids-inject` calls `_save_scans_model` to rewrite the
 `_scans.tsv` file with `reprostim_*` annotation columns appended (see Output D above), and
 with a dedicated row inserted/updated per successful injection, sorted by `acq_time`.
-Write-back is skipped in `--dry-run` mode.  `_save_scans_model` derives the output fieldnames
-from the existing `ScanRecord.extra` keys (preserving column order) and then appends any
-`_REPROSTIM_COLS` not already present.  It uses `csv.DictWriter` with `extrasaction="ignore"`
-and Unix line endings (`\n`).
+Write-back is skipped in `--dry-run` mode.  The basic columns are listed in the `_BASIC_COLS`
+constant (`filename`, `acq_time`, `duration`), which both parsing and saving use.
+`_save_scans_model` writes the `_BASIC_COLS` first, then the existing `ScanRecord.extra` keys
+(in their original column order), then any `_REPROSTIM_COLS` not already present.
+It uses `csv.DictWriter` with `extrasaction="ignore"` and Unix line endings (`\n`).
+The `duration` column is therefore always written, `n/a` where the value is unknown.
+
+**Skip unchanged writes:** `_parse_scans_model` keeps the raw file content in
+`ScansModel.orig_content` (`repr=False`). `_save_scans_model` builds the new content in
+memory first and compares it with `orig_content`; if they are identical, the file is not
+touched at all. This matters because a rewrite of an annexed `_scans.tsv` replaces its
+git-annex symlink with a regular file. After each actual write, `orig_content` is set to the
+new content, so saving the same model twice writes only once. A `ScansModel` built directly
+(`orig_content=None`) is always written.
 
 **Filtering rules** — a scan row is processed only if both conditions are met:
 
