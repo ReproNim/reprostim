@@ -8,7 +8,7 @@
   },
   "duration": {
     "LongName": "Scan duration",
-    "Description": "Wall-clock duration of the recording in seconds, measured from the acquisition of the first data sample to the completion of the acquisition of the last data sample.",
+    "Description": "Wallclock duration of the scan, in seconds, from the onset of the first to the end of the last acquired volume or sample. Estimated from the DICOM headers (see heudiconv.dicoms.get_acquisition_duration) or, retrospectively, from the NIfTI/JSON sidecar. See also https://github.com/bids-standard/bids-specification/pull/2508",
     "Units": "s"
   },
   "reprostim_path": {
