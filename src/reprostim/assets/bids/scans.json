@@ -8,7 +8,7 @@
   },
   "duration": {
     "LongName": "Scan duration",
-    "Description": "Wallclock duration of the recording in seconds, from the acquisition of the first data sample to the end of the acquisition of the last data sample. MUST be strictly positive. For MRI data, this is equivalent to the `AcquisitionDuration` sidecar metadata field; if both are present for the same file they SHOULD be equal."
+    "Description": "Wall-clock duration of the recording in seconds, measured from the acquisition of the first data sample to the completion of the acquisition of the last data sample."
   },
   "reprostim_path": {
     "LongName": "ReproStim source video path",
