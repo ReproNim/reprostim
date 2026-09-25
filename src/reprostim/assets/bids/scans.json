@@ -8,7 +8,8 @@
   },
   "duration": {
     "LongName": "Scan duration",
-    "Description": "Wall-clock duration of the recording in seconds, measured from the acquisition of the first data sample to the completion of the acquisition of the last data sample."
+    "Description": "Wall-clock duration of the recording in seconds, measured from the acquisition of the first data sample to the completion of the acquisition of the last data sample.",
+    "Units": "s"
   },
   "reprostim_path": {
     "LongName": "ReproStim source video path",
