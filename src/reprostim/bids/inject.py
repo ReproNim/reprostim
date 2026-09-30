@@ -325,6 +325,10 @@ class ScanRecord(BaseModel):
         ..., description="Relative path to NIfTI within subject/session dir"
     )
     acq_time: str = Field(..., description="ISO 8601 acquisition start datetime")
+    duration: Optional[float] = Field(
+        default=None,
+        description="Wallclock duration of the recording in seconds, optional.",
+    )
     kind: ScanRecordKind = Field(
         default=ScanRecordKind.UNKNOWN,
         description="Classification of this row's filename (NIfTI vs. ReproStim "
@@ -375,12 +379,18 @@ class ScansModel(BaseModel):
         default_factory=list,
         description="Ordered list of scan records parsed from the file",
     )
+    orig_content: Optional[str] = Field(
+        None, repr=False, description="Raw content of the original ``*_scans.tsv`` file"
+    )
 
 
 ####################################################################
 # Internal API
 ####################################################################
 
+
+# Specify ordered list of basic _scans.tsv columns used by bids-inject tool
+_BASIC_COLS = ["filename", "acq_time", "duration"]
 
 # Ordered list of reprostim_* annotation columns read from and written to _scans.tsv.
 _REPROSTIM_COLS = [
@@ -622,9 +632,10 @@ def _parse_scans_model(path: str) -> ScansModel:
     """Parse a ``*_scans.tsv`` file and return a :class:`ScansData` instance.
 
     Reads a tab-separated BIDS scans file. The columns ``filename`` and
-    ``acq_time`` are required; ``operator`` and ``randstr`` are read when
-    present and left as ``None`` otherwise. Each record's ``kind`` is computed
-    once here, from its raw ``filename``, via :func:`_calc_scan_record_kind`.
+    ``acq_time`` are required. ``duration`` is optional and parsed as float;
+    absent/``'n/a'``/empty values become ``None``. Each record's ``kind`` is
+    computed once here, from its raw ``filename``, via
+    :func:`_calc_scan_record_kind`.
 
     :param path: Absolute or relative path to a ``*_scans.tsv`` file.
     :type path: str
@@ -635,30 +646,35 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
-    _known = {"filename", "acq_time"} | set(_REPROSTIM_COLS)
+    _known = set(_BASIC_COLS) | set(_REPROSTIM_COLS)
 
     records: List[ScanRecord] = []
+    raw_content: Optional[str] = None
+    # cache file content
     with _open_dataset_file(path, newline="") as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        for row in reader:
-            records.append(
-                ScanRecord(
-                    filename=row["filename"],
-                    acq_time=row["acq_time"],
-                    kind=_calc_scan_record_kind(row["filename"]),
-                    extra={k: v for k, v in row.items() if k not in _known},
-                    reprostim_path=_parse_bids_str(row.get("reprostim_path")),
-                    reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
-                    reprostim_buffer_before=_parse_bids_float(
-                        row.get("reprostim_buffer_before")
-                    ),
-                    reprostim_buffer_after=_parse_bids_float(
-                        row.get("reprostim_buffer_after")
-                    ),
-                )
+        raw_content = f.read()
+
+    reader = csv.DictReader(io.StringIO(raw_content), delimiter="\t")
+    for row in reader:
+        records.append(
+            ScanRecord(
+                filename=row["filename"],
+                acq_time=row["acq_time"],
+                duration=_parse_bids_float(row.get("duration")),
+                kind=_calc_scan_record_kind(row["filename"]),
+                extra={k: v for k, v in row.items() if k not in _known},
+                reprostim_path=_parse_bids_str(row.get("reprostim_path")),
+                reprostim_offset=_parse_bids_float(row.get("reprostim_offset")),
+                reprostim_buffer_before=_parse_bids_float(
+                    row.get("reprostim_buffer_before")
+                ),
+                reprostim_buffer_after=_parse_bids_float(
+                    row.get("reprostim_buffer_after")
+                ),
             )
+        )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
-    return ScansModel(path=path, records=records)
+    return ScansModel(path=path, records=records, orig_content=raw_content)
 
 
 def _save_scans_model(model: ScansModel) -> None:
@@ -670,6 +686,14 @@ def _save_scans_model(model: ScansModel) -> None:
     :data:`_REPROSTIM_COLS` appended on the right.  ``None`` field values are
     serialised as ``'n/a'`` via :func:`_format_bids_str`.
 
+    The content is serialised in memory first and compared against
+    :attr:`ScansModel.orig_content`; if identical, the write is skipped
+    entirely, so an unchanged file (including a git-annex symlink) is left
+    untouched.  After a successful write, :attr:`ScansModel.orig_content` is
+    updated to the new content, so saving the same model again is a no-op.
+    A model with no ``orig_content`` (e.g. not loaded via
+    :func:`_parse_scans_model`) is always written.
+
     :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
         writable, or removable if it is a read-only git-annex symlink.
     :type model: ScansModel
@@ -677,9 +701,7 @@ def _save_scans_model(model: ScansModel) -> None:
     # Derive extra column names from the first record (order preserved by dict).
     extra_cols = list(model.records[0].extra.keys()) if model.records else []
     fieldnames = (
-        ["filename", "acq_time"]
-        + extra_cols
-        + [c for c in _REPROSTIM_COLS if c not in extra_cols]
+        _BASIC_COLS + extra_cols + [c for c in _REPROSTIM_COLS if c not in extra_cols]
     )
 
     rows = []
@@ -687,6 +709,7 @@ def _save_scans_model(model: ScansModel) -> None:
         row = {
             "filename": record.filename,
             "acq_time": record.acq_time,
+            "duration": _format_bids_str(record.duration),
             **record.extra,
             "reprostim_path": _format_bids_str(record.reprostim_path),
             "reprostim_offset": _format_bids_str(record.reprostim_offset),
@@ -694,6 +717,27 @@ def _save_scans_model(model: ScansModel) -> None:
             "reprostim_buffer_after": _format_bids_str(record.reprostim_buffer_after),
         }
         rows.append(row)
+
+    # first serialize content to str
+    out_str = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        out_str,
+        fieldnames=fieldnames,
+        delimiter="\t",
+        extrasaction="ignore",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    writer.writerows(rows)
+
+    # skip the write if content is unchanged:
+    new_content = out_str.getvalue()
+    if new_content == model.orig_content:
+        logger.debug(
+            f"Skip saving {len(rows)} scan records to: {model.path} as "
+            f"nothing to update"
+        )
+        return
 
     # `_scans.tsv` can itself be annexed (a DataLad dataset may annex any file
     # by .gitattributes policy, not only large binaries), in which case it is
@@ -706,15 +750,10 @@ def _save_scans_model(model: ScansModel) -> None:
         os.remove(model.path)
 
     with open(model.path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=fieldnames,
-            delimiter="\t",
-            extrasaction="ignore",
-            lineterminator="\n",
-        )
-        writer.writeheader()
-        writer.writerows(rows)
+        f.write(new_content)
+
+    # also update content in model after file saved
+    model.orig_content = new_content
 
     logger.debug(f"Saved {len(rows)} scan records to: {model.path}")
 
@@ -765,30 +804,39 @@ def _upsert_media_row(scans: ScansModel, media_record: ScanRecord) -> None:
 
 
 def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
-    """Calculate scan duration in seconds from a :class:`ScanRecord`'s metadata.
+    """Calculate scan duration in seconds from a :class:`ScanRecord`.
 
     Resolution follows the priority order defined in the spec:
 
-    1. ``FrameAcquisitionDuration`` (ms) — most reliable; divided by 1000.
-    2. ``AcquisitionTime`` array of DICOM TM strings —
+    1. ``duration`` from ``_scans.tsv`` when provided.
+    2. ``FrameAcquisitionDuration`` (ms) — most reliable; divided by 1000.
+    3. ``AcquisitionTime`` array of DICOM TM strings —
        ``(t_last − t_first) + TR`` where ``TR = t_times[1] − t_times[0]``.
        Requires at least two elements.
-    3. ``RepetitionTime`` (s) × ``NumberOfVolumes``.
+    4. ``RepetitionTime`` (s) × ``NumberOfVolumes``.
 
-    Returns ``None`` and logs a warning when none of the three sources are
+    Returns ``None`` and logs a warning when none of the four sources are
     available or sufficient.
 
-    :param record: Scan record with populated :attr:`ScanRecord.metadata`.
+    :param record: Scan record with optional metadata and/or ``duration``.
     :type record: ScanRecord
     :returns: Scan duration in seconds, or ``None`` if it cannot be determined.
     :rtype: Optional[float]
     """
+
+    # Priority 1: duration specified in _scans.tsv
+    if record.duration is not None:
+        logger.debug(
+            f"Duration from scans.tsv: {record.duration:.3f} s" f" ({record.filename})"
+        )
+        return record.duration
+
     md = record.metadata
     if md is None:
         logger.warning(f"No metadata available for: {record.filename}")
         return None
 
-    # Priority 1: FrameAcquisitionDuration (ms → seconds)
+    # Priority 2: FrameAcquisitionDuration (ms → seconds)
     if md.FrameAcquisitionDuration is not None:
         duration = md.FrameAcquisitionDuration / 1000.0
         logger.debug(
@@ -797,7 +845,7 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
         )
         return duration
 
-    # Priority 2: AcquisitionTime array — (t_last - t_first) + TR
+    # Priority 3: AcquisitionTime array — (t_last - t_first) + TR
     if md.AcquisitionTime is not None and len(md.AcquisitionTime) >= 2:
         times = [dt_time_to_sec(dt_parse_dicom_time(s)) for s in md.AcquisitionTime]
         tr = times[1] - times[0]
@@ -808,7 +856,7 @@ def _calc_scan_duration_sec(record: ScanRecord) -> Optional[float]:
         )
         return duration
 
-    # Priority 3: RepetitionTime × NumberOfVolumes
+    # Priority 4: RepetitionTime × NumberOfVolumes
     if md.RepetitionTime is not None and md.NumberOfVolumes is not None:
         duration = md.RepetitionTime * md.NumberOfVolumes
         logger.debug(
@@ -1236,6 +1284,9 @@ def _call_split_video(
     split_result = split_results[0]
     media_filename = os.path.relpath(output_path, scans_dir)
     media_acq_time = _calc_media_acq_time(record.acq_time, split_result.buffer_before)
+    media_duration = (
+        split_result.buffer_duration
+    )  # entire duration with pre- and post- buffer
     media_extra = {k: "n/a" for k in record.extra}
     if "operator" in media_extra:
         media_extra["operator"] = f"reprostim:{__version__}"
@@ -1243,6 +1294,7 @@ def _call_split_video(
     return ScanRecord(
         filename=media_filename,
         acq_time=media_acq_time,
+        duration=media_duration,
         # Computed explicitly here (not left to the field default) because
         # _upsert_media_row may append this record onto scans.records while
         # _do_inject_scans is still iterating it — Python's list iterator

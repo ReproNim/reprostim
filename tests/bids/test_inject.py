@@ -659,6 +659,23 @@ def test_calc_scan_duration_sec_no_metadata_returns_none():
     assert _calc_scan_duration_sec(r) is None
 
 
+def test_calc_scan_duration_sec_no_metadata_uses_duration_column():
+    r = ScanRecord(
+        filename="func/test_bold.nii.gz", acq_time="2025-01-15T12:00:00", duration=12.5
+    )
+    assert _calc_scan_duration_sec(r) == pytest.approx(12.5)
+
+
+def test_calc_scan_duration_sec_falls_back_to_duration_column():
+    r = ScanRecord(
+        filename="func/test_bold.nii.gz",
+        acq_time="2025-01-15T12:00:00",
+        duration=11.0,
+        metadata=ScanMetadata(AcquisitionTime=["120000"]),
+    )
+    assert _calc_scan_duration_sec(r) == pytest.approx(11.0)
+
+
 # ===========================================================================
 # DATALAD_FUSE_AVAILABLE / _open_dataset_file
 # ===========================================================================
@@ -1934,10 +1951,23 @@ def test_parse_scans_model_reprostim_cols_absent(tmp_path):
     )
     model = _parse_scans_model(str(tsv))
     r = model.records[0]
+    assert r.duration is None
     assert r.reprostim_path is None
     assert r.reprostim_offset is None
     assert r.reprostim_buffer_before is None
     assert r.reprostim_buffer_after is None
+
+
+def test_parse_scans_model_duration_parsed_as_float(tmp_path):
+    """duration is parsed as float when present in the TSV."""
+    tsv = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    _write_scans_tsv(
+        tsv,
+        ["func/bold.nii.gz\t2025-08-14T15:06:09.742500\t12.5\tn/a\tabc123"],
+        "filename\tacq_time\tduration\toperator\trandstr",
+    )
+    model = _parse_scans_model(str(tsv))
+    assert model.records[0].duration == pytest.approx(12.5)
 
 
 def test_parse_scans_model_reprostim_cols_present(tmp_path):
@@ -2130,6 +2160,79 @@ def test_save_scans_model_handles_readonly_annex_symlink(tmp_path):
     assert "video1.mkv" in saved
     # The read-only annex object itself must be untouched.
     assert annex_object.read_text(encoding="utf-8") == original_content
+
+
+def test_parse_scans_model_stores_orig_content(tmp_path):
+    """_parse_scans_model keeps the raw file content in orig_content."""
+    model = _make_scans_model(tmp_path)
+    assert model.orig_content == Path(model.path).read_text(encoding="utf-8")
+
+
+def test_save_scans_model_unchanged_content_skips_write(tmp_path):
+    """Saving a model whose serialised content equals the file on disk does
+    not touch the file, so an annexed _scans.tsv symlink stays a symlink."""
+    model = _make_scans_model(tmp_path)
+    # First save normalises the layout (adds duration/reprostim_* columns).
+    _save_scans_model(model)
+    scans_path = Path(model.path)
+
+    annex_object = tmp_path / "annex_object.tsv"
+    annex_object.write_text(scans_path.read_text(encoding="utf-8"), encoding="utf-8")
+    annex_object.chmod(0o444)
+    scans_path.unlink()
+    scans_path.symlink_to(annex_object)
+
+    model2 = _parse_scans_model(str(scans_path))
+    _save_scans_model(model2)
+
+    assert scans_path.is_symlink(), "unchanged file must not be rewritten"
+
+
+def test_save_scans_model_second_save_skipped(tmp_path):
+    """After a write, orig_content is updated, so saving the same model again
+    does not reopen the file for writing."""
+    model = _make_scans_model(tmp_path)
+    model.records[0].reprostim_path = "video1.mkv"
+
+    with patch("reprostim.bids.inject.open", create=True, side_effect=open) as m:
+        _save_scans_model(model)
+        assert m.call_count == 1
+        assert model.orig_content == Path(model.path).read_text(encoding="utf-8")
+
+        _save_scans_model(model)
+        assert m.call_count == 1, "second save of unchanged model must be skipped"
+
+
+def test_save_scans_model_changed_record_is_written(tmp_path):
+    """Modifying a record after loading an already-normalised file triggers
+    a write."""
+    model = _make_scans_model(tmp_path)
+    _save_scans_model(model)
+
+    model2 = _parse_scans_model(model.path)
+    model2.records[0].reprostim_path = "video1.mkv"
+    _save_scans_model(model2)
+
+    saved = _parse_scans_model(model.path)
+    assert saved.records[0].reprostim_path == "video1.mkv"
+
+
+def test_save_scans_model_without_orig_content_always_writes(tmp_path):
+    """A model constructed directly (orig_content is None) is always written."""
+    scans_path = tmp_path / "sub-qa_ses-20250814_scans.tsv"
+    record = ScanRecord(
+        filename="func/bold.nii.gz",
+        acq_time="2025-08-14T15:06:09.742500",
+        kind=ScanRecordKind.NIFTI_GZ,
+    )
+    model = ScansModel(path=str(scans_path), records=[record])
+    assert model.orig_content is None
+
+    _save_scans_model(model)
+
+    assert scans_path.exists()
+    saved = _parse_scans_model(str(scans_path))
+    assert saved.records[0].filename == "func/bold.nii.gz"
 
 
 # ===========================================================================

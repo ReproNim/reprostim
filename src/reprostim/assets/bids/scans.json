@@ -6,6 +6,11 @@
     "LongName": "Acquisition time",
     "Description": "Acquisition time of the particular scan"
   },
+  "duration": {
+    "LongName": "Scan duration",
+    "Description": "Wallclock duration of the scan, in seconds, from the onset of the first to the end of the last acquired volume or sample. Estimated from the DICOM headers (see heudiconv.dicoms.get_acquisition_duration) or, retrospectively, from the NIfTI/JSON sidecar. See also https://github.com/bids-standard/bids-specification/pull/2508",
+    "Units": "s"
+  },
   "reprostim_path": {
     "LongName": "ReproStim source video path",
     "Description": "Path to the source .mkv file the injected recording was sliced from, relative to the videos.tsv location"
