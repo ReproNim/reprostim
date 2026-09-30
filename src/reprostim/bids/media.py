@@ -8,7 +8,7 @@ BIDS media-file metadata API helpers.
 Intended to provide the shared BIDS media-file field table and
 AudioInfo/VideoInfo -> BIDS-dict mapping helpers, per the BEP044/media-files
 proposal (bids-standard/bids-specification PR #2367):
-https://bids-specification--2367.org.readthedocs.build/en/2367/appendices/media-files.html
+https://bids-specification--2022.org.readthedocs.build/en/2022/appendices/media-files.html
 
 See .ai/bids/media-spec.md for the full specification.
 """
