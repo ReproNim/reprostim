@@ -5,6 +5,7 @@
 import logging
 
 import click
+import yaml
 from click_didyoumean import DYMGroup
 
 from .. import _init_logger
@@ -21,9 +22,81 @@ def print_version(ctx, value):
     ctx.exit()
 
 
+# name of the YAML config section holding global "reprostim" options,
+# all other top-level sections are treated as sub-command names
+CONFIG_MAIN_SECTION: str = "reprostim"
+
+
+def _normalize_config_keys(section: dict) -> dict:
+    # click looks up defaults by parameter name, so accept both
+    # "log-level" and "log_level" spellings in YAML
+    return {str(k).replace("-", "_"): v for k, v in section.items()}
+
+
+def _load_config(path: str) -> dict:
+    """Load ReproStim YAML config and convert it to click ``default_map``.
+
+    Expected layout::
+
+        reprostim:          # global options of the main entrypoint
+          log-level: DEBUG
+        bids-inject:        # optional per sub-command sections
+          some-option: value
+
+    :param path: Path to the YAML config file.
+    :return: Dict suitable for ``click.Context.default_map``.
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data, dict):
+        raise click.BadParameter(
+            f"top-level YAML element must be a mapping in '{path}'",
+            param_hint="'-c' / '--config'",
+        )
+
+    default_map: dict = {}
+    for name, section in data.items():
+        if section is None:
+            continue
+        if not isinstance(section, dict):
+            raise click.BadParameter(
+                f"section '{name}' must be a mapping in '{path}'",
+                param_hint="'-c' / '--config'",
+            )
+        if name == CONFIG_MAIN_SECTION:
+            default_map.update(_normalize_config_keys(section))
+        else:
+            default_map[str(name)] = _normalize_config_keys(section)
+    return default_map
+
+
+def _config_callback(ctx, param, value):
+    # eager option: processed before the others, so populating
+    # ctx.default_map here overrides click defaults of the main group
+    # options and (via context inheritance) of all sub-commands
+    if not value or ctx.resilient_parsing:
+        return
+    default_map = dict(ctx.default_map or {})
+    default_map.update(_load_config(value))
+    ctx.default_map = default_map
+    ctx.meta["reprostim.config"] = value
+
+
 # group to provide commands
 @click.group(cls=DYMGroup)
 @click.version_option(version=__version__, prog_name=__reprostim_name__)
+@click.option(
+    "-c",
+    "--config",
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    is_eager=True,
+    expose_value=False,
+    callback=_config_callback,
+    help="Path to ReproStim YAML config file to override default option "
+    "values. Global options are taken from the 'reprostim' section, "
+    "sub-command options from sections named after the sub-command "
+    "(e.g. 'bids-inject'). Explicit command-line options take precedence.",
+)
 @click.option(
     "-l",
     "--log-level",
@@ -54,6 +127,15 @@ def main(ctx, log_level: str, log_format):
     _init_logger(log_level.upper(), log_format, log_to_stderr)
     logger.debug(f"{__reprostim_name__} v{__version__}")
     logger.debug(f"main(...), command={ctx.invoked_subcommand}")
+
+    config_path = ctx.meta.get("reprostim.config")
+    if config_path:
+        logger.debug(f"Loaded config: {config_path}")
+        for name, section in (ctx.default_map or {}).items():
+            if isinstance(section, dict) and name not in main.commands:
+                logger.warning(
+                    f"Unknown section '{name}' in config '{config_path}', ignored"
+                )
 
 
 # Import all CLI commands
