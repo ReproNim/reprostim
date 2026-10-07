@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import os
 
 import click
 import yaml
@@ -25,6 +26,23 @@ def print_version(ctx, value):
 # name of the YAML config section holding global "reprostim" options,
 # all other top-level sections are treated as sub-command names
 CONFIG_MAIN_SECTION: str = "reprostim"
+
+# config file locations probed in order when -c/--config is not specified,
+# the first existing one is used; relative paths are resolved against the
+# current directory, "~" is expanded to the user home directory
+DEFAULT_CONFIG_PATHS: tuple[str, ...] = (
+    "reprostim_config.yaml",
+    ".reprostim/config.yaml",
+    "~/.reprostim/config.yaml",
+)
+
+
+def _find_default_config() -> str | None:
+    for path in DEFAULT_CONFIG_PATHS:
+        path = os.path.expanduser(path)
+        if os.path.isfile(path):
+            return path
+    return None
 
 
 def _normalize_config_keys(section: dict) -> dict:
@@ -74,8 +92,12 @@ def _config_callback(ctx, param, value):
     # eager option: processed before the others, so populating
     # ctx.default_map here overrides click defaults of the main group
     # options and (via context inheritance) of all sub-commands
-    if not value or ctx.resilient_parsing:
+    if ctx.resilient_parsing:
         return
+    if not value:
+        value = _find_default_config()
+        if not value:
+            return
     default_map = dict(ctx.default_map or {})
     default_map.update(_load_config(value))
     ctx.default_map = default_map
@@ -95,7 +117,10 @@ def _config_callback(ctx, param, value):
     help="Path to ReproStim YAML config file to override default option "
     "values. Global options are taken from the 'reprostim' section, "
     "sub-command options from sections named after the sub-command "
-    "(e.g. 'bids-inject'). Explicit command-line options take precedence.",
+    "(e.g. 'bids-inject'). Explicit command-line options take precedence. "
+    "If not specified, the first existing of "
+    + ", ".join(f"'{p}'" for p in DEFAULT_CONFIG_PATHS)
+    + " is used.",
 )
 @click.option(
     "-l",
