@@ -130,7 +130,7 @@ def main(ctx, log_level: str, log_format):
 
     config_path = ctx.meta.get("reprostim.config")
     if config_path:
-        logger.debug(f"Loaded config: {config_path}")
+        logger.debug(f"Found and loaded config yaml: {config_path}")
         for name, section in (ctx.default_map or {}).items():
             if isinstance(section, dict) and name not in main.commands:
                 logger.warning(
