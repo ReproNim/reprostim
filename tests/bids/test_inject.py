@@ -2757,3 +2757,64 @@ def test_cli_dataset_nonexistent_dir_nonzero_exit(tmp_path):
         [str(scans_tsv), "-f", videos_tsv, "-d", str(tmp_path / "missing")],
     )
     assert result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# --ignore-path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "patterns,rel,expected",
+    [
+        ([], "sub-01/ses-01/sub-01_scans.tsv", False),
+        (["sub-01"], "sub-01/ses-01/sub-01_scans.tsv", True),
+        (["sub-01/"], "sub-01/ses-01/sub-01_scans.tsv", True),
+        (["./sub-01/ses-01"], "sub-01/ses-01/func/a.nii.gz", True),
+        (["sub-02"], "sub-01/ses-01/sub-01_scans.tsv", False),
+        (["*/func/*_rest_*"], "sub-01/func/sub-01_task_rest_bold.nii.gz", True),
+        (["*/func/*_rest_*"], "sub-01/anat/sub-01_T1w.nii.gz", False),
+    ],
+)
+def test_is_ignored_patterns(tmp_path, patterns, rel, expected):
+    from reprostim.bids.inject import BiContext, _is_ignored_path
+
+    ctx = BiContext(
+        dataset_home=str(tmp_path), dry_run=True, recursive=True, ignore_paths=patterns
+    )
+    assert _is_ignored_path(ctx, str(tmp_path / rel)) is expected
+
+
+def test_is_ignored_absolute_pattern(tmp_path):
+    from reprostim.bids.inject import BiContext, _is_ignored_path
+
+    ctx = BiContext(
+        dataset_home=str(tmp_path),
+        dry_run=True,
+        recursive=True,
+        ignore_paths=[str(tmp_path / "sub-01")],
+    )
+    assert _is_ignored_path(ctx, str(tmp_path / "sub-01" / "x_scans.tsv"))
+    assert not _is_ignored_path(ctx, str(tmp_path / "sub-02" / "x_scans.tsv"))
+
+
+def test_cli_ignore_path_repeatable(tmp_path):
+    with patch("reprostim.bids.inject.do_main", return_value=0) as m:
+        videos = tmp_path / "videos.tsv"
+        videos.write_text("")
+        res = CliRunner().invoke(
+            bids_inject,
+            [
+                str(tmp_path),
+                "-f",
+                str(videos),
+                "-d",
+                str(tmp_path),
+                "--ignore-path",
+                "sub-01",
+                "-i",
+                "sub-02/*",
+            ],
+        )
+    assert res.exit_code == 0, res.output
+    assert m.call_args.kwargs["ignore_paths"] == ["sub-01", "sub-02/*"]

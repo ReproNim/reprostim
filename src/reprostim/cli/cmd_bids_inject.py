@@ -142,6 +142,16 @@ logger = logging.getLogger(__name__)
     "functional scans only.",
 )
 @click.option(
+    "-i",
+    "--ignore-path",
+    "ignore_paths",
+    multiple=True,
+    type=str,
+    help="File, directory or glob pattern to skip, relative to the --dataset "
+    "directory (e.g. 'sub-01/ses-01' or '*/func/*_task-rest_*'). Ignoring a "
+    "directory ignores everything under it. Can be repeated.",
+)
+@click.option(
     "-n",
     "--dry-run",
     is_flag=True,
@@ -203,6 +213,7 @@ def bids_inject(
     reprostim_timezone: str,
     bids_timezone: str,
     match: str,
+    ignore_paths: tuple,
     dry_run: bool,
     overwrite: str,
     lock: str,
@@ -236,6 +247,7 @@ def bids_inject(
     )
     logger.info(f"BIDS TZ        : {bids_timezone} ({dt_tz_label(bids_timezone)})")
     logger.info(f"Match          : {match}")
+    logger.info(f"Ignore paths   : {ignore_paths}")
     logger.info(f"Dry-run        : {dry_run}")
     logger.info(f"Overwrite      : {overwrite}")
     logger.info(f"Lock           : {lock}")
@@ -250,6 +262,7 @@ def bids_inject(
         dataset_home=dataset,
         recursive=recursive,
         match=match,
+        ignore_paths=list(ignore_paths),
         buffer_before=buffer_before,
         buffer_after=buffer_after,
         buffer_policy=buffer_policy,
