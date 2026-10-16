@@ -29,6 +29,9 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
 - [x] `-M / --metadata-only` — option defined, plumbed through to `BiContext.metadata_only`,
       implemented in `_call_split_video` (see "Metadata-only mode" under Core Logic)
+- [x] `-i / --ignore-path` — repeatable path/glob to skip, relative to `--dataset`; stored in
+      `BiContext.ignore_paths` (config key `ignore-paths`, see
+      [cli/config-spec.md](../cli/config-spec.md))
 - [x] `-v / --verbose`
 
 ---
@@ -114,6 +117,15 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] Skip `split-video` call and file writes when `--dry-run`
 - [x] Structured per-scan summary printed to stdout (onset, duration, buffers, paths)
 - [x] Final `[DRY-RUN] N injected, M skipped, K errors` summary line
+
+### Ignore paths (`--ignore-path`)
+
+- [x] `_is_ignored_path(ctx, path)` — relative-path `fnmatch` matching, absolute patterns made
+      relative to `dataset_home`, directory match also ignores everything below it
+- [x] Applied to scans directory traversal, whole `_scans.tsv` files and individual
+      acquisition rows (before the `reprostim_*` reset)
+- [x] `do_main(ignore_paths=...)` → `BiContext.ignore_paths`
+- [ ] Count ignored items in the final summary
 
 ### Overwrite mode
 - [x] `OverwriteMode` enum (`skip` / `force` / `always` / `error`)
@@ -475,6 +487,16 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       untouched, no exception raised
 - [x] `do_main` end-to-end (`dry_run=False`) → `<dataset_home>/scans.json` created as the
       pipeline's first step, before any `_scans.tsv` is processed
+
+### Ignore path tests
+
+- [x] Pattern matching: empty list, dir, trailing `/`, `./` prefix, non-matching, glob
+      (`test_is_ignored_patterns`)
+- [x] Absolute pattern inside `dataset_home` (`test_is_ignored_absolute_pattern`)
+- [x] CLI `--ignore-path` / `-i` repeatable → `ignore_paths` passed to `do_main`
+      (`test_cli_ignore_path_repeatable`)
+- [ ] End-to-end: ignored session/scan row is not processed and its row stays unmodified
+- [ ] Ignored row is not counted in the summary
 
 ### Overwrite mode tests
 
