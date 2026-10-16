@@ -495,8 +495,16 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
 - [x] Absolute pattern inside `dataset_home` (`test_is_ignored_absolute_pattern`)
 - [x] CLI `--ignore-path` / `-i` repeatable → `ignore_paths` passed to `do_main`
       (`test_cli_ignore_path_repeatable`)
-- [ ] End-to-end: ignored session/scan row is not processed and its row stays unmodified
-- [ ] Ignored row is not counted in the summary
+- [x] End-to-end baseline: scan processed without `--ignore-path`
+      (`test_ignore_path_baseline_processes_scan`)
+- [x] Ignored `_scans.tsv` file → not processed, file untouched, nothing counted
+      (`test_ignore_path_scans_file_skipped`)
+- [x] Ignored session directory passed as PATH → skipped as a whole
+      (`test_ignore_path_scans_dir_skipped`)
+- [x] Ignored acquisition rows → not processed or counted, no media row created
+      (`test_ignore_path_scan_row_skipped`, `test_ignore_path_all_rows_ignored_nothing_processed`)
+- [x] Ignored rows are not counted in the summary (covered by the tests above, which assert
+      the `N processed, ...` line)
 
 ### Overwrite mode tests
 
