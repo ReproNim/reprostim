@@ -29,6 +29,9 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] `-k / --lock [yes|no]` — dirty-read mode for `videos.tsv`
 - [x] `-M / --metadata-only` — option defined, plumbed through to `BiContext.metadata_only`,
       implemented in `_call_split_video` (see "Metadata-only mode" under Core Logic)
+- [x] `-i / --ignore-path` — repeatable path/glob to skip, relative to `--dataset`; stored in
+      `BiContext.ignore_paths` (config key `ignore-paths`, see
+      [cli/config-spec.md](../cli/config-spec.md))
 - [x] `-v / --verbose`
 
 ---
@@ -114,6 +117,15 @@ Tracks implementation progress against [inject-spec.md](inject-spec.md).
 - [x] Skip `split-video` call and file writes when `--dry-run`
 - [x] Structured per-scan summary printed to stdout (onset, duration, buffers, paths)
 - [x] Final `[DRY-RUN] N injected, M skipped, K errors` summary line
+
+### Ignore paths (`--ignore-path`)
+
+- [x] `_is_ignored_path(ctx, path)` — relative-path `fnmatch` matching, absolute patterns made
+      relative to `dataset_home`, directory match also ignores everything below it
+- [x] Applied to scans directory traversal, whole `_scans.tsv` files and individual
+      acquisition rows (before the `reprostim_*` reset)
+- [x] `do_main(ignore_paths=...)` → `BiContext.ignore_paths`
+- [ ] Count ignored items in the final summary
 
 ### Overwrite mode
 - [x] `OverwriteMode` enum (`skip` / `force` / `always` / `error`)
@@ -475,6 +487,24 @@ Test file location: `tests/bids/test_inject.py` (mirrors `tests/audio/test_audio
       untouched, no exception raised
 - [x] `do_main` end-to-end (`dry_run=False`) → `<dataset_home>/scans.json` created as the
       pipeline's first step, before any `_scans.tsv` is processed
+
+### Ignore path tests
+
+- [x] Pattern matching: empty list, dir, trailing `/`, `./` prefix, non-matching, glob
+      (`test_is_ignored_patterns`)
+- [x] Absolute pattern inside `dataset_home` (`test_is_ignored_absolute_pattern`)
+- [x] CLI `--ignore-path` / `-i` repeatable → `ignore_paths` passed to `do_main`
+      (`test_cli_ignore_path_repeatable`)
+- [x] End-to-end baseline: scan processed without `--ignore-path`
+      (`test_ignore_path_baseline_processes_scan`)
+- [x] Ignored `_scans.tsv` file → not processed, file untouched, nothing counted
+      (`test_ignore_path_scans_file_skipped`)
+- [x] Ignored session directory passed as PATH → skipped as a whole
+      (`test_ignore_path_scans_dir_skipped`)
+- [x] Ignored acquisition rows → not processed or counted, no media row created
+      (`test_ignore_path_scan_row_skipped`, `test_ignore_path_all_rows_ignored_nothing_processed`)
+- [x] Ignored rows are not counted in the summary (covered by the tests above, which assert
+      the `N processed, ...` line)
 
 ### Overwrite mode tests
 

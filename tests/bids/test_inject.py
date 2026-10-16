@@ -1070,6 +1070,7 @@ def _run(
     bids_timezone="UTC",
     metadata_only=False,
     verbose=False,
+    ignore_paths=None,
 ):
     """Call do_main with sensible test defaults; return (exit_code, output_lines)."""
     output = []
@@ -1096,6 +1097,7 @@ def _run(
         lock=False,
         metadata_only=metadata_only,
         verbose=verbose,
+        ignore_paths=ignore_paths,
         out_func=output.append,
     )
     return ret, output
@@ -2757,3 +2759,166 @@ def test_cli_dataset_nonexistent_dir_nonzero_exit(tmp_path):
         [str(scans_tsv), "-f", videos_tsv, "-d", str(tmp_path / "missing")],
     )
     assert result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# --ignore-path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "patterns,rel,expected",
+    [
+        ([], "sub-01/ses-01/sub-01_scans.tsv", False),
+        (["sub-01"], "sub-01/ses-01/sub-01_scans.tsv", True),
+        (["sub-01/"], "sub-01/ses-01/sub-01_scans.tsv", True),
+        (["./sub-01/ses-01"], "sub-01/ses-01/func/a.nii.gz", True),
+        (["sub-02"], "sub-01/ses-01/sub-01_scans.tsv", False),
+        (["*/func/*_rest_*"], "sub-01/func/sub-01_task_rest_bold.nii.gz", True),
+        (["*/func/*_rest_*"], "sub-01/anat/sub-01_T1w.nii.gz", False),
+    ],
+)
+def test_is_ignored_patterns(tmp_path, patterns, rel, expected):
+    from reprostim.bids.inject import BiContext, _is_ignored_path
+
+    ctx = BiContext(
+        dataset_home=str(tmp_path), dry_run=True, recursive=True, ignore_paths=patterns
+    )
+    assert _is_ignored_path(ctx, str(tmp_path / rel)) is expected
+
+
+def test_is_ignored_absolute_pattern(tmp_path):
+    from reprostim.bids.inject import BiContext, _is_ignored_path
+
+    ctx = BiContext(
+        dataset_home=str(tmp_path),
+        dry_run=True,
+        recursive=True,
+        ignore_paths=[str(tmp_path / "sub-01")],
+    )
+    assert _is_ignored_path(ctx, str(tmp_path / "sub-01" / "x_scans.tsv"))
+    assert not _is_ignored_path(ctx, str(tmp_path / "sub-02" / "x_scans.tsv"))
+
+
+# _run() anchors dataset_home at tmp_path; the fixture lives under tmp_path/bids
+_IGNORE_SES_DIR = "bids/sub-qa/ses-20250814"
+
+
+def test_ignore_path_baseline_processes_scan(tmp_path):
+    """Sanity check for the ignore tests below: without --ignore-path the scan is
+    processed."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    ret, output = _run([str(scans_tsv)], videos_tsv, match=_MATCH_TASK_REST)
+
+    assert ret == 0
+    assert any("1 processed" in line for line in output)
+
+
+def test_ignore_path_scans_file_skipped(tmp_path):
+    """An ignored _scans.tsv is not processed at all: no split-video call, file
+    untouched, nothing counted in the summary."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    original = scans_tsv.read_bytes()
+
+    with patch("reprostim.video.split.do_main") as mock_split:
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            ignore_paths=[f"{_IGNORE_SES_DIR}/*_scans.tsv"],
+        )
+
+    mock_split.assert_not_called()
+    assert ret == 0
+    assert scans_tsv.read_bytes() == original
+    summary = next(line for line in output if "processed" in line)
+    assert summary == "0 processed, 0 injected, 0 skipped, 0 errors"
+
+
+def test_ignore_path_scans_dir_skipped(tmp_path):
+    """An ignored session directory passed as PATH is skipped as a whole."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+    original = scans_tsv.read_bytes()
+
+    with patch("reprostim.video.split.do_main") as mock_split:
+        ret, output = _run(
+            [str(scans_tsv.parent)],
+            videos_tsv,
+            match=_MATCH_TASK_REST,
+            dry_run=False,
+            ignore_paths=[_IGNORE_SES_DIR],
+        )
+
+    mock_split.assert_not_called()
+    assert ret == 0
+    assert scans_tsv.read_bytes() == original
+    assert any("0 processed" in line for line in output)
+
+
+def test_ignore_path_scan_row_skipped(tmp_path):
+    """Ignored acquisition rows are neither processed nor counted; only the
+    remaining (anat) row is evaluated and no media row is created for func."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.video.split.do_main") as mock_split:
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            match=".*",
+            dry_run=False,
+            ignore_paths=[f"{_IGNORE_SES_DIR}/func/*"],
+        )
+
+    for call in mock_split.call_args_list:
+        assert "func" not in str(call)
+    summary = next(line for line in output if "processed" in line)
+    assert summary.startswith("1 processed")
+    assert not [f for f in _tsv_rows(scans_tsv) if "recording-reprostim" in f]
+
+
+def test_ignore_path_all_rows_ignored_nothing_processed(tmp_path):
+    """When every row is ignored nothing is processed, split-video is never
+    called and no media row is added."""
+    scans_tsv = _copy_bids_fixture(tmp_path)
+    videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
+
+    with patch("reprostim.video.split.do_main") as mock_split:
+        ret, output = _run(
+            [str(scans_tsv)],
+            videos_tsv,
+            dry_run=False,
+            ignore_paths=[f"{_IGNORE_SES_DIR}/func/*", f"{_IGNORE_SES_DIR}/anat/*"],
+        )
+
+    mock_split.assert_not_called()
+    assert ret == 0
+    assert output[-1] == "0 processed, 0 injected, 0 skipped, 0 errors"
+    assert not [f for f in _tsv_rows(scans_tsv) if "recording-reprostim" in f]
+
+
+def test_cli_ignore_path_repeatable(tmp_path):
+    with patch("reprostim.bids.inject.do_main", return_value=0) as m:
+        videos = tmp_path / "videos.tsv"
+        videos.write_text("")
+        res = CliRunner().invoke(
+            bids_inject,
+            [
+                str(tmp_path),
+                "-f",
+                str(videos),
+                "-d",
+                str(tmp_path),
+                "--ignore-path",
+                "sub-01",
+                "-i",
+                "sub-02/*",
+            ],
+        )
+    assert res.exit_code == 0, res.output
+    assert m.call_args.kwargs["ignore_paths"] == ["sub-01", "sub-02/*"]

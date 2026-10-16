@@ -12,6 +12,7 @@ See .ai/bids/inject-spec.md for the full specification.
 
 import contextlib
 import csv
+import fnmatch
 import io
 import json
 import logging
@@ -178,6 +179,12 @@ class BiContext(BaseModel):
         default=".*",
         description="Regex pattern matched against ScanRecord.filename, "
         "only matching records are processed",
+    )
+    ignore_paths: List[str] = Field(
+        default_factory=list,
+        description="Paths/glob patterns to skip, relative to dataset_home "
+        "(absolute paths are made relative to it). Ignoring a directory "
+        "ignores everything under it.",
     )
     videos_tsv: Optional[str] = Field(
         default=None,
@@ -1310,6 +1317,37 @@ def _call_split_video(
     )
 
 
+def _is_ignored_path(ctx: BiContext, path: str) -> bool:
+    """Check whether *path* matches any ``--ignore-path`` entry.
+
+    Patterns are :mod:`fnmatch` globs matched against the POSIX path relative
+    to ``ctx.dataset_home``; absolute patterns are first made relative to it.
+    A pattern matching a parent directory also ignores everything below it.
+
+    :param ctx: Processing context carrying ``ignore_paths``.
+    :type ctx: BiContext
+    :param path: File or directory path to test.
+    :type path: str
+    :returns: ``True`` if the path is ignored.
+    :rtype: bool
+    """
+    if not ctx.ignore_paths:
+        return False
+    home = os.path.abspath(ctx.dataset_home)
+    rel = os.path.relpath(os.path.abspath(path), home).replace(os.sep, "/")
+    if rel == "." or rel.startswith("../"):
+        return False
+    for pat in ctx.ignore_paths:
+        if os.path.isabs(pat):
+            pat = os.path.relpath(pat, home)
+        pat = os.path.normpath(pat).replace(os.sep, "/")  # drop "./" and "/"
+        # fnmatch "*" also matches "/", so "<pat>/*" covers everything below
+        if fnmatch.fnmatchcase(rel, pat) or fnmatch.fnmatchcase(rel, pat + "/*"):
+            logger.debug(f"Ignoring {path} (matches --ignore-path {pat!r})")
+            return True
+    return False
+
+
 def _do_inject_scans(ctx: BiContext, path: str):
     """Process all scan records from a single ``*_scans.tsv`` file.
 
@@ -1328,6 +1366,9 @@ def _do_inject_scans(ctx: BiContext, path: str):
     :param path: Path to the ``*_scans.tsv`` file to process.
     :type path: str
     """
+    if _is_ignored_path(ctx, path):
+        logger.info(f"Ignoring scans file    : {path}")
+        return
     if _is_scans_file(path):
         logger.info(f"Processing scans file  : {path}")
         if ctx.qr != QrMode.NONE:
@@ -1343,6 +1384,12 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 # their own. They're only touched via _upsert_media_row below,
                 # driven by the acquisition row they correspond to.
                 logger.debug(f"Skipping media row (not an acquisition): {sr.filename}")
+                continue
+
+            if _is_ignored_path(
+                ctx, os.path.join(os.path.dirname(os.path.abspath(path)), sr.filename)
+            ):
+                logger.info(f"Ignoring scan record   : {sr.filename}")
                 continue
 
             # Unconditionally migrate/reset this acquisition row's reprostim_*
@@ -1444,6 +1491,10 @@ def _do_inject_dir(ctx: BiContext, path: str):
     :param path: Path to the directory to scan.
     :type path: str
     """
+
+    if _is_ignored_path(ctx, path):
+        logger.info(f"Ignoring scans dir     : {path}")
+        return
 
     logger.info(f"Processing scans dir   : {path}")
 
@@ -1799,6 +1850,7 @@ def do_main(
     verbose: bool,
     out_func: Callable,
     metadata_only: bool = False,
+    ignore_paths: Optional[List[str]] = None,
 ) -> int:
     """Main entry point for the bids-inject command.
 
@@ -1870,6 +1922,10 @@ def do_main(
         annotations for already-generated media without touching the
         ``.mkv``/sidecar ``.json`` (see inject-spec.md Metadata-Only Mode).
     :type metadata_only: bool
+    :param ignore_paths: Paths/glob patterns (relative to ``dataset_home``) to
+        skip: scans files, directories or individual scan records. Ignoring a
+        directory ignores everything under it.
+    :type ignore_paths: Optional[List[str]]
     :returns: Exit code — ``0`` on success, non-zero on error.
     :rtype: int
     """
@@ -1887,6 +1943,7 @@ def do_main(
         dry_run=dry_run,
         recursive=recursive,
         match=match,
+        ignore_paths=list(ignore_paths or []),
         videos_tsv=videos_tsv,
         time_offset=time_offset,
         qr=QrMode(qr),
