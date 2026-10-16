@@ -4,8 +4,10 @@
 
 # LinkML schema of the ReproStim YAML config file (reprostim -c/--config).
 #
-# PROTOTYPE: currently covers the global "reprostim" section and the
-# "bids-inject" command section only, used for runtime validation.
+# PROTOTYPE: fully describes the global "reprostim" section and the
+# "bids-inject" command section; all other sub-commands are stubs that
+# accept any content until their schemas are written. Used for runtime
+# validation.
 #
 # Notes on mapping the config file to this schema:
 #  - Slot names are Click *parameter names* (snake_case), e.g. the
@@ -46,6 +48,22 @@ classes:
     slots:
       - reprostim
       - bids_inject
+      - bids_inject_sidecar
+      - detect_noscreen
+      - echo
+      - list_displays
+      - monitor_displays
+      - qr_parse
+      - split_video
+      - timesync_stimuli
+      - video_audit
+
+  CommandStubConfig:
+    description: >-
+      Placeholder for a sub-command section whose schema is not defined yet:
+      any content is accepted. To be replaced with a dedicated class per
+      command.
+    class_uri: linkml:Any
 
   ReprostimGlobalConfig:
     description: >-
@@ -89,6 +107,44 @@ slots:
   bids_inject:
     description: Options of the "bids-inject" command (config section "bids-inject").
     range: BidsInjectConfig
+
+  # --- sub-command stubs (any content, schema TBD) ---------------------
+
+  bids_inject_sidecar:
+    description: Options of the "bids-inject-sidecar" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  detect_noscreen:
+    description: Options of the "detect-noscreen" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  echo:
+    description: Options of the "echo" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  list_displays:
+    description: Options of the "list-displays" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  monitor_displays:
+    description: Options of the "monitor-displays" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  qr_parse:
+    description: Options of the "qr-parse" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  split_video:
+    description: Options of the "split-video" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  timesync_stimuli:
+    description: Options of the "timesync-stimuli" command (schema TBD, any content allowed).
+    range: CommandStubConfig
+
+  video_audit:
+    description: Options of the "video-audit" command (schema TBD, any content allowed).
+    range: CommandStubConfig
 
   # --- global options --------------------------------------------------
 
