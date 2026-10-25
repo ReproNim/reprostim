@@ -4,6 +4,7 @@
 
 import logging
 import os
+from importlib.resources import as_file, files
 
 import click
 import yaml
@@ -51,6 +52,28 @@ def _normalize_config_keys(section: dict) -> dict:
     return {str(k).replace("-", "_"): v for k, v in section.items()}
 
 
+def _validate_config_data(data: dict, path: str) -> None:
+    """Validate parsed YAML config against the LinkML schema.
+
+    :param data: Parsed top-level YAML mapping.
+    :param path: Path to used config
+    :raises click.BadParameter: If the config doesn't conform to the schema.
+    """
+    # lazy import only when config provided
+    from linkml.validator import validate
+
+    schema_res = files("reprostim") / "schemas" / "config.linkml.yaml"
+
+    with as_file(schema_res) as schema_path:
+        report = validate(data, schema=str(schema_path), target_class="ReprostimConfig")
+        if report.results:
+            errors = "\n".join(f"  - {r.message}" for r in report.results)
+            raise click.BadParameter(
+                f"invalid config '{path}':\n{errors}",
+                param_hint="'-c' / '--config'",
+            )
+
+
 def _load_config(path: str) -> dict:
     """Load ReproStim YAML config and convert it to click ``default_map``.
 
@@ -71,6 +94,8 @@ def _load_config(path: str) -> dict:
             f"top-level YAML element must be a mapping in '{path}'",
             param_hint="'-c' / '--config'",
         )
+
+    _validate_config_data(data, path)
 
     default_map: dict = {}
     for name, section in data.items():

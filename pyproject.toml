@@ -44,6 +44,7 @@ dependencies = [
   "filelock>=3.16.0",
   "isodate>=0.7.2",
   "pyyaml>=6.0",
+  "linkml>=1.9.0",
   "pandas>=2.2.2",
   "jsonlines>=4.0.0",
 ]
@@ -110,7 +111,8 @@ artifacts = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/reprostim"]
 include = [
-    "reprostim/assets/img/*.png"
+    "reprostim/assets/img/*.png",
+    "reprostim/schemas/*.yaml",
 ]
 
 [tool.hatch.build.targets.sdist]
