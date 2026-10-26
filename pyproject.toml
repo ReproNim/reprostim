@@ -45,6 +45,8 @@ dependencies = [
   "isodate>=0.7.2",
   "pyyaml>=6.0",
   "linkml>=1.9.0",
+  # requests < 2.34 warns (RequestsDependencyWarning) about chardet >= 6
+  "requests>=2.34.2",
   "pandas>=2.2.2",
   "jsonlines>=4.0.0",
 ]
