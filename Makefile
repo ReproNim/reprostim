@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020-2026 ReproNim ReproStim Team <reprostim@repronim.org>
+#
+# SPDX-License-Identifier: MIT
 
 CONFIG_SCHEMA := src/reprostim/schemas/config.linkml.yaml
 CONFIG_MODEL := src/reprostim/cli/config_model.py
