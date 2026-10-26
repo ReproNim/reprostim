@@ -11,10 +11,10 @@
 #
 # Notes on mapping the config file to this schema:
 #  - Slot names are Click *parameter names* (snake_case), e.g. the
-#    --ignore-path option is the "ignore_paths" slot. The loader accepts "-"
-#    and "_" interchangeably, so a config file key such as "log-level",
-#    "ignore-paths" or the section name "bids-inject" must be normalized to
-#    "_" before validating against this schema.
+#    --ignore-path option is the "ignore_paths" slot. The config file uses
+#    exactly the same snake_case names, including section names ("bids_inject",
+#    "log_level", "ignore_paths"); names with "-" are rejected by the loader
+#    before validation (LinkML tooling does not support dashed slot names).
 #  - Unknown keys are validation errors (typo detection): the LinkML JSON Schema
 #    generator/validator treats classes as closed by default.
 #  - Click choices are case-insensitive, enums here list lowercase values
@@ -74,7 +74,7 @@ classes:
 
   BidsInjectConfig:
     description: >-
-      Options of the "bids-inject" command (section "bids-inject"). Every slot
+      Options of the "bids-inject" command (section "bids_inject"). Every slot
       matches the Click option of the same parameter name.
     slots:
       - videos
@@ -105,7 +105,7 @@ slots:
     range: ReprostimGlobalConfig
 
   bids_inject:
-    description: Options of the "bids-inject" command (config section "bids-inject").
+    description: Options of the "bids-inject" command (config section "bids_inject").
     range: BidsInjectConfig
 
   # --- sub-command stubs (any content, schema TBD) ---------------------

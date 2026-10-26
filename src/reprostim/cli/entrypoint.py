@@ -46,12 +46,6 @@ def _find_default_config() -> str | None:
     return None
 
 
-def _normalize_config_keys(section: dict) -> dict:
-    # click looks up defaults by parameter name, so accept both
-    # "log-level" and "log_level" spellings in YAML
-    return {str(k).replace("-", "_"): v for k, v in section.items()}
-
-
 def _validate_config_data(data: dict, path: str) -> None:
     """Validate parsed YAML config against the LinkML schema.
 
@@ -80,9 +74,12 @@ def _load_config(path: str) -> dict:
     Expected layout::
 
         reprostim:          # global options of the main entrypoint
-          log-level: DEBUG
-        bids-inject:        # optional per sub-command sections
-          some-option: value
+          log_level: DEBUG
+        bids_inject:        # optional per sub-command sections
+          some_option: value
+
+    Section and option names are snake_case (``bids_inject``, ``log_level``),
+    names with dashes are rejected.
 
     :param path: Path to the YAML config file.
     :return: Dict suitable for ``click.Context.default_map``.
@@ -107,9 +104,11 @@ def _load_config(path: str) -> dict:
                 param_hint="'-c' / '--config'",
             )
         if name == CONFIG_MAIN_SECTION:
-            default_map.update(_normalize_config_keys(section))
+            default_map.update(section)
         else:
-            default_map[str(name)] = _normalize_config_keys(section)
+            # sections are snake_case (bids_inject), Click commands use
+            # dashes (bids-inject)
+            default_map[str(name).replace("_", "-")] = section
     return default_map
 
 
@@ -142,7 +141,8 @@ def _config_callback(ctx, param, value):
     help="Path to ReproStim YAML config file to override default option "
     "values. Global options are taken from the 'reprostim' section, "
     "sub-command options from sections named after the sub-command "
-    "(e.g. 'bids-inject'). Explicit command-line options take precedence. "
+    "(e.g. 'bids_inject'). All names use underscores instead of dashes "
+    "(e.g. 'log_level'). Explicit command-line options take precedence. "
     "If not specified, the first existing of "
     + ", ".join(f"'{p}'" for p in DEFAULT_CONFIG_PATHS)
     + " is used.",

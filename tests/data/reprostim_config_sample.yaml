@@ -2,12 +2,13 @@
 #
 # The "reprostim" section holds global options of the main entrypoint,
 # all other sections are named after sub-commands and hold their options.
-# Keys are option long names ("log-level" or "log_level"); explicit
-# command-line options always take precedence over values from this file.
+# Names are snake_case: option long names and section names use "_" instead
+# of "-" (e.g. "log_level", "bids_inject"). Explicit command-line options
+# always take precedence over values from this file.
 
 reprostim:
-  log-level: DEBUG
+  log_level: DEBUG
 
-bids-inject:
+bids_inject:
   recursive: true
   dataset: .
