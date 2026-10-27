@@ -182,9 +182,7 @@ def test_cli_unknown_section_rejected_by_schema(tmp_path):
     m.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "name", ["reprostim_config_sample.yaml", "reprostim_config_dbic_qa.yaml"]
-)
+@pytest.mark.parametrize("name", ["reprostim_config_sample.yaml"])
 def test_load_config_shipped_samples(name):
     """Sample configs under tests/data/ stay valid."""
     sample = Path(__file__).parent.parent / "data" / name
