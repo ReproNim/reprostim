@@ -37,6 +37,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_click",
     "sphinxcontrib.autodoc_pydantic",
+    "sphinx-jsonschema",
     "sphinxcontrib.mermaid",
     "myst_parser",
 ]
