@@ -284,7 +284,7 @@ class BidsInjectConfig(ConfiguredBaseModel):
     )
     recursive: Optional[bool] = Field(
         default=False,
-        description="""Recurse into subdirectories to find all *_scans.tsv files (-r / --recursive).""",
+        description="""Recurse into subdirectories to find all ``*_scans.tsv`` files (-r / --recursive).""",
         json_schema_extra={
             "linkml_meta": {"domain_of": ["BidsInjectConfig"], "ifabsent": "false"}
         },
