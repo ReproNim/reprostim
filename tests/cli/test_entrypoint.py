@@ -56,27 +56,22 @@ def test_load_config_global_and_command_sections(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "text,hints",
+    "text,bad_names",
     [
-        ("bids-inject:\n  recursive: true\n", ["bids_inject"]),
-        ("reprostim:\n  log-level: DEBUG\n", ["reprostim.log_level"]),
-        (
-            "bids_inject:\n  ignore-paths: [a]\n",
-            ["bids_inject.ignore_paths"],
-        ),
-        (
-            "qr-parse:\nbids-inject:\n  buffer-before: 5\n",
-            ["qr_parse", "bids_inject", "bids_inject.buffer_before"],
-        ),
+        ("bids-inject:\n  recursive: true\n", ["bids-inject"]),
+        ("reprostim:\n  log-level: DEBUG\n", ["log-level"]),
+        ("bids_inject:\n  ignore-paths: [a]\n", ["ignore-paths"]),
+        ("qr-parse:\nbids-inject:\n  buffer-before: 5\n", ["qr-parse", "bids-inject"]),
     ],
 )
-def test_load_config_dashed_names_rejected_with_hint(tmp_path, text, hints):
+def test_load_config_dashed_names_rejected(tmp_path, text, bad_names):
+    """Only snake_case names are in the schema, dashed ones are unknown."""
     cfg = _write(tmp_path, text)
     with pytest.raises(click.BadParameter) as e:
         _load_config(cfg)
-    assert "underscores" in e.value.message
-    for h in hints:
-        assert h in e.value.message
+    assert "Additional properties are not allowed" in e.value.message
+    for n in bad_names:
+        assert f"'{n}'" in e.value.message
 
 
 def test_load_config_section_mapped_to_command_name(tmp_path):
@@ -239,7 +234,7 @@ def test_cli_dashed_names_abort_command(tmp_path):
     cfg = _write(tmp_path, "bids-inject:\n  recursive: true\n")
     res, m = _invoke_bids_inject(tmp_path, [], ["-c", cfg])
     assert res.exit_code != 0
-    assert "bids_inject" in res.output
+    assert "'bids-inject'" in res.output
     m.assert_not_called()
 
 
@@ -288,17 +283,18 @@ def test_validate_config_data_invalid(data, expected):
 
 
 @pytest.mark.parametrize(
-    "data, hint",
+    "data, bad_name",
     [
-        ({"bids-inject": {}}, "bids_inject"),
-        ({"reprostim": {"log-level": "DEBUG"}}, "reprostim.log_level"),
+        ({"bids-inject": {}}, "bids-inject"),
+        ({"reprostim": {"log-level": "DEBUG"}}, "log-level"),
     ],
 )
-def test_validate_config_data_dashed_names_rejected(data, hint):
+def test_validate_config_data_dashed_names_rejected(data, bad_name):
     with pytest.raises(click.BadParameter) as ei:
         _validate_config_data(data, "cfg.yaml")
     msg = ei.value.format_message()
-    assert "underscores" in msg and hint in msg
+    assert "Additional properties are not allowed" in msg
+    assert f"'{bad_name}'" in msg
     assert ei.value.param_hint == "'-c' / '--config'"
 
 
