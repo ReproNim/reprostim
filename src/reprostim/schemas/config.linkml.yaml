@@ -175,7 +175,7 @@ slots:
 
   recursive:
     description: >-
-      Recurse into subdirectories to find all *_scans.tsv files
+      Recurse into subdirectories to find all ``*_scans.tsv`` files
       (-r / --recursive).
     range: boolean
     ifabsent: "false"
