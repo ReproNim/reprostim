@@ -1,5 +1,5 @@
-reprostim Configuration
-=======================
+reprostim
+=========
 
 The ``reprostim`` CLI supports YAML configuration files.
 

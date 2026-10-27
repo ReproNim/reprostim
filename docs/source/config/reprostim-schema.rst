@@ -1,8 +1,8 @@
-reprostim Configuration Schema
-==============================
+reprostim Schema
+================
 
 This reference is generated from the ReproStim LinkML
-configuration schema.
+configuration schema (src/reprostim/schemas/config.linkml.yaml).
 
 .. jsonschema:: reprostim.schema.json
    :lift_definitions:
