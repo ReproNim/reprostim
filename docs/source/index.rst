@@ -16,6 +16,7 @@ Contents
    install/index
    dev/index
    cli/index
+   config/index
    notes/index
    changes/index
    api/index

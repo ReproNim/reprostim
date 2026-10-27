@@ -4,11 +4,13 @@
 
 CONFIG_SCHEMA := src/reprostim/schemas/config.linkml.yaml
 CONFIG_MODEL := src/reprostim/cli/config_model.py
+#CONFIG_DOCS := docs/source/cli/config
+CONFIG_DOCS_JSON_SCHEMA := docs/source/config/reprostim.schema.json
 LICENSE_HEADER := tools/license_header.txt
 
 .DELETE_ON_ERROR:
 
-.PHONY: generate-config-model
+.PHONY: generate-config generate-config-model generate-config-docs
 
 # Generates Pydantic config model from LinkML schema.
 # To force regeneration:
@@ -27,3 +29,18 @@ $(CONFIG_MODEL): $(CONFIG_SCHEMA) $(LICENSE_HEADER)
 		'' >> $(CONFIG_MODEL)
 	@gen-pydantic --extra-fields forbid $(CONFIG_SCHEMA) >> $(CONFIG_MODEL)
 	@echo "Generated $(CONFIG_MODEL)"
+
+
+# Generate LinkML configuration schema documentation.
+#generate-config-docs:
+#	@mkdir -p $(CONFIG_DOCS)
+#	gen-doc --directory $(CONFIG_DOCS) $(CONFIG_SCHEMA)
+#	@echo "Generated LinkML documentation in $(CONFIG_DOCS)"
+
+# Generate JSON schema from LinkML to be auto-documented
+generate-config-docs: $(CONFIG_SCHEMA)
+	gen-json-schema $(CONFIG_SCHEMA) > $(CONFIG_DOCS_JSON_SCHEMA)
+	@echo "Generated JSON schema: $(CONFIG_DOCS_JSON_SCHEMA)"
+
+# Generate Pydantic model and LinkML documentation.
+generate-config: generate-config-model generate-config-docs
