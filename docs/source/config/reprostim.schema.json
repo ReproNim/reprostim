@@ -402,7 +402,7 @@
             "type": "object"
         }
     },
-    "$id": "https://github.com/ReproNim/reprostim/schemas/config",
+    "$id": "urn:repronim:reprostim:config",
     "$schema": "https://json-schema.org/draft/2019-09/schema",
     "additionalProperties": false,
     "description": "Root of the ReproStim config file.",
@@ -532,5 +532,5 @@
     },
     "title": "reprostim_config",
     "type": "object",
-    "version": null
+    "version": "0.1.0"
 }

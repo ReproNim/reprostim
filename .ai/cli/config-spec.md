@@ -112,6 +112,13 @@ Everything below is derived from it and regenerated through the `Makefile`:
 | `docs/source/config/reprostim.schema.json`| `make generate-config-docs`      | `gen-json-schema`, committed so RTD does not need `linkml`.            |
 | both                                      | `make generate-config`           |                                                                        |
 
+The schema `id` is a stable URN, `urn:repronim:reprostim:config` (an identifier, not a URL: nothing
+to resolve, so Sphinx linkcheck has nothing to report; the `reprostim` prefix is
+`urn:repronim:reprostim:config:`). It is deliberately not versioned. The schema `version`
+(currently `0.1.0`, emitted as `version` in `config_model.py`) is an independent semantic
+version of the config format, bumped by hand: major for breaking changes (renamed/removed keys,
+changed meaning), minor for additions (new keys, a stub replaced by a real schema).
+
 Regenerate and commit both after every schema change. `.pre-commit-config.yaml` ignores `F401,E501`
 for `config_model.py` (flake8). Slot/class `description`s end up in docstrings and `Field(description=...)`,
 and are rendered as reStructuredText on RTD: escape markup, e.g. write ``` ``*_scans.tsv`` ```.

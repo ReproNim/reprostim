@@ -74,6 +74,8 @@ Implemented in `tests/cli/test_entrypoint.py`.
       `docs/requirements.txt`
 - [x] `cli.config_model` and `video.media_info` added to the API reference (`docs/source/api/index.rst`)
 - [ ] Document default config locations (`DEFAULT_CONFIG_PATHS`) on the RTD `reprostim` config page
+- [x] Schema `id` changed to the stable URN `urn:repronim:reprostim:config` (RTD linkcheck 404 on the
+      former github.com URL); schema `version: 0.1.0` added
 - [ ] CI check that `config_model.py` and `reprostim.schema.json` are in sync with the schema
 
 ## Open Questions / Future Work
@@ -81,5 +83,7 @@ Implemented in `tests/cli/test_entrypoint.py`.
 - [x] Validate unknown keys inside known sections (LinkML schema)
 - [x] ~~Generate/write Pydantic models with the same snake_case names~~ → generated
       (`config_model.py`); [ ] use it for runtime validation instead of / in addition to `linkml`
+- [ ] Optionally version the URN (`...:config:v1`) and/or add a version key to the YAML if the format
+      gets a breaking change
 - [ ] Environment-variable override of config path
 - [ ] Merge semantics across default locations

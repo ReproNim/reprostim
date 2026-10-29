@@ -29,7 +29,7 @@ from pydantic import (
 )
 
 metamodel_version = "1.12.0"
-version = "None"
+version = "0.1.0"
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -68,7 +68,7 @@ linkml_meta = LinkMLMeta(
         "default_range": "string",
         "description": "Schema of the ReproStim YAML config file overriding default "
         "values of the global options and of the sub-command options.",
-        "id": "https://github.com/ReproNim/reprostim/schemas/config",
+        "id": "urn:repronim:reprostim:config",
         "imports": ["linkml:types"],
         "license": "MIT",
         "name": "reprostim_config",
@@ -79,7 +79,7 @@ linkml_meta = LinkMLMeta(
             },
             "reprostim": {
                 "prefix_prefix": "reprostim",
-                "prefix_reference": "https://github.com/ReproNim/reprostim/schemas/config/",
+                "prefix_reference": "urn:repronim:reprostim:config:",
             },
         },
         "source_file": "src/reprostim/schemas/config.linkml.yaml",
@@ -89,7 +89,7 @@ linkml_meta = LinkMLMeta(
                 "description": "Number of seconds as a string (e.g. "
                 '"10", "10.5") or an ISO 8601 duration '
                 '(e.g. "PT10S").',
-                "from_schema": "https://github.com/ReproNim/reprostim/schemas/config",
+                "from_schema": "urn:repronim:reprostim:config",
                 "name": "Duration",
                 "pattern": "^(\\d+(\\.\\d+)?|P(?=\\d|T\\d)(\\d+Y)?(\\d+M)?(\\d+W)?(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+(\\.\\d+)?S)?)?)$",
                 "typeof": "string",
@@ -178,10 +178,7 @@ class ReprostimConfig(ConfiguredBaseModel):
     """
 
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta(
-        {
-            "from_schema": "https://github.com/ReproNim/reprostim/schemas/config",
-            "tree_root": True,
-        }
+        {"from_schema": "urn:repronim:reprostim:config", "tree_root": True}
     )
 
     reprostim: Optional[ReprostimGlobalConfig] = Field(
@@ -247,7 +244,7 @@ class ReprostimGlobalConfig(ConfiguredBaseModel):
     """
 
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta(
-        {"from_schema": "https://github.com/ReproNim/reprostim/schemas/config"}
+        {"from_schema": "urn:repronim:reprostim:config"}
     )
 
     log_level: Optional[LogLevel] = Field(
@@ -273,7 +270,7 @@ class BidsInjectConfig(ConfiguredBaseModel):
     """
 
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta(
-        {"from_schema": "https://github.com/ReproNim/reprostim/schemas/config"}
+        {"from_schema": "urn:repronim:reprostim:config"}
     )
 
     videos: Optional[str] = Field(
