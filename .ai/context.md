@@ -34,7 +34,12 @@ Main Python package with CLI tools and analysis utilities.
   callbacks must propagate their `do_main()`-style result via `ctx.exit(res)`, never a plain
   `return res` — Click's standalone-mode `main()` silently discards a callback's return value
   (see [cli/exit-codes-spec.md](cli/exit-codes-spec.md), [cli/exit-codes-tasks.md](cli/exit-codes-tasks.md))
-  - `entrypoint.py` - Main CLI dispatcher
+  - `entrypoint.py` - Main CLI dispatcher; also the `-c / --config` YAML config support (loaded
+    values become Click `default_map`, validated against the LinkML schema; snake_case names only)
+    (see [cli/config-spec.md](cli/config-spec.md), [cli/config-tasks.md](cli/config-tasks.md))
+  - `config_model.py` - Pydantic models of the YAML config, **auto-generated** from
+    `schemas/config.linkml.yaml` by `make generate-config-model` (do not edit manually; not yet
+    used for validation at runtime) (see [cli/config-spec.md](cli/config-spec.md))
   - `cmd_qr_parse.py` - Parse QR codes from `.mkv` videos (PARSE/INFO modes) (see [qr/parse-spec.md](qr/parse-spec.md))
   - `cmd_timesync_stimuli.py` - PsychoPy integration for QR/audio code generation (see [qr/timesync-stimuli-tasks.md](qr/timesync-stimuli-tasks.md))
   - `cmd_detect_noscreen.py` - Detect no-signal/rainbow frames with fixup capabilities
@@ -45,6 +50,12 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [bids/inject-spec.md](bids/inject-spec.md))
   - `cmd_bids_inject_sidecar.py` - *(basic logic implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
   - `cmd_echo.py` - Simple echo command for testing
+
+- **schemas/** - LinkML schemas shipped in the wheel (`reprostim/schemas/*.yaml`):
+  `config.linkml.yaml` describes the ReproStim YAML config (root class `ReprostimConfig`; `reprostim` and
+  `bids_inject` sections fully described, other sub-commands are stubs); source of truth for runtime
+  validation, the generated Pydantic model and the RTD configuration docs
+  (see [cli/config-spec.md](cli/config-spec.md))
 
 - **qr/** - QR code processing and time synchronization
   - `parse.py` - Parse `.mkv` files, extract QR codes, audio codes, metadata → JSONL (see [qr/parse-spec.md](qr/parse-spec.md))
@@ -152,6 +163,7 @@ docs/source/
 ├── install/             # Installation guide (Markdown)
 ├── cli/                 # CLI command documentation (auto-generated)
 ├── api/                 # Auto-generated API reference
+├── config/              # YAML config reference (hand-written page + JSON schema generated from LinkML)
 ├── dev/                 # Development guide
 ├── notes/               # Technical notes (disp_mon, psychopy, VAAPI, ffmpeg)
 ├── changes/             # Changelog/release notes
@@ -160,6 +172,9 @@ docs/source/
 
 **Special Features:**
 - Auto-documentation via sphinx-click
+- Pydantic models rendered with `autodoc_pydantic`; config schema reference rendered from
+  `config/reprostim.schema.json` with `sphinx-jsonschema` (regenerate with `make generate-config-docs`)
+- Read the Docs builds with `fail_on_warning: true`, so docutils warnings in descriptions fail the build
 - Mermaid diagram support
 - Read the Docs integration (`.readthedocs.yaml`)
 - SVG-based ReproFlow diagram
@@ -313,7 +328,9 @@ Integrated with BIDS datasets for archival
 | `CHANGELOG.md` | Release notes and version history |
 | `overview.md` | Detailed project scope and architecture |
 | `src/reprostim/__init__.py` | Logger initialization, package entry point |
-| `src/reprostim/cli/entrypoint.py` | Main CLI dispatcher |
+| `src/reprostim/cli/entrypoint.py` | Main CLI dispatcher, YAML config loading/validation |
+| `src/reprostim/schemas/config.linkml.yaml` | LinkML schema of the YAML config |
+| `src/reprostim/cli/config_model.py` | Generated Pydantic config model (`make generate-config-model`) |
 | `src/reprostim/qr/parse.py` | Video QR code extraction (JSONL output) |
 | `src/reprostim/audio/audiocodes.py` | FSK/NFE audio codec generation |
 | `src/reprostim/video/nosignal.py` | No-signal frame detection algorithm |
@@ -328,6 +345,7 @@ Integrated with BIDS datasets for archival
 | `CMakeLists.txt` | C++ build configuration, compiler flags, dependencies |
 | `.readthedocs.yaml` | Read the Docs build environment, Python version |
 | `.pre-commit-config.yaml` | Pre-commit hooks for code quality |
+| `Makefile` | `generate-config-model`, `generate-config-docs`, `generate-config` (Pydantic model and RTD JSON schema from the LinkML config schema) |
 | `.codespellrc` | Spell checking configuration |
 | `REUSE.toml` | SPDX license compliance configuration |
 | `containers/*/Dockerfile*` | Container image definitions |
