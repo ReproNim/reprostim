@@ -108,6 +108,7 @@ linkcheck_ignore = [
     r"master/examples/psychopy/04_fmri_audiocode\.py",
     r"https://zenodo\.org/badge/243008647\.svg",
     r"https://zenodo\.org/badge/latestdoi/243008647",
+    r"urn:repronim:reprostim:config",
 ]
 
 # configure myst_parser
