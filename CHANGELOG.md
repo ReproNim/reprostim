@@ -1,3 +1,20 @@
+# 0.7.38 (Thu Oct 29 2026)
+
+#### 🐛 Bug Fix
+
+- Add support for custom ReproStim YAML config to override command defaults [#285](https://github.com/ReproNim/reprostim/pull/285) ([@vmdocua](https://github.com/vmdocua))
+- Add support for `duration` column in `_scans.tsv` metadata [#282](https://github.com/ReproNim/reprostim/pull/282) ([@vmdocua](https://github.com/vmdocua))
+
+#### 📝 Documentation
+
+- Fix RTD error, bids-specification broken link [#284](https://github.com/ReproNim/reprostim/pull/284) ([@vmdocua](https://github.com/vmdocua))
+
+#### Authors: 1
+
+- Vadim Melnik ([@vmdocua](https://github.com/vmdocua))
+
+---
+
 # 0.7.37 (Wed Sep 16 2026)
 
 #### 🐛 Bug Fix
