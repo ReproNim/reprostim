@@ -1,0 +1,14 @@
+# Sample ReproStim config, use with: reprostim -c reprostim_config_sample.yaml ...
+#
+# The "reprostim" section holds global options of the main entrypoint,
+# all other sections are named after sub-commands and hold their options.
+# Names are snake_case: option long names and section names use "_" instead
+# of "-" (e.g. "log_level", "bids_inject"). Explicit command-line options
+# always take precedence over values from this file.
+
+reprostim:
+  log_level: DEBUG
+
+bids_inject:
+  recursive: true
+  dataset: .

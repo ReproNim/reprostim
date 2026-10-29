@@ -36,6 +36,8 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx_click",
+    "sphinxcontrib.autodoc_pydantic",
+    "sphinx-jsonschema",
     "sphinxcontrib.mermaid",
     "myst_parser",
 ]
@@ -48,6 +50,8 @@ exclude_patterns = [
 autodoc_default_options = {
     "members": True,
     "undoc-members": True,
+    # LinkML metadata class variable of generated pydantic models
+    "exclude-members": "linkml_meta",
 }
 
 # pyaudio is not installed on RTD
@@ -59,6 +63,13 @@ autodoc_mock_imports = [
     "qrcode",
     "pyzbar",
 ]
+
+# render pydantic models (e.g. reprostim.cli.config_model) with field descriptions
+autodoc_pydantic_field_doc_policy = "description"
+autodoc_pydantic_model_show_json = False
+autodoc_pydantic_model_show_config_summary = False
+autodoc_pydantic_model_show_validator_summary = False
+autodoc_pydantic_model_show_validator_members = False
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -97,6 +108,7 @@ linkcheck_ignore = [
     r"master/examples/psychopy/04_fmri_audiocode\.py",
     r"https://zenodo\.org/badge/243008647\.svg",
     r"https://zenodo\.org/badge/latestdoi/243008647",
+    r"urn:repronim:reprostim:config",
 ]
 
 # configure myst_parser

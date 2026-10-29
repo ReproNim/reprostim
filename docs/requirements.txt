@@ -4,3 +4,5 @@ Sphinx
 sphinx-click
 myst-parser
 sphinxcontrib-mermaid
+autodoc_pydantic>=2.2.0
+sphinx-jsonschema

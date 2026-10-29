@@ -1,0 +1,536 @@
+{
+    "$defs": {
+        "BidsInjectConfig": {
+            "additionalProperties": false,
+            "description": "Options of the \"bids-inject\" command (section \"bids_inject\"). Every slot matches the Click option of the same parameter name.",
+            "properties": {
+                "bids_timezone": {
+                    "description": "Timezone of naive BIDS acq_time values in _scans.tsv (-Z / --bids-timezone): \"local\" or an IANA name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "buffer_after": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "pattern": "^(\\d+(\\.\\d+)?|P(?=\\d|T\\d)(\\d+Y)?(\\d+M)?(\\d+W)?(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+(\\.\\d+)?S)?)?)$",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Extra video to include after scan end (-a / --buffer-after). Seconds (e.g. 10 or 10.5) or ISO 8601 duration (e.g. PT10S)."
+                },
+                "buffer_before": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "pattern": "^(\\d+(\\.\\d+)?|P(?=\\d|T\\d)(\\d+Y)?(\\d+M)?(\\d+W)?(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+(\\.\\d+)?S)?)?)$",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Extra video to include before scan onset (-b / --buffer-before). Seconds (e.g. 10 or 10.5) or ISO 8601 duration (e.g. PT10S)."
+                },
+                "buffer_policy": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/BufferPolicy"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Policy for buffer overflow beyond video boundaries (-p / --buffer-policy)."
+                },
+                "dataset": {
+                    "description": "Home directory of the BIDS dataset being injected into (-d / --dataset).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "dry_run": {
+                    "description": "Analyse only, do not write any output (-n / --dry-run).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "ignore_paths": {
+                    "description": "Files, directories or glob patterns to skip, relative to the dataset directory (-i / --ignore-path, repeatable).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "layout": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/LayoutMode"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Output file placement layout (-l / --layout)."
+                },
+                "lock": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/LockMode"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Whether to acquire the videos.tsv file lock (-k / --lock). Quote the value in YAML (\"yes\"/\"no\") to avoid boolean conversion."
+                },
+                "match": {
+                    "description": "Regular expression matched against the filename of each scan record (-m / --match).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "metadata_only": {
+                    "description": "Refresh _scans.tsv/scans.json annotations for already-generated media only (-M / --metadata-only).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "overwrite": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/OverwriteMode"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Policy for handling existing output files (-w / --overwrite)."
+                },
+                "qr": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/QrMode"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "QR code-based timing refinement mode (-q / --qr)."
+                },
+                "recursive": {
+                    "description": "Recurse into subdirectories to find all ``*_scans.tsv`` files (-r / --recursive).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "reprostim_timezone": {
+                    "description": "Timezone of naive ReproStim timestamps in videos.tsv (-z / --reprostim-timezone): \"local\" or an IANA name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "time_offset": {
+                    "description": "Clock offset in seconds added to BIDS scan times (-t / --time-offset).",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "verbose": {
+                    "description": "Enable verbose output (-v / --verbose).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "videos": {
+                    "description": "Path to videos.tsv produced by video-audit (-f / --videos). Required by the command; can be provided here or on the command line.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BidsInjectConfig",
+            "type": "object"
+        },
+        "BufferPolicy": {
+            "description": "",
+            "enum": [
+                "strict",
+                "flexible"
+            ],
+            "title": "BufferPolicy",
+            "type": "string"
+        },
+        "CommandStubConfig": {
+            "additionalProperties": true,
+            "description": "Placeholder for a sub-command section whose schema is not defined yet: any content is accepted. To be replaced with a dedicated class per command.",
+            "title": "CommandStubConfig",
+            "type": [
+                "null",
+                "boolean",
+                "object",
+                "number",
+                "string"
+            ]
+        },
+        "LayoutMode": {
+            "description": "",
+            "enum": [
+                "nearby",
+                "top-stimuli"
+            ],
+            "title": "LayoutMode",
+            "type": "string"
+        },
+        "LockMode": {
+            "description": "",
+            "enum": [
+                "yes",
+                "no"
+            ],
+            "title": "LockMode",
+            "type": "string"
+        },
+        "LogLevel": {
+            "description": "",
+            "enum": [
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "CRITICAL"
+            ],
+            "title": "LogLevel",
+            "type": "string"
+        },
+        "OverwriteMode": {
+            "description": "",
+            "enum": [
+                "skip",
+                "force",
+                "always",
+                "error"
+            ],
+            "title": "OverwriteMode",
+            "type": "string"
+        },
+        "QrMode": {
+            "description": "",
+            "enum": [
+                "none",
+                "auto",
+                "embed-existing",
+                "parse"
+            ],
+            "title": "QrMode",
+            "type": "string"
+        },
+        "ReprostimConfig": {
+            "additionalProperties": false,
+            "description": "Root of the ReproStim config file.",
+            "properties": {
+                "bids_inject": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/BidsInjectConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"bids-inject\" command (config section \"bids_inject\")."
+                },
+                "bids_inject_sidecar": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"bids-inject-sidecar\" command (schema TBD, any content allowed)."
+                },
+                "detect_noscreen": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"detect-noscreen\" command (schema TBD, any content allowed)."
+                },
+                "echo": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"echo\" command (schema TBD, any content allowed)."
+                },
+                "list_displays": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"list-displays\" command (schema TBD, any content allowed)."
+                },
+                "monitor_displays": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"monitor-displays\" command (schema TBD, any content allowed)."
+                },
+                "qr_parse": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"qr-parse\" command (schema TBD, any content allowed)."
+                },
+                "reprostim": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ReprostimGlobalConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Global options section."
+                },
+                "split_video": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"split-video\" command (schema TBD, any content allowed)."
+                },
+                "timesync_stimuli": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"timesync-stimuli\" command (schema TBD, any content allowed)."
+                },
+                "video_audit": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/CommandStubConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Options of the \"video-audit\" command (schema TBD, any content allowed)."
+                }
+            },
+            "title": "ReprostimConfig",
+            "type": "object"
+        },
+        "ReprostimGlobalConfig": {
+            "additionalProperties": false,
+            "description": "Global options of the main \"reprostim\" entrypoint (section \"reprostim\").",
+            "properties": {
+                "log_format": {
+                    "description": "Logging format string (-f / --log-format), see Python logging.Formatter.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "log_level": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/LogLevel"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Logging level (-l / --log-level)."
+                }
+            },
+            "title": "ReprostimGlobalConfig",
+            "type": "object"
+        }
+    },
+    "$id": "urn:repronim:reprostim:config",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": false,
+    "description": "Root of the ReproStim config file.",
+    "metamodel_version": "1.12.0",
+    "properties": {
+        "bids_inject": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/BidsInjectConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"bids-inject\" command (config section \"bids_inject\")."
+        },
+        "bids_inject_sidecar": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"bids-inject-sidecar\" command (schema TBD, any content allowed)."
+        },
+        "detect_noscreen": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"detect-noscreen\" command (schema TBD, any content allowed)."
+        },
+        "echo": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"echo\" command (schema TBD, any content allowed)."
+        },
+        "list_displays": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"list-displays\" command (schema TBD, any content allowed)."
+        },
+        "monitor_displays": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"monitor-displays\" command (schema TBD, any content allowed)."
+        },
+        "qr_parse": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"qr-parse\" command (schema TBD, any content allowed)."
+        },
+        "reprostim": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/ReprostimGlobalConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Global options section."
+        },
+        "split_video": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"split-video\" command (schema TBD, any content allowed)."
+        },
+        "timesync_stimuli": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"timesync-stimuli\" command (schema TBD, any content allowed)."
+        },
+        "video_audit": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/CommandStubConfig"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Options of the \"video-audit\" command (schema TBD, any content allowed)."
+        }
+    },
+    "title": "reprostim_config",
+    "type": "object",
+    "version": "0.1.0"
+}

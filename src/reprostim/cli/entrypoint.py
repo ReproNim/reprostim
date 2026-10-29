@@ -3,8 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import os
+from importlib.resources import as_file, files
 
 import click
+import yaml
 from click_didyoumean import DYMGroup
 
 from .. import _init_logger
@@ -21,9 +24,129 @@ def print_version(ctx, value):
     ctx.exit()
 
 
+# name of the YAML config section holding global "reprostim" options,
+# all other top-level sections are treated as sub-command names
+CONFIG_MAIN_SECTION: str = "reprostim"
+
+# config file locations probed in order when -c/--config is not specified,
+# the first existing one is used; relative paths are resolved against the
+# current directory, "~" is expanded to the user home directory
+DEFAULT_CONFIG_PATHS: tuple[str, ...] = (
+    "reprostim_config.yaml",
+    ".reprostim/config.yaml",
+    "~/.reprostim/config.yaml",
+)
+
+
+def _find_default_config() -> str | None:
+    for path in DEFAULT_CONFIG_PATHS:
+        path = os.path.expanduser(path)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def _validate_config_data(data: dict, path: str) -> None:
+    """Validate parsed YAML config against the LinkML schema.
+
+    :param data: Parsed top-level YAML mapping.
+    :param path: Path to used config
+    :raises click.BadParameter: If the config doesn't conform to the schema.
+    """
+    # lazy import only when config provided
+    from linkml.validator import validate
+
+    schema_res = files("reprostim") / "schemas" / "config.linkml.yaml"
+
+    with as_file(schema_res) as schema_path:
+        report = validate(data, schema=str(schema_path), target_class="ReprostimConfig")
+        if report.results:
+            errors = "\n".join(f"  - {r.message}" for r in report.results)
+            raise click.BadParameter(
+                f"invalid config '{path}':\n{errors}",
+                param_hint="'-c' / '--config'",
+            )
+
+
+def _load_config(path: str) -> dict:
+    """Load ReproStim YAML config and convert it to click ``default_map``.
+
+    Expected layout::
+
+        reprostim:          # global options of the main entrypoint
+          log_level: DEBUG
+        bids_inject:        # optional per sub-command sections
+          some_option: value
+
+    Section and option names are snake_case (``bids_inject``, ``log_level``),
+    names with dashes are rejected.
+
+    :param path: Path to the YAML config file.
+    :return: Dict suitable for ``click.Context.default_map``.
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data, dict):
+        raise click.BadParameter(
+            f"top-level YAML element must be a mapping in '{path}'",
+            param_hint="'-c' / '--config'",
+        )
+
+    _validate_config_data(data, path)
+
+    default_map: dict = {}
+    for name, section in data.items():
+        if section is None:
+            continue
+        if not isinstance(section, dict):
+            raise click.BadParameter(
+                f"section '{name}' must be a mapping in '{path}'",
+                param_hint="'-c' / '--config'",
+            )
+        if name == CONFIG_MAIN_SECTION:
+            default_map.update(section)
+        else:
+            # sections are snake_case (bids_inject), Click commands use
+            # dashes (bids-inject)
+            default_map[str(name).replace("_", "-")] = section
+    return default_map
+
+
+def _config_callback(ctx, param, value):
+    # eager option: processed before the others, so populating
+    # ctx.default_map here overrides click defaults of the main group
+    # options and (via context inheritance) of all sub-commands
+    if ctx.resilient_parsing:
+        return
+    if not value:
+        value = _find_default_config()
+        if not value:
+            return
+    default_map = dict(ctx.default_map or {})
+    default_map.update(_load_config(value))
+    ctx.default_map = default_map
+    ctx.meta["reprostim.config"] = value
+
+
 # group to provide commands
 @click.group(cls=DYMGroup)
 @click.version_option(version=__version__, prog_name=__reprostim_name__)
+@click.option(
+    "-c",
+    "--config",
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    is_eager=True,
+    expose_value=False,
+    callback=_config_callback,
+    help="Path to ReproStim YAML config file to override default option "
+    "values. Global options are taken from the 'reprostim' section, "
+    "sub-command options from sections named after the sub-command "
+    "(e.g. 'bids_inject'). All names use underscores instead of dashes "
+    "(e.g. 'log_level'). Explicit command-line options take precedence. "
+    "If not specified, the first existing of "
+    + ", ".join(f"'{p}'" for p in DEFAULT_CONFIG_PATHS)
+    + " is used.",
+)
 @click.option(
     "-l",
     "--log-level",
@@ -54,6 +177,15 @@ def main(ctx, log_level: str, log_format):
     _init_logger(log_level.upper(), log_format, log_to_stderr)
     logger.debug(f"{__reprostim_name__} v{__version__}")
     logger.debug(f"main(...), command={ctx.invoked_subcommand}")
+
+    config_path = ctx.meta.get("reprostim.config")
+    if config_path:
+        logger.debug(f"Found and loaded config yaml: {config_path}")
+        for name, section in (ctx.default_map or {}).items():
+            if isinstance(section, dict) and name not in main.commands:
+                logger.warning(
+                    f"Unknown section '{name}' in config '{config_path}', ignored"
+                )
 
 
 # Import all CLI commands

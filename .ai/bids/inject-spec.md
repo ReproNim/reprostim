@@ -329,6 +329,7 @@ reprostim bids-inject [OPTIONS] PATHS...
 | `-w / --overwrite [skip\|force\|always\|error]` | Choice          | `skip`     | Policy for handling existing output files (see Overwrite Mode below). Ignored (silently) when `--metadata-only` is set.                                                                                                                              |
 | `-k / --lock [yes\|no]`                         | Choice          | `yes`      | Whether to acquire a file lock (`videos.tsv.lock`) before reading `videos.tsv`. Use `no` for dirty-read mode when the lock is held by another user (see Lock / Dirty-read Mode below).                                                              |
 | `-M / --metadata-only`                          | Flag            | False      | Refresh `_scans.tsv`/`scans.json` annotations for **already-generated** media without touching the `.mkv`/sidecar `.json` (see Metadata-Only Mode below). Uppercase `-M` since lowercase `-m` is already `--match`.                                 |
+| `-i / --ignore-path PATH_OR_GLOB`               | String (repeatable) | none   | File, directory or `fnmatch` glob to skip, relative to `--dataset` (absolute paths are made relative to it). Ignoring a directory ignores everything under it (see Ignore Paths below). In a YAML config the key is `ignore-paths` (see [cli/config-spec.md](../cli/config-spec.md)). |
 | `-v / --verbose`                                | Flag            | False      | Increase verbosity.                                                                                                                                                                                                                                 |
 
 ### Example invocations
@@ -434,6 +435,13 @@ reprostim bids-inject \
   --videos /data/reprostim/videos.tsv \
   --metadata-only \
   sourcedata/dbic-QA/sub-qa/ses-20250814/
+
+# Skip broken sessions and all resting-state scans (repeatable, globs allowed)
+reprostim bids-inject \
+  --videos /data/reprostim/videos.tsv \
+  --dataset sourcedata/dbic-QA --recursive \
+  --ignore-path sub-qa/ses-20240325 --ignore-path '*/func/*_task-rest_*' \
+  sourcedata/dbic-QA
 ```
 
 ---
@@ -574,6 +582,41 @@ there is no cross-check against the existing sidecar JSON's stored values.
 > values against the existing sidecar JSON (and deciding what to do on a mismatch: warn? error?)
 > is a real feature but adds meaningful complexity for a first version. Deferred; revisit if
 > drift turns out to be a practical problem.
+
+---
+
+## Ignore Paths
+
+`-i / --ignore-path` (repeatable) excludes parts of the dataset from processing, e.g.
+sessions known to be broken (missing media for `--metadata-only`, ambiguous multi-video
+matches) that would otherwise only produce errors on every run.
+
+### Matching rules
+
+Implemented by `_is_ignored_path(ctx, path)`; patterns are held in `BiContext.ignore_paths`.
+
+1. Both the tested path and `ctx.dataset_home` are made absolute; the path is then made
+   relative to `dataset_home` and normalized to POSIX separators. A path equal to, or
+   outside of, `dataset_home` is never ignored.
+2. Each pattern is made relative the same way: absolute patterns via `relpath` to
+   `dataset_home`; `normpath` drops a leading `./` and trailing `/`.
+3. The path is ignored if `fnmatch.fnmatchcase(rel, pat)` or
+   `fnmatch.fnmatchcase(rel, pat + "/*")`. `fnmatch` `*` also matches `/`, so the second
+   form covers everything below a matched directory.
+
+Examples (relative to dataset home): `sub-01` ignores the whole subject; `sub-01/ses-01`
+one session; `*/func/*_task-rest_*` matches rest scans in any subject.
+
+### Where it is applied
+
+`_is_ignored_path` is checked at three levels, each logging `Ignoring ...` and skipping:
+
+- directory traversal (`_do_inject_scans_dir`) — the directory is not descended into;
+- `_do_inject_scans` — the whole `*_scans.tsv` file is skipped;
+- per acquisition row — the row `filename` resolved against the `_scans.tsv` directory.
+  Ignored rows are skipped *before* the `reprostim_*` migration reset, so they stay untouched.
+
+Ignored items are not counted as processed, skipped or errors in the summary.
 
 ---
 
@@ -869,7 +912,8 @@ wrappers around `dt_convert`.
    c. Regardless of outcome (matched, skipped, or errored), force this acquisition
       row's `reprostim_*` columns to `n/a` — see Output D / "Migration from the
       pre-#276 layout". This runs for every acquisition row, including ones excluded
-      by `--match` (they were still loaded and will still be rewritten), guaranteeing
+      by `--match` (they were still loaded and will still be rewritten), but NOT rows matching
+      `--ignore-path`, which are skipped before this step, guaranteeing
       a single run fully migrates a file previously annotated by the pre-#276 tool.
    d. After all rows in the file are processed: sort ScansModel records by parsed
       `acq_time` ascending (stable), then write the file once (skipped in --dry-run,
@@ -1093,6 +1137,7 @@ git-tracked plain text and never needs this handling.)
 | `videos.tsv` not found                  | Fatal error                                                                               |
 | `_scans.tsv` not found                  | Warn and skip subject/session                                                             |
 | Output file already exists              | Controlled by `--overwrite`: skip (default), force remove, always run, or error and skip |
+| Path matches `--ignore-path`             | Info log and skip silently (not counted in summary)                                       |
 | `--metadata-only` and media file missing | Error and skip that scan (see Metadata-Only Mode)                                       |
 
 ---
