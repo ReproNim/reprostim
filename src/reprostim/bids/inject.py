@@ -374,6 +374,36 @@ class ScanRecord(BaseModel):
         default=None,
         description="Actual buffer appended after scan end, in seconds.",
     )
+    qr_count: Optional[int] = Field(
+        default=None,
+        description="Number of unique QR code records found in the recording.",
+    )
+    qr_first_trigger_offset: Optional[float] = Field(
+        default=None,
+        description="Seconds from the recording start to the QR code with the "
+        "first 'trigger' event.",
+    )
+    qr_first_trigger_abstime: Optional[str] = Field(
+        default=None,
+        description="Clock time (no date) parsed from the QR code when the "
+        "first 'trigger' event was received.",
+    )
+    reprostim_isotime_full: Optional[str] = Field(
+        default=None,
+        description="ISO 8601 time of the original video file the recording "
+        "was cut from.",
+    )
+    reprostim_isotime_offset: Optional[float] = Field(
+        default=None,
+        description="Seconds since the original video file start at which the "
+        "recording was cut.",
+    )
+    video_duration: Optional[float] = Field(
+        default=None, description="Video duration in seconds."
+    )
+    video_framecount: Optional[int] = Field(
+        default=None, description="Number of video frames."
+    )
 
 
 class ScansModel(BaseModel):
@@ -405,6 +435,13 @@ _REPROSTIM_COLS = [
     "reprostim_offset",
     "reprostim_buffer_before",
     "reprostim_buffer_after",
+    "qr_count",
+    "qr_first_trigger_offset",
+    "qr_first_trigger_abstime",
+    "reprostim_isotime_full",
+    "reprostim_isotime_offset",
+    "video_duration",
+    "video_framecount",
 ]
 
 
@@ -418,6 +455,16 @@ def _parse_bids_float(value: Optional[str]) -> Optional[float]:
     :rtype: Optional[float]
     """
     return float(value) if value and value != "n/a" else None
+
+
+def _parse_bids_int(value: Optional[str]) -> Optional[int]:
+    """Parse an optional TSV cell as int, returning ``None`` for ``'n/a'`` or absent.
+
+    :param value: Raw cell string, or ``None`` if the column is absent.
+    :returns: Parsed integer, or ``None``.
+    :rtype: Optional[int]
+    """
+    return int(value) if value and value != "n/a" else None
 
 
 def _parse_bids_str(value: Optional[str]) -> Optional[str]:
@@ -678,6 +725,21 @@ def _parse_scans_model(path: str) -> ScansModel:
                 reprostim_buffer_after=_parse_bids_float(
                     row.get("reprostim_buffer_after")
                 ),
+                qr_count=_parse_bids_int(row.get("qr_count")),
+                qr_first_trigger_offset=_parse_bids_float(
+                    row.get("qr_first_trigger_offset")
+                ),
+                qr_first_trigger_abstime=_parse_bids_str(
+                    row.get("qr_first_trigger_abstime")
+                ),
+                reprostim_isotime_full=_parse_bids_str(
+                    row.get("reprostim_isotime_full")
+                ),
+                reprostim_isotime_offset=_parse_bids_float(
+                    row.get("reprostim_isotime_offset")
+                ),
+                video_duration=_parse_bids_float(row.get("video_duration")),
+                video_framecount=_parse_bids_int(row.get("video_framecount")),
             )
         )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
@@ -718,10 +780,7 @@ def _save_scans_model(model: ScansModel) -> None:
             "acq_time": record.acq_time,
             "duration": _format_bids_str(record.duration),
             **record.extra,
-            "reprostim_path": _format_bids_str(record.reprostim_path),
-            "reprostim_offset": _format_bids_str(record.reprostim_offset),
-            "reprostim_buffer_before": _format_bids_str(record.reprostim_buffer_before),
-            "reprostim_buffer_after": _format_bids_str(record.reprostim_buffer_after),
+            **{c: _format_bids_str(getattr(record, c)) for c in _REPROSTIM_COLS},
         }
         rows.append(row)
 
@@ -1395,10 +1454,8 @@ def _do_inject_scans(ctx: BiContext, path: str):
             # Unconditionally migrate/reset this acquisition row's reprostim_*
             # annotation to n/a, regardless of --match or the outcome below —
             # see inject-spec.md Output D / "Migration from the pre-#276 layout".
-            sr.reprostim_path = None
-            sr.reprostim_offset = None
-            sr.reprostim_buffer_before = None
-            sr.reprostim_buffer_after = None
+            for c in _REPROSTIM_COLS:
+                setattr(sr, c, None)
 
             if re.search(ctx.match, sr.filename):
                 ctx.summary.n_processed += 1
