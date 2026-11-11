@@ -29,5 +29,36 @@
     "LongName": "ReproStim buffer after scan end",
     "Description": "Actual buffer appended after scan end",
     "Units": "s"
+  },
+  "qr_count": {
+    "LongName": "Number of QR codes",
+    "Description": "Number of unique QR code records found in the injected recording"
+  },
+  "qr_first_trigger_offset": {
+    "LongName": "Offset of the first QR trigger event in seconds",
+    "Description": "Time from the start of the injected recording to the QR code carrying the first 'trigger' event",
+    "Units": "s"
+  },
+  "qr_first_trigger_abstime": {
+    "LongName": "Clock time of the first QR trigger event",
+    "Description": "Clock time of day (no date), as parsed from the QR code, when the first 'trigger' event was received"
+  },
+  "reprostim_isotime_full": {
+    "LongName": "ReproStim source video ISO time",
+    "Description": "ISO 8601 time of the original video file the injected recording was cut from"
+  },
+  "reprostim_isotime_offset": {
+    "LongName": "ReproStim offset since source video start in seconds",
+    "Description": "Number of seconds since the start of the original video file at which the injected recording was cut",
+    "Units": "s"
+  },
+  "video_duration": {
+    "LongName": "Injected video duration in seconds",
+    "Description": "Duration of the injected video recording",
+    "Units": "s"
+  },
+  "video_framecount": {
+    "LongName": "Injected video frame count",
+    "Description": "Number of frames in the injected video recording"
   }
 }
