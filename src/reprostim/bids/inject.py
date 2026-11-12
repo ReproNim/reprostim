@@ -388,18 +388,10 @@ class ScanRecord(BaseModel):
         description="Clock time (no date) parsed from the QR code when the "
         "first 'trigger' event was received.",
     )
-    reprostim_isotime_full: Optional[str] = Field(
+    reprostim_isotime_start: Optional[str] = Field(
         default=None,
         description="ISO 8601 time of the original video file the recording "
         "was cut from.",
-    )
-    reprostim_isotime_offset: Optional[float] = Field(
-        default=None,
-        description="Seconds since the original video file start at which the "
-        "recording was cut.",
-    )
-    video_duration: Optional[float] = Field(
-        default=None, description="Video duration in seconds."
     )
     video_framecount: Optional[int] = Field(
         default=None, description="Number of video frames."
@@ -435,9 +427,7 @@ _REPROSTIM_COLS = [
     "reprostim_offset",
     "reprostim_buffer_before",
     "reprostim_buffer_after",
-    "reprostim_isotime_full",
-    "reprostim_isotime_offset",
-    "video_duration",
+    "reprostim_isotime_start",
     "video_framecount",
 ]
 
@@ -735,13 +725,9 @@ def _parse_scans_model(path: str) -> ScansModel:
                 qr_first_trigger_abstime=_parse_bids_str(
                     row.get("qr_first_trigger_abstime")
                 ),
-                reprostim_isotime_full=_parse_bids_str(
-                    row.get("reprostim_isotime_full")
+                reprostim_isotime_start=_parse_bids_str(
+                    row.get("reprostim_isotime_start")
                 ),
-                reprostim_isotime_offset=_parse_bids_float(
-                    row.get("reprostim_isotime_offset")
-                ),
-                video_duration=_parse_bids_float(row.get("video_duration")),
                 video_framecount=_parse_bids_int(row.get("video_framecount")),
             )
         )

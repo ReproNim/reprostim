@@ -64,8 +64,8 @@ need confirmation first (see spec "Open Questions / TODOs").
 
 ### Outputs
 - [ ] A) `_scans.tsv` media-row columns: `qr_count`, `qr_first_trigger_offset`,
-      `qr_first_trigger_abstime`, `reprostim_isotime_full`, `reprostim_isotime_offset`,
-      `video_duration`, `video_framecount`; idempotent insert-or-update, existing columns untouched
+      `qr_first_trigger_abstime`, `reprostim_isotime_start`,
+      `video_framecount`; idempotent insert-or-update, existing columns untouched
 - [ ] B) `_events.tsv`: `onset`, `duration`, `trial_type=qr`, `isotime_start`, `isotime_end`,
       `frame_start`, `frame_end`, `data` (JSON string, tabs/newlines escaped), sorted by `onset`
 - [ ] Empty (header-only) `_events.tsv` when no QR codes found; `qr_count = 0`

@@ -18,19 +18,9 @@
     "Description": "Actual buffer appended after scan end",
     "Units": "s"
   },
-  "reprostim_isotime_full": {
+  "reprostim_isotime_start": {
     "LongName": "ReproStim source video ISO time",
     "Description": "ISO 8601 time of the original video file the injected recording was cut from"
-  },
-  "reprostim_isotime_offset": {
-    "LongName": "ReproStim offset since source video start in seconds",
-    "Description": "Number of seconds since the start of the original video file at which the injected recording was cut",
-    "Units": "s"
-  },
-  "video_duration": {
-    "LongName": "Injected video duration in seconds",
-    "Description": "Duration of the injected video recording",
-    "Units": "s"
   },
   "video_framecount": {
     "LongName": "Injected video frame count",

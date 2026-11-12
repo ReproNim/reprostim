@@ -2117,7 +2117,7 @@ def test_unfilled_reprostim_cols_default_na_and_roundtrip(tmp_path):
     """isotime/video columns are written as n/a, parsed back as None and round-trip
     values."""
     cols = _REPROSTIM_COLS[4:]
-    assert cols[0] == "reprostim_isotime_full" and cols[-1] == "video_framecount"
+    assert cols[0] == "reprostim_isotime_start" and cols[-1] == "video_framecount"
     model = _make_scans_model(tmp_path)
     _save_scans_model(model)
     with open(model.path, newline="", encoding="utf-8") as f:
@@ -2128,15 +2128,12 @@ def test_unfilled_reprostim_cols_default_na_and_roundtrip(tmp_path):
     assert all(getattr(r, c) is None for r in parsed.records for c in cols)
 
     rec = parsed.records[0]
-    rec.reprostim_isotime_full = "2026-01-01T12:00:00"
-    rec.reprostim_isotime_offset = 10.25
-    rec.video_duration = 20.5
+    rec.reprostim_isotime_start = "2026-01-01T12:00:00"
     rec.video_framecount = 615
     _save_scans_model(parsed)
     again = _parse_scans_model(model.path).records[0]
-    assert again.reprostim_isotime_full == "2026-01-01T12:00:00"
-    assert again.reprostim_isotime_offset == 10.25
-    assert (again.video_duration, again.video_framecount) == (20.5, 615)
+    assert again.reprostim_isotime_start == "2026-01-01T12:00:00"
+    assert again.video_framecount == 615
 
 
 def test_qr_cols_not_written_by_bids_inject(tmp_path):

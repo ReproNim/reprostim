@@ -45,7 +45,7 @@ files and is not discoverable from the BIDS dataset. Injecting it gives:
   trigger QR code) should equal `reprostim_buffer_before` when NTP-based clocks and the injected
   buffer are exact. A non-zero difference measures the real clock/scan misalignment; if the
   synchronization is trustworthy the buffer could be dropped (issue #275).
-- **Per-clip facts** (`video_duration`, `video_framecount`, absolute times) next to the scan row.
+- **Per-clip facts** (`video_framecount`, absolute times) next to the scan row.
 
 ---
 
@@ -81,9 +81,7 @@ acquisition row), continuing the pattern of issue #276. Names are the ones propo
 | `qr_count`                     | number of unique `QrRecord`s                                                      | Count of unique decoded QR codes in the clip (consecutive frames of the same QR are already collapsed by `qr-parse`). |
 | `qr_first_trigger_offset`      | first trigger QR `time_start`                                                     | Seconds from the clip start to the first "trigger" QR code. Should match `reprostim_buffer_before` when sync is exact. `n/a` if none. |
 | `qr_first_trigger_abstime`     | first trigger QR `data` wall-clock time                                           | Clock time parsed from the QR code payload (subject to [date anonymization](#date-anonymization)). `n/a` if none. |
-| `reprostim_isotime_full`       | start time of the **source** video                                                | Absolute start of the full source recording (from the video file name / `VideoTimeInfo`).                    |
-| `reprostim_isotime_offset`     | `isotime` of the clip start                                                        | Absolute time of the first frame of the injected clip (= source start + `reprostim_offset`).                 |
-| `video_duration`               | media file                                                                         | Clip duration in seconds (`ffprobe`/`video_audit`; same value family as `duration` of the media row).        |
+| `reprostim_isotime_start`      | start time of the **source** video                                                | Absolute start of the full source recording (from the video file name / `VideoTimeInfo`).                    |
 | `video_framecount`             | media file                                                                         | Number of video frames in the clip.                                                                          |
 
 > **"Trigger" QR code** = a QR record whose `data.event == "trigger"`
@@ -241,8 +239,8 @@ real dates leak through that column (Open Question #4).
       i.   Resolve the media file path; missing → error for this row, continue.
       ii.  Obtain QR records per --qr (embed-existing | parse | auto), re-basing source-video
            JSONL to the clip window when needed.
-      iii. Compute the A) summary: qr_count, first trigger (offset/abstime), isotime_full/offset,
-           video_duration, video_framecount (ffprobe / media_info).
+      iii. Compute the A) summary: qr_count, first trigger (offset/abstime), reprostim_isotime_start,
+           video_framecount (ffprobe / media_info).
       iv.  Apply date anonymization to every absolute time.
       v.   Build B) events rows; write _events.tsv according to --overwrite (skip unless --dry-run).
       vi.  Write the C) _events.json data dictionary next to it.
