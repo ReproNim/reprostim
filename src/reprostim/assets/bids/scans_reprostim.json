@@ -1,16 +1,4 @@
 {
-  "filename": {
-    "Description": "Name of the nifti file"
-  },
-  "acq_time": {
-    "LongName": "Acquisition time",
-    "Description": "Acquisition time of the particular scan"
-  },
-  "duration": {
-    "LongName": "Scan duration",
-    "Description": "Wallclock duration of the scan, in seconds, from the onset of the first to the end of the last acquired volume or sample. Estimated from the DICOM headers (see heudiconv.dicoms.get_acquisition_duration) or, retrospectively, from the NIfTI/JSON sidecar. See also https://github.com/bids-standard/bids-specification/pull/2508",
-    "Units": "s"
-  },
   "reprostim_path": {
     "LongName": "ReproStim source video path",
     "Description": "Path to the source .mkv file the injected recording was sliced from, relative to the videos.tsv location"
@@ -29,19 +17,6 @@
     "LongName": "ReproStim buffer after scan end",
     "Description": "Actual buffer appended after scan end",
     "Units": "s"
-  },
-  "qr_count": {
-    "LongName": "Number of QR codes",
-    "Description": "Number of unique QR code records found in the injected recording"
-  },
-  "qr_first_trigger_offset": {
-    "LongName": "Offset of the first QR trigger event in seconds",
-    "Description": "Time from the start of the injected recording to the QR code carrying the first 'trigger' event",
-    "Units": "s"
-  },
-  "qr_first_trigger_abstime": {
-    "LongName": "Clock time of the first QR trigger event",
-    "Description": "Clock time of day (no date), as parsed from the QR code, when the first 'trigger' event was received"
   },
   "reprostim_isotime_full": {
     "LongName": "ReproStim source video ISO time",

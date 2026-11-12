@@ -20,6 +20,8 @@ from click.testing import CliRunner
 
 from reprostim.__about__ import __version__
 from reprostim.bids.inject import (
+    _BASIC_COLS,
+    _QR_COLS,
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
     BiContext,
@@ -2111,32 +2113,65 @@ def test_save_scans_model_reprostim_cols_order(tmp_path):
     assert max(non_reprostim) < min(reprostim_positions)
 
 
-def test_qr_cols_default_na_and_roundtrip(tmp_path):
-    """QR/video columns are written as n/a, parsed back as None and round-trip values."""
-    qr_cols = _REPROSTIM_COLS[4:]
-    assert qr_cols[0] == "qr_count" and qr_cols[-1] == "video_framecount"
+def test_unfilled_reprostim_cols_default_na_and_roundtrip(tmp_path):
+    """isotime/video columns are written as n/a, parsed back as None and round-trip
+    values."""
+    cols = _REPROSTIM_COLS[4:]
+    assert cols[0] == "reprostim_isotime_full" and cols[-1] == "video_framecount"
     model = _make_scans_model(tmp_path)
     _save_scans_model(model)
     with open(model.path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
-    assert all(r[c] == "n/a" for r in rows for c in qr_cols)
+    assert all(r[c] == "n/a" for r in rows for c in cols)
 
     parsed = _parse_scans_model(model.path)
-    assert all(getattr(r, c) is None for r in parsed.records for c in qr_cols)
+    assert all(getattr(r, c) is None for r in parsed.records for c in cols)
 
     rec = parsed.records[0]
-    rec.qr_count = 3
-    rec.qr_first_trigger_offset = 1.5
-    rec.qr_first_trigger_abstime = "12:34:56.789"
     rec.reprostim_isotime_full = "2026-01-01T12:00:00"
     rec.reprostim_isotime_offset = 10.25
     rec.video_duration = 20.5
     rec.video_framecount = 615
     _save_scans_model(parsed)
     again = _parse_scans_model(model.path).records[0]
-    assert (again.qr_count, again.video_framecount) == (3, 615)
-    assert again.qr_first_trigger_abstime == "12:34:56.789"
-    assert again.video_duration == 20.5
+    assert again.reprostim_isotime_full == "2026-01-01T12:00:00"
+    assert again.reprostim_isotime_offset == 10.25
+    assert (again.video_duration, again.video_framecount) == (20.5, 615)
+
+
+def test_qr_cols_not_written_by_bids_inject(tmp_path):
+    """qr_* columns belong to bids-qr-inject: bids-inject doesn't add them."""
+    assert not set(_QR_COLS) & set(_REPROSTIM_COLS)
+    model = _make_scans_model(tmp_path)
+    _save_scans_model(model)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        fieldnames = list(csv.DictReader(f, delimiter="\t").fieldnames or [])
+    assert not set(_QR_COLS) & set(fieldnames)
+
+
+def test_existing_qr_cols_preserved(tmp_path):
+    """qr_* columns already present in _scans.tsv are kept as-is on save."""
+    model = _make_scans_model(
+        tmp_path,
+        extra_header="\tqr_count\tqr_first_trigger_offset",
+        extra_values="\t3\t1.5",
+    )
+    assert model.records[0].extra["qr_count"] == "3"
+    model.records[0].reprostim_path = "video1.mkv"
+    _save_scans_model(model)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert rows[0]["qr_count"] == "3"
+    assert rows[0]["qr_first_trigger_offset"] == "1.5"
+    assert rows[0]["reprostim_path"] == "video1.mkv"
+
+
+def test_load_default_scans_json_base_and_reprostim_only():
+    """Default scans.json = base + bids-inject columns, without qr_* ones."""
+    default = _load_default_scans_json()
+    assert set(_BASIC_COLS) <= set(default)
+    assert set(_REPROSTIM_COLS) <= set(default)
+    assert not set(_QR_COLS) & set(default)
 
 
 def test_save_scans_model_unix_line_endings(tmp_path):
@@ -2321,7 +2356,7 @@ def test_scans_tsv_media_row_not_reprocessed_as_acquisition(tmp_path):
     assert call_count == 1, "split-video should run once, not once per revisit"
 
     media = _tsv_rows(scans_tsv)[_TASK_REST_OUTPUT_MKV]
-    # the qr_*/video_* columns (_REPROSTIM_COLS[4:]) are not filled yet (n/a)
+    # the isotime/video_* columns (_REPROSTIM_COLS[4:]) are not filled yet (n/a)
     for col in _REPROSTIM_COLS[:4]:
         assert media[col] != "n/a", f"{col} was wiped — media row got reprocessed"
 

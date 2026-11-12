@@ -435,13 +435,16 @@ _REPROSTIM_COLS = [
     "reprostim_offset",
     "reprostim_buffer_before",
     "reprostim_buffer_after",
-    "qr_count",
-    "qr_first_trigger_offset",
-    "qr_first_trigger_abstime",
     "reprostim_isotime_full",
     "reprostim_isotime_offset",
     "video_duration",
     "video_framecount",
+]
+
+_QR_COLS = [
+    "qr_count",
+    "qr_first_trigger_offset",
+    "qr_first_trigger_abstime",
 ]
 
 
@@ -1566,18 +1569,34 @@ def _do_inject_dir(ctx: BiContext, path: str):
 def _load_default_scans_json() -> dict:
     """Load the packaged default BIDS ``scans.json`` data-dictionary sample.
 
-    :returns: Parsed contents of ``assets/bids/scans.json``.
+    The sample is assembled by merging the packaged parts in
+    ``assets/bids/`` in order: ``scans_base.json`` (external columns) and
+    ``scans_reprostim.json`` (``bids-inject`` columns). Later parts
+    override same-named fields from earlier ones. ``scans_qr.json``
+    (``bids-qr-inject`` columns) is not merged yet.
+
+    :returns: Merged scans.json data dictionary.
     :rtype: dict
     """
-    text = (files("reprostim") / "assets" / "bids" / "scans.json").read_text()
-    return json.loads(text)
+
+    parts = [
+        "scans_base.json",
+        "scans_reprostim.json",
+        # "scans_qr.json",
+    ]
+
+    assets_dir = files("reprostim") / "assets" / "bids"
+    merged: dict = {}
+    for name in parts:
+        merged.update(json.loads((assets_dir / name).read_text()))
+    return merged
 
 
 def _do_inject_scans_json(ctx: BiContext) -> None:
     """Ensure ``<dataset_home>/scans.json`` exists and has every default field.
 
     Compares ``<dataset_home>/scans.json`` against the packaged default
-    sample (``assets/bids/scans.json``):
+    sample (see :func:`_load_default_scans_json`):
 
     - If ``scans.json`` doesn't exist yet, it is created from the default
       sample verbatim.

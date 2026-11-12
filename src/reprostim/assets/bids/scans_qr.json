@@ -1,0 +1,15 @@
+{
+  "qr_count": {
+    "LongName": "Number of QR codes",
+    "Description": "Number of unique QR code records found in the injected recording"
+  },
+  "qr_first_trigger_offset": {
+    "LongName": "Offset of the first QR trigger event in seconds",
+    "Description": "Time from the start of the injected recording to the QR code carrying the first 'trigger' event",
+    "Units": "s"
+  },
+  "qr_first_trigger_abstime": {
+    "LongName": "Clock time of the first QR trigger event",
+    "Description": "Clock time of day (no date), as parsed from the QR code, when the first 'trigger' event was received"
+  }
+}
