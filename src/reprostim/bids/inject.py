@@ -1571,24 +1571,33 @@ def _do_inject_dir(ctx: BiContext, path: str):
             _do_inject_dir(ctx, entry.path)
 
 
-def _load_default_scans_json() -> dict:
+def _load_default_scans_json(
+    inject_mode: InjectMode = InjectMode.REPROSTIM,
+) -> dict:
     """Load the packaged default BIDS ``scans.json`` data-dictionary sample.
 
-    The sample is assembled by merging the packaged parts in
-    ``assets/bids/`` in order: ``scans_base.json`` (external columns) and
-    ``scans_reprostim.json`` (``bids-inject`` columns). Later parts
-    override same-named fields from earlier ones. ``scans_qr.json``
-    (``bids-qr-inject`` columns) is not merged yet.
+    The sample is assembled by merging packaged parts from ``assets/bids/``
+    in order: ``scans_base.json`` (external columns) followed by the part
+    for ``inject_mode``:
 
+    - :attr:`InjectMode.REPROSTIM`: ``scans_reprostim.json``
+      (``bids-inject`` columns).
+    - :attr:`InjectMode.QR`: ``scans_qr.json`` (``bids-qr-inject`` columns).
+
+    Later parts override same-named fields from earlier ones.
+
+    :param inject_mode: Injection mode selecting which columns to merge on
+        top of the base part. Defaults to :attr:`InjectMode.REPROSTIM`.
+    :type inject_mode: InjectMode
     :returns: Merged scans.json data dictionary.
     :rtype: dict
     """
 
-    parts = [
-        "scans_base.json",
-        "scans_reprostim.json",
-        # "scans_qr.json",
-    ]
+    mode_parts = {
+        InjectMode.REPROSTIM: "scans_reprostim.json",
+        InjectMode.QR: "scans_qr.json",
+    }
+    parts = ["scans_base.json", mode_parts[InjectMode(inject_mode)]]
 
     assets_dir = files("reprostim") / "assets" / "bids"
     merged: dict = {}
@@ -1601,7 +1610,7 @@ def _do_inject_scans_json(ctx: BiContext) -> None:
     """Ensure ``<dataset_home>/scans.json`` exists and has every default field.
 
     Compares ``<dataset_home>/scans.json`` against the packaged default
-    sample (see :func:`_load_default_scans_json`):
+    sample for ``ctx.inject_mode`` (see :func:`_load_default_scans_json`):
 
     - If ``scans.json`` doesn't exist yet, it is created from the default
       sample verbatim.
@@ -1616,12 +1625,13 @@ def _do_inject_scans_json(ctx: BiContext) -> None:
     as an error (via ``ctx.summary``) and left untouched rather than
     overwritten or raised as an exception.
 
-    :param ctx: Processing context; uses ``ctx.dataset_home``, ``ctx.dry_run``,
-        ``ctx.out_func``, and ``ctx.summary``.
+    :param ctx: Processing context; uses ``ctx.dataset_home``,
+        ``ctx.inject_mode``, ``ctx.dry_run``, ``ctx.out_func``, and
+        ``ctx.summary``.
     :type ctx: BiContext
     """
     scans_json_path = os.path.join(ctx.dataset_home, "scans.json")
-    default = _load_default_scans_json()
+    default = _load_default_scans_json(ctx.inject_mode)
 
     if not os.path.isfile(scans_json_path):
         if ctx.dry_run:

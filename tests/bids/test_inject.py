@@ -25,6 +25,7 @@ from reprostim.bids.inject import (
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
     BiContext,
+    InjectMode,
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
@@ -1133,6 +1134,22 @@ def test_do_inject_scans_json_creates_when_missing(tmp_path):
     assert any("Created" in line for line in out)
 
 
+def test_do_inject_scans_json_qr_mode_uses_qr_sample(tmp_path):
+    """With inject_mode=QR, scans.json is created from base + qr columns."""
+    ctx = BiContext(
+        dataset_home=str(tmp_path),
+        inject_mode=InjectMode.QR,
+        dry_run=False,
+        recursive=False,
+    )
+
+    _do_inject_scans_json(ctx)
+
+    created = json.loads((tmp_path / "scans.json").read_text())
+    assert created == _load_default_scans_json(InjectMode.QR)
+    assert not set(_REPROSTIM_COLS) & set(created)
+
+
 def test_do_inject_scans_json_noop_when_all_fields_present(tmp_path):
     """scans.json already has every default field -> left byte-for-byte untouched."""
     scans_json = tmp_path / "scans.json"
@@ -2169,6 +2186,26 @@ def test_load_default_scans_json_base_and_reprostim_only():
     assert set(_BASIC_COLS) <= set(default)
     assert set(_REPROSTIM_COLS) <= set(default)
     assert not set(_QR_COLS) & set(default)
+
+
+def test_load_default_scans_json_reprostim_mode_explicit():
+    """Explicit REPROSTIM mode matches the default (base + reprostim)."""
+    assert _load_default_scans_json(InjectMode.REPROSTIM) == (
+        _load_default_scans_json()
+    )
+
+
+def test_load_default_scans_json_qr_mode():
+    """QR mode = base + bids-qr-inject columns, without reprostim_* ones."""
+    default = _load_default_scans_json(InjectMode.QR)
+    assert set(_BASIC_COLS) <= set(default)
+    assert set(_QR_COLS) <= set(default)
+    assert not set(_REPROSTIM_COLS) & set(default)
+
+
+def test_load_default_scans_json_accepts_str_mode():
+    """Mode may be passed as its string value."""
+    assert _load_default_scans_json("qr") == _load_default_scans_json(InjectMode.QR)
 
 
 def test_save_scans_model_unix_line_endings(tmp_path):
