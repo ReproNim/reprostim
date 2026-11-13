@@ -457,6 +457,23 @@ _QR_COLS = [
 ]
 
 
+def _get_mode_cols(inject_mode: InjectMode) -> List[str]:
+    """Return the ordered annotation columns owned by *inject_mode*.
+
+    :param inject_mode: Injection mode (or its string value).
+    :type inject_mode: InjectMode
+    :returns: Ordered list of ``_scans.tsv`` column names filled by the mode.
+    :rtype: List[str]
+    """
+
+    _cols_map = {
+        InjectMode.REPROSTIM: _REPROSTIM_COLS,
+        InjectMode.QR: _QR_COLS,
+    }
+
+    return _cols_map[InjectMode(inject_mode)]
+
+
 def _parse_bids_float(value: Optional[str]) -> Optional[float]:
     """Parse an optional TSV cell as float, returning ``None`` for ``'n/a'`` or absent.
 
@@ -694,7 +711,9 @@ def _parse_scan_metadata(
     )
 
 
-def _parse_scans_model(path: str) -> ScansModel:
+def _parse_scans_model(
+    path: str, inject_mode: InjectMode = InjectMode.REPROSTIM
+) -> ScansModel:
     """Parse a ``*_scans.tsv`` file and return a :class:`ScansData` instance.
 
     Reads a tab-separated BIDS scans file. The columns ``filename`` and
@@ -703,8 +722,16 @@ def _parse_scans_model(path: str) -> ScansModel:
     computed once here, from its raw ``filename``, via
     :func:`_calc_scan_record_kind`.
 
+    Annotation columns owned by *inject_mode* (see :func:`_get_mode_cols`)
+    are managed by the model and excluded from :attr:`ScanRecord.extra`;
+    all other non-basic columns, including those owned by other modes, are
+    kept verbatim in :attr:`ScanRecord.extra` so they round-trip unchanged.
+
     :param path: Absolute or relative path to a ``*_scans.tsv`` file.
     :type path: str
+    :param inject_mode: Injection mode whose annotation columns are managed.
+        Defaults to :attr:`InjectMode.REPROSTIM`.
+    :type inject_mode: InjectMode
     :returns: Parsed scans data containing the file path and one
         :class:`ScanRecord` per data row.
     :rtype: ScansModel
@@ -712,7 +739,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
-    _known = set(_BASIC_COLS) | set(_REPROSTIM_COLS)
+    _known = set(_BASIC_COLS) | set(_get_mode_cols(inject_mode))
 
     records: List[ScanRecord] = []
     raw_content: Optional[str] = None
@@ -754,14 +781,19 @@ def _parse_scans_model(path: str) -> ScansModel:
     return ScansModel(path=path, records=records, orig_content=raw_content)
 
 
-def _save_scans_model(model: ScansModel) -> None:
+def _save_scans_model(
+    model: ScansModel, inject_mode: InjectMode = InjectMode.REPROSTIM
+) -> None:
     """Write :class:`ScansModel` records back to the ``*_scans.tsv`` file.
 
     Derives column order from the already-parsed model data: ``filename`` and
     ``acq_time`` first, then any extra columns (in their original order from
-    :attr:`ScanRecord.extra`), then ``reprostim_*`` annotation columns from
-    :data:`_REPROSTIM_COLS` appended on the right.  ``None`` field values are
-    serialised as ``'n/a'`` via :func:`_format_bids_str`.
+    :attr:`ScanRecord.extra`), then the annotation columns owned by
+    *inject_mode* (see :func:`_get_mode_cols`) appended on the right.  Only
+    the owned columns are written from :class:`ScanRecord` fields; columns
+    owned by other modes are written verbatim from :attr:`ScanRecord.extra`.
+    ``None`` field values are serialised as ``'n/a'`` via
+    :func:`_format_bids_str`.
 
     The content is serialised in memory first and compared against
     :attr:`ScansModel.orig_content`; if identical, the write is skipped
@@ -774,11 +806,16 @@ def _save_scans_model(model: ScansModel) -> None:
     :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
         writable, or removable if it is a read-only git-annex symlink.
     :type model: ScansModel
+    :param inject_mode: Injection mode whose annotation columns are written
+        from record fields. Must match the mode the model was parsed with.
+        Defaults to :attr:`InjectMode.REPROSTIM`.
+    :type inject_mode: InjectMode
     """
+    mode_cols = _get_mode_cols(inject_mode)
     # Derive extra column names from the first record (order preserved by dict).
     extra_cols = list(model.records[0].extra.keys()) if model.records else []
     fieldnames = (
-        _BASIC_COLS + extra_cols + [c for c in _REPROSTIM_COLS if c not in extra_cols]
+        _BASIC_COLS + extra_cols + [c for c in mode_cols if c not in extra_cols]
     )
 
     rows = []
@@ -788,7 +825,7 @@ def _save_scans_model(model: ScansModel) -> None:
             "acq_time": record.acq_time,
             "duration": _format_bids_str(record.duration),
             **record.extra,
-            **{c: _format_bids_str(getattr(record, c)) for c in _REPROSTIM_COLS},
+            **{c: _format_bids_str(getattr(record, c)) for c in mode_cols},
         }
         rows.append(row)
 
@@ -1443,7 +1480,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 f"QR mode '{ctx.qr.value}' is not implemented yet. "
                 f"Only '{QrMode.NONE.value}' is currently supported."
             )
-        scans: ScansModel = _parse_scans_model(path)
+        scans: ScansModel = _parse_scans_model(path, ctx.inject_mode)
         for sr in scans.records:
             if sr.kind.is_reprostim_media:
                 # Dedicated media rows (Output D) are never treated as
@@ -1538,7 +1575,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 ctx.summary.n_skipped += 1
         if not ctx.dry_run:
             scans.records.sort(key=lambda r: dt_parse_bids(r.acq_time))
-            _save_scans_model(scans)
+            _save_scans_model(scans, ctx.inject_mode)
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 

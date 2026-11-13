@@ -2180,6 +2180,59 @@ def test_existing_qr_cols_preserved(tmp_path):
     assert rows[0]["reprostim_path"] == "video1.mkv"
 
 
+def test_qr_mode_parse_manages_qr_cols_only(tmp_path):
+    """In QR mode qr_* cols are managed, reprostim_* cols kept in extra."""
+    model = _make_scans_model(
+        tmp_path,
+        extra_header="\treprostim_path\tqr_count",
+        extra_values="\tvideo1.mkv\t3",
+    )
+    qr_model = _parse_scans_model(model.path, InjectMode.QR)
+    rec = qr_model.records[0]
+    assert rec.qr_count == 3
+    assert "qr_count" not in rec.extra
+    assert rec.extra["reprostim_path"] == "video1.mkv"
+
+
+def test_qr_mode_save_writes_qr_cols_and_preserves_reprostim(tmp_path):
+    """QR mode fills qr_* cols, leaves reprostim_* values untouched."""
+    tsv_model = _make_scans_model(
+        tmp_path,
+        extra_header="\treprostim_path\treprostim_offset",
+        extra_values="\tvideo1.mkv\t560.3",
+    )
+    model = _parse_scans_model(tsv_model.path, InjectMode.QR)
+    rec = model.records[0]
+    rec.qr_count = 5
+    rec.qr_first_trigger_offset = 2.25
+    # setting a reprostim field in QR mode must have no effect on output
+    rec.reprostim_path = "other.mkv"
+    _save_scans_model(model, InjectMode.QR)
+
+    with open(model.path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+    assert set(_QR_COLS) <= set(fieldnames)
+    assert rows[0]["qr_count"] == "5"
+    assert rows[0]["qr_first_trigger_offset"] == "2.25"
+    assert rows[0]["qr_first_trigger_abstime"] == "n/a"
+    assert rows[0]["reprostim_path"] == "video1.mkv"
+    assert rows[0]["reprostim_offset"] == "560.3"
+    # QR mode doesn't add reprostim_* cols that weren't there
+    assert "reprostim_buffer_before" not in fieldnames
+
+
+def test_reprostim_mode_ignores_qr_field_changes(tmp_path):
+    """REPROSTIM mode doesn't write qr_* from record fields (extra wins)."""
+    model = _make_scans_model(tmp_path, extra_header="\tqr_count", extra_values="\t3")
+    model.records[0].qr_count = 99
+    _save_scans_model(model, InjectMode.REPROSTIM)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert rows[0]["qr_count"] == "3"
+
+
 def test_load_default_scans_json_base_and_reprostim_only():
     """Default scans.json = base + bids-inject columns, without qr_* ones."""
     default = _load_default_scans_json()
