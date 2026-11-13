@@ -56,6 +56,19 @@ logger.debug(
 ####################################################################
 
 
+class InjectMode(str, Enum):
+    """Injection mode selecting which kind of data is injected into BIDS.
+
+    - ``REPROSTIM``: inject ReproStim media (video/audio) slices and their
+      ``_scans.tsv`` rows (``bids-inject``).
+    - ``QR``: inject QR code-based timing metadata into the ReproStim media
+      rows (``bids-qr-inject``).
+    """
+
+    REPROSTIM = "reprostim"
+    QR = "qr"
+
+
 class BufferPolicy(str, Enum):
     """Policy for handling buffer overflow beyond video boundaries."""
 
@@ -168,6 +181,12 @@ class BiContext(BaseModel):
         default=".",
         description="Home directory of the BIDS dataset being injected into "
         "(e.g. contains scans.json). Defaults to the current directory.",
+    )
+    inject_mode: InjectMode = Field(
+        default=InjectMode.REPROSTIM,
+        description="Injection mode: 'reprostim' injects ReproStim media "
+        "slices and their _scans.tsv rows, 'qr' injects QR code-based "
+        "timing metadata into the ReproStim media rows.",
     )
     dry_run: bool = Field(
         ..., description="Whether to skip actual file writes and print planned actions"
@@ -2002,6 +2021,7 @@ def do_main(
 
     ctx: BiContext = BiContext(
         dataset_home=dataset_home,
+        inject_mode=InjectMode.REPROSTIM,
         dry_run=dry_run,
         recursive=recursive,
         match=match,
