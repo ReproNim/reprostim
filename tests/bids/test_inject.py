@@ -20,9 +20,12 @@ from click.testing import CliRunner
 
 from reprostim.__about__ import __version__
 from reprostim.bids.inject import (
+    _BASIC_COLS,
+    _QR_COLS,
     _REPROSTIM_COLS,
     DATALAD_FUSE_AVAILABLE,
     BiContext,
+    InjectMode,
     MediaSuffix,
     ScanMetadata,
     ScanRecord,
@@ -1131,6 +1134,22 @@ def test_do_inject_scans_json_creates_when_missing(tmp_path):
     assert any("Created" in line for line in out)
 
 
+def test_do_inject_scans_json_qr_mode_uses_qr_sample(tmp_path):
+    """With inject_mode=QR, scans.json is created from base + qr columns."""
+    ctx = BiContext(
+        dataset_home=str(tmp_path),
+        inject_mode=InjectMode.QR,
+        dry_run=False,
+        recursive=False,
+    )
+
+    _do_inject_scans_json(ctx)
+
+    created = json.loads((tmp_path / "scans.json").read_text())
+    assert created == _load_default_scans_json(InjectMode.QR)
+    assert not set(_REPROSTIM_COLS) & set(created)
+
+
 def test_do_inject_scans_json_noop_when_all_fields_present(tmp_path):
     """scans.json already has every default field -> left byte-for-byte untouched."""
     scans_json = tmp_path / "scans.json"
@@ -2111,6 +2130,137 @@ def test_save_scans_model_reprostim_cols_order(tmp_path):
     assert max(non_reprostim) < min(reprostim_positions)
 
 
+def test_unfilled_reprostim_cols_default_na_and_roundtrip(tmp_path):
+    """isotime/video columns are written as n/a, parsed back as None and round-trip
+    values."""
+    cols = _REPROSTIM_COLS[4:]
+    assert cols[0] == "reprostim_isotime_start" and cols[-1] == "video_framecount"
+    model = _make_scans_model(tmp_path)
+    _save_scans_model(model)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert all(r[c] == "n/a" for r in rows for c in cols)
+
+    parsed = _parse_scans_model(model.path)
+    assert all(getattr(r, c) is None for r in parsed.records for c in cols)
+
+    rec = parsed.records[0]
+    rec.reprostim_isotime_start = "2026-01-01T12:00:00"
+    rec.video_framecount = 615
+    _save_scans_model(parsed)
+    again = _parse_scans_model(model.path).records[0]
+    assert again.reprostim_isotime_start == "2026-01-01T12:00:00"
+    assert again.video_framecount == 615
+
+
+def test_qr_cols_not_written_by_bids_inject(tmp_path):
+    """qr_* columns belong to bids-qr-inject: bids-inject doesn't add them."""
+    assert not set(_QR_COLS) & set(_REPROSTIM_COLS)
+    model = _make_scans_model(tmp_path)
+    _save_scans_model(model)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        fieldnames = list(csv.DictReader(f, delimiter="\t").fieldnames or [])
+    assert not set(_QR_COLS) & set(fieldnames)
+
+
+def test_existing_qr_cols_preserved(tmp_path):
+    """qr_* columns already present in _scans.tsv are kept as-is on save."""
+    model = _make_scans_model(
+        tmp_path,
+        extra_header="\tqr_count\tqr_first_trigger_offset",
+        extra_values="\t3\t1.5",
+    )
+    assert model.records[0].extra["qr_count"] == "3"
+    model.records[0].reprostim_path = "video1.mkv"
+    _save_scans_model(model)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert rows[0]["qr_count"] == "3"
+    assert rows[0]["qr_first_trigger_offset"] == "1.5"
+    assert rows[0]["reprostim_path"] == "video1.mkv"
+
+
+def test_qr_mode_parse_manages_qr_cols_only(tmp_path):
+    """In QR mode qr_* cols are managed, reprostim_* cols kept in extra."""
+    model = _make_scans_model(
+        tmp_path,
+        extra_header="\treprostim_path\tqr_count",
+        extra_values="\tvideo1.mkv\t3",
+    )
+    qr_model = _parse_scans_model(model.path, InjectMode.QR)
+    rec = qr_model.records[0]
+    assert rec.qr_count == 3
+    assert "qr_count" not in rec.extra
+    assert rec.extra["reprostim_path"] == "video1.mkv"
+
+
+def test_qr_mode_save_writes_qr_cols_and_preserves_reprostim(tmp_path):
+    """QR mode fills qr_* cols, leaves reprostim_* values untouched."""
+    tsv_model = _make_scans_model(
+        tmp_path,
+        extra_header="\treprostim_path\treprostim_offset",
+        extra_values="\tvideo1.mkv\t560.3",
+    )
+    model = _parse_scans_model(tsv_model.path, InjectMode.QR)
+    rec = model.records[0]
+    rec.qr_count = 5
+    rec.qr_first_trigger_offset = 2.25
+    # setting a reprostim field in QR mode must have no effect on output
+    rec.reprostim_path = "other.mkv"
+    _save_scans_model(model, InjectMode.QR)
+
+    with open(model.path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+    assert set(_QR_COLS) <= set(fieldnames)
+    assert rows[0]["qr_count"] == "5"
+    assert rows[0]["qr_first_trigger_offset"] == "2.25"
+    assert rows[0]["qr_first_trigger_abstime"] == "n/a"
+    assert rows[0]["reprostim_path"] == "video1.mkv"
+    assert rows[0]["reprostim_offset"] == "560.3"
+    # QR mode doesn't add reprostim_* cols that weren't there
+    assert "reprostim_buffer_before" not in fieldnames
+
+
+def test_reprostim_mode_ignores_qr_field_changes(tmp_path):
+    """REPROSTIM mode doesn't write qr_* from record fields (extra wins)."""
+    model = _make_scans_model(tmp_path, extra_header="\tqr_count", extra_values="\t3")
+    model.records[0].qr_count = 99
+    _save_scans_model(model, InjectMode.REPROSTIM)
+    with open(model.path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert rows[0]["qr_count"] == "3"
+
+
+def test_load_default_scans_json_base_and_reprostim_only():
+    """Default scans.json = base + bids-inject columns, without qr_* ones."""
+    default = _load_default_scans_json()
+    assert set(_BASIC_COLS) <= set(default)
+    assert set(_REPROSTIM_COLS) <= set(default)
+    assert not set(_QR_COLS) & set(default)
+
+
+def test_load_default_scans_json_reprostim_mode_explicit():
+    """Explicit REPROSTIM mode matches the default (base + reprostim)."""
+    assert _load_default_scans_json(InjectMode.REPROSTIM) == (
+        _load_default_scans_json()
+    )
+
+
+def test_load_default_scans_json_qr_mode():
+    """QR mode = base + bids-qr-inject columns, without reprostim_* ones."""
+    default = _load_default_scans_json(InjectMode.QR)
+    assert set(_BASIC_COLS) <= set(default)
+    assert set(_QR_COLS) <= set(default)
+    assert not set(_REPROSTIM_COLS) & set(default)
+
+
+def test_load_default_scans_json_accepts_str_mode():
+    """Mode may be passed as its string value."""
+    assert _load_default_scans_json("qr") == _load_default_scans_json(InjectMode.QR)
+
+
 def test_save_scans_model_unix_line_endings(tmp_path):
     """Saved file uses Unix line endings (LF only, no CR)."""
     model = _make_scans_model(tmp_path)
@@ -2293,7 +2443,8 @@ def test_scans_tsv_media_row_not_reprocessed_as_acquisition(tmp_path):
     assert call_count == 1, "split-video should run once, not once per revisit"
 
     media = _tsv_rows(scans_tsv)[_TASK_REST_OUTPUT_MKV]
-    for col in _REPROSTIM_COLS:
+    # the isotime/video_* columns (_REPROSTIM_COLS[4:]) are not filled yet (n/a)
+    for col in _REPROSTIM_COLS[:4]:
         assert media[col] != "n/a", f"{col} was wiped — media row got reprocessed"
 
 

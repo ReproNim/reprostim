@@ -56,6 +56,19 @@ logger.debug(
 ####################################################################
 
 
+class InjectMode(str, Enum):
+    """Injection mode selecting which kind of data is injected into BIDS.
+
+    - ``REPROSTIM``: inject ReproStim media (video/audio) slices and their
+      ``_scans.tsv`` rows (``bids-inject``).
+    - ``QR``: inject QR code-based timing metadata into the ReproStim media
+      rows (``bids-qr-inject``).
+    """
+
+    REPROSTIM = "reprostim"
+    QR = "qr"
+
+
 class BufferPolicy(str, Enum):
     """Policy for handling buffer overflow beyond video boundaries."""
 
@@ -168,6 +181,12 @@ class BiContext(BaseModel):
         default=".",
         description="Home directory of the BIDS dataset being injected into "
         "(e.g. contains scans.json). Defaults to the current directory.",
+    )
+    inject_mode: InjectMode = Field(
+        default=InjectMode.REPROSTIM,
+        description="Injection mode: 'reprostim' injects ReproStim media "
+        "slices and their _scans.tsv rows, 'qr' injects QR code-based "
+        "timing metadata into the ReproStim media rows.",
     )
     dry_run: bool = Field(
         ..., description="Whether to skip actual file writes and print planned actions"
@@ -374,6 +393,28 @@ class ScanRecord(BaseModel):
         default=None,
         description="Actual buffer appended after scan end, in seconds.",
     )
+    qr_count: Optional[int] = Field(
+        default=None,
+        description="Number of unique QR code records found in the recording.",
+    )
+    qr_first_trigger_offset: Optional[float] = Field(
+        default=None,
+        description="Seconds from the recording start to the QR code with the "
+        "first 'trigger' event.",
+    )
+    qr_first_trigger_abstime: Optional[str] = Field(
+        default=None,
+        description="Clock time (no date) parsed from the QR code when the "
+        "first 'trigger' event was received.",
+    )
+    reprostim_isotime_start: Optional[str] = Field(
+        default=None,
+        description="ISO 8601 time of the original video file the recording "
+        "was cut from.",
+    )
+    video_framecount: Optional[int] = Field(
+        default=None, description="Number of video frames."
+    )
 
 
 class ScansModel(BaseModel):
@@ -405,7 +446,32 @@ _REPROSTIM_COLS = [
     "reprostim_offset",
     "reprostim_buffer_before",
     "reprostim_buffer_after",
+    "reprostim_isotime_start",
+    "video_framecount",
 ]
+
+_QR_COLS = [
+    "qr_count",
+    "qr_first_trigger_offset",
+    "qr_first_trigger_abstime",
+]
+
+
+def _get_mode_cols(inject_mode: InjectMode) -> List[str]:
+    """Return the ordered annotation columns owned by *inject_mode*.
+
+    :param inject_mode: Injection mode (or its string value).
+    :type inject_mode: InjectMode
+    :returns: Ordered list of ``_scans.tsv`` column names filled by the mode.
+    :rtype: List[str]
+    """
+
+    _cols_map = {
+        InjectMode.REPROSTIM: _REPROSTIM_COLS,
+        InjectMode.QR: _QR_COLS,
+    }
+
+    return _cols_map[InjectMode(inject_mode)]
 
 
 def _parse_bids_float(value: Optional[str]) -> Optional[float]:
@@ -418,6 +484,16 @@ def _parse_bids_float(value: Optional[str]) -> Optional[float]:
     :rtype: Optional[float]
     """
     return float(value) if value and value != "n/a" else None
+
+
+def _parse_bids_int(value: Optional[str]) -> Optional[int]:
+    """Parse an optional TSV cell as int, returning ``None`` for ``'n/a'`` or absent.
+
+    :param value: Raw cell string, or ``None`` if the column is absent.
+    :returns: Parsed integer, or ``None``.
+    :rtype: Optional[int]
+    """
+    return int(value) if value and value != "n/a" else None
 
 
 def _parse_bids_str(value: Optional[str]) -> Optional[str]:
@@ -635,7 +711,9 @@ def _parse_scan_metadata(
     )
 
 
-def _parse_scans_model(path: str) -> ScansModel:
+def _parse_scans_model(
+    path: str, inject_mode: InjectMode = InjectMode.REPROSTIM
+) -> ScansModel:
     """Parse a ``*_scans.tsv`` file and return a :class:`ScansData` instance.
 
     Reads a tab-separated BIDS scans file. The columns ``filename`` and
@@ -644,8 +722,16 @@ def _parse_scans_model(path: str) -> ScansModel:
     computed once here, from its raw ``filename``, via
     :func:`_calc_scan_record_kind`.
 
+    Annotation columns owned by *inject_mode* (see :func:`_get_mode_cols`)
+    are managed by the model and excluded from :attr:`ScanRecord.extra`;
+    all other non-basic columns, including those owned by other modes, are
+    kept verbatim in :attr:`ScanRecord.extra` so they round-trip unchanged.
+
     :param path: Absolute or relative path to a ``*_scans.tsv`` file.
     :type path: str
+    :param inject_mode: Injection mode whose annotation columns are managed.
+        Defaults to :attr:`InjectMode.REPROSTIM`.
+    :type inject_mode: InjectMode
     :returns: Parsed scans data containing the file path and one
         :class:`ScanRecord` per data row.
     :rtype: ScansModel
@@ -653,7 +739,7 @@ def _parse_scans_model(path: str) -> ScansModel:
     :raises KeyError: If a required column (``filename`` or ``acq_time``) is
         missing from the TSV header.
     """
-    _known = set(_BASIC_COLS) | set(_REPROSTIM_COLS)
+    _known = set(_BASIC_COLS) | set(_get_mode_cols(inject_mode))
 
     records: List[ScanRecord] = []
     raw_content: Optional[str] = None
@@ -678,20 +764,36 @@ def _parse_scans_model(path: str) -> ScansModel:
                 reprostim_buffer_after=_parse_bids_float(
                     row.get("reprostim_buffer_after")
                 ),
+                qr_count=_parse_bids_int(row.get("qr_count")),
+                qr_first_trigger_offset=_parse_bids_float(
+                    row.get("qr_first_trigger_offset")
+                ),
+                qr_first_trigger_abstime=_parse_bids_str(
+                    row.get("qr_first_trigger_abstime")
+                ),
+                reprostim_isotime_start=_parse_bids_str(
+                    row.get("reprostim_isotime_start")
+                ),
+                video_framecount=_parse_bids_int(row.get("video_framecount")),
             )
         )
     logger.debug(f"Parsed {len(records)} scan records from: {path}")
     return ScansModel(path=path, records=records, orig_content=raw_content)
 
 
-def _save_scans_model(model: ScansModel) -> None:
+def _save_scans_model(
+    model: ScansModel, inject_mode: InjectMode = InjectMode.REPROSTIM
+) -> None:
     """Write :class:`ScansModel` records back to the ``*_scans.tsv`` file.
 
     Derives column order from the already-parsed model data: ``filename`` and
     ``acq_time`` first, then any extra columns (in their original order from
-    :attr:`ScanRecord.extra`), then ``reprostim_*`` annotation columns from
-    :data:`_REPROSTIM_COLS` appended on the right.  ``None`` field values are
-    serialised as ``'n/a'`` via :func:`_format_bids_str`.
+    :attr:`ScanRecord.extra`), then the annotation columns owned by
+    *inject_mode* (see :func:`_get_mode_cols`) appended on the right.  Only
+    the owned columns are written from :class:`ScanRecord` fields; columns
+    owned by other modes are written verbatim from :attr:`ScanRecord.extra`.
+    ``None`` field values are serialised as ``'n/a'`` via
+    :func:`_format_bids_str`.
 
     The content is serialised in memory first and compared against
     :attr:`ScansModel.orig_content`; if identical, the write is skipped
@@ -704,11 +806,16 @@ def _save_scans_model(model: ScansModel) -> None:
     :param model: Scans model to persist.  :attr:`~ScansModel.path` must be
         writable, or removable if it is a read-only git-annex symlink.
     :type model: ScansModel
+    :param inject_mode: Injection mode whose annotation columns are written
+        from record fields. Must match the mode the model was parsed with.
+        Defaults to :attr:`InjectMode.REPROSTIM`.
+    :type inject_mode: InjectMode
     """
+    mode_cols = _get_mode_cols(inject_mode)
     # Derive extra column names from the first record (order preserved by dict).
     extra_cols = list(model.records[0].extra.keys()) if model.records else []
     fieldnames = (
-        _BASIC_COLS + extra_cols + [c for c in _REPROSTIM_COLS if c not in extra_cols]
+        _BASIC_COLS + extra_cols + [c for c in mode_cols if c not in extra_cols]
     )
 
     rows = []
@@ -718,10 +825,7 @@ def _save_scans_model(model: ScansModel) -> None:
             "acq_time": record.acq_time,
             "duration": _format_bids_str(record.duration),
             **record.extra,
-            "reprostim_path": _format_bids_str(record.reprostim_path),
-            "reprostim_offset": _format_bids_str(record.reprostim_offset),
-            "reprostim_buffer_before": _format_bids_str(record.reprostim_buffer_before),
-            "reprostim_buffer_after": _format_bids_str(record.reprostim_buffer_after),
+            **{c: _format_bids_str(getattr(record, c)) for c in mode_cols},
         }
         rows.append(row)
 
@@ -1376,7 +1480,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 f"QR mode '{ctx.qr.value}' is not implemented yet. "
                 f"Only '{QrMode.NONE.value}' is currently supported."
             )
-        scans: ScansModel = _parse_scans_model(path)
+        scans: ScansModel = _parse_scans_model(path, ctx.inject_mode)
         for sr in scans.records:
             if sr.kind.is_reprostim_media:
                 # Dedicated media rows (Output D) are never treated as
@@ -1395,10 +1499,8 @@ def _do_inject_scans(ctx: BiContext, path: str):
             # Unconditionally migrate/reset this acquisition row's reprostim_*
             # annotation to n/a, regardless of --match or the outcome below —
             # see inject-spec.md Output D / "Migration from the pre-#276 layout".
-            sr.reprostim_path = None
-            sr.reprostim_offset = None
-            sr.reprostim_buffer_before = None
-            sr.reprostim_buffer_after = None
+            for c in _REPROSTIM_COLS:
+                setattr(sr, c, None)
 
             if re.search(ctx.match, sr.filename):
                 ctx.summary.n_processed += 1
@@ -1473,7 +1575,7 @@ def _do_inject_scans(ctx: BiContext, path: str):
                 ctx.summary.n_skipped += 1
         if not ctx.dry_run:
             scans.records.sort(key=lambda r: dt_parse_bids(r.acq_time))
-            _save_scans_model(scans)
+            _save_scans_model(scans, ctx.inject_mode)
     else:
         logger.warning(f"Skipping non-_scans.tsv file: {path}")
 
@@ -1506,21 +1608,46 @@ def _do_inject_dir(ctx: BiContext, path: str):
             _do_inject_dir(ctx, entry.path)
 
 
-def _load_default_scans_json() -> dict:
+def _load_default_scans_json(
+    inject_mode: InjectMode = InjectMode.REPROSTIM,
+) -> dict:
     """Load the packaged default BIDS ``scans.json`` data-dictionary sample.
 
-    :returns: Parsed contents of ``assets/bids/scans.json``.
+    The sample is assembled by merging packaged parts from ``assets/bids/``
+    in order: ``scans_base.json`` (external columns) followed by the part
+    for ``inject_mode``:
+
+    - :attr:`InjectMode.REPROSTIM`: ``scans_reprostim.json``
+      (``bids-inject`` columns).
+    - :attr:`InjectMode.QR`: ``scans_qr.json`` (``bids-qr-inject`` columns).
+
+    Later parts override same-named fields from earlier ones.
+
+    :param inject_mode: Injection mode selecting which columns to merge on
+        top of the base part. Defaults to :attr:`InjectMode.REPROSTIM`.
+    :type inject_mode: InjectMode
+    :returns: Merged scans.json data dictionary.
     :rtype: dict
     """
-    text = (files("reprostim") / "assets" / "bids" / "scans.json").read_text()
-    return json.loads(text)
+
+    mode_parts = {
+        InjectMode.REPROSTIM: "scans_reprostim.json",
+        InjectMode.QR: "scans_qr.json",
+    }
+    parts = ["scans_base.json", mode_parts[InjectMode(inject_mode)]]
+
+    assets_dir = files("reprostim") / "assets" / "bids"
+    merged: dict = {}
+    for name in parts:
+        merged.update(json.loads((assets_dir / name).read_text()))
+    return merged
 
 
 def _do_inject_scans_json(ctx: BiContext) -> None:
     """Ensure ``<dataset_home>/scans.json`` exists and has every default field.
 
     Compares ``<dataset_home>/scans.json`` against the packaged default
-    sample (``assets/bids/scans.json``):
+    sample for ``ctx.inject_mode`` (see :func:`_load_default_scans_json`):
 
     - If ``scans.json`` doesn't exist yet, it is created from the default
       sample verbatim.
@@ -1535,12 +1662,13 @@ def _do_inject_scans_json(ctx: BiContext) -> None:
     as an error (via ``ctx.summary``) and left untouched rather than
     overwritten or raised as an exception.
 
-    :param ctx: Processing context; uses ``ctx.dataset_home``, ``ctx.dry_run``,
-        ``ctx.out_func``, and ``ctx.summary``.
+    :param ctx: Processing context; uses ``ctx.dataset_home``,
+        ``ctx.inject_mode``, ``ctx.dry_run``, ``ctx.out_func``, and
+        ``ctx.summary``.
     :type ctx: BiContext
     """
     scans_json_path = os.path.join(ctx.dataset_home, "scans.json")
-    default = _load_default_scans_json()
+    default = _load_default_scans_json(ctx.inject_mode)
 
     if not os.path.isfile(scans_json_path):
         if ctx.dry_run:
@@ -1940,6 +2068,7 @@ def do_main(
 
     ctx: BiContext = BiContext(
         dataset_home=dataset_home,
+        inject_mode=InjectMode.REPROSTIM,
         dry_run=dry_run,
         recursive=recursive,
         match=match,

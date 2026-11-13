@@ -49,6 +49,7 @@ Main Python package with CLI tools and analysis utilities.
   - `cmd_split_video.py` - Split/slice videos to specific time ranges (see [video/split-spec.md](video/split-spec.md))
   - `cmd_bids_inject.py` - Inject sliced videos into a BIDS dataset aligned to scan timing (see [bids/inject-spec.md](bids/inject-spec.md))
   - `cmd_bids_inject_sidecar.py` - *(basic logic implemented)* Extract BIDS media-file metadata and write/update `.json` sidecars for audio/video files (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
+  - `cmd_bids_qr_inject.py` - *(spec only, not implemented)* Inject QR-code data decoded from the injected ReproStim media into the BIDS dataset: extra `_scans.tsv` media-row columns, a `_events.tsv`-like file with one row per QR code, `events.json` (see [bids/qr-inject-spec.md](bids/qr-inject-spec.md), [bids/qr-inject-tasks.md](bids/qr-inject-tasks.md))
   - `cmd_echo.py` - Simple echo command for testing
 
 - **schemas/** - LinkML schemas shipped in the wheel (`reprostim/schemas/*.yaml`):
@@ -86,6 +87,7 @@ Main Python package with CLI tools and analysis utilities.
     per-file logic implemented (`ffprobe`-only extraction, `--add` merge, `update`/`replace`
     modes, conflict resolution, `--dry-run`, summary) — `--videos`/`videos.tsv` cache lookup and
     `--add` declared-type casting still not implemented (see [bids/inject-sidecar-spec.md](bids/inject-sidecar-spec.md), [bids/inject-sidecar-tasks.md](bids/inject-sidecar-tasks.md))
+  - `qr_inject.py` - *(spec only, not implemented)* Core logic of `bids-qr-inject` (issue #275): consumes `qr-parse` `QrRecord`s of the media rows injected by `bids-inject`; will reuse the `_scans.tsv` model of `inject.py` (see [bids/qr-inject-spec.md](bids/qr-inject-spec.md), [bids/qr-inject-tasks.md](bids/qr-inject-tasks.md))
   - `media.py` - *(stub)* Shared BIDS media-file enums (`BidsMediaType`, `AudioFormat`/`VideoFormat`/`ImageFormat`, `BidsMediaProperty`, `BidsMediaCodec`), data models (`BidsMediaInfo`), and path-parsing (`parse_bids_media_info`) per BEP044/media-files (see [bids/media-spec.md](bids/media-spec.md), [bids/media-tasks.md](bids/media-tasks.md))
   - `properties.py` - `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping (`bids_properties_from_audio_video_info`, `bids_properties_from_ffprobe`, `bids_properties_from_split_result` — the latter moved here from `video/split.py::_to_bids_model`); wired into both `bids/inject.py` and `bids/inject_sidecar.py`. `VaRecord`-based/path-orchestrating entry points still TBD (see [bids/properties-spec.md](bids/properties-spec.md), [bids/properties-tasks.md](bids/properties-tasks.md))
 
