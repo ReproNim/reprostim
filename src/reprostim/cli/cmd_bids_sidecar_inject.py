@@ -88,7 +88,7 @@ logger = logging.getLogger(__name__)
     help="Enable verbose output.",
 )
 @click.pass_context
-def bids_inject_sidecar(
+def bids_sidecar_inject(
     ctx,
     files: tuple,
     videos: str,
@@ -106,9 +106,9 @@ def bids_inject_sidecar(
     replaced by ``.json``.
     """
 
-    from ..bids.inject_sidecar import do_main
+    from ..bids.sidecar_inject import do_main
 
-    logger.debug("bids_inject_sidecar(...)")
+    logger.debug("bids_sidecar_inject(...)")
     logger.debug(f"Working dir        : {os.getcwd()}")
     logger.info(f"FILES              : {files}")
     logger.info(f"videos.tsv         : {videos}")
@@ -135,12 +135,12 @@ def bids_inject_sidecar(
 
     elapsed_sec = round(time.time() - start_time_sec, 1)
     logger.debug(
-        f"Command 'bids-inject-sidecar' completed in {elapsed_sec} sec, "
+        f"Command 'bids-sidecar-inject' completed in {elapsed_sec} sec, "
         f"exit code {res}"
     )
     if verbose:
         click.echo(
-            f"Command 'bids-inject-sidecar' completed in {elapsed_sec} sec, "
+            f"Command 'bids-sidecar-inject' completed in {elapsed_sec} sec, "
             f"exit code {res}"
         )
     if res:

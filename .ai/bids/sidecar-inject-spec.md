@@ -1,8 +1,8 @@
-# BIDS Inject Sidecar Tool Specification
+# BIDS Sidecar Inject Tool Specification
 
 ## Overview
 
-`bids-inject-sidecar` is a standalone, low-level CLI command that extracts BIDS media-file
+`bids-sidecar-inject` is a standalone, low-level CLI command that extracts BIDS media-file
 metadata (per the [BEP044/media-files proposal, bids-standard/bids-specification PR
 #2367](https://bids-specification--2367.org.readthedocs.build/en/2367/appendices/media-files.html))
 directly from one or more audio and/or video files and writes/updates the corresponding
@@ -23,7 +23,7 @@ Relevant to: https://github.com/ReproNim/reprostim/issues/14
 `bids_properties_from_video_audit`, falling back to `ffprobe` when there's no cache or no
 matching row), `--add` merge, `update`/`replace` write modes, and `error`/`overwrite` conflict
 resolution all work end-to-end. **Not yet implemented**: `--add` declared-type casting. See
-[inject-sidecar-tasks.md](inject-sidecar-tasks.md) for the detailed checklist.
+[sidecar-inject-tasks.md](sidecar-inject-tasks.md) for the detailed checklist.
 
 ---
 
@@ -40,7 +40,7 @@ standalone tool to:
 - Safely re-run metadata extraction against a batch of files with clear conflict-handling rules
   when a field's value changes between runs.
 
-`bids-inject-sidecar` fills this gap as a focused, composable primitive that other tools
+`bids-sidecar-inject` fills this gap as a focused, composable primitive that other tools
 (`bids-inject`, ad-hoc scripts, QA pipelines) can shell out to or import.
 
 ---
@@ -69,7 +69,7 @@ standalone tool to:
 ## CLI Interface
 
 ```
-reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
+reprostim bids-sidecar-inject [OPTIONS] FILE1 [FILE2 ...]
 ```
 
 ### Arguments
@@ -97,11 +97,11 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 
 > **Enum types (implemented):** `--mode` is backed by `OverwriteMode(str, Enum)`
 > (`REPLACE`/`UPDATE`) and `--existing-different` by `ConflictPolicy(str, Enum)`
-> (`ERROR`/`OVERWRITE`), both defined in `inject_sidecar.py` itself — scoped to this command only,
+> (`ERROR`/`OVERWRITE`), both defined in `sidecar_inject.py` itself — scoped to this command only,
 > not shared with `bids/inject.py`'s own (differently-scoped) `OverwriteMode` enum (existing-file
 > overwrite policy for `bids-inject`, values `SKIP`/`FORCE`/`ALWAYS`/`ERROR`). The two classes are
 > intentionally same-named but distinct, disambiguated by module (`reprostim.bids.inject.OverwriteMode`
-> vs. `reprostim.bids.inject_sidecar.OverwriteMode`). `BisContext` carries them as `mode` and
+> vs. `reprostim.bids.sidecar_inject.OverwriteMode`). `BsiContext` carries them as `mode` and
 > `conflict_policy` fields, alongside `videos_tsv`, `strict`, `dry_run`, `verbose`, and `out_func`
 > (all populated directly from `do_main`'s corresponding parameters — same field names/style as
 > `bids/inject.py::BiContext`).
@@ -110,31 +110,31 @@ reprostim bids-inject-sidecar [OPTIONS] FILE1 [FILE2 ...]
 
 ```shell
 # Extract + write a fresh sidecar for a single file (update mode, default)
-reprostim bids-inject-sidecar sub-01_task-rest_recording-reprostim_audiovideo.mkv
+reprostim bids-sidecar-inject sub-01_task-rest_recording-reprostim_audiovideo.mkv
 
 # Batch: process every recording in a session directory
-reprostim bids-inject-sidecar sub-01/ses-01/func/*_recording-reprostim_*.mkv
+reprostim bids-sidecar-inject sub-01/ses-01/func/*_recording-reprostim_*.mkv
 
 # Reuse cached video-audit metadata instead of re-running ffprobe
-reprostim bids-inject-sidecar --videos sourcedata/reprostim-reproiner/videos.tsv \
+reprostim bids-sidecar-inject --videos sourcedata/reprostim-reproiner/videos.tsv \
   sub-01/ses-01/func/sub-01_ses-01_recording-reprostim_audiovideo.mkv
 
 # Manually add/override fields not derivable from ffprobe
-reprostim bids-inject-sidecar \
+reprostim bids-sidecar-inject \
   --add DeviceSerialNumber=ABC12345 \
   --add RecordingDuration=3600 \
   sub-01_task-rest_recording-reprostim_audiovideo.mkv
 
 # Replace the sidecar entirely instead of merging
-reprostim bids-inject-sidecar --mode replace sub-01_task-rest_recording-reprostim_video.mkv
+reprostim bids-sidecar-inject --mode replace sub-01_task-rest_recording-reprostim_video.mkv
 
 # Allow overwriting a differing existing value (logs a warning per field)
-reprostim bids-inject-sidecar --existing-different overwrite \
+reprostim bids-sidecar-inject --existing-different overwrite \
   --add DeviceSerialNumber=NEWSERIAL01 \
   sub-01_task-rest_recording-reprostim_audiovideo.mkv
 
 # Dry-run: see what would be written without touching any file
-reprostim bids-inject-sidecar --dry-run sub-01/ses-01/func/*_recording-reprostim_*.mkv
+reprostim bids-sidecar-inject --dry-run sub-01/ses-01/func/*_recording-reprostim_*.mkv
 ```
 
 ---
@@ -256,8 +256,8 @@ On `error`, the file is skipped (counted as an error) and processing continues w
 
 ## `--add` Value Parsing (implemented: `_parse_ext_props`)
 
-`inject_sidecar.py::_parse_ext_props(add_meta: List[str]) -> Dict[str, Any]` parses every
-`--add` entry into `BisContext.ext_props`. Each entry is one of two forms:
+`sidecar_inject.py::_parse_ext_props(add_meta: List[str]) -> Dict[str, Any]` parses every
+`--add` entry into `BsiContext.ext_props`. Each entry is one of two forms:
 
 1. **A bare JSON object string** — e.g. `--add '{"AudioCodec": "aac", "AudioSampleRate": 48000}'`.
    Detected by attempting `json.loads(entry)` first; if it parses to a JSON *object*, its
@@ -299,7 +299,7 @@ range — see [Open Questions / TODOs](#open-questions--todos).
    file) on a malformed entry, since it applies identically to every file in the batch.
 
 2. [implemented] ctx.videos_tsv is stored from --videos as-is (no upfront index build in
-   inject_sidecar.py itself — index construction/caching happens lazily, inside
+   sidecar_inject.py itself — index construction/caching happens lazily, inside
    get_file_video_audit's own cache, the first time step 3.b.i below looks up a given
    videos_tsv path).
 
@@ -339,13 +339,13 @@ range — see [Open Questions / TODOs](#open-questions--todos).
 
 | File                                              | Purpose                                                                 |
 |----------------------------------------------------|--------------------------------------------------------------------------|
-| `src/reprostim/cli/cmd_bids_inject_sidecar.py`      | Click command definition (`bids-inject-sidecar`)                       |
-| `src/reprostim/bids/inject_sidecar.py`              | Core logic: per-file extraction, `--add` parsing, conflict resolution, JSON read/write |
+| `src/reprostim/cli/cmd_bids_sidecar_inject.py`      | Click command definition (`bids-sidecar-inject`)                       |
+| `src/reprostim/bids/sidecar_inject.py`              | Core logic: per-file extraction, `--add` parsing, conflict resolution, JSON read/write |
 | `src/reprostim/bids/media.py`                       | Shared BIDS media-field taxonomy: `BidsMediaType`/`BidsMediaProperty`/format/codec enums, `BidsMediaInfo`, `parse_bids_media_info` (see [media-spec.md](media-spec.md)) |
-| `src/reprostim/bids/properties.py`                  | `AudioInfo`/`VideoInfo`/`VaRecord` → BIDS-dict mapping (`bids_properties_from_ffprobe`, `bids_properties_from_video_audit`), factored out so both `split-video`/`bids-inject` and `bids-inject-sidecar` can share one source of truth (see [properties-spec.md](properties-spec.md)) — both wired into `_do_sidecar` |
+| `src/reprostim/bids/properties.py`                  | `AudioInfo`/`VideoInfo`/`VaRecord` → BIDS-dict mapping (`bids_properties_from_ffprobe`, `bids_properties_from_video_audit`), factored out so both `split-video`/`bids-inject` and `bids-sidecar-inject` can share one source of truth (see [properties-spec.md](properties-spec.md)) — both wired into `_do_sidecar` |
 
 > All three modules live under `src/reprostim/bids/`, along with `inject.py` (`bids-inject`'s own
-> core logic) — the package reorganization that started with `inject_sidecar.py`/`media.py`
+> core logic) — the package reorganization that started with `sidecar_inject.py`/`media.py`
 > continued with `inject.py` and now `properties.py`.
 
 Registered in `src/reprostim/cli/entrypoint.py` alongside other commands.
@@ -362,9 +362,9 @@ That existing logic is narrower in scope: it only ever writes a **fresh** sideca
 `split-video` itself just produced, with no notion of merging into or reconciling against a
 pre-existing sidecar.
 
-`bids-inject-sidecar` is the generalization of that logic to arbitrary existing files, with
+`bids-sidecar-inject` is the generalization of that logic to arbitrary existing files, with
 explicit merge/conflict semantics. Recommended (but out of scope for the initial
-`bids-inject-sidecar` implementation) follow-up work:
+`bids-sidecar-inject` implementation) follow-up work:
 
 1. **Done**: the BIDS field-name/type table lives in `bids/media.py` (`BidsMediaProperty`), and
    the `AudioInfo`/`VideoInfo`/`SplitResult` → BIDS-dict mapping in a separate
@@ -378,7 +378,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    `ImageWidth`/`ImageHeight` reconciled — `bids_properties_from_split_result` writes all four
    `Image*`-prefixed names (see [BIDS Media-File Metadata
    Fields](#bids-media-file-metadata-fields) note above).
-3. Have `split.py::_write_sidecar` optionally delegate to `bids-inject-sidecar`'s
+3. Have `split.py::_write_sidecar` optionally delegate to `bids-sidecar-inject`'s
    `update`-mode writer instead of its own `_write_sidecar`, once the merge semantics are proven.
 
 ---
@@ -442,7 +442,7 @@ explicit merge/conflict semantics. Recommended (but out of scope for the initial
    Algorithm step 3.b.i above, via `bids_properties_from_video_audit`/`get_file_video_audit`), but
    whether a plain resolved-path match is sufficient, vs. `bids-inject`'s time-range matching
    (`find_video_audit_by_timerange`), hasn't been separately confirmed — still open, see
-   [inject-sidecar-tasks.md](inject-sidecar-tasks.md).
+   [sidecar-inject-tasks.md](sidecar-inject-tasks.md).
 6. **`--dry-run` / `-v` options** — **implemented and kept**: both work as designed
    (`--dry-run` prints the planned field set without writing; `-v/--verbose` reports per-field
    merge/conflict/write detail via `_verbose`).

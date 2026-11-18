@@ -39,7 +39,7 @@ The correct pattern is `ctx.exit(res)`, which raises `click.exceptions.Exit`
 | `cmd_qr_parse.py` | `return res` | `ctx.exit(res)` |
 | `cmd_split_video.py` | `return res` | `ctx.exit(res)` |
 | `cmd_timesync_stimuli.py` | `return -1` (on `do_init` failure) and `return res` (final) | `ctx.exit(1)` and `ctx.exit(res)` |
-| `cmd_bids_inject_sidecar.py` | already `ctx.exit(res)` | unchanged |
+| `cmd_bids_sidecar_inject.py` | already `ctx.exit(res)` | unchanged |
 | `cmd_video_audit.py` | already `ctx.exit(1)` / `ctx.exit(rv)` | unchanged |
 | `cmd_detect_noscreen.py` | `_main_exit()` helper already calls `sys.exit(code)` directly (the `return code` after it is dead code, but harmless — `sys.exit` raises before it's reached) | unchanged |
 | `cmd_echo.py` | no error path (always succeeds) | unchanged |

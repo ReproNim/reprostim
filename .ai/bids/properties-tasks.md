@@ -66,8 +66,8 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
   - [x] `"n/a"`/unparseable fields omitted, not raised or written as `"n/a"`
   - [x] Accepts the standard `props` accumulation parameter (unlike
         `bids_properties_from_split_result`)
-  - [ ] **Not wired up to any consumer yet** — `bids-inject-sidecar`'s `--videos` cache-lookup
-        path doesn't call it (see inject-sidecar-tasks.md)
+  - [ ] **Not wired up to any consumer yet** — `bids-sidecar-inject`'s `--videos` cache-lookup
+        path doesn't call it (see sidecar-inject-tasks.md)
 - [x] `parse_audio_sr(audio_sr: Optional[str]) -> dict` — **moved to `video/audit.py`** (public)
       from `video/split.py::_parse_audio_info` (private); same implementation. Used by
       `bids_properties_from_video_audit` here, and by `video/split.py::_split_video` (building
@@ -82,7 +82,7 @@ it locally; its own tests moved from `tests/qr/test_split_video.py` to
       props=sidecar_metadata)`; `sidecar_metadata` now also carries the other mappable
       properties (`AudioCodec`, `RecordingDuration`, etc.) that `bids_properties_from_split_result`
       doesn't currently read, harmlessly unused
-- [ ] Wire into `bids/inject_sidecar.py::_do_sidecar` (currently calls `parse_bids_media_info`
+- [ ] Wire into `bids/sidecar_inject.py::_do_sidecar` (currently calls `parse_bids_media_info`
       only, not this module)
 - [x] `bids_properties_from_split_result(sr, sidecar_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]`
       — **moved here from `split_video.py::_to_bids_model`** (not just naming-compatible
@@ -232,8 +232,8 @@ or the spec's Layering section), not here.
       whether it should try `bids_properties_from_video_audit` first and fall back to
       `bids_properties_from_ffprobe`, or always call both and let `props` accumulation semantics
       (call-order priority) decide
-- [ ] `bids_properties_from_video_audit` not wired into any consumer yet — `bids-inject-sidecar`'s
-      `--videos`/`ctx.videos_tsv` is accepted but not consulted (see inject-sidecar-tasks.md)
+- [ ] `bids_properties_from_video_audit` not wired into any consumer yet — `bids-sidecar-inject`'s
+      `--videos`/`ctx.videos_tsv` is accepted but not consulted (see sidecar-inject-tasks.md)
 - [x] `VideoFrameCount` source — resolved: `VideoInfo.frame_count` added to `video_audit.py`
 - [ ] `bids_properties_from_ffprobe` doesn't expose `count_frames` (from
       `get_audio_video_info_ffprobe`'s new param) — callers can't request the exact/slower

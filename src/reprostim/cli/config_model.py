@@ -191,9 +191,9 @@ class ReprostimConfig(ConfiguredBaseModel):
         description="""Options of the \"bids-inject\" command (config section \"bids_inject\").""",
         json_schema_extra={"linkml_meta": {"domain_of": ["ReprostimConfig"]}},
     )
-    bids_inject_sidecar: Optional[Any] = Field(
+    bids_sidecar_inject: Optional[Any] = Field(
         default=None,
-        description="""Options of the \"bids-inject-sidecar\" command (schema TBD, any content allowed).""",
+        description="""Options of the \"bids-sidecar-inject\" command (schema TBD, any content allowed).""",
         json_schema_extra={"linkml_meta": {"domain_of": ["ReprostimConfig"]}},
     )
     detect_noscreen: Optional[Any] = Field(

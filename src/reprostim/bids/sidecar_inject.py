@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 """
-Core logic for bids-inject-sidecar: extract BIDS media-file metadata from
+Core logic for bids-sidecar-inject: extract BIDS media-file metadata from
 audio/video files and write or update their ``.json`` sidecars.
 """
 
@@ -27,7 +27,7 @@ logger.debug(f"name={__name__}")
 
 
 class OverwriteMode(str, Enum):
-    """Sidecar JSON write mode for bids-inject-sidecar's ``--mode`` option."""
+    """Sidecar JSON write mode for bids-sidecar-inject's ``--mode`` option."""
 
     REPLACE = "replace"
     """Overwrite the entire sidecar with only the freshly extracted/added
@@ -38,7 +38,7 @@ class OverwriteMode(str, Enum):
 
 
 class ConflictPolicy(str, Enum):
-    """Policy for bids-inject-sidecar's ``--existing-different`` option: how
+    """Policy for bids-sidecar-inject's ``--existing-different`` option: how
     to handle a field that already exists in the sidecar with a different,
     non-``n/a`` value."""
 
@@ -48,8 +48,8 @@ class ConflictPolicy(str, Enum):
     """Log a warning and proceed with the new value."""
 
 
-class BisContext(BaseModel):
-    """Context for bids-inject-sidecar processing of scan records."""
+class BsiContext(BaseModel):
+    """Context for bids-sidecar-inject processing of scan records."""
 
     mode: OverwriteMode = Field(
         default=OverwriteMode.UPDATE,
@@ -141,7 +141,7 @@ def _parse_ext_props(add_meta: List[str]) -> Dict[str, Any]:
     return props
 
 
-def _error(ctx: BisContext, msg: str) -> None:
+def _error(ctx: BsiContext, msg: str) -> None:
     """Log *msg* as an error and report it via ``ctx.out_func``, if set.
 
     Shared by every per-file processing function in this module as the
@@ -151,7 +151,7 @@ def _error(ctx: BisContext, msg: str) -> None:
     False``.
 
     :param ctx: Processing context (used for ``out_func``).
-    :type ctx: BisContext
+    :type ctx: BsiContext
     :param msg: Human-readable error message.
     :type msg: str
     """
@@ -160,14 +160,14 @@ def _error(ctx: BisContext, msg: str) -> None:
         ctx.out_func(f"Error: {msg}")
 
 
-def _verbose(ctx: BisContext, msg: str) -> None:
+def _verbose(ctx: BsiContext, msg: str) -> None:
     """Log *msg* at debug level and, when ``ctx.verbose`` is set, also
     report it via ``ctx.out_func``.
 
     Mirrors :func:`_error` for non-fatal, verbose-only diagnostic output.
 
     :param ctx: Processing context (used for ``verbose``/``out_func``).
-    :type ctx: BisContext
+    :type ctx: BsiContext
     :param msg: Human-readable message.
     :type msg: str
     """
@@ -176,7 +176,7 @@ def _verbose(ctx: BisContext, msg: str) -> None:
         ctx.out_func(msg)
 
 
-def _warn(ctx: BisContext, msg: str) -> None:
+def _warn(ctx: BsiContext, msg: str) -> None:
     """Log *msg* at info level and report it via ``ctx.out_func``, if set.
 
     Used for non-strict-mode diagnostics that are notable but not fatal for
@@ -184,7 +184,7 @@ def _warn(ctx: BisContext, msg: str) -> None:
     is called. Mirrors :func:`_error`, at a lower severity.
 
     :param ctx: Processing context (used for ``out_func``).
-    :type ctx: BisContext
+    :type ctx: BsiContext
     :param msg: Human-readable message.
     :type msg: str
     """
@@ -193,7 +193,7 @@ def _warn(ctx: BisContext, msg: str) -> None:
         ctx.out_func(f"Warn: {msg}")
 
 
-def _do_sidecar(ctx: BisContext, path: str) -> bool:
+def _do_sidecar(ctx: BsiContext, path: str) -> bool:
     """Extract BIDS media-file metadata for *path* and write/update its
     sidecar JSON.
 
@@ -207,7 +207,7 @@ def _do_sidecar(ctx: BisContext, path: str) -> bool:
     overrides) is merged on top.
 
     :param ctx: Processing context (mode, conflict policy, ext_props, etc.)
-    :type ctx: BisContext
+    :type ctx: BsiContext
     :param path: Path to the audio/video file.
     :type path: str
     :return: ``True`` on success (sidecar written, or dry-run computed
@@ -298,11 +298,11 @@ def _do_sidecar(ctx: BisContext, path: str) -> bool:
     return True
 
 
-def _do_sidecar_all(ctx: BisContext, files: List[str]) -> int:
+def _do_sidecar_all(ctx: BsiContext, files: List[str]) -> int:
     """Process every path in *files*, writing/updating its sidecar.
 
     :param ctx: Processing context.
-    :type ctx: BisContext
+    :type ctx: BsiContext
     :param files: Audio/video file paths to process.
     :type files: List[str]
     :return: Number of files that errored (invalid path, or a failure
@@ -331,7 +331,7 @@ def do_main(
     verbose: bool,
     out_func: Callable,
 ) -> int:
-    """Main entry point for the bids-inject-sidecar command.
+    """Main entry point for the bids-sidecar-inject command.
 
     For each file in ``files``, extracts BIDS media-file metadata (see
     :func:`_do_sidecar`: prefers the ``videos.tsv`` cache via
@@ -378,7 +378,7 @@ def do_main(
             out_func(f"Error: {e}")
         return 1
 
-    ctx: BisContext = BisContext(
+    ctx: BsiContext = BsiContext(
         mode=OverwriteMode(mode),
         conflict_policy=ConflictPolicy(existing_different),
         videos_tsv=videos,

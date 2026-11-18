@@ -190,7 +190,8 @@ def main(ctx, log_level: str, log_format):
 
 # Import all CLI commands
 from .cmd_bids_inject import bids_inject  # noqa: E402
-from .cmd_bids_inject_sidecar import bids_inject_sidecar  # noqa: E402
+from .cmd_bids_qr_inject import bids_qr_inject  # noqa: E402
+from .cmd_bids_sidecar_inject import bids_sidecar_inject  # noqa: E402
 from .cmd_detect_noscreen import detect_noscreen  # noqa: E402
 from .cmd_echo import echo  # noqa: E402
 from .cmd_list_displays import list_displays  # noqa: E402
@@ -211,7 +212,8 @@ __all_commands__ = (
     video_audit,
     split_video,
     bids_inject,
-    bids_inject_sidecar,
+    bids_sidecar_inject,
+    bids_qr_inject,
 )
 
 # Register all CLI commands

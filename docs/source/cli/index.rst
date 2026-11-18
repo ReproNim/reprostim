@@ -9,7 +9,8 @@ Command-Line Interface
 
     reprostim
     bids-inject
-    bids-inject-sidecar
+    bids-qr-inject
+    bids-sidecar-inject
     detect-noscreen
     list-displays
     monitor-displays

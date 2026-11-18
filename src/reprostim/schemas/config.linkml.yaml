@@ -52,7 +52,7 @@ classes:
     slots:
       - reprostim
       - bids_inject
-      - bids_inject_sidecar
+      - bids_sidecar_inject
       - detect_noscreen
       - echo
       - list_displays
@@ -114,8 +114,8 @@ slots:
 
   # --- sub-command stubs (any content, schema TBD) ---------------------
 
-  bids_inject_sidecar:
-    description: Options of the "bids-inject-sidecar" command (schema TBD, any content allowed).
+  bids_sidecar_inject:
+    description: Options of the "bids-sidecar-inject" command (schema TBD, any content allowed).
     range: CommandStubConfig
 
   detect_noscreen:

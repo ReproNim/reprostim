@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Tests for reprostim.bids.inject_sidecar."""
+"""Tests for reprostim.bids.sidecar_inject."""
 
 import json
 from unittest.mock import patch
@@ -11,8 +11,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from reprostim.bids.inject_sidecar import (
-    BisContext,
+from reprostim.bids.sidecar_inject import (
+    BsiContext,
     ConflictPolicy,
     OverwriteMode,
     _do_sidecar,
@@ -23,7 +23,7 @@ from reprostim.bids.inject_sidecar import (
     _warn,
     do_main,
 )
-from reprostim.cli.cmd_bids_inject_sidecar import bids_inject_sidecar
+from reprostim.cli.cmd_bids_sidecar_inject import bids_sidecar_inject
 
 # ===========================================================================
 # OverwriteMode / ConflictPolicy
@@ -41,12 +41,12 @@ def test_conflict_policy_members():
 
 
 # ===========================================================================
-# BisContext
+# BsiContext
 # ===========================================================================
 
 
-def test_biscontext_defaults():
-    ctx = BisContext()
+def test_bsicontext_defaults():
+    ctx = BsiContext()
     assert ctx.mode == OverwriteMode.UPDATE
     assert ctx.conflict_policy == ConflictPolicy.ERROR
     assert ctx.videos_tsv is None
@@ -57,8 +57,8 @@ def test_biscontext_defaults():
     assert ctx.ext_props == {}
 
 
-def test_biscontext_custom_values():
-    ctx = BisContext(
+def test_bsicontext_custom_values():
+    ctx = BsiContext(
         mode=OverwriteMode.REPLACE,
         conflict_policy=ConflictPolicy.OVERWRITE,
         videos_tsv="videos.tsv",
@@ -142,18 +142,18 @@ def test_parse_ext_props_empty_meta_raises():
 
 def test_error_calls_out_func_with_prefix():
     msgs = []
-    ctx = BisContext(out_func=msgs.append)
+    ctx = BsiContext(out_func=msgs.append)
     _error(ctx, "something broke")
     assert msgs == ["Error: something broke"]
 
 
 def test_error_no_out_func_does_not_raise():
-    ctx = BisContext(out_func=None)
+    ctx = BsiContext(out_func=None)
     _error(ctx, "something broke")  # should not raise
 
 
 def test_error_returns_none():
-    ctx = BisContext(out_func=lambda m: None)
+    ctx = BsiContext(out_func=lambda m: None)
     assert _error(ctx, "x") is None
 
 
@@ -164,20 +164,20 @@ def test_error_returns_none():
 
 def test_verbose_reports_when_verbose_true():
     msgs = []
-    ctx = BisContext(verbose=True, out_func=msgs.append)
+    ctx = BsiContext(verbose=True, out_func=msgs.append)
     _verbose(ctx, "detail")
     assert msgs == ["detail"]
 
 
 def test_verbose_silent_when_verbose_false():
     msgs = []
-    ctx = BisContext(verbose=False, out_func=msgs.append)
+    ctx = BsiContext(verbose=False, out_func=msgs.append)
     _verbose(ctx, "detail")
     assert msgs == []
 
 
 def test_verbose_no_out_func_does_not_raise():
-    ctx = BisContext(verbose=True, out_func=None)
+    ctx = BsiContext(verbose=True, out_func=None)
     _verbose(ctx, "detail")  # should not raise
 
 
@@ -188,18 +188,18 @@ def test_verbose_no_out_func_does_not_raise():
 
 def test_warn_calls_out_func_with_prefix_regardless_of_verbose():
     msgs = []
-    ctx = BisContext(verbose=False, out_func=msgs.append)
+    ctx = BsiContext(verbose=False, out_func=msgs.append)
     _warn(ctx, "heads up")
     assert msgs == ["Warn: heads up"]
 
 
 def test_warn_no_out_func_does_not_raise():
-    ctx = BisContext(out_func=None)
+    ctx = BsiContext(out_func=None)
     _warn(ctx, "heads up")  # should not raise
 
 
 def test_warn_returns_none():
-    ctx = BisContext(out_func=lambda m: None)
+    ctx = BsiContext(out_func=lambda m: None)
     assert _warn(ctx, "x") is None
 
 
@@ -207,8 +207,8 @@ def test_warn_returns_none():
 # _do_sidecar
 # ===========================================================================
 
-_FFPROBE_PATCH = "reprostim.bids.inject_sidecar.bids_properties_from_ffprobe"
-_VIDEO_AUDIT_PATCH = "reprostim.bids.inject_sidecar.bids_properties_from_video_audit"
+_FFPROBE_PATCH = "reprostim.bids.sidecar_inject.bids_properties_from_ffprobe"
+_VIDEO_AUDIT_PATCH = "reprostim.bids.sidecar_inject.bids_properties_from_video_audit"
 
 
 def test_do_sidecar_invalid_media_file_strict_reports_error_and_returns_false(
@@ -220,7 +220,7 @@ def test_do_sidecar_invalid_media_file_strict_reports_error_and_returns_false(
     path = tmp_path / "randomname.xyz"
     path.touch()
     msgs = []
-    ctx = BisContext(strict=True, out_func=msgs.append)
+    ctx = BsiContext(strict=True, out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH) as mock_ffprobe:
         result = _do_sidecar(ctx, str(path))
@@ -239,7 +239,7 @@ def test_do_sidecar_invalid_media_file_non_strict_warns_and_continues(
     path.touch()
     sidecar_path = path.with_suffix(".json")
     msgs = []
-    ctx = BisContext(out_func=msgs.append)
+    ctx = BsiContext(out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -254,7 +254,7 @@ def test_do_sidecar_fresh_write(tmp_path):
     path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     path.touch()
     sidecar_path = path.with_suffix(".json")
-    ctx = BisContext()
+    ctx = BsiContext()
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -269,7 +269,7 @@ def test_do_sidecar_videos_tsv_uses_video_audit_not_ffprobe(tmp_path):
     path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     path.touch()
     sidecar_path = path.with_suffix(".json")
-    ctx = BisContext(videos_tsv=str(tmp_path / "videos.tsv"))
+    ctx = BsiContext(videos_tsv=str(tmp_path / "videos.tsv"))
 
     with patch(
         _VIDEO_AUDIT_PATCH, return_value={"AudioCodec": "aac"}
@@ -289,7 +289,7 @@ def test_do_sidecar_videos_tsv_failure_falls_back_to_ffprobe(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     msgs = []
-    ctx = BisContext(videos_tsv=str(tmp_path / "videos.tsv"), out_func=msgs.append)
+    ctx = BsiContext(videos_tsv=str(tmp_path / "videos.tsv"), out_func=msgs.append)
 
     with patch(_VIDEO_AUDIT_PATCH, side_effect=RuntimeError("boom")), patch(
         _FFPROBE_PATCH, return_value={"AudioCodec": "aac"}
@@ -307,7 +307,7 @@ def test_do_sidecar_no_videos_tsv_uses_ffprobe_only(tmp_path):
     consulted (unchanged, ffprobe-only behavior)."""
     path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     path.touch()
-    ctx = BisContext()
+    ctx = BsiContext()
 
     with patch(_VIDEO_AUDIT_PATCH) as mock_va, patch(
         _FFPROBE_PATCH, return_value={"AudioCodec": "aac"}
@@ -321,7 +321,7 @@ def test_do_sidecar_ext_props_override_extracted_fields(tmp_path):
     path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     path.touch()
     sidecar_path = path.with_suffix(".json")
-    ctx = BisContext(ext_props={"AudioCodec": "override"})
+    ctx = BsiContext(ext_props={"AudioCodec": "override"})
 
     with patch(
         _FFPROBE_PATCH, return_value={"AudioCodec": "aac", "VideoCodec": "h264"}
@@ -337,7 +337,7 @@ def test_do_sidecar_update_mode_preserves_unrelated_existing_keys(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"CustomField": "keep-me"}))
-    ctx = BisContext(mode=OverwriteMode.UPDATE)
+    ctx = BsiContext(mode=OverwriteMode.UPDATE)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -352,7 +352,7 @@ def test_do_sidecar_replace_mode_discards_unrelated_existing_keys(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"CustomField": "should-vanish"}))
-    ctx = BisContext(mode=OverwriteMode.REPLACE)
+    ctx = BsiContext(mode=OverwriteMode.REPLACE)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -367,7 +367,7 @@ def test_do_sidecar_no_conflict_when_new_value_matches_existing(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"AudioCodec": "aac"}))
-    ctx = BisContext()
+    ctx = BsiContext()
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -381,7 +381,7 @@ def test_do_sidecar_no_conflict_when_existing_is_na(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"AudioCodec": "n/a"}))
-    ctx = BisContext()
+    ctx = BsiContext()
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -396,7 +396,7 @@ def test_do_sidecar_conflict_error_policy_aborts_without_writing(tmp_path):
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"AudioCodec": "aac"}))
     msgs = []
-    ctx = BisContext(conflict_policy=ConflictPolicy.ERROR, out_func=msgs.append)
+    ctx = BsiContext(conflict_policy=ConflictPolicy.ERROR, out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "totallydifferent"}):
         result = _do_sidecar(ctx, str(path))
@@ -413,7 +413,7 @@ def test_do_sidecar_conflict_overwrite_policy_writes_and_warns(tmp_path):
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"AudioCodec": "aac"}))
     msgs = []
-    ctx = BisContext(
+    ctx = BsiContext(
         conflict_policy=ConflictPolicy.OVERWRITE, verbose=True, out_func=msgs.append
     )
 
@@ -432,7 +432,7 @@ def test_do_sidecar_real_downgrade_to_na_is_conflict_under_error_policy(tmp_path
     path.touch()
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text(json.dumps({"AudioCodec": "aac"}))
-    ctx = BisContext(conflict_policy=ConflictPolicy.ERROR)
+    ctx = BsiContext(conflict_policy=ConflictPolicy.ERROR)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "n/a"}):
         result = _do_sidecar(ctx, str(path))
@@ -447,7 +447,7 @@ def test_do_sidecar_malformed_existing_json_update_mode_errors(tmp_path):
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text("{not valid json")
     msgs = []
-    ctx = BisContext(mode=OverwriteMode.UPDATE, out_func=msgs.append)
+    ctx = BsiContext(mode=OverwriteMode.UPDATE, out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -465,7 +465,7 @@ def test_do_sidecar_replace_mode_ignores_malformed_existing_json(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     sidecar_path.write_text("{not valid json")
-    ctx = BisContext(mode=OverwriteMode.REPLACE)
+    ctx = BsiContext(mode=OverwriteMode.REPLACE)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -479,7 +479,7 @@ def test_do_sidecar_dry_run_prints_and_does_not_write(tmp_path):
     path.touch()
     sidecar_path = path.with_suffix(".json")
     msgs = []
-    ctx = BisContext(dry_run=True, out_func=msgs.append)
+    ctx = BsiContext(dry_run=True, out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -492,7 +492,7 @@ def test_do_sidecar_dry_run_prints_and_does_not_write(tmp_path):
 def test_do_sidecar_dry_run_no_out_func_does_not_raise(tmp_path):
     path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     path.touch()
-    ctx = BisContext(dry_run=True, out_func=None)
+    ctx = BsiContext(dry_run=True, out_func=None)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -509,7 +509,7 @@ def test_do_sidecar_write_oserror_reports_error(tmp_path):
     sidecar_path = path.with_suffix(".json")
     sidecar_path.mkdir()
     msgs = []
-    ctx = BisContext(out_func=msgs.append)
+    ctx = BsiContext(out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = _do_sidecar(ctx, str(path))
@@ -522,7 +522,7 @@ def test_do_sidecar_verbose_reports_wrote_fields(tmp_path):
     path = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     path.touch()
     msgs = []
-    ctx = BisContext(verbose=True, out_func=msgs.append)
+    ctx = BsiContext(verbose=True, out_func=msgs.append)
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         _do_sidecar(ctx, str(path))
@@ -539,7 +539,7 @@ def test_do_sidecar_all_counts_errors_and_skips_invalid_paths(tmp_path):
     good = tmp_path / "sub-01_task-rest_recording-reprostim_video.mkv"
     good.touch()
     missing = str(tmp_path / "does-not-exist.mkv")
-    ctx = BisContext()
+    ctx = BsiContext()
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         errors = _do_sidecar_all(ctx, [str(good), missing])
@@ -554,7 +554,7 @@ def test_do_sidecar_all_counts_a_failing_existing_file(tmp_path):
     missing path."""
     bad = tmp_path / "randomname.xyz"
     bad.touch()
-    ctx = BisContext(strict=True)
+    ctx = BsiContext(strict=True)
 
     with patch(_FFPROBE_PATCH) as mock_ffprobe:
         errors = _do_sidecar_all(ctx, [str(bad)])
@@ -568,7 +568,7 @@ def test_do_sidecar_all_zero_errors_when_all_succeed(tmp_path):
     b = tmp_path / "sub-01_task-rest_recording-reprostim_audio.wav"
     a.touch()
     b.touch()
-    ctx = BisContext()
+    ctx = BsiContext()
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         errors = _do_sidecar_all(ctx, [str(a), str(b)])
@@ -783,10 +783,10 @@ def test_do_main_no_out_func_does_not_raise(tmp_path):
 
 
 # ===========================================================================
-# CLI tests (Click CliRunner) for cmd_bids_inject_sidecar
+# CLI tests (Click CliRunner) for cmd_bids_sidecar_inject
 # ===========================================================================
 
-_CLI_DO_MAIN_PATCH = "reprostim.bids.inject_sidecar.do_main"
+_CLI_DO_MAIN_PATCH = "reprostim.bids.sidecar_inject.do_main"
 
 
 @pytest.fixture()
@@ -799,27 +799,27 @@ def media_file(tmp_path):
 
 
 def test_cli_help_renders_without_error():
-    result = CliRunner().invoke(bids_inject_sidecar, ["--help"])
+    result = CliRunner().invoke(bids_sidecar_inject, ["--help"])
     assert result.exit_code == 0
     assert "Usage" in result.output
 
 
 def test_cli_missing_files_argument_nonzero_exit():
-    result = CliRunner().invoke(bids_inject_sidecar, [])
+    result = CliRunner().invoke(bids_sidecar_inject, [])
     assert result.exit_code != 0
     assert "missing" in result.output.lower()
 
 
 def test_cli_nonexistent_file_argument_nonzero_exit(tmp_path):
     missing = str(tmp_path / "does-not-exist.mkv")
-    result = CliRunner().invoke(bids_inject_sidecar, [missing])
+    result = CliRunner().invoke(bids_sidecar_inject, [missing])
     assert result.exit_code != 0
     assert "does not exist" in result.output.lower()
 
 
 def test_cli_unknown_mode_value_errors(media_file):
     result = CliRunner().invoke(
-        bids_inject_sidecar, ["--mode", "bogus", str(media_file)]
+        bids_sidecar_inject, ["--mode", "bogus", str(media_file)]
     )
     assert result.exit_code != 0
     assert "invalid choice" in result.output.lower() or "invalid value" in (
@@ -829,7 +829,7 @@ def test_cli_unknown_mode_value_errors(media_file):
 
 def test_cli_unknown_existing_different_value_errors(media_file):
     result = CliRunner().invoke(
-        bids_inject_sidecar, ["--existing-different", "bogus", str(media_file)]
+        bids_sidecar_inject, ["--existing-different", "bogus", str(media_file)]
     )
     assert result.exit_code != 0
     assert "invalid choice" in result.output.lower() or "invalid value" in (
@@ -840,7 +840,7 @@ def test_cli_unknown_existing_different_value_errors(media_file):
 def test_cli_nonexistent_videos_path_nonzero_exit(media_file, tmp_path):
     missing_videos = str(tmp_path / "videos.tsv")
     result = CliRunner().invoke(
-        bids_inject_sidecar, ["--videos", missing_videos, str(media_file)]
+        bids_sidecar_inject, ["--videos", missing_videos, str(media_file)]
     )
     assert result.exit_code != 0
     assert "does not exist" in result.output.lower()
@@ -849,7 +849,7 @@ def test_cli_nonexistent_videos_path_nonzero_exit(media_file, tmp_path):
 def test_cli_multiple_add_options_accumulate(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
         CliRunner().invoke(
-            bids_inject_sidecar,
+            bids_sidecar_inject,
             [
                 "--add",
                 "TaskName=rest",
@@ -872,7 +872,7 @@ def test_cli_files_passed_as_list_to_do_main(tmp_path):
     b.touch()
 
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(a), str(b)])
+        CliRunner().invoke(bids_sidecar_inject, [str(a), str(b)])
 
     mock_dm.assert_called_once()
     assert mock_dm.call_args.kwargs["files"] == [str(a), str(b)]
@@ -880,61 +880,61 @@ def test_cli_files_passed_as_list_to_do_main(tmp_path):
 
 def test_cli_mode_default_passed_to_do_main(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["mode"] == "update"
 
 
 def test_cli_mode_custom_passed_to_do_main(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, ["-m", "replace", str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, ["-m", "replace", str(media_file)])
     assert mock_dm.call_args.kwargs["mode"] == "replace"
 
 
 def test_cli_existing_different_default_passed_to_do_main(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["existing_different"] == "error"
 
 
 def test_cli_existing_different_custom_passed_to_do_main(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, ["-e", "overwrite", str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, ["-e", "overwrite", str(media_file)])
     assert mock_dm.call_args.kwargs["existing_different"] == "overwrite"
 
 
 def test_cli_strict_flag_default_false(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["strict"] is False
 
 
 def test_cli_strict_flag_set_true(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, ["-s", str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, ["-s", str(media_file)])
     assert mock_dm.call_args.kwargs["strict"] is True
 
 
 def test_cli_dry_run_flag_default_false(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["dry_run"] is False
 
 
 def test_cli_dry_run_flag_set_true(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, ["-d", str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, ["-d", str(media_file)])
     assert mock_dm.call_args.kwargs["dry_run"] is True
 
 
 def test_cli_verbose_flag_default_false(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["verbose"] is False
 
 
 def test_cli_verbose_flag_set_true(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, ["-v", str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, ["-v", str(media_file)])
     assert mock_dm.call_args.kwargs["verbose"] is True
 
 
@@ -944,32 +944,32 @@ def test_cli_videos_option_passed_to_do_main(media_file, tmp_path):
 
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
         CliRunner().invoke(
-            bids_inject_sidecar, ["-f", str(videos_tsv), str(media_file)]
+            bids_sidecar_inject, ["-f", str(videos_tsv), str(media_file)]
         )
     assert mock_dm.call_args.kwargs["videos"] == str(videos_tsv)
 
 
 def test_cli_videos_default_none(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["videos"] is None
 
 
 def test_cli_out_func_is_click_echo(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0) as mock_dm:
-        CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert mock_dm.call_args.kwargs["out_func"] is click.echo
 
 
 def test_cli_verbose_prints_completion_summary(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0):
-        result = CliRunner().invoke(bids_inject_sidecar, ["-v", str(media_file)])
+        result = CliRunner().invoke(bids_sidecar_inject, ["-v", str(media_file)])
     assert "completed in" in result.output
 
 
 def test_cli_non_verbose_omits_completion_summary(media_file):
     with patch(_CLI_DO_MAIN_PATCH, return_value=0):
-        result = CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        result = CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
     assert "completed in" not in result.output
 
 
@@ -978,7 +978,7 @@ def test_cli_non_verbose_omits_completion_summary(media_file):
 
 def test_cli_end_to_end_success_exit_code_zero(media_file):
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
-        result = CliRunner().invoke(bids_inject_sidecar, [str(media_file)])
+        result = CliRunner().invoke(bids_sidecar_inject, [str(media_file)])
 
     assert result.exit_code == 0
     assert json.loads(media_file.with_suffix(".json").read_text()) == {
@@ -991,7 +991,7 @@ def test_cli_end_to_end_strict_invalid_file_nonzero_exit(tmp_path):
     bad.touch()
 
     with patch(_FFPROBE_PATCH) as mock_ffprobe:
-        result = CliRunner().invoke(bids_inject_sidecar, ["--strict", str(bad)])
+        result = CliRunner().invoke(bids_sidecar_inject, ["--strict", str(bad)])
 
     assert result.exit_code != 0
     mock_ffprobe.assert_not_called()
@@ -1006,7 +1006,7 @@ def test_cli_end_to_end_one_bad_file_does_not_stop_batch(tmp_path):
 
     with patch(_FFPROBE_PATCH, return_value={"AudioCodec": "aac"}):
         result = CliRunner().invoke(
-            bids_inject_sidecar, ["--strict", str(bad), str(good)]
+            bids_sidecar_inject, ["--strict", str(bad), str(good)]
         )
 
     assert result.exit_code != 0
