@@ -1,0 +1,245 @@
+# SPDX-FileCopyrightText: 2020-2026 ReproNim ReproStim Team <reprostim@repronim.org>
+#
+# SPDX-License-Identifier: MIT
+
+import logging
+import os
+import time
+
+import click
+
+# setup logging
+logger = logging.getLogger(__name__)
+
+
+@click.command(
+    help="Inject QR code-based timing metadata into ReproStim media "
+    "rows of a BIDS dataset (run after bids-inject)."
+)
+@click.argument(
+    "paths",
+    nargs=-1,
+    required=True,
+    type=click.Path(exists=True),
+)
+@click.option(
+    "-f",
+    "--videos",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    required=True,
+    help="Path to videos.tsv produced by video-audit. Video file paths in the TSV "
+    "are resolved relative to this file's location.",
+)
+@click.option(
+    "-d",
+    "--dataset",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=".",
+    show_default=True,
+    help="Home directory of the BIDS dataset being injected into "
+    "(e.g. contains scans.json). Defaults to the current directory.",
+)
+@click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="When a directory is given in PATHS, recurse into subdirectories to find "
+    "all ``*_scans.tsv`` files.",
+)
+@click.option(
+    "-t",
+    "--time-offset",
+    type=float,
+    default=0.0,
+    show_default=True,
+    help="Clock offset in seconds to add to BIDS scans for security reasons. "
+    "Applied after timezone normalization.",
+)
+@click.option(
+    "-l",
+    "--layout",
+    type=click.Choice(["nearby", "top-stimuli"], case_sensitive=False),
+    default="nearby",
+    show_default=True,
+    help="Output file placement layout within the BIDS dataset. "
+    "'nearby': place output next to the corresponding NIfTI in "
+    "the same datatype folder. 'top-stimuli': place output under "
+    "a top-level stimuli/ directory mirroring the hierarchy.",
+)
+@click.option(
+    "-z",
+    "--reprostim-timezone",
+    type=str,
+    default="local",
+    show_default=True,
+    help="Timezone for naive ReproStim timestamps in videos.tsv. "
+    "Use 'local' for the OS system timezone, or an IANA name "
+    "(e.g. 'America/New_York', 'UTC') for explicit, reproducible results.",
+)
+@click.option(
+    "-Z",
+    "--bids-timezone",
+    type=str,
+    default="local",
+    show_default=True,
+    help="Timezone for naive BIDS acq_time values in _scans.tsv. "
+    "Use 'local' or an IANA name (e.g. 'UTC'). "
+    "Defaults to 'local'; set explicitly when the DICOM exporter "
+    "uses a different clock than the ReproStim capture machine.",
+)
+@click.option(
+    "-m",
+    "--match",
+    type=str,
+    default=".*",
+    show_default=True,
+    help="Regular expression matched against the filename field of each scan record. "
+    "Only matching records are processed; all others are skipped. "
+    "Default '.*' matches every record. Example: 'func/' to process "
+    "functional scans only.",
+)
+@click.option(
+    "-i",
+    "--ignore-path",
+    "ignore_paths",
+    multiple=True,
+    type=str,
+    help="File, directory or glob pattern to skip, relative to the --dataset "
+    "directory (e.g. 'sub-01/ses-01' or '*/func/*_task-rest_*'). Ignoring a "
+    "directory ignores everything under it. Can be repeated.",
+)
+@click.option(
+    "-n",
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Analyse BIDS data and resolve matches but do not call split-video or "
+    "write any output files. Prints what would be done to stdout.",
+)
+@click.option(
+    "-w",
+    "--overwrite",
+    type=click.Choice(["skip", "force", "always", "error"], case_sensitive=False),
+    default="skip",
+    show_default=True,
+    help="Policy for handling existing output files. "
+    "'skip': skip the scan if output already exists (default). "
+    "'force': remove existing file/symlink then re-inject (handles git-annex). "
+    "'always': run split-video as-is without an existence check. "
+    "'error': treat existing output as an error.",
+)
+@click.option(
+    "-k",
+    "--lock",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    default="yes",
+    show_default=True,
+    help="Whether to acquire the advisory file lock (videos.tsv.lock) before "
+    "reading videos.tsv. Use 'no' for dirty-read mode when the lock is held "
+    "by a different OS user.",
+)
+@click.option(
+    "-M",
+    "--metadata-only",
+    is_flag=True,
+    default=False,
+    help="Refresh _scans.tsv/scans.json annotations for already-generated media "
+    "without touching the .mkv/sidecar .json. Errors on any scan whose media "
+    "file does not already exist. Ignores --overwrite. ",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Enable verbose output.",
+)
+@click.pass_context
+def bids_qr_inject(
+    ctx,
+    paths: tuple,
+    videos: str,
+    dataset: str,
+    recursive: bool,
+    time_offset: float,
+    layout: str,
+    reprostim_timezone: str,
+    bids_timezone: str,
+    match: str,
+    ignore_paths: tuple,
+    dry_run: bool,
+    overwrite: str,
+    lock: str,
+    metadata_only: bool,
+    verbose: bool,
+):
+    """Inject QR code-based timing metadata into a BIDS dataset.
+
+    Updates the ``qr_*`` columns of ReproStim media rows previously
+    injected by ``bids-inject``.
+
+    PATHS can be one or more of:
+    - a _scans.tsv file (processed directly)
+    - a session directory (searched for ``*_scans.tsv`` files)
+    - a dataset/subject root directory (searched recursively with --recursive)
+    """
+
+    from ..bids.inject import InjectMode, do_main, dt_tz_label
+
+    logger.debug("bids_qr_inject(...)")
+    logger.debug(f"Working dir    : {os.getcwd()}")
+    logger.info(f"PATHS          : {paths}")
+    logger.info(f"videos.tsv     : {videos}")
+    logger.info(f"Dataset home   : {dataset}")
+    logger.info(f"Recursive      : {recursive}")
+    logger.info(f"Time offset    : {time_offset}")
+    logger.info(f"Layout         : {layout}")
+    logger.info(
+        f"ReproStim TZ   : {reprostim_timezone} ({dt_tz_label(reprostim_timezone)})"
+    )
+    logger.info(f"BIDS TZ        : {bids_timezone} ({dt_tz_label(bids_timezone)})")
+    logger.info(f"Match          : {match}")
+    logger.info(f"Ignore paths   : {ignore_paths}")
+    logger.info(f"Dry-run        : {dry_run}")
+    logger.info(f"Overwrite      : {overwrite}")
+    logger.info(f"Lock           : {lock}")
+    logger.info(f"Metadata-only  : {metadata_only}")
+    logger.info(f"Verbose        : {verbose}")
+
+    start_time_sec = time.time()
+
+    res = do_main(
+        inject_mode=InjectMode.QR,
+        paths=list(paths),
+        videos_tsv=videos,
+        dataset_home=dataset,
+        recursive=recursive,
+        match=match,
+        ignore_paths=list(ignore_paths),
+        # not applicable to QR injection, pass bids-inject defaults
+        buffer_before="0",
+        buffer_after="0",
+        buffer_policy="flexible",
+        time_offset=time_offset,
+        qr="none",
+        layout=layout,
+        reprostim_timezone=reprostim_timezone,
+        bids_timezone=bids_timezone,
+        dry_run=dry_run,
+        overwrite=overwrite,
+        lock=lock.lower() != "no",
+        metadata_only=metadata_only,
+        verbose=verbose,
+        out_func=click.echo,
+    )
+
+    elapsed_sec = round(time.time() - start_time_sec, 1)
+    logger.debug(
+        f"Command 'bids-qr-inject' completed in {elapsed_sec} sec, exit code {res}"
+    )
+    if verbose:
+        click.echo(
+            f"Command 'bids-qr-inject' completed in {elapsed_sec} sec, exit code {res}"
+        )
+    ctx.exit(res)
