@@ -6,7 +6,7 @@
 Extraction of BIDS media-file properties (sidecar-JSON-key-keyed values)
 from ffprobe results, split-video results, and in future from cached
 VaRecord (videos.tsv) rows and file paths. The single place
-bids-inject-sidecar, bids-inject, and split-video produce BIDS sidecar
+bids-sidecar-inject, bids-inject, and split-video produce BIDS sidecar
 properties from, instead of each reimplementing the
 AudioInfo/VideoInfo/SplitResult/VaRecord -> BIDS-dict mapping
 independently.
@@ -252,7 +252,7 @@ def bids_properties_from_video_audit(
     Wraps ``get_file_video_audit(path, path_tsv, cached=True,
     use_lock=False)``: prefers already-loaded, cached TSV data over
     reloading from disk, and skips the advisory file lock (dirty read) —
-    appropriate for read-mostly batch tooling (e.g. ``bids-inject-sidecar``)
+    appropriate for read-mostly batch tooling (e.g. ``bids-sidecar-inject``)
     rather than the ``video-audit`` writer itself. Falls back to auditing
     the file directly when *path* has no matching row in *path_tsv*, or
     *path_tsv* is not given/found — see

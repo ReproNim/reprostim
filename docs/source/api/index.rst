@@ -11,9 +11,9 @@ API Reference
 
    audio.audiocodes
    bids.inject
-   bids.inject_sidecar
    bids.media
    bids.properties
+   bids.sidecar_inject
    capture.disp_mon
    capture.metadata
    cli.config_model

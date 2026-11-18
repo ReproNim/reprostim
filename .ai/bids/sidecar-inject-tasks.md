@@ -1,21 +1,21 @@
-# `bids-inject-sidecar` Task List
+# `bids-sidecar-inject` Task List
 
-Tracks implementation progress against [inject-sidecar-spec.md](inject-sidecar-spec.md).
+Tracks implementation progress against [sidecar-inject-spec.md](sidecar-inject-spec.md).
 
 **Basic end-to-end logic is implemented, with automated tests at 100% statement/branch coverage**
-of both `bids/inject_sidecar.py` and `cli/cmd_bids_inject_sidecar.py`
-(`tests/bids/test_inject_sidecar.py`, 78 tests): `ffprobe`-only extraction, `--videos`/`videos.tsv`
+of both `bids/sidecar_inject.py` and `cli/cmd_bids_sidecar_inject.py`
+(`tests/bids/test_sidecar_inject.py`, 78 tests): `ffprobe`-only extraction, `--videos`/`videos.tsv`
 cache lookup (via `bids_properties_from_video_audit`, falling back to `ffprobe`), `--add` merge,
 `update`/`replace` modes, `error`/`overwrite` conflict resolution, `--strict`/non-strict
 `bmi.valid` handling, `--dry-run`, the `N processed, M written, K errors` summary, and the full
 Click CLI options layer (via `CliRunner`) all covered. **Not implemented**: `--add` declared-type
 casting.
 
-**Bug fixed while adding CLI tests:** `bids_inject_sidecar`'s `return res` never actually set the
+**Bug fixed while adding CLI tests:** `bids_sidecar_inject`'s `return res` never actually set the
 process exit code — Click discards a plain callback return value in standalone mode (see
 `click/core.py::BaseCommand.main`'s explicit comment "it's not safe to `ctx.exit(rv)` here" — it
 always calls `ctx.exit()` with no args after `invoke()` returns). Confirmed via a real subprocess
-run: `bids-inject-sidecar --strict <bad-file>` reported `1 errors` in its own summary line but
+run: `bids-sidecar-inject --strict <bad-file>` reported `1 errors` in its own summary line but
 exited `0`. Fixed to `if res: ctx.exit(res)`, matching the convention already used in
 `cmd_audit.py`. `cmd_split.py` has the identical `return res` pattern and is likely
 affected too, but that's out of scope here — not touched.
@@ -24,7 +24,7 @@ affected too, but that's out of scope here — not touched.
 
 ## CLI Options
 
-All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `_do_sidecar`
+All defined in `cli/cmd_bids_sidecar_inject.py`; `-f/--videos` is consulted by `_do_sidecar`
 (see `--videos` cache lookup section below).
 
 - [x] `FILE1 [FILE2 ...]` argument — one or more audio/video files, at least one required
@@ -46,21 +46,21 @@ All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `
 
 ### Enum types / context (implemented)
 - [x] `OverwriteMode(str, Enum)` — `REPLACE`/`UPDATE`, backs `--mode`. Defined in
-      `bids/inject_sidecar.py`, scoped to this command only — distinct from `bids/inject.py`'s
+      `bids/sidecar_inject.py`, scoped to this command only — distinct from `bids/inject.py`'s
       own, differently-scoped `OverwriteMode` (same name, different module, different meaning;
       see spec note)
 - [x] `ConflictPolicy(str, Enum)` — `ERROR`/`OVERWRITE`, backs `--existing-different`
-- [x] `BisContext` carries them as `mode: OverwriteMode` and `conflict_policy: ConflictPolicy`
+- [x] `BsiContext` carries them as `mode: OverwriteMode` and `conflict_policy: ConflictPolicy`
       fields, defaulting to `UPDATE`/`ERROR`
-- [x] `BisContext` also carries `videos_tsv: Optional[str]`, `strict: bool` (default `False`),
+- [x] `BsiContext` also carries `videos_tsv: Optional[str]`, `strict: bool` (default `False`),
       `dry_run: bool`, `verbose: bool`, `out_func: Optional[Callable]` — mirrors
       `bids/inject.py::BiContext`'s field naming/style
-- [x] `BisContext.ext_props: Dict[str, Any]` — parsed `--add` result, see `--add` parsing section
+- [x] `BsiContext.ext_props: Dict[str, Any]` — parsed `--add` result, see `--add` parsing section
       below
 - [x] `do_main` converts the CLI's plain `mode`/`existing_different` strings into these enums,
       parses `add_meta` via `_parse_ext_props` (fatal-before-processing on error), and passes
       `videos`/`dry_run`/`verbose`/`out_func`/`ext_props` straight through, when constructing
-      `BisContext`
+      `BsiContext`
 - [ ] CLI options (`-m/--mode`, `-e/--existing-different`) still just plain `click.Choice` strings
       passed through to `do_main` — not yet themselves enum-typed at the Click layer (matches the
       `bids/inject.py` convention of converting str → enum only at the core-logic boundary)
@@ -80,7 +80,7 @@ All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `
 - [x] Renamed to `ImageWidth`/`ImageHeight`/`ImagePixelFormat`/`ImageBitDepth` per BEP044 —
       done in `bids_properties_from_split_result` (formerly `split.py::_to_bids_model`),
       coordinated with `bids/inject.py::_call_split_video` adopting `bids_properties_from_ffprobe`;
-      not yet propagated to `bids-inject-sidecar` itself since `_do_sidecar` isn't implemented yet
+      not yet propagated to `bids-sidecar-inject` itself since `_do_sidecar` isn't implemented yet
 
 ### `--add` parsing (implemented: `_parse_ext_props`)
 - [x] Parse `--add META=VALUE` into a dict; error (`ValueError`) on malformed input (no `=` and
@@ -93,7 +93,7 @@ All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `
 - [x] Multiple `--add` entries merge in order, later keys win on conflict (`dict.update()`)
 - [x] `do_main` catches `_parse_ext_props`'s `ValueError`, reports via `out_func`/`logger.error`,
       returns `1` before any file is processed
-- [x] `BisContext.ext_props: Dict[str, Any]` holds the parsed result, populated in `do_main`
+- [x] `BsiContext.ext_props: Dict[str, Any]` holds the parsed result, populated in `do_main`
 - [ ] Cast to declared type for known BIDS fields (`int`, `float`, passthrough `str`) — **not
       implemented**; JSON-based parsing above already handles the common numeric/bool/null case
       without a field-type table, but does not validate/enforce a *specific* known field's
@@ -187,36 +187,36 @@ All defined in `cli/cmd_bids_inject_sidecar.py`; `-f/--videos` is consulted by `
 
 ## Documentation
 
-- [x] `bids-inject-sidecar` added to RTD CLI index (`docs/source/cli/bids-inject-sidecar.rst`,
+- [x] `bids-sidecar-inject` added to RTD CLI index (`docs/source/cli/bids-sidecar-inject.rst`,
       referenced from `docs/source/cli/index.rst`)
-- [x] `bids-inject-sidecar` added to RTD API reference (`docs/source/api/index.rst` →
-      `bids.inject_sidecar`)
-- [x] `cmd_bids_inject_sidecar.py` cross-referenced from `.ai/context.md` CLI module list
-- [x] `inject_sidecar.py` / `media.py` cross-referenced from `.ai/context.md` `bids/` module list
+- [x] `bids-sidecar-inject` added to RTD API reference (`docs/source/api/index.rst` →
+      `bids.sidecar_inject`)
+- [x] `cmd_bids_sidecar_inject.py` cross-referenced from `.ai/context.md` CLI module list
+- [x] `sidecar_inject.py` / `media.py` cross-referenced from `.ai/context.md` `bids/` module list
       *(module moved from `qr/` to `bids/` since this item was written)*
 
 ---
 
 ## Tests and Code Coverage
 
-Test file: `tests/bids/test_inject_sidecar.py` — **78 tests total** (52 core-logic tests + 26 CLI
-tests, see below), **100% statement/branch coverage of both `bids/inject_sidecar.py` and
-`cli/cmd_bids_inject_sidecar.py`**
-(`pytest --cov=reprostim.bids.inject_sidecar --cov=reprostim.cli.cmd_bids_inject_sidecar --cov-report=term-missing`).
+Test file: `tests/bids/test_sidecar_inject.py` — **78 tests total** (52 core-logic tests + 26 CLI
+tests, see below), **100% statement/branch coverage of both `bids/sidecar_inject.py` and
+`cli/cmd_bids_sidecar_inject.py`**
+(`pytest --cov=reprostim.bids.sidecar_inject --cov=reprostim.cli.cmd_bids_sidecar_inject --cov-report=term-missing`).
 Uses real filenames with valid/invalid BIDS suffixes for `parse_bids_media_info` (no mocking
 needed — it's pure path parsing) and real `tmp_path` files for sidecar read/write; only
 `bids_properties_from_ffprobe` is mocked (patched at
-`reprostim.bids.inject_sidecar.bids_properties_from_ffprobe`), matching the codebase convention
+`reprostim.bids.sidecar_inject.bids_properties_from_ffprobe`), matching the codebase convention
 of never invoking real `ffprobe`/`subprocess` in unit tests.
 
 *(`bids/media.py`'s own test checklist — field table, `AudioInfo`/`VideoInfo` mapping — is
 tracked in [media-tasks.md](media-tasks.md)/[properties-tasks.md](properties-tasks.md),
 not here; this file previously had a duplicate/misplaced copy of that checklist, removed.)*
 
-### `OverwriteMode` / `ConflictPolicy` / `BisContext` (implemented)
+### `OverwriteMode` / `ConflictPolicy` / `BsiContext` (implemented)
 - [x] `OverwriteMode`/`ConflictPolicy` member values
-- [x] `BisContext` defaults
-- [x] `BisContext` with all fields explicitly set
+- [x] `BsiContext` defaults
+- [x] `BsiContext` with all fields explicitly set
 
 ### `--add` parsing (`_parse_ext_props`) (implemented)
 - [x] `META=VALUE` with a JSON-parseable `VALUE` (e.g. `RecordingDuration=3600`) → int/float/bool/
@@ -296,11 +296,11 @@ not here; this file previously had a duplicate/misplaced copy of that checklist,
 
 ### CLI tests (Click `CliRunner`) (implemented)
 
-Same file, `tests/bids/test_inject_sidecar.py`, appended `# CLI tests (Click CliRunner) for
-cmd_bids_inject_sidecar` section (26 tests; `bids_inject_sidecar` imported directly from
-`reprostim.cli.cmd_bids_inject_sidecar`, not a separate `tests/cli/` module). Most tests mock
-`do_main` at `reprostim.bids.inject_sidecar.do_main` (the point of use — `bids_inject_sidecar`
-does `from ..bids.inject_sidecar import do_main` inside the function body) and assert on
+Same file, `tests/bids/test_sidecar_inject.py`, appended `# CLI tests (Click CliRunner) for
+cmd_bids_sidecar_inject` section (26 tests; `bids_sidecar_inject` imported directly from
+`reprostim.cli.cmd_bids_sidecar_inject`, not a separate `tests/cli/` module). Most tests mock
+`do_main` at `reprostim.bids.sidecar_inject.do_main` (the point of use — `bids_sidecar_inject`
+does `from ..bids.sidecar_inject import do_main` inside the function body) and assert on
 `mock.call_args.kwargs`, matching the `tests/video/test_split.py` CLI-test convention; three
 "end-to-end" tests instead mock only `bids_properties_from_ffprobe` and let the real `do_main`
 run, to exercise the batch/exit-code behavior below through the actual Click layer.
@@ -329,8 +329,8 @@ run, to exercise the batch/exit-code behavior below through the actual Click lay
 | Module | Target | Actual |
 |---|---|---|
 | `bids/media.py` | ≥ 90% | **100%** (see media-tasks.md) |
-| `bids/inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
-| `cli/cmd_bids_inject_sidecar.py` | ≥ 80% | **100%** (statement + branch) |
+| `bids/sidecar_inject.py` | ≥ 80% | **100%** (statement + branch) |
+| `cli/cmd_bids_sidecar_inject.py` | ≥ 80% | **100%** (statement + branch) |
 
 ---
 
@@ -338,6 +338,6 @@ run, to exercise the batch/exit-code behavior below through the actual Click lay
 
 - [ ] **Image file support** — `_image` suffix, `Image*` fields already reused from video; needs still-image decode path (issue #259, explicitly deferred)
 - [ ] **Format-preserving JSON updates** — evaluate/contribute to [bids-utils](https://github.com/bids-standard/bids-utils/) (issue #259, explicitly deferred)
-- [ ] **`bids-inject`/`split-video` delegation** — have `split.py::_write_sidecar` optionally call into `bids-inject-sidecar`'s writer once merge semantics are proven
+- [ ] **`bids-inject`/`split-video` delegation** — have `split.py::_write_sidecar` optionally call into `bids-sidecar-inject`'s writer once merge semantics are proven
 - [ ] **`--videos` matching precision** — confirm plain resolved-path match is sufficient vs. time-range matching
 - [ ] **Unknown-field casting** — whether to attempt numeric auto-detection for `--add` fields outside the known BIDS table

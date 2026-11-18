@@ -15,7 +15,7 @@ dataset as:
 
 Corresponds to GitHub issue: https://github.com/ReproNim/reprostim/issues/275
 Related: #276 (dedicated media row in `_scans.tsv`), #14 (`bids-qr-sync`, date offset),
-#281 (media row `duration`), #259 ([`bids-inject-sidecar`](inject-sidecar-spec.md)),
+#281 (media row `duration`), #259 ([`bids-sidecar-inject`](sidecar-inject-spec.md)),
 [bids-utils #10](https://github.com/bids-standard/bids-utils/issues/10) (consistent date
 anonymization), BEP044 media files (bids-standard/bids-specification PR #2367).
 
@@ -267,7 +267,7 @@ real dates leak through that column (Open Question #4).
 
 | Item                                         | Notes                                                                                           |
 |----------------------------------------------|-------------------------------------------------------------------------------------------------|
-| `src/reprostim/bids/qr_inject.py`            | `do_main(...)`, `QiContext` (mirrors `BiContext`/`BisContext`), `_do_qr_inject_*` helpers.        |
+| `src/reprostim/bids/qr_inject.py`            | `do_main(...)`, `QiContext` (mirrors `BiContext`/`BsiContext`), `_do_qr_inject_*` helpers.        |
 | `src/reprostim/cli/cmd_bids_qr_inject.py`    | Click command `bids-qr-inject`; propagate the result with `ctx.exit(res)` ([exit-codes-spec.md](../cli/exit-codes-spec.md)). Registered in `entrypoint.py`. |
 | Reuse                                        | `bids/inject.py` scans model & walker (`ScanRecord`, `ScanRecordKind`), `qr/parse.py` (`QrRecord`, `qr-parse` API), `video/media_info.py` + `bids/properties.py` (duration/framecount), `bids/media.py`. If helpers are private to `inject.py`, extract the shared ones instead of duplicating. |
 | `src/reprostim/assets/bids/events.json`      | Data dictionary asset (C); `scans.json` extended (D).                                           |

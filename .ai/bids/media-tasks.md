@@ -26,7 +26,7 @@ and are tracked there, not below.
       `categories: FrozenSet[BidsMediaType]` attribute per member, sourced from the live BEP044
       Complete Metadata Properties Table; `for_category(category)` classmethod filters by category
 - [ ] Add declared value type (`int`/`float`/`str`) per `BidsMediaProperty` member (needed later
-      for `--add META=VALUE` casting in `bids-inject-sidecar`)
+      for `--add META=VALUE` casting in `bids-sidecar-inject`)
 - [x] `BidsMediaCodec(str, Enum)` — `H264` / `HEVC` / `VP9` / `AV1` / `AAC` / `MP3` / `OPUS` /
       `FLAC` / `PCM_S16LE`; value = FFmpeg codec name, `rfc6381` attribute = representative RFC
       6381 string (`None` for `PCM_S16LE`), `category: BidsMediaType` (`AUDIO`/`VIDEO`);

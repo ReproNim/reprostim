@@ -261,7 +261,7 @@
                     ],
                     "description": "Options of the \"bids-inject\" command (config section \"bids_inject\")."
                 },
-                "bids_inject_sidecar": {
+                "bids_sidecar_inject": {
                     "anyOf": [
                         {
                             "$ref": "#/$defs/CommandStubConfig"
@@ -270,7 +270,7 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Options of the \"bids-inject-sidecar\" command (schema TBD, any content allowed)."
+                    "description": "Options of the \"bids-sidecar-inject\" command (schema TBD, any content allowed)."
                 },
                 "detect_noscreen": {
                     "anyOf": [
@@ -419,7 +419,7 @@
             ],
             "description": "Options of the \"bids-inject\" command (config section \"bids_inject\")."
         },
-        "bids_inject_sidecar": {
+        "bids_sidecar_inject": {
             "anyOf": [
                 {
                     "$ref": "#/$defs/CommandStubConfig"
@@ -428,7 +428,7 @@
                     "type": "null"
                 }
             ],
-            "description": "Options of the \"bids-inject-sidecar\" command (schema TBD, any content allowed)."
+            "description": "Options of the \"bids-sidecar-inject\" command (schema TBD, any content allowed)."
         },
         "detect_noscreen": {
             "anyOf": [

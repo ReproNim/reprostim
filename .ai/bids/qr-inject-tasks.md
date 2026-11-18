@@ -45,7 +45,7 @@ need confirmation first (see spec "Open Questions / TODOs").
 ## Core logic (`bids/qr_inject.py`)
 
 ### Context / enums
-- [ ] `QiContext` (mirrors `BiContext`/`BisContext`): dataset home, `videos_tsv`, `qr` mode,
+- [ ] `QiContext` (mirrors `BiContext`/`BsiContext`): dataset home, `videos_tsv`, `qr` mode,
       `match`, `ignore_paths`, anonymization mode + offset, overwrite policy, `dry_run`,
       `verbose`, `out_func`
 - [ ] Enums for `--qr`, `--anonymize-dates` (and reuse `OverwriteMode` semantics of `bids-inject`)
@@ -106,7 +106,7 @@ need confirmation first (see spec "Open Questions / TODOs").
 - [ ] Click options layer via `CliRunner` (defaults, choices, required combinations, exit codes)
 - [ ] Small fixture data under `tests/data/` (tiny `.qrinfo.jsonl` + `_scans.tsv`; no large videos)
 - [ ] Target 100% statement/branch coverage of `bids/qr_inject.py` and `cli/cmd_bids_qr_inject.py`
-      (as for `bids-inject-sidecar`)
+      (as for `bids-sidecar-inject`)
 
 ## Future Work
 

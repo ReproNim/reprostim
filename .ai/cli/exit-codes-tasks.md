@@ -15,7 +15,7 @@ Tracks implementation progress against [exit-codes-spec.md](exit-codes-spec.md).
       failure path) and `return res` → `ctx.exit(res)` (final); also fixed the adjacent
       `logger.error()` call (was missing its required `msg` argument, which raised `TypeError`
       instead of logging)
-- [x] Confirmed already correct, no change needed: `cmd_bids_inject_sidecar.py`
+- [x] Confirmed already correct, no change needed: `cmd_bids_sidecar_inject.py`
       (`ctx.exit(res)`), `cmd_video_audit.py` (`ctx.exit(1)` / `ctx.exit(rv)`),
       `cmd_detect_noscreen.py` (`_main_exit()` helper calls `sys.exit(code)` directly),
       `cmd_echo.py` (no error path)
