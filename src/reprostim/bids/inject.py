@@ -1959,6 +1959,7 @@ def dt_bids_to_reprostim(
 
 
 def do_main(
+    inject_mode: InjectMode,
     paths: List[str],
     videos_tsv: str,
     dataset_home: str,
@@ -1985,6 +1986,12 @@ def do_main(
     Orchestrates loading of videos.tsv, discovery of ``*_scans.tsv`` files,
     per-scan matching, slicing, and injection.
 
+    :param inject_mode: Injection mode selecting which kind of data is
+        injected: ``'reprostim'`` (media slices and their ``_scans.tsv``
+        rows, ``bids-inject``) or ``'qr'`` (QR code-based timing metadata,
+        ``bids-qr-inject``). Accepts an :class:`InjectMode` or its string
+        value.
+    :type inject_mode: InjectMode
     :param paths: List of file or directory paths from the CLI ``PATHS`` argument.
     :type paths: List[str]
     :param videos_tsv: Path to ``videos.tsv`` produced by ``video-audit``.
@@ -2068,7 +2075,7 @@ def do_main(
 
     ctx: BiContext = BiContext(
         dataset_home=dataset_home,
-        inject_mode=InjectMode.REPROSTIM,
+        inject_mode=InjectMode(inject_mode),
         dry_run=dry_run,
         recursive=recursive,
         match=match,

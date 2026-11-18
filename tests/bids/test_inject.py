@@ -1078,6 +1078,7 @@ def _run(
     """Call do_main with sensible test defaults; return (exit_code, output_lines)."""
     output = []
     ret = do_main(
+        inject_mode=InjectMode.REPROSTIM,
         paths=paths,
         videos_tsv=videos_tsv,
         # videos_tsv is always written under the test's tmp_path (see
@@ -1258,6 +1259,7 @@ def test_do_main_reports_error_when_dataset_home_missing(tmp_path):
     videos_tsv = _write_videos_tsv(tmp_path, _VA_V1)
     out = []
     ret = do_main(
+        inject_mode=InjectMode.REPROSTIM,
         paths=[_SCANS_TSV],
         videos_tsv=videos_tsv,
         dataset_home=str(tmp_path / "does-not-exist"),
@@ -1289,6 +1291,7 @@ def test_do_main_reports_error_when_dataset_home_is_file(tmp_path):
     not_a_dir.write_text("")
     out = []
     ret = do_main(
+        inject_mode=InjectMode.REPROSTIM,
         paths=[_SCANS_TSV],
         videos_tsv=videos_tsv,
         dataset_home=str(not_a_dir),

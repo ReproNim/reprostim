@@ -228,7 +228,7 @@ def bids_inject(
     - a dataset/subject root directory (searched recursively with --recursive)
     """
 
-    from ..bids.inject import do_main, dt_tz_label
+    from ..bids.inject import InjectMode, do_main, dt_tz_label
 
     logger.debug("bids_inject(...)")
     logger.debug(f"Working dir    : {os.getcwd()}")
@@ -257,6 +257,7 @@ def bids_inject(
     start_time_sec = time.time()
 
     res = do_main(
+        inject_mode=InjectMode.REPROSTIM,
         paths=list(paths),
         videos_tsv=videos,
         dataset_home=dataset,
